@@ -4,8 +4,8 @@ import StyledComponentsRegistry from "@/lib/styled-components-registry";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "금정열린배움터 업무지원 플랫폼",
-  description: "금정열린배움터 업무지원 플랫폼 홈 화면",
+  title: "금정열린배움터",
+  description: "금정열린배움터 업무지원 플랫폼",
 };
 
 export default function RootLayout({
