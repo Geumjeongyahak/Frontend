@@ -1,0 +1,81 @@
+"use client";
+
+import Image from "next/image";
+import styled from "styled-components";
+import HomeCard from "@/components/home/HomeCard";
+import { colors, radii, spacing, typography } from "@/styles/tokens";
+import type { EventPhoto } from "@/types/home";
+
+type EventPhotoCardProps = {
+  photos: EventPhoto[];
+};
+
+export default function EventPhotoCard({ photos }: EventPhotoCardProps) {
+  return (
+    <Card title="행사 사진" actionLabel="더보기">
+      <PhotoGrid>
+        {photos.map((photo) => (
+          <PhotoItem key={photo.id}>
+            <Thumbnail>
+              <PhotoImage
+                src={photo.imageUrl}
+                alt={photo.title}
+                fill
+                sizes="(max-width: 768px) 100vw, 33vw"
+              />
+            </Thumbnail>
+            <PhotoTitle>{photo.title}</PhotoTitle>
+            <PhotoDate>{photo.date}</PhotoDate>
+          </PhotoItem>
+        ))}
+      </PhotoGrid>
+    </Card>
+  );
+}
+
+const Card = styled(HomeCard)`
+  height: 100%;
+`;
+
+const PhotoGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: ${spacing.space20};
+
+  @media (max-width: 37.5rem) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const PhotoItem = styled.article`
+  min-width: 0;
+`;
+
+const Thumbnail = styled.div`
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1.35 / 1;
+  margin-bottom: ${spacing.space16};
+  border: 0.0625rem solid ${colors.border};
+  border-radius: ${radii.radius15};
+  background-color: #e7e7e7;
+`;
+
+const PhotoImage = styled(Image)`
+  object-fit: cover;
+`;
+
+const PhotoTitle = styled.h3`
+  color: ${colors.text};
+  font-size: ${typography.fontSize20};
+  font-weight: 500;
+  line-height: ${typography.lineHeight150};
+`;
+
+const PhotoDate = styled.time`
+  display: inline-block;
+  margin-top: ${spacing.space8};
+  color: ${colors.muted};
+  font-size: ${typography.fontSize16};
+  line-height: ${typography.lineHeight130};
+`;
