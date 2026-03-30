@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import "./globals.css";
 import Header from "@/components/layout/Header";
+import StyledComponentsRegistry from "@/lib/styled-components-registry";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "금정열린배움터",
-  description: "금정열린배움터",
+  description: "금정열린배움터 업무지원 플랫폼",
 };
 
 export default function RootLayout({
@@ -14,8 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <Header />
-      <body>{children}</body>
+      <body>
+        <StyledComponentsRegistry>
+          <Header />
+          {children}
+        </StyledComponentsRegistry>
+      </body>
     </html>
   );
 }
