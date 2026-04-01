@@ -22,6 +22,7 @@ export const spacing = {
 };
 
 export const radii = {
+  radius12: "12px",
   radius15: "0.9375rem", // 15px
   radius20: "1.25rem", // 20px
   radius30: "1.875rem", // 30px
@@ -29,8 +30,7 @@ export const radii = {
 };
 
 export const typography = {
-  fontFamily:
-    '"Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   fontSize13: "0.8125rem", // 13px
   fontSize14: "0.875rem", // 14px
   fontSize16: "1rem", // 16px
