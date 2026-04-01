@@ -1,5 +1,6 @@
 "use client";
 
+import dayjs from "dayjs";
 import styled from "styled-components";
 import HomeCard from "@/components/home/HomeCard";
 import { colors, radii, spacing, typography } from "@/styles/tokens";
@@ -9,14 +10,19 @@ type WeeklyScheduleCardProps = {
   schedule: WeeklyScheduleDay[];
 };
 
-export default function WeeklyScheduleCard({
-  schedule,
-}: WeeklyScheduleCardProps) {
+const getMondayBasedIndex = (date = dayjs()) => {
+  const d = date.day();
+  return d === 0 ? 6 : d - 1;
+};
+
+export default function WeeklyScheduleCard({ schedule }: WeeklyScheduleCardProps) {
+  const todayIndex = getMondayBasedIndex();
+
   return (
     <Card title="주간 일정" actionLabel="전체일정 보기">
       <ScheduleGrid>
         {schedule.map((daySchedule, index) => {
-          const isHighlighted = daySchedule.day === "토";
+          const isHighlighted = index === todayIndex;
 
           return (
             <DayColumn key={daySchedule.day} $highlighted={isHighlighted}>
@@ -58,8 +64,7 @@ const ScheduleGrid = styled.div`
 const DayColumn = styled.article<{ $highlighted: boolean }>`
   min-width: 0;
   padding: ${spacing.space16};
-  border: 0.0625rem solid
-    ${({ $highlighted }) => ($highlighted ? colors.point : colors.white)};
+  border: 0.0625rem solid ${({ $highlighted }) => ($highlighted ? colors.point : colors.white)};
   border-radius: ${radii.radius15};
   background-color: ${colors.white};
 `;
