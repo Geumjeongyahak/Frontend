@@ -8,6 +8,7 @@ export const colors = {
 };
 
 export const spacing = {
+  space4: "0.25rem", // 4px
   space8: "0.5rem", // 8px
   space12: "0.75rem", // 12px
   space16: "1rem", // 16px

@@ -6,32 +6,37 @@ import LoginCard from "@/components/home/LoginCard";
 import MeetingMinutesCard from "@/components/home/MeetingMinutesCard";
 import NoticeCard from "@/components/home/NoticeCard";
 import WeeklyScheduleCard from "@/components/home/WeeklyScheduleCard";
-import {
-  eventPhotos,
-  meetingMinutes,
-  notices,
-  weeklySchedule,
-} from "@/mocks/home";
+import { eventPhotos, meetingMinutes, notices, weeklySchedule } from "@/mocks/home";
 import { colors, layout, spacing } from "@/styles/tokens";
 
 export default function HomePage() {
   return (
     <Main>
-      <ContentGrid>
-        <LoginArea>
-          <LoginCard />
-        </LoginArea>
-        <ScheduleArea>
-          <WeeklyScheduleCard schedule={weeklySchedule} />
-        </ScheduleArea>
-        <NoticeArea>
-          <NoticeCard notices={notices} />
-        </NoticeArea>
-        <RightStack>
-          <MeetingMinutesCard meetingMinutes={meetingMinutes} />
-          <EventPhotoCard photos={eventPhotos} />
-        </RightStack>
-      </ContentGrid>
+      <Content>
+        <TopRow>
+          <LoginArea>
+            <LoginCard />
+          </LoginArea>
+
+          <ScheduleArea>
+            <WeeklyScheduleCard schedule={weeklySchedule} />
+          </ScheduleArea>
+        </TopRow>
+
+        <BottomGrid>
+          <NoticeArea>
+            <NoticeCard notices={notices} />
+          </NoticeArea>
+
+          <MeetingArea>
+            <MeetingMinutesCard meetingMinutes={meetingMinutes} />
+          </MeetingArea>
+
+          <EventArea>
+            <EventPhotoCard photos={eventPhotos} />
+          </EventArea>
+        </BottomGrid>
+      </Content>
     </Main>
   );
 }
@@ -41,42 +46,46 @@ const Main = styled.main`
   background-color: ${colors.background};
 `;
 
-const ContentGrid = styled.div`
-  display: grid;
-  grid-template-columns: minmax(18rem, 0.78fr) minmax(0, 1.22fr);
-  grid-template-areas:
-    "login schedule"
-    "notice right";
-  gap: ${spacing.space24};
+const Content = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space40};
   max-width: ${layout.maxWidth};
   margin: 0 auto;
   padding: ${spacing.space40} ${spacing.space20} ${spacing.space47};
+`;
 
-  @media (max-width: ${layout.breakpointTablet}) {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "login"
-      "schedule"
-      "notice"
-      "right";
-  }
+const TopRow = styled.div`
+  display: flex;
+  min-height: 20rem;
+  gap: ${spacing.space24};
+`;
+
+const BottomGrid = styled.div`
+  display: grid;
+  grid-template-columns: 420px minmax(0, 1fr);
+  grid-template-areas:
+    "notice meeting"
+    "notice event";
+  gap: ${spacing.space24};
 `;
 
 const LoginArea = styled.div`
-  grid-area: login;
+  height: 100%;
 `;
 
 const ScheduleArea = styled.div`
-  grid-area: schedule;
+  height: 100%;
 `;
 
 const NoticeArea = styled.div`
   grid-area: notice;
 `;
 
-const RightStack = styled.div`
-  grid-area: right;
-  display: grid;
-  gap: ${spacing.space24};
-  align-content: start;
+const MeetingArea = styled.div`
+  grid-area: meeting;
+`;
+
+const EventArea = styled.div`
+  grid-area: event;
 `;

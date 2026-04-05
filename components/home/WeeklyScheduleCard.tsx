@@ -20,45 +20,41 @@ export default function WeeklyScheduleCard({ schedule }: WeeklyScheduleCardProps
 
   return (
     <Card title="주간 일정" actionLabel="전체일정 보기">
-      <ScheduleGrid>
+      <Schedule>
         {schedule.map((daySchedule, index) => {
           const isHighlighted = index === todayIndex;
 
           return (
             <DayColumn key={daySchedule.day} $highlighted={isHighlighted}>
-              <DayLabel>{daySchedule.day}</DayLabel>
+              <DayLabel $highlighted={isHighlighted}>{daySchedule.day}</DayLabel>
               <Divider />
               <ItemList>
-                {daySchedule.items.map((item) => (
+                {daySchedule.items.slice(0, 2).map((item) => (
                   <Item key={`${daySchedule.day}-${item.time}-${item.title}`}>
                     <Time>{item.time}</Time>
                     <ItemTitle>{item.title}</ItemTitle>
+                    <Divider />
                   </Item>
                 ))}
-                {index < schedule.length - 1 ? <MoreText>...</MoreText> : null}
+                {daySchedule.items.length > 2 && <MoreText>...</MoreText>}
+                <Divider />
               </ItemList>
             </DayColumn>
           );
         })}
-      </ScheduleGrid>
+      </Schedule>
     </Card>
   );
 }
 
 const Card = styled(HomeCard)`
+  width: 100%;
   height: 100%;
+  border: none;
 `;
 
-const ScheduleGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: ${spacing.space16};
-
-  @media (max-width: 80rem) {
-    grid-template-columns: repeat(7, minmax(8rem, 1fr));
-    overflow-x: auto;
-    padding-bottom: ${spacing.space8};
-  }
+const Schedule = styled.div`
+  display: flex;
 `;
 
 const DayColumn = styled.article<{ $highlighted: boolean }>`
@@ -69,8 +65,8 @@ const DayColumn = styled.article<{ $highlighted: boolean }>`
   background-color: ${colors.white};
 `;
 
-const DayLabel = styled.h3`
-  color: ${colors.muted};
+const DayLabel = styled.h3<{ $highlighted: boolean }>`
+  color: ${({ $highlighted }) => ($highlighted ? colors.point : colors.muted)};
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -79,17 +75,15 @@ const DayLabel = styled.h3`
 
 const Divider = styled.div`
   height: 0.0625rem;
-  margin: ${spacing.space12} 0 ${spacing.space12};
+  margin: ${spacing.space4} 0 ${spacing.space4};
   background-color: ${colors.border};
 `;
 
-const ItemList = styled.div`
-  display: grid;
-  gap: ${spacing.space12};
-`;
+const ItemList = styled.div``;
 
 const Item = styled.div`
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.25rem;
 `;
 
@@ -100,14 +94,10 @@ const Time = styled.span`
 `;
 
 const ItemTitle = styled.span`
-  display: -webkit-box;
-  overflow: hidden;
   color: ${colors.text};
   font-size: ${typography.fontSize14};
   font-weight: 500;
-  line-height: ${typography.lineHeight150};
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  line-height: ${typography.lineHeight130};
 `;
 
 const MoreText = styled.span`
