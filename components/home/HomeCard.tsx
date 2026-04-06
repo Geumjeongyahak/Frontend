@@ -10,12 +10,7 @@ type HomeCardProps = {
   className?: string;
 };
 
-export default function HomeCard({
-  title,
-  actionLabel,
-  children,
-  className,
-}: HomeCardProps) {
+export default function HomeCard({ title, actionLabel, children, className }: HomeCardProps) {
   return (
     <Card className={className}>
       <Header>
@@ -31,7 +26,7 @@ const cardShell = css`
   background-color: ${colors.white};
   border: 0.0625rem solid ${colors.border};
   border-radius: ${radii.radius30};
-  padding: ${spacing.space33};
+  padding: ${spacing.space28};
 `;
 
 const Card = styled.section`

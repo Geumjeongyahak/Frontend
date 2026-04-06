@@ -19,19 +19,23 @@ export default function LoginCard() {
 }
 
 const Card = styled(HomeCard)`
-  max-width: 420px;
+  min-width: 400px;
   background-color: ${colors.background};
-`;
-
-const Form = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${spacing.space16};
 `;
 
+const Form = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space40};
+`;
+
 const InputGroup = styled.div`
-  display: grid;
-  gap: ${spacing.space8};
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space12};
 `;
 
 const Input = styled.input`
@@ -58,7 +62,7 @@ const Input = styled.input`
 
 const SubmitButton = styled.button`
   width: 100%;
-  height: 3.25rem;
+  height: 3.5rem;
   border: 0;
   border-radius: ${radii.radius12};
   background-color: ${colors.point};
