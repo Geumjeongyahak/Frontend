@@ -67,15 +67,17 @@ const PhotoImage = styled(Image)`
 
 const PhotoTitle = styled.h3`
   color: ${colors.text};
-  font-size: ${typography.fontSize20};
-  font-weight: 500;
+  font-size: ${typography.fontSize18};
+  font-weight: 400;
   line-height: ${typography.lineHeight150};
+  text-overflow: ellipsis;
 `;
 
 const PhotoDate = styled.time`
   display: inline-block;
   margin-top: ${spacing.space8};
   color: ${colors.muted};
-  font-size: ${typography.fontSize16};
+  font-size: ${typography.fontSize18};
   line-height: ${typography.lineHeight130};
+  font-weight: 300;
 `;
