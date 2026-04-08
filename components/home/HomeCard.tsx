@@ -24,7 +24,6 @@ export default function HomeCard({ title, actionLabel, children, className }: Ho
 
 const cardShell = css`
   background-color: ${colors.white};
-  border: 0.0625rem solid ${colors.border};
   border-radius: ${radii.radius30};
   padding: ${spacing.space28};
 `;

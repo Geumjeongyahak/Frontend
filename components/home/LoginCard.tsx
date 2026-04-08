@@ -21,6 +21,7 @@ export default function LoginCard() {
 const Card = styled(HomeCard)`
   min-width: 400px;
   background-color: ${colors.background};
+  border: 0.0625rem solid ${colors.border};
   display: flex;
   flex-direction: column;
   gap: ${spacing.space16};
