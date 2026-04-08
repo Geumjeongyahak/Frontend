@@ -77,7 +77,7 @@ const PhotoDate = styled.time`
   display: inline-block;
   margin-top: ${spacing.space8};
   color: ${colors.muted};
-  font-size: ${typography.fontSize18};
+  font-size: ${typography.fontSize16};
   line-height: ${typography.lineHeight130};
   font-weight: 300;
 `;
