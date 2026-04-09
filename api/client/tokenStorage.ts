@@ -1,5 +1,5 @@
-const ACCESS_TOKEN_KEY = "geumjeongyahak.accessToken";
-const REFRESH_TOKEN_KEY = "geumjeongyahak.refreshToken";
+export const ACCESS_TOKEN_STORAGE_KEY = "geumjeongyahak.accessToken";
+export const REFRESH_TOKEN_STORAGE_KEY = "geumjeongyahak.refreshToken";
 
 function getStorage() {
   if (typeof window === "undefined") {
@@ -10,31 +10,35 @@ function getStorage() {
 }
 
 export function getAccessToken() {
-  return getStorage()?.getItem(ACCESS_TOKEN_KEY) ?? null;
+  return getStorage()?.getItem(ACCESS_TOKEN_STORAGE_KEY) ?? null;
 }
 
 export function getRefreshToken() {
-  return getStorage()?.getItem(REFRESH_TOKEN_KEY) ?? null;
+  return getStorage()?.getItem(REFRESH_TOKEN_STORAGE_KEY) ?? null;
+}
+
+export function setAccessToken(accessToken: string) {
+  getStorage()?.setItem(ACCESS_TOKEN_STORAGE_KEY, accessToken);
+}
+
+export function setRefreshToken(refreshToken: string) {
+  getStorage()?.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
+}
+
+export function removeAccessToken() {
+  getStorage()?.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+}
+
+export function removeRefreshToken() {
+  getStorage()?.removeItem(REFRESH_TOKEN_STORAGE_KEY);
 }
 
 export function setTokens(accessToken: string, refreshToken: string) {
-  const storage = getStorage();
-
-  if (!storage) {
-    return;
-  }
-
-  storage.setItem(ACCESS_TOKEN_KEY, accessToken);
-  storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  setAccessToken(accessToken);
+  setRefreshToken(refreshToken);
 }
 
 export function clearTokens() {
-  const storage = getStorage();
-
-  if (!storage) {
-    return;
-  }
-
-  storage.removeItem(ACCESS_TOKEN_KEY);
-  storage.removeItem(REFRESH_TOKEN_KEY);
+  removeAccessToken();
+  removeRefreshToken();
 }

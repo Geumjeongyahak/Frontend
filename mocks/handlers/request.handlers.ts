@@ -1,0 +1,252 @@
+import { HttpResponse, http, type RequestHandler } from "msw";
+
+import { API_BASE_URL, REFRESHED_ACCESS_TOKEN, VALID_ACCESS_TOKEN } from "./auth.handlers";
+
+export const ABSENCE_REQUEST_RESPONSE = {
+  id: 1,
+  lessonId: 11,
+  lessonDate: "2026-04-10",
+  requestedById: 5,
+  requestedByName: "Teacher One",
+  reason: "Family matter",
+  status: "PENDING",
+};
+
+export const PURCHASE_REQUEST_RESPONSE = {
+  id: 2,
+  subjectId: 21,
+  subjectName: "English",
+  requestedById: 5,
+  requestedByName: "Teacher One",
+  title: "Workbook",
+  content: "Need new workbook copies",
+  price: 30000,
+  status: "PENDING",
+};
+
+export const LESSON_EXCHANGE_REQUEST_RESPONSE = {
+  id: 3,
+  lessonId: 31,
+  lessonDate: "2026-04-11",
+  requestedById: 5,
+  requestedByName: "Teacher One",
+  title: "Swap lesson",
+  content: "Need coverage",
+  status: "PENDING",
+};
+
+export const SUBJECT_EXCHANGE_REQUEST_RESPONSE = {
+  id: 4,
+  subjectId: 41,
+  subjectName: "Math",
+  requestedById: 5,
+  requestedByName: "Teacher One",
+  title: "Swap subject",
+  content: "Need another teacher",
+  status: "PENDING",
+};
+
+function hasValidAuthorization(request: Request) {
+  const authorizationHeader = request.headers.get("authorization");
+  return (
+    authorizationHeader === `Bearer ${VALID_ACCESS_TOKEN}` ||
+    authorizationHeader === `Bearer ${REFRESHED_ACCESS_TOKEN}`
+  );
+}
+
+function unauthorizedWhenNeeded(request: Request) {
+  if (!hasValidAuthorization(request)) {
+    return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
+  }
+
+  return null;
+}
+
+export const requestHandlers: RequestHandler[] = [
+  http.get(`${API_BASE_URL}/api/v1/absence-requests`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? HttpResponse.json([ABSENCE_REQUEST_RESPONSE]);
+  }),
+  http.post(`${API_BASE_URL}/api/v1/absence-requests`, async ({ request }) => {
+    const unauthorizedResponse = unauthorizedWhenNeeded(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+
+    const body = (await request.json()) as { lessonId?: number; reason?: string };
+    if (!body.lessonId || !body.reason) {
+      return HttpResponse.json({ message: "Invalid absence payload" }, { status: 400 });
+    }
+
+    return HttpResponse.json({ ...ABSENCE_REQUEST_RESPONSE, ...body, id: 10 });
+  }),
+  http.get(`${API_BASE_URL}/api/v1/absence-requests/:requestId`, ({ request, params }) => {
+    return (
+      unauthorizedWhenNeeded(request) ??
+      HttpResponse.json({ ...ABSENCE_REQUEST_RESPONSE, id: Number(params.requestId) })
+    );
+  }),
+  http.patch(`${API_BASE_URL}/api/v1/absence-requests/:requestId/approve`, ({ request, params }) => {
+    return (
+      unauthorizedWhenNeeded(request) ??
+      HttpResponse.json({
+        ...ABSENCE_REQUEST_RESPONSE,
+        id: Number(params.requestId),
+        status: "APPROVED",
+      })
+    );
+  }),
+  http.patch(
+    `${API_BASE_URL}/api/v1/absence-requests/:requestId/reject`,
+    async ({ request, params }) => {
+      const unauthorizedResponse = unauthorizedWhenNeeded(request);
+      if (unauthorizedResponse) return unauthorizedResponse;
+
+      const body = (await request.json()) as { note?: string };
+      return HttpResponse.json({
+        ...ABSENCE_REQUEST_RESPONSE,
+        id: Number(params.requestId),
+        status: "REJECTED",
+        note: body.note ?? "",
+      });
+    },
+  ),
+  http.delete(`${API_BASE_URL}/api/v1/absence-requests/:requestId`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? new HttpResponse(null, { status: 204 });
+  }),
+  http.get(`${API_BASE_URL}/api/v1/purchase-requests`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? HttpResponse.json([PURCHASE_REQUEST_RESPONSE]);
+  }),
+  http.post(`${API_BASE_URL}/api/v1/purchase-requests`, async ({ request }) => {
+    const unauthorizedResponse = unauthorizedWhenNeeded(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+
+    const body = (await request.json()) as {
+      subjectId?: number;
+      title?: string;
+      content?: string;
+      price?: number;
+    };
+    return HttpResponse.json({ ...PURCHASE_REQUEST_RESPONSE, ...body, id: 20 });
+  }),
+  http.get(`${API_BASE_URL}/api/v1/purchase-requests/:requestId`, ({ request, params }) => {
+    return (
+      unauthorizedWhenNeeded(request) ??
+      HttpResponse.json({ ...PURCHASE_REQUEST_RESPONSE, id: Number(params.requestId) })
+    );
+  }),
+  http.patch(`${API_BASE_URL}/api/v1/purchase-requests/:requestId/approve`, ({ request, params }) => {
+    return (
+      unauthorizedWhenNeeded(request) ??
+      HttpResponse.json({
+        ...PURCHASE_REQUEST_RESPONSE,
+        id: Number(params.requestId),
+        status: "APPROVED",
+      })
+    );
+  }),
+  http.patch(
+    `${API_BASE_URL}/api/v1/purchase-requests/:requestId/reject`,
+    async ({ request, params }) => {
+      const unauthorizedResponse = unauthorizedWhenNeeded(request);
+      if (unauthorizedResponse) return unauthorizedResponse;
+
+      const body = (await request.json()) as { note?: string };
+      return HttpResponse.json({
+        ...PURCHASE_REQUEST_RESPONSE,
+        id: Number(params.requestId),
+        status: "REJECTED",
+        note: body.note ?? "",
+      });
+    },
+  ),
+  http.get(`${API_BASE_URL}/api/v1/lesson-exchange-requests`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? HttpResponse.json([LESSON_EXCHANGE_REQUEST_RESPONSE]);
+  }),
+  http.post(`${API_BASE_URL}/api/v1/lesson-exchange-requests`, async ({ request }) => {
+    const unauthorizedResponse = unauthorizedWhenNeeded(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+
+    const body = (await request.json()) as { lessonId?: number; title?: string; content?: string };
+    return HttpResponse.json({ ...LESSON_EXCHANGE_REQUEST_RESPONSE, ...body, id: 30 });
+  }),
+  http.get(`${API_BASE_URL}/api/v1/lesson-exchange-requests/:requestId`, ({ request, params }) => {
+    return (
+      unauthorizedWhenNeeded(request) ??
+      HttpResponse.json({ ...LESSON_EXCHANGE_REQUEST_RESPONSE, id: Number(params.requestId) })
+    );
+  }),
+  http.patch(
+    `${API_BASE_URL}/api/v1/lesson-exchange-requests/:requestId/approve`,
+    async ({ request, params }) => {
+      const unauthorizedResponse = unauthorizedWhenNeeded(request);
+      if (unauthorizedResponse) return unauthorizedResponse;
+
+      const body = (await request.json()) as { exchangeWithUserId?: number };
+      return HttpResponse.json({
+        ...LESSON_EXCHANGE_REQUEST_RESPONSE,
+        id: Number(params.requestId),
+        status: "APPROVED",
+        approvalByName: `User ${body.exchangeWithUserId}`,
+      });
+    },
+  ),
+  http.patch(
+    `${API_BASE_URL}/api/v1/lesson-exchange-requests/:requestId/reject`,
+    async ({ request, params }) => {
+      const unauthorizedResponse = unauthorizedWhenNeeded(request);
+      if (unauthorizedResponse) return unauthorizedResponse;
+
+      const body = (await request.json()) as { note?: string };
+      return HttpResponse.json({
+        ...LESSON_EXCHANGE_REQUEST_RESPONSE,
+        id: Number(params.requestId),
+        status: "REJECTED",
+        note: body.note ?? "",
+      });
+    },
+  ),
+  http.get(`${API_BASE_URL}/api/v1/subject-exchange-requests`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? HttpResponse.json([SUBJECT_EXCHANGE_REQUEST_RESPONSE]);
+  }),
+  http.post(`${API_BASE_URL}/api/v1/subject-exchange-requests`, async ({ request }) => {
+    const unauthorizedResponse = unauthorizedWhenNeeded(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+
+    const body = (await request.json()) as { subjectId?: number; title?: string; content?: string };
+    return HttpResponse.json({ ...SUBJECT_EXCHANGE_REQUEST_RESPONSE, ...body, id: 40 });
+  }),
+  http.get(`${API_BASE_URL}/api/v1/subject-exchange-requests/:requestId`, ({ request, params }) => {
+    return (
+      unauthorizedWhenNeeded(request) ??
+      HttpResponse.json({ ...SUBJECT_EXCHANGE_REQUEST_RESPONSE, id: Number(params.requestId) })
+    );
+  }),
+  http.patch(
+    `${API_BASE_URL}/api/v1/subject-exchange-requests/:requestId/approve`,
+    async ({ request, params }) => {
+      const unauthorizedResponse = unauthorizedWhenNeeded(request);
+      if (unauthorizedResponse) return unauthorizedResponse;
+
+      const body = (await request.json()) as { exchangeWithUserId?: number };
+      return HttpResponse.json({
+        ...SUBJECT_EXCHANGE_REQUEST_RESPONSE,
+        id: Number(params.requestId),
+        status: "APPROVED",
+        approvalByName: `User ${body.exchangeWithUserId}`,
+      });
+    },
+  ),
+  http.patch(
+    `${API_BASE_URL}/api/v1/subject-exchange-requests/:requestId/reject`,
+    async ({ request, params }) => {
+      const unauthorizedResponse = unauthorizedWhenNeeded(request);
+      if (unauthorizedResponse) return unauthorizedResponse;
+
+      const body = (await request.json()) as { note?: string };
+      return HttpResponse.json({
+        ...SUBJECT_EXCHANGE_REQUEST_RESPONSE,
+        id: Number(params.requestId),
+        status: "REJECTED",
+        note: body.note ?? "",
+      });
+    },
+  ),
+];
