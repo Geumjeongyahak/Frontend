@@ -1,0 +1,47 @@
+import authClient from "../client/authClient";
+import type {
+  CreateSubjectRequestDto,
+  SubjectDetailResponseDto,
+  SubjectListQueryParamsDto,
+  SubjectPathParamsDto,
+  UpdateSubjectRequestDto,
+} from "./subject.dto";
+
+// 과목 목록을 조회하는 요청
+export async function getSubjects(query?: SubjectListQueryParamsDto) {
+  const response = await authClient.get<SubjectDetailResponseDto[]>("/api/v1/subjects", {
+    params: query,
+  });
+  return response.data;
+}
+
+// 새 과목을 생성하는 요청
+export async function createSubject(body: CreateSubjectRequestDto) {
+  const response = await authClient.post<SubjectDetailResponseDto>("/api/v1/subjects", body);
+  return response.data;
+}
+
+// 특정 과목 상세 정보를 조회하는 요청
+export async function getSubjectDetail(pathParams: SubjectPathParamsDto) {
+  const response = await authClient.get<SubjectDetailResponseDto>(
+    `/api/v1/subjects/${pathParams.subjectId}`,
+  );
+  return response.data;
+}
+
+// 특정 과목 정보를 수정하는 요청
+export async function updateSubject(
+  pathParams: SubjectPathParamsDto,
+  body: UpdateSubjectRequestDto,
+) {
+  const response = await authClient.patch<SubjectDetailResponseDto>(
+    `/api/v1/subjects/${pathParams.subjectId}`,
+    body,
+  );
+  return response.data;
+}
+
+// 특정 과목을 삭제하는 요청
+export async function deleteSubject(pathParams: SubjectPathParamsDto) {
+  await authClient.delete(`/api/v1/subjects/${pathParams.subjectId}`);
+}
