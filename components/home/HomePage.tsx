@@ -63,7 +63,7 @@ const TopRow = styled.div`
 
 const BottomGrid = styled.div`
   display: grid;
-  grid-template-columns: 420px minmax(0, 1fr);
+  grid-template-columns: 600px minmax(0, 1fr);
   grid-template-areas:
     "notice meeting"
     "notice event";

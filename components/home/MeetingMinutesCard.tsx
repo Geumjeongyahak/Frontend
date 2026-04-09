@@ -9,9 +9,7 @@ type MeetingMinutesCardProps = {
   meetingMinutes: MeetingMinute[];
 };
 
-export default function MeetingMinutesCard({
-  meetingMinutes,
-}: MeetingMinutesCardProps) {
+export default function MeetingMinutesCard({ meetingMinutes }: MeetingMinutesCardProps) {
   return (
     <Card title="교직회의록" actionLabel="더보기">
       <List>
@@ -31,12 +29,13 @@ const Card = styled(HomeCard)`
 `;
 
 const List = styled.div`
-  display: grid;
+  display: flex;
+  flex-direction: column;
 `;
 
 const ListItem = styled.article`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: ${spacing.space16};
   min-height: 3rem;
@@ -46,7 +45,7 @@ const ListItem = styled.article`
 const Title = styled.h3`
   overflow: hidden;
   color: ${colors.text};
-  font-size: ${typography.fontSize20};
+  font-size: ${typography.fontSize18};
   font-weight: 400;
   line-height: ${typography.lineHeight150};
   white-space: nowrap;
@@ -57,5 +56,6 @@ const Date = styled.time`
   color: ${colors.muted};
   font-size: ${typography.fontSize18};
   line-height: ${typography.lineHeight130};
+  font-weight: 300;
   white-space: nowrap;
 `;
