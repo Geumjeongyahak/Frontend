@@ -125,8 +125,8 @@ export const weeklySchedule: WeeklyScheduleDay[] = [
     day: "토",
     items: [
       { time: "14:20", title: "봄맞이 영어수업" },
-      { time: "14:20", title: "봄맞이 영어수업" },
-      { time: "16:00", title: "주말스마트폰 활용반" },
+      { time: "16:20", title: "민들레반 수학수업" },
+      { time: "18:00", title: "주말스마트폰 활용반" },
     ],
   },
   {
