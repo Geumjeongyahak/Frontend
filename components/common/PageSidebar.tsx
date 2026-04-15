@@ -1,89 +1,70 @@
 "use client";
 
 import styled from "styled-components";
-import { useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+
+const sections = [
+  {
+    title: "수업 관리",
+    items: [
+      { label: "수업 일지", href: "/class" },
+      { label: "수업 교환 신청", href: "/class/exchange" },
+      { label: "수업 결강 신청", href: "/class/absence" },
+    ],
+  },
+  {
+    title: "재무 관리",
+    items: [{ label: "결제 신청", href: "/payment" }],
+  },
+  {
+    title: "자료실",
+    items: [
+      { label: "교칙", href: "/docs/rules" },
+      { label: "연락망", href: "/docs/contact" },
+      { label: "교학 회의록", href: "/docs/meeting" },
+      { label: "인수인계서", href: "/docs/handover" },
+      { label: "시험 문제 자료", href: "/docs/exam" },
+      { label: "서류 양식", href: "/docs/forms" },
+    ],
+  },
+  {
+    title: "게시판",
+    items: [{ label: "게시판", href: "/board" }],
+  },
+  {
+    title: "학사일정",
+    items: [{ label: "월별 일정", href: "/calendar" }],
+  },
+];
 
 export default function LeftSidebar() {
-  const [activeMenu, setActiveMenu] = useState("수업 일지");
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const isActive = (href: string) => pathname === href;
 
   return (
     <Container>
       <Header>교원</Header>
 
       <Nav>
-        <Section>
-          <SectionTitle>수업 관리</SectionTitle>
-          <Menu>
-            <MenuItem
-              active={activeMenu === "수업 일지"}
-              onClick={() => setActiveMenu("수업 일지")}
-            >
-              수업 일지
-            </MenuItem>
-            <MenuItem
-              active={activeMenu === "수업 교환 신청"}
-              onClick={() => setActiveMenu("수업 교환 신청")}
-            >
-              수업 교환 신청
-            </MenuItem>
-            <MenuItem
-              active={activeMenu === "수업 결강 신청"}
-              onClick={() => setActiveMenu("수업 결강 신청")}
-            >
-              수업 결강 신청
-            </MenuItem>
-          </Menu>
-        </Section>
+        {sections.map((section) => (
+          <Section key={section.title}>
+            <SectionTitle>{section.title}</SectionTitle>
 
-        <Section>
-          <SectionTitle>재무 관리</SectionTitle>
-          <Menu>
-            <MenuItem
-              active={activeMenu === "결제 신청"}
-              onClick={() => setActiveMenu("결제 신청")}
-            >
-              결제 신청
-            </MenuItem>
-          </Menu>
-        </Section>
-
-        <Section>
-          <SectionTitle>자료실</SectionTitle>
-          <Menu>
-            {["교칙", "연락망", "교학 회의록", "인수인계서", "시험 문제 자료", "서류 양식"].map(
-              (item) => (
+            <Menu>
+              {section.items.map((item) => (
                 <MenuItem
-                  key={item}
-                  active={activeMenu === item}
-                  onClick={() => setActiveMenu(item)}
+                  key={item.href}
+                  active={isActive(item.href)}
+                  onClick={() => router.push(item.href)}
                 >
-                  {item}
+                  {item.label}
                 </MenuItem>
-              ),
-            )}
-          </Menu>
-        </Section>
-
-        <Section>
-          <SectionTitle>게시판</SectionTitle>
-          <Menu>
-            <MenuItem active={activeMenu === "게시판"} onClick={() => setActiveMenu("게시판")}>
-              게시판
-            </MenuItem>
-          </Menu>
-        </Section>
-
-        <Section>
-          <SectionTitle>학사일정</SectionTitle>
-          <Menu>
-            <MenuItem
-              active={activeMenu === "월별 일정"}
-              onClick={() => setActiveMenu("월별 일정")}
-            >
-              월별 일정
-            </MenuItem>
-          </Menu>
-        </Section>
+              ))}
+            </Menu>
+          </Section>
+        ))}
       </Nav>
     </Container>
   );
