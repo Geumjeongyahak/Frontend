@@ -4,10 +4,11 @@
  */
 import "../../test/setup";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   ACCESS_TOKEN_STORAGE_KEY,
+  AUTH_TOKEN_CHANGE_EVENT,
   REFRESH_TOKEN_STORAGE_KEY,
   clearTokens,
   getAccessToken,
@@ -67,5 +68,18 @@ describe("tokenStorage", () => {
 
     expect(getAccessToken()).toBeNull();
     expect(getRefreshToken()).toBeNull();
+  });
+
+  it("notifies listeners when token state changes", () => {
+    const listener = vi.fn();
+
+    window.addEventListener(AUTH_TOKEN_CHANGE_EVENT, listener);
+
+    setTokens("access-token", "refresh-token");
+    clearTokens();
+
+    window.removeEventListener(AUTH_TOKEN_CHANGE_EVENT, listener);
+
+    expect(listener).toHaveBeenCalledTimes(2);
   });
 });

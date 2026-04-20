@@ -1,5 +1,6 @@
-import PageTemplate from "@/components/common/PageTemplate";
+import RegisterForm from "@/components/auth/RegisterForm";
 
 export default function Page() {
-  return <PageTemplate title="신규 등록" description="신규 등록 페이지입니다." />;
+  return <RegisterForm />;
 }
+

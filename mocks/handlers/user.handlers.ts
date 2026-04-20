@@ -50,7 +50,7 @@ export const userHandlers: RequestHandler[] = [
       return HttpResponse.json({ message: "Invalid user payload" }, { status: 400 });
     }
 
-    return HttpResponse.json({ id: 2, ...USER_DETAIL_RESPONSE, ...body });
+    return HttpResponse.json({ ...USER_DETAIL_RESPONSE, ...body, id: 2 });
   }),
   http.get(`${API_BASE_URL}/api/v1/users/me`, ({ request }) => {
     return unauthorizedWhenNeeded(request) ?? HttpResponse.json(USER_DETAIL_RESPONSE);
