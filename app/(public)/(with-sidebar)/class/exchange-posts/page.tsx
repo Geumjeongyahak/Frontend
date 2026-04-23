@@ -2,7 +2,6 @@
 
 import styled from "styled-components";
 import { useRouter } from "next/navigation";
-import PageSidebar from "@/components/common/PageSidebar";
 
 const mockRows = Array.from({ length: 9 }, (_, index) => ({
   id: index + 1,
@@ -23,7 +22,6 @@ export default function Page() {
 
   return (
     <div className="flex min-h-screen">
-      <PageSidebar />
       <main className="flex-1 p-20">
         <HeaderRow>
           <Title>수업 교환</Title>
