@@ -8,7 +8,7 @@ const sections = [
     title: "수업 관리",
     items: [
       { label: "수업 일지", href: "/class" },
-      { label: "수업 교환 신청", href: "/class/exchange" },
+      { label: "수업 교환 신청", href: "/class/exchange-posts" },
       { label: "수업 결강 신청", href: "/class/absence" },
     ],
   },

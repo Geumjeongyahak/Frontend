@@ -17,7 +17,11 @@ export default function Page() {
   const router = useRouter();
 
   const handleCreateExchangeNote = () => {
-    router.push("/class/exchange/new");
+    router.push("/class/exchange-posts/new");
+  };
+
+  const handleMoveToExchangeDetail = (id: number) => {
+    router.push(`/class/exchange-posts/${id}`);
   };
 
   return (
@@ -45,7 +49,7 @@ export default function Page() {
 
             <tbody>
               {mockRows.map((row) => (
-                <Tr key={row.id}>
+                <Tr key={row.id} onClick={() => handleMoveToExchangeDetail(row.id)}>
                   <Td width="72px">{row.no}</Td>
                   <Td width="120px">{row.className}</Td>
                   <TitleTd>{row.title}</TitleTd>
@@ -119,6 +123,11 @@ const Th = styled.th<{ width?: string }>`
 
 const Tr = styled.tr`
   border-bottom: 1px solid #a8a8a8;
+  cursor: pointer;
+
+  &:hover {
+    background: #f7f7f7;
+  }
 `;
 
 const Td = styled.td<{ width?: string }>`

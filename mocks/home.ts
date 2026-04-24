@@ -21,7 +21,7 @@ export const headerMenus: HeaderDropdownMenu[] = [
     label: "교원",
     href: "/staff",
     items: [
-      { label: "수업 관리", href: "/staff/classes" },
+      { label: "수업 관리", href: "/class" },
       { label: "재무 관리", href: "/staff/finance" },
       { label: "자료실", href: "/staff/resources" },
       { label: "게시판", href: "/staff/board" },
