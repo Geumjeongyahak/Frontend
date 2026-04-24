@@ -2,12 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { headerMenus } from "@/mocks/home";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export default function Header() {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { status, signOut } = useAuthSession();
+  const isAuthenticated = status === "authenticated";
+
+  async function handleLogout() {
+    await signOut();
+    router.replace("/");
+  }
 
   return (
     <HeaderContainer
@@ -17,7 +27,7 @@ export default function Header() {
       <HeaderWrapper>
         <Inner>
           <LogoArea href="/">
-            <Logo src="/logo.svg" alt="금정열린배움터 로고" />
+            <Logo src="/logo.svg" alt="금정야학 로고" />
           </LogoArea>
 
           <Nav>
@@ -31,7 +41,18 @@ export default function Header() {
           </Nav>
 
           <AuthArea>
-            <AuthLink href="/login">로그인</AuthLink>
+            {status === "loading" ? (
+              <AuthPlaceholder aria-hidden="true" />
+            ) : isAuthenticated ? (
+              <>
+                <AuthLink href="/mypage">마이페이지</AuthLink>
+                <LogoutButton type="button" onClick={handleLogout}>
+                  로그아웃
+                </LogoutButton>
+              </>
+            ) : (
+              <AuthLink href="/login">로그인</AuthLink>
+            )}
           </AuthArea>
         </Inner>
       </HeaderWrapper>
@@ -74,10 +95,10 @@ const HeaderWrapper = styled.header`
 `;
 
 const Inner = styled.div`
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: ${spacing.space24};
+  justify-content: center;
   width: 100%;
   max-width: ${layout.maxWidth};
   min-height: ${layout.headerHeight};
@@ -93,9 +114,18 @@ const Inner = styled.div`
 `;
 
 const LogoArea = styled(Link)`
+  position: absolute;
+  left: ${spacing.space20};
+  top: 50%;
+  transform: translateY(-50%);
   flex-shrink: 0;
   display: flex;
   align-items: center;
+
+  @media (max-width: ${layout.breakpointTablet}) {
+    position: static;
+    transform: none;
+  }
 `;
 
 const Logo = styled.img`
@@ -105,7 +135,6 @@ const Logo = styled.img`
 `;
 
 const Nav = styled.nav`
-  flex: 1;
   display: flex;
   justify-content: center;
 
@@ -149,15 +178,52 @@ const NavLink = styled(Link)`
 `;
 
 const AuthArea = styled.div`
-  flex-shrink: 0;
+  position: absolute;
+  right: ${spacing.space20};
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: ${spacing.space12};
+  width: 11.5rem;
+
+  @media (max-width: ${layout.breakpointTablet}) {
+    position: static;
+    transform: none;
+    flex-shrink: 0;
+  }
+`;
+
+const AuthPlaceholder = styled.span`
+  display: block;
+  width: 100%;
+  min-height: 1.125rem;
 `;
 
 const AuthLink = styled(Link)`
   color: ${colors.muted};
   font-size: ${typography.fontSize14};
-  font-weight: 500;
+  font-weight: 700;
   line-height: ${typography.lineHeight130};
   text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    color: ${colors.point};
+  }
+`;
+
+const LogoutButton = styled.button`
+  border: 0;
+  background-color: transparent;
+  color: ${colors.muted};
+  padding: 0;
+  font-size: ${typography.fontSize14};
+  font-weight: 700;
+  line-height: ${typography.lineHeight130};
+  cursor: pointer;
+  white-space: nowrap;
 
   &:hover {
     color: ${colors.point};
