@@ -99,9 +99,9 @@ export default function ExchangePostAcceptedPage({ params }: PageProps) {
         {proposals.map((proposal) => (
           <ProposalCard key={proposal.id}>
             <MetaRow>
-              <MetaBox>• {proposal.className}</MetaBox>
-              <MetaBox>• {proposal.lessonDate}</MetaBox>
-              <MetaBox>• {proposal.writer}</MetaBox>
+              <MetaBox>{proposal.className}</MetaBox>
+              <MetaBox>{proposal.lessonDate}</MetaBox>
+              <MetaBox>{proposal.writer}</MetaBox>
             </MetaRow>
 
             <ContentBox>{proposal.content}</ContentBox>

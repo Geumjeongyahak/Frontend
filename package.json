@@ -11,6 +11,7 @@
     "test:watch": "vitest --environment jsdom --pool threads"
   },
   "dependencies": {
+    "@tabler/icons-react": "^3.41.1",
     "axios": "^1.15.0",
     "dayjs": "^1.11.20",
     "next": "16.2.1",

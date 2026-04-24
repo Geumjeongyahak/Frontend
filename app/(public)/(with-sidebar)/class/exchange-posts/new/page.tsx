@@ -1,9 +1,34 @@
 "use client";
 
+import { useRef, useState } from "react";
+import { IconCalendarMonth } from "@tabler/icons-react";
 import styled from "styled-components";
 import { colors, spacing, typography } from "@/styles/tokens";
 
 export default function Page() {
+  const [expireDateText, setExpireDateText] = useState("00.00.00");
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  const handleOpenDatePicker = () => {
+    const dateInput = dateInputRef.current;
+    if (!dateInput) return;
+
+    if (typeof dateInput.showPicker === "function") {
+      dateInput.showPicker();
+      return;
+    }
+
+    dateInput.click();
+  };
+
+  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    if (!value) return;
+
+    const [year, month, day] = value.split("-");
+    setExpireDateText(`${year}.${month}.${day}`);
+  };
+
   return (
     <PageWrapper>
       <HeaderRow>
@@ -42,9 +67,22 @@ export default function Page() {
         <Section>
           <Label htmlFor="expireDate">만료일</Label>
           <DateRow>
-            <DateInput id="expireDate" name="expireDate" defaultValue="00.00.00" />
-            <CalendarButton type="button" aria-label="달력 열기">
-              🗓
+            <DateInput
+              id="expireDate"
+              name="expireDate"
+              value={expireDateText}
+              readOnly
+              onClick={handleOpenDatePicker}
+            />
+            <HiddenNativeDateInput
+              ref={dateInputRef}
+              type="date"
+              onChange={handleDateChange}
+              aria-hidden="true"
+              tabIndex={-1}
+            />
+            <CalendarButton type="button" aria-label="달력 열기" onClick={handleOpenDatePicker}>
+              <IconCalendarMonth size={18} stroke={2} />
             </CalendarButton>
           </DateRow>
         </Section>
@@ -200,6 +238,14 @@ const DateInput = styled.input`
   outline: none;
 `;
 
+const HiddenNativeDateInput = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+`;
+
 const CalendarButton = styled.button`
   width: 32px;
   height: 32px;
@@ -207,7 +253,10 @@ const CalendarButton = styled.button`
   border-radius: 50%;
   background: #bdbdbd;
   cursor: pointer;
-  font-size: ${typography.fontSize14};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${colors.white};
 `;
 
 const StatusSelect = styled.select`
