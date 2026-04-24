@@ -1,7 +1,7 @@
 import Link from "next/link";
 import styled from "styled-components";
+import { staffSections } from "@/mocks/staffFinance";
 import { colors, layout, typography } from "@/styles/tokens";
-import { staffSections } from "@/components/staff/staffFinanceData";
 
 type StaffSidebarProps = {
   currentItem: string;

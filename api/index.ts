@@ -2,6 +2,9 @@ export * as authApi from "./auth/auth.api";
 export * as authDto from "./auth/auth.dto";
 export * as tokenStorage from "./client/tokenStorage";
 
+export * as fileApi from "./file/file.api";
+export * as fileDto from "./file/file.dto";
+
 export * as classroomApi from "./classroom/classroom.api";
 export * as classroomDto from "./classroom/classroom.dto";
 

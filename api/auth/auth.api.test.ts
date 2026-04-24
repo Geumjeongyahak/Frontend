@@ -19,7 +19,7 @@ import {
 } from "../../mocks/handlers/auth.handlers";
 
 import { getAccessToken, getRefreshToken, setTokens } from "../client/tokenStorage";
-import { login, logout, refreshToken, signup } from "./auth.api";
+import { login, logout, logoutAllDevices, refreshToken, signup } from "./auth.api";
 
 describe("auth.api", () => {
   it("returns the login token DTO and stores the received tokens", async () => {
@@ -118,6 +118,16 @@ describe("auth.api", () => {
     const response = await logout({ refreshToken: VALID_REFRESH_TOKEN });
 
     expect(response).toEqual({ message: "Logged out" });
+    expect(getAccessToken()).toBeNull();
+    expect(getRefreshToken()).toBeNull();
+  });
+
+  it("calls logout-all successfully and clears stored tokens", async () => {
+    setTokens(VALID_ACCESS_TOKEN, VALID_REFRESH_TOKEN);
+
+    const response = await logoutAllDevices();
+
+    expect(response).toEqual({ message: "Logged out from all devices" });
     expect(getAccessToken()).toBeNull();
     expect(getRefreshToken()).toBeNull();
   });

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import styled from "styled-components";
 import StaffSidebar from "@/components/staff/StaffSidebar";
-import type { FinanceRequest } from "@/components/staff/staffFinanceData";
+import type { FinanceRequest } from "@/mocks/staffFinance";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 type FinanceRequestListPageProps = {

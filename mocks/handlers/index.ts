@@ -1,4 +1,5 @@
 export { authHandlers } from "./auth.handlers";
+export { fileHandlers } from "./file.handlers";
 export { classroomHandlers } from "./classroom.handlers";
 export { departmentHandlers } from "./department.handlers";
 export { lessonHandlers } from "./lesson.handlers";

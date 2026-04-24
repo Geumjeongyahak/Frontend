@@ -3,7 +3,7 @@ import FinanceRequestListPage from "@/components/staff/FinanceRequestListPage";
 import {
   getFinanceRequestsByPage,
   getFinanceRequestTotalPages,
-} from "@/components/staff/staffFinanceData";
+} from "@/mocks/staffFinance";
 
 type PageProps = {
   searchParams?: Promise<{

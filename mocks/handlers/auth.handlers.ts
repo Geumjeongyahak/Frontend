@@ -97,4 +97,17 @@ export const authHandlers = [
 
     return HttpResponse.json({ message: "Logged out" });
   }),
+
+  http.post(`${API_BASE_URL}/api/v1/auth/logout-all`, ({ request }) => {
+    const authorizationHeader = request.headers.get("authorization");
+
+    if (
+      authorizationHeader !== `Bearer ${VALID_ACCESS_TOKEN}` &&
+      authorizationHeader !== `Bearer ${REFRESHED_ACCESS_TOKEN}`
+    ) {
+      return createUnauthorizedResponse("Unauthorized");
+    }
+
+    return HttpResponse.json({ message: "Logged out from all devices" });
+  }),
 ];

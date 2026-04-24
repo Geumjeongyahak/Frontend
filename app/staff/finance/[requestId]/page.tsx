@@ -3,7 +3,7 @@ import FinanceRequestDetailPage from "@/components/staff/FinanceRequestDetailPag
 import {
   financeRequests,
   getFinanceRequestById,
-} from "@/components/staff/staffFinanceData";
+} from "@/mocks/staffFinance";
 
 type PageProps = {
   params: Promise<{
