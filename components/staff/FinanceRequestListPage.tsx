@@ -1,67 +1,26 @@
-"use client";
-
 import Link from "next/link";
 import styled from "styled-components";
+import StaffSidebar from "@/components/staff/StaffSidebar";
+import type { FinanceRequest } from "@/components/staff/staffFinanceData";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
-const financeRequests = Array.from({ length: 9 }, (_, index) => ({
-  id: index + 1,
-  className: "개나리반",
-  title: "개나리반 수학 수업 교환 신청합니다",
-  author: "작성자",
-  date: "00.00.00",
-  status: "대기 중",
-}));
+type FinanceRequestListPageProps = {
+  currentPage: number;
+  requests: FinanceRequest[];
+  totalPages: number;
+};
 
-const staffSections = [
-  {
-    title: "수업 관리",
-    items: ["수업 일지", "수업 교환 신청", "수업 결강 신청"],
-  },
-  {
-    title: "재무 관리",
-    items: ["결제 신청"],
-  },
-  {
-    title: "자료실",
-    items: ["교칙", "연락망", "교학 회의록", "인수인계서", "시험 문제 자료", "서류 양식"],
-  },
-  {
-    title: "게시판",
-    items: ["게시판"],
-  },
-  {
-    title: "학사일정",
-    items: ["월별 일정"],
-  },
-];
+export default function FinanceRequestListPage({
+  currentPage,
+  requests,
+  totalPages,
+}: FinanceRequestListPageProps) {
+  const prevPage = currentPage - 1;
+  const nextPage = currentPage + 1;
 
-export default function FinanceRequestPage() {
   return (
     <Main>
-      <Sidebar>
-        <SidebarHeader>교원</SidebarHeader>
-        <SidebarContent>
-          {staffSections.map((section) => (
-            <SectionBlock key={section.title}>
-              <SectionTitle>{section.title}</SectionTitle>
-              <SectionList>
-                {section.items.map((item) => {
-                  const isCurrent = item === "결제 신청";
-
-                  return (
-                    <SectionItem key={item}>
-                      <SectionLink href="/staff/finance" $isCurrent={isCurrent} aria-current={isCurrent ? "page" : undefined}>
-                        {item}
-                      </SectionLink>
-                    </SectionItem>
-                  );
-                })}
-              </SectionList>
-            </SectionBlock>
-          ))}
-        </SidebarContent>
-      </Sidebar>
+      <StaffSidebar currentItem="결제 신청" />
 
       <Content>
         <ContentHeader>
@@ -82,13 +41,17 @@ export default function FinanceRequestPage() {
               </tr>
             </thead>
             <tbody>
-              {financeRequests.map((request) => (
+              {requests.map((request) => (
                 <TableRow key={request.id}>
                   <TableCell>{String(request.id).padStart(2, "0")}</TableCell>
                   <TableCell>{request.className}</TableCell>
-                  <TitleCell>{request.title}</TitleCell>
+                  <TitleCell>
+                    <TitleLink href={`/staff/finance/${request.id}`}>
+                      {request.title}
+                    </TitleLink>
+                  </TitleCell>
                   <TableCell>{request.author}</TableCell>
-                  <TableCell>{request.date}</TableCell>
+                  <TableCell>{request.paymentDate}</TableCell>
                   <TableCell>{request.status}</TableCell>
                 </TableRow>
               ))}
@@ -97,17 +60,40 @@ export default function FinanceRequestPage() {
         </TableWrapper>
 
         <Pagination aria-label="페이지 이동">
-          <PageArrow type="button" aria-label="이전 페이지">
+          <PageArrow
+            href={prevPage <= 1 ? "/staff/finance" : `/staff/finance?page=${prevPage}`}
+            aria-label="이전 페이지"
+            $isDisabled={currentPage === 1}
+          >
             ◀
           </PageArrow>
-          <PageNumber type="button" $isActive>
-            1
-          </PageNumber>
-          <PageNumber type="button">2</PageNumber>
-          <PageNumber type="button">3</PageNumber>
-          <PageNumber type="button">4</PageNumber>
-          <PageNumber type="button">5</PageNumber>
-          <PageArrow type="button" aria-label="다음 페이지">
+          {Array.from({ length: totalPages }, (_, index) => {
+            const pageNumber = index + 1;
+
+            return (
+              <PageNumber
+                key={pageNumber}
+                href={
+                  pageNumber === 1
+                    ? "/staff/finance"
+                    : `/staff/finance?page=${pageNumber}`
+                }
+                $isActive={pageNumber === currentPage}
+                aria-current={pageNumber === currentPage ? "page" : undefined}
+              >
+                {pageNumber}
+              </PageNumber>
+            );
+          })}
+          <PageArrow
+            href={
+              nextPage === 1
+                ? "/staff/finance"
+                : `/staff/finance?page=${nextPage}`
+            }
+            aria-label="다음 페이지"
+            $isDisabled={currentPage === totalPages}
+          >
             ▶
           </PageArrow>
         </Pagination>
@@ -124,65 +110,6 @@ const Main = styled.main`
   @media (max-width: ${layout.breakpointTablet}) {
     flex-direction: column;
   }
-`;
-
-const Sidebar = styled.aside`
-  width: 15.12rem;
-  flex-shrink: 0;
-  background-color: #efefef;
-
-  @media (max-width: ${layout.breakpointTablet}) {
-    width: 100%;
-  }
-`;
-
-const SidebarHeader = styled.h1`
-  display: flex;
-  align-items: center;
-  min-height: 3.5rem;
-  padding: 0 1.5rem;
-  background-color: #a3a3a3;
-  color: ${colors.text};
-  font-size: 1.2rem;
-  font-weight: 700;
-  line-height: ${typography.lineHeight130};
-`;
-
-const SidebarContent = styled.div`
-  padding: 1.5rem 0 2rem;
-`;
-
-const SectionBlock = styled.section`
-  & + & {
-    margin-top: 1.5rem;
-  }
-`;
-
-const SectionTitle = styled.h2`
-  padding: 0 1.5rem;
-  color: #88cd5a;
-  font-size: 1rem;
-  font-weight: 800;
-  line-height: ${typography.lineHeight130};
-`;
-
-const SectionList = styled.ul`
-  margin-top: 0.375rem;
-`;
-
-const SectionItem = styled.li`
-  display: block;
-`;
-
-const SectionLink = styled(Link)<{ $isCurrent: boolean }>`
-  display: block;
-  padding: 0.45rem 1.5rem;
-  background-color: ${({ $isCurrent }) => ($isCurrent ? "#88cd5a" : "transparent")};
-  color: ${({ $isCurrent }) => ($isCurrent ? colors.white : colors.text)};
-  font-size: 1rem;
-  font-weight: ${({ $isCurrent }) => ($isCurrent ? 800 : 600)};
-  line-height: ${typography.lineHeight130};
-  text-decoration: none;
 `;
 
 const Content = styled.section`
@@ -269,6 +196,15 @@ const TitleCell = styled(TableCell)`
   text-align: left;
 `;
 
+const TitleLink = styled(Link)`
+  color: ${colors.text};
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
 const Pagination = styled.nav`
   display: flex;
   justify-content: center;
@@ -277,23 +213,23 @@ const Pagination = styled.nav`
   margin-top: 2.5rem;
 `;
 
-const PageArrow = styled.button`
-  border: 0;
+const PageArrow = styled(Link)<{ $isDisabled?: boolean }>`
   background: transparent;
   padding: 0;
   color: #767676;
   font-size: 1rem;
   line-height: 1;
-  cursor: pointer;
+  text-decoration: none;
+  pointer-events: ${({ $isDisabled }) => ($isDisabled ? "none" : "auto")};
+  opacity: ${({ $isDisabled }) => ($isDisabled ? 0.3 : 1)};
 `;
 
-const PageNumber = styled.button<{ $isActive?: boolean }>`
-  border: 0;
+const PageNumber = styled(Link)<{ $isActive?: boolean }>`
   background: transparent;
   padding: 0;
   color: ${({ $isActive }) => ($isActive ? colors.text : "#9c9c9c")};
   font-size: 1rem;
   font-weight: ${({ $isActive }) => ($isActive ? 700 : 400)};
   line-height: 1;
-  cursor: pointer;
+  text-decoration: none;
 `;
