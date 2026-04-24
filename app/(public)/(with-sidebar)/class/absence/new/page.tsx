@@ -7,9 +7,9 @@ export default function Page() {
   return (
     <PageWrapper>
       <HeaderRow>
-        <Title>교환 신청서 작성하기</Title>
+        <Title>결강 신청서 작성하기</Title>
         <SubmitButton type="submit" form="exchange-form">
-          교환 신청서 제출하기
+          결강 신청서 제출하기
         </SubmitButton>
       </HeaderRow>
 
@@ -35,18 +35,8 @@ export default function Page() {
         </Section>
 
         <Section>
-          <Label htmlFor="reason">교환 신청 사유</Label>
+          <Label htmlFor="reason">결강 신청 사유</Label>
           <TextArea id="reason" name="reason" defaultValue="교환 신청 사유" />
-        </Section>
-
-        <Section>
-          <Label htmlFor="expireDate">만료일</Label>
-          <DateRow>
-            <DateInput id="expireDate" name="expireDate" defaultValue="00.00.00" />
-            <CalendarButton type="button" aria-label="달력 열기">
-              🗓
-            </CalendarButton>
-          </DateRow>
         </Section>
 
         <Section>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { colors, spacing, typography } from "@/styles/tokens";
 
 type PageProps = {
   params: {
@@ -125,15 +126,15 @@ export default function ExchangePostAcceptedPage({ params }: PageProps) {
 const PageWrapper = styled.main`
   max-width: 1100px;
   margin: 0 auto;
-  padding: 32px 24px 80px;
-  background: #fff;
+  padding: ${spacing.space32} ${spacing.space24} 80px;
+  background: ${colors.white};
 `;
 
 const TopButtonRow = styled.div`
   display: flex;
   justify-content: flex-end;
-  gap: 16px;
-  margin-bottom: 32px;
+  gap: ${spacing.space16};
+  margin-bottom: ${spacing.space32};
 `;
 
 const ActionButton = styled.button`
@@ -150,25 +151,25 @@ const LinkButton = styled(Link)`
   justify-content: center;
   min-width: 80px;
   height: 48px;
-  padding: 0 16px;
+  padding: 0 ${spacing.space16};
   background: #e6e6e6;
-  color: #111;
+  color: ${colors.text};
   text-decoration: none;
 `;
 
 const Section = styled.section`
-  margin-bottom: 24px;
+  margin-bottom: ${spacing.space24};
 `;
 
 const Label = styled.h3`
   margin: 0 0 12px;
-  font-size: 18px;
+  font-size: ${typography.fontSize18};
   font-weight: 700;
 `;
 
 const ValueBox = styled.div`
   min-height: 48px;
-  padding: 14px 16px;
+  padding: 14px ${spacing.space16};
   background: #f3f3f3;
 `;
 
@@ -183,17 +184,17 @@ const ValueBoxSmall = styled.div`
 
 const Row = styled.div`
   display: flex;
-  gap: 18px;
+  gap: ${typography.fontSize18};
 `;
 
 const FieldBox = styled.div`
   flex: 1;
   min-height: 48px;
-  padding: 14px 16px;
+  padding: 14px ${spacing.space16};
   background: #f3f3f3;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: ${spacing.space16};
 `;
 
 const FieldLabel = styled.span`
@@ -204,7 +205,7 @@ const FieldValue = styled.span``;
 
 const TextBox = styled.div`
   min-height: 100px;
-  padding: 16px;
+  padding: ${spacing.space16};
   background: #f3f3f3;
 `;
 
@@ -214,7 +215,7 @@ const StatusBox = styled.div`
   justify-content: center;
   min-width: 92px;
   height: 42px;
-  padding: 0 16px;
+  padding: 0 ${spacing.space16};
   background: #f3f3f3;
 `;
 
@@ -233,7 +234,7 @@ const ProposalHeader = styled.div`
 
 const ProposalTitle = styled.h2`
   margin: 0;
-  font-size: 32px;
+  font-size: ${typography.fontSize32};
   font-weight: 700;
 `;
 
@@ -301,11 +302,11 @@ const CardBottom = styled.div`
 `;
 
 const DateText = styled.span`
-  color: #b8b8b8;
+  color: ${colors.muted};
 `;
 
 const BottomRow = styled.div`
-  margin-top: 32px;
+  margin-top: ${spacing.space32};
   display: flex;
   justify-content: flex-end;
 `;
