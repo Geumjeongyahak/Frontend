@@ -1,7 +1,11 @@
 export { authHandlers } from "./auth.handlers";
+export { channelHandlers } from "./channel.handlers";
+export { commentHandlers } from "./comment.handlers";
+export { fileHandlers } from "./file.handlers";
 export { classroomHandlers } from "./classroom.handlers";
 export { departmentHandlers } from "./department.handlers";
 export { lessonHandlers } from "./lesson.handlers";
+export { postHandlers } from "./post.handlers";
 export { requestHandlers } from "./request.handlers";
 export { studentHandlers } from "./student.handlers";
 export { subjectHandlers } from "./subject.handlers";

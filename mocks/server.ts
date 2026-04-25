@@ -2,9 +2,13 @@ import { setupServer } from "msw/node";
 
 import {
   authHandlers,
+  channelHandlers,
   classroomHandlers,
+  commentHandlers,
   departmentHandlers,
+  fileHandlers,
   lessonHandlers,
+  postHandlers,
   requestHandlers,
   studentHandlers,
   subjectHandlers,
@@ -13,9 +17,13 @@ import {
 
 export const server = setupServer(
   ...authHandlers,
+  ...channelHandlers,
   ...classroomHandlers,
+  ...commentHandlers,
   ...departmentHandlers,
+  ...fileHandlers,
   ...lessonHandlers,
+  ...postHandlers,
   ...requestHandlers,
   ...studentHandlers,
   ...subjectHandlers,

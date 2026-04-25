@@ -1,6 +1,6 @@
 export type LessonStatus = "SCHEDULED" | "COMPLETED" | "CANCELED";
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE";
-export type TeacherAttendanceStatus = AttendanceStatus | "EXCUSED";
+export type TeacherAttendanceStatus = AttendanceStatus;
 
 export interface LessonRangeQueryParamsDto {
   from: string;
