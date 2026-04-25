@@ -37,3 +37,9 @@ export async function logout(body: LogoutRequestDto) {
   clearTokens();
   return response.data;
 }
+
+export async function logoutAllDevices() {
+  const response = await authClient.post<AuthMessageResponseDto>("/api/v1/auth/logout-all");
+  clearTokens();
+  return response.data;
+}
