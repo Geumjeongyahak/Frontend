@@ -115,10 +115,6 @@ export default function ExchangePostAcceptedPage({ params }: PageProps) {
           </ProposalCard>
         ))}
       </ProposalList>
-
-      <BottomRow>
-        <LinkButton href={`/staff/class/exchange`}>기본 상세로 돌아가기</LinkButton>
-      </BottomRow>
     </PageWrapper>
   );
 }
@@ -303,10 +299,4 @@ const CardBottom = styled.div`
 
 const DateText = styled.span`
   color: ${colors.muted};
-`;
-
-const BottomRow = styled.div`
-  margin-top: ${spacing.space32};
-  display: flex;
-  justify-content: flex-end;
 `;
