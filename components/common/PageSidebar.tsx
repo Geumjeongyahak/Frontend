@@ -7,14 +7,14 @@ const sections = [
   {
     title: "수업 관리",
     items: [
-      { label: "수업 일지", href: "/class" },
-      { label: "수업 교환 신청", href: "/class/exchange-posts" },
-      { label: "수업 결강 신청", href: "/class/absence" },
+      { label: "수업 일지", href: "/staff/class" },
+      { label: "수업 교환 신청", href: "/staff/class/exchange" },
+      { label: "수업 결강 신청", href: "/staff/class/absence" },
     ],
   },
   {
     title: "재무 관리",
-    items: [{ label: "결제 신청", href: "/payment" }],
+    items: [{ label: "결제 신청", href: "/staff/finance" }],
   },
   {
     title: "자료실",

@@ -7,7 +7,7 @@ export default function Page() {
   const router = useRouter();
 
   const handleCreateClassNote = () => {
-    router.push("/class/new");
+    router.push("/staff/class"); //TODO 추후 경로 수정
   };
 
   return (

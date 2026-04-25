@@ -35,7 +35,7 @@ export default function ExchangePostAcceptedPage({ params }: PageProps) {
   const router = useRouter();
 
   const handleAcceptProposal = () => {
-    router.push(`/class/exchange-posts/${postId}/accepted`);
+    router.push(`/staff/class/exchange/${postId}/accepted`);
   };
 
   return (
@@ -43,7 +43,7 @@ export default function ExchangePostAcceptedPage({ params }: PageProps) {
       <TopButtonRow>
         <ActionButton type="button">삭제</ActionButton>
         <ActionButton type="button">수정</ActionButton>
-        <LinkButton href="/class/exchange-posts">목록</LinkButton>
+        <LinkButton href="/staff/class/exchange">목록</LinkButton>
       </TopButtonRow>
 
       <Section>
@@ -117,7 +117,7 @@ export default function ExchangePostAcceptedPage({ params }: PageProps) {
       </ProposalList>
 
       <BottomRow>
-        <LinkButton href={`/exchange-posts/${postId}`}>기본 상세로 돌아가기</LinkButton>
+        <LinkButton href={`/staff/class/exchange/${postId}`}>기본 상세로 돌아가기</LinkButton>
       </BottomRow>
     </PageWrapper>
   );

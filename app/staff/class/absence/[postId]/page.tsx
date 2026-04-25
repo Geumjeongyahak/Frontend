@@ -18,7 +18,7 @@ export default function ExchangePostAcceptedPage({ params }: PageProps) {
       <TopButtonRow>
         <ActionButton type="button">삭제</ActionButton>
         <ActionButton type="button">수정</ActionButton>
-        <LinkButton href="/class/absence">목록</LinkButton>
+        <LinkButton href="/staff/class/absence">목록</LinkButton>
       </TopButtonRow>
 
       <Section>

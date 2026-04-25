@@ -8,7 +8,7 @@ const mockRows = Array.from({ length: 9 }, (_, index) => ({
   id: index + 1,
   no: "01",
   className: "개나리반",
-  title: "개나리반 수학 수업 교환 신청합니다",
+  title: "개나리반 수학 수업 결강 신청합니다",
   author: "작성자",
   date: "00.00.00",
   status: "대기 중",
@@ -17,21 +17,21 @@ const mockRows = Array.from({ length: 9 }, (_, index) => ({
 export default function Page() {
   const router = useRouter();
 
-  const handleCreateExchangeNote = () => {
-    router.push("/class/exchange-posts/new");
+  const handleCreateAbsenceNote = () => {
+    router.push("/staff/class/absence/new");
   };
 
-  const handleMoveToExchangeDetail = (id: number) => {
-    router.push(`/class/exchange-posts/${id}`);
+  const handleMoveToAbsenceDetail = (postId: number) => {
+    router.push(`/staff/class/absence/${postId}`);
   };
 
   return (
     <div className="flex min-h-screen">
       <main className="flex-1 p-20">
         <HeaderRow>
-          <Title>수업 교환</Title>
-          <WriteButton type="button" onClick={handleCreateExchangeNote}>
-            수업 교환 신청하기
+          <Title>수업 결강</Title>
+          <WriteButton type="button" onClick={handleCreateAbsenceNote}>
+            수업 결강 신청하기
           </WriteButton>
         </HeaderRow>
 
@@ -50,7 +50,7 @@ export default function Page() {
 
             <tbody>
               {mockRows.map((row) => (
-                <Tr key={row.id} onClick={() => handleMoveToExchangeDetail(row.id)}>
+                <Tr key={row.id} onClick={() => handleMoveToAbsenceDetail(row.id)}>
                   <Td width="72px">{row.no}</Td>
                   <Td width="120px">{row.className}</Td>
                   <TitleTd>{row.title}</TitleTd>
