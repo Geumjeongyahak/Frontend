@@ -1,15 +1,52 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import styled from "styled-components";
-import { staffSections } from "@/mocks/staffFinance";
 import { colors, layout, typography } from "@/styles/tokens";
 
-type StaffSidebarProps = {
-  currentItem: string;
-};
+const staffSections = [
+  {
+    title: "수업 관리",
+    items: [
+      { label: "수업 일지", href: "/staff/class" },
+      { label: "수업 교환 신청", href: "/staff/class/exchange" },
+      { label: "수업 결강 신청", href: "/staff/class/absence" },
+    ],
+  },
+  {
+    title: "재무 관리",
+    items: [{ label: "결제 신청", href: "/staff/finance" }],
+  },
+  {
+    title: "자료실",
+    items: [
+      { label: "교칙", href: "/docs/rules" },
+      { label: "연락망", href: "/docs/contact" },
+      { label: "교학 회의록", href: "/docs/meeting" },
+      { label: "인수인계서", href: "/docs/handover" },
+      { label: "시험 문제 자료", href: "/docs/exam" },
+      { label: "서류 양식", href: "/docs/forms" },
+    ],
+  },
+  {
+    title: "게시판",
+    items: [{ label: "게시판", href: "/board" }],
+  },
+  {
+    title: "학사일정",
+    items: [{ label: "월별 일정", href: "/calendar" }],
+  },
+];
 
-export default function StaffSidebar({
-  currentItem,
-}: StaffSidebarProps) {
+export default function StaffSidebar() {
+  const pathname = usePathname();
+
+  const isCurrent = (href: string) => {
+    if (href === "/staff/class") return pathname === href;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
   return (
     <Sidebar>
       <SidebarHeader>교원</SidebarHeader>
@@ -19,14 +56,13 @@ export default function StaffSidebar({
             <SectionTitle>{section.title}</SectionTitle>
             <SectionList>
               {section.items.map((item) => {
-                const isCurrent = item.label === currentItem;
-
+                const current = isCurrent(item.href);
                 return (
-                  <SectionItem key={item.label}>
+                  <SectionItem key={item.href}>
                     <SectionLink
                       href={item.href}
-                      $isCurrent={isCurrent}
-                      aria-current={isCurrent ? "page" : undefined}
+                      $isCurrent={current}
+                      aria-current={current ? "page" : undefined}
                     >
                       {item.label}
                     </SectionLink>
@@ -92,8 +128,7 @@ const SectionItem = styled.li`
 const SectionLink = styled(Link)<{ $isCurrent: boolean }>`
   display: block;
   padding: 0.45rem 1.5rem;
-  background-color: ${({ $isCurrent }) =>
-    $isCurrent ? "#88cd5a" : "transparent"};
+  background-color: ${({ $isCurrent }) => ($isCurrent ? "#88cd5a" : "transparent")};
   color: ${({ $isCurrent }) => ($isCurrent ? colors.white : colors.text)};
   font-size: 1rem;
   font-weight: ${({ $isCurrent }) => ($isCurrent ? 800 : 600)};

@@ -117,7 +117,7 @@ export default function ExchangePostAcceptedPage({ params }: PageProps) {
       </ProposalList>
 
       <BottomRow>
-        <LinkButton href={`/staff/class/exchange/${postId}`}>기본 상세로 돌아가기</LinkButton>
+        <LinkButton href={`/staff/class/exchange`}>기본 상세로 돌아가기</LinkButton>
       </BottomRow>
     </PageWrapper>
   );

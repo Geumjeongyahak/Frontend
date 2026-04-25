@@ -8,12 +8,10 @@ type FinanceRequestDetailPageProps = {
   request: FinanceRequest;
 };
 
-export default function FinanceRequestDetailPage({
-  request,
-}: FinanceRequestDetailPageProps) {
+export default function FinanceRequestDetailPage({ request }: FinanceRequestDetailPageProps) {
   return (
     <Main>
-      <StaffSidebar currentItem="결제 신청" />
+      <StaffSidebar />
 
       <Content>
         <Actions>
