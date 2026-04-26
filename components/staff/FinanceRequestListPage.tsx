@@ -20,7 +20,7 @@ export default function FinanceRequestListPage({
 
   return (
     <Main>
-      <StaffSidebar currentItem="결제 신청" />
+      <StaffSidebar />
 
       <Content>
         <ContentHeader>
@@ -46,9 +46,7 @@ export default function FinanceRequestListPage({
                   <TableCell>{String(request.id).padStart(2, "0")}</TableCell>
                   <TableCell>{request.className}</TableCell>
                   <TitleCell>
-                    <TitleLink href={`/staff/finance/${request.id}`}>
-                      {request.title}
-                    </TitleLink>
+                    <TitleLink href={`/staff/finance/${request.id}`}>{request.title}</TitleLink>
                   </TitleCell>
                   <TableCell>{request.author}</TableCell>
                   <TableCell>{request.paymentDate}</TableCell>
@@ -73,11 +71,7 @@ export default function FinanceRequestListPage({
             return (
               <PageNumber
                 key={pageNumber}
-                href={
-                  pageNumber === 1
-                    ? "/staff/finance"
-                    : `/staff/finance?page=${pageNumber}`
-                }
+                href={pageNumber === 1 ? "/staff/finance" : `/staff/finance?page=${pageNumber}`}
                 $isActive={pageNumber === currentPage}
                 aria-current={pageNumber === currentPage ? "page" : undefined}
               >
@@ -86,11 +80,7 @@ export default function FinanceRequestListPage({
             );
           })}
           <PageArrow
-            href={
-              nextPage === 1
-                ? "/staff/finance"
-                : `/staff/finance?page=${nextPage}`
-            }
+            href={nextPage === 1 ? "/staff/finance" : `/staff/finance?page=${nextPage}`}
             aria-label="다음 페이지"
             $isDisabled={currentPage === totalPages}
           >
