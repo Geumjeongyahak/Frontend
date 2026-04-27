@@ -29,15 +29,27 @@ export default function WeeklyScheduleCard({ schedule }: WeeklyScheduleCardProps
               <DayLabel $highlighted={isHighlighted}>{daySchedule.day}</DayLabel>
               <Divider />
               <ItemList>
-                {daySchedule.items.slice(0, 2).map((item) => (
-                  <Item key={`${daySchedule.day}-${item.time}-${item.title}`}>
-                    <Time>{item.time}</Time>
-                    <ItemTitle>{item.title}</ItemTitle>
-                    <Divider />
-                  </Item>
-                ))}
-                {daySchedule.items.length > 2 && <MoreText>...</MoreText>}
-                <Divider />
+                {daySchedule.items.length === 0 ? (
+                  <EmptyText>
+                    예정된 수업이 <br /> 없습니다
+                  </EmptyText>
+                ) : (
+                  <>
+                    {daySchedule.items.slice(0, 2).map((item) => (
+                      <Item key={`${daySchedule.day}-${item.time}-${item.title}`}>
+                        <Time>{item.time}</Time>
+                        <ItemTitle>{item.title}</ItemTitle>
+                        <Divider />
+                      </Item>
+                    ))}
+                    {daySchedule.items.length > 2 && (
+                      <MoreText>
+                        ...
+                        <Divider />
+                      </MoreText>
+                    )}
+                  </>
+                )}
               </ItemList>
             </DayColumn>
           );
@@ -50,15 +62,20 @@ export default function WeeklyScheduleCard({ schedule }: WeeklyScheduleCardProps
 const Card = styled(HomeCard)`
   width: 100%;
   height: 100%;
+  min-height: 20rem;
   border: none;
 `;
 
 const Schedule = styled.div`
   display: flex;
+  gap: ${spacing.space8};
 `;
 
 const DayColumn = styled.article<{ $highlighted: boolean }>`
+  flex: 1 1 0;
+  width: 7.2rem;
   min-width: 0;
+  min-height: 14.3rem;
   padding: ${spacing.space16};
   border: 0.0625rem solid ${({ $highlighted }) => ($highlighted ? colors.point : colors.white)};
   border-radius: ${radii.radius15};
@@ -79,7 +96,9 @@ const Divider = styled.div`
   background-color: ${colors.border};
 `;
 
-const ItemList = styled.div``;
+const ItemList = styled.div`
+  min-height: 8rem;
+`;
 
 const Item = styled.div`
   display: flex;
@@ -105,4 +124,12 @@ const MoreText = styled.span`
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
+`;
+
+const EmptyText = styled.p`
+  color: ${colors.muted};
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight150};
+  text-align: center;
+  padding: ${spacing.space12} 0;
 `;

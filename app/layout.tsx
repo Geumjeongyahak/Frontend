@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import QueryProvider from "@/components/providers/QueryProvider";
 import Header from "@/components/layout/Header";
 import StyledComponentsRegistry from "@/lib/styled-components-registry";
 import "./globals.css";
@@ -17,8 +18,10 @@ export default function RootLayout({
     <html lang="ko">
       <body>
         <StyledComponentsRegistry>
-          <Header />
-          {children}
+          <QueryProvider>
+            <Header />
+            {children}
+          </QueryProvider>
         </StyledComponentsRegistry>
       </body>
     </html>

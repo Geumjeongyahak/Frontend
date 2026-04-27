@@ -6,10 +6,27 @@ import LoginCard from "@/components/home/LoginCard";
 import MeetingMinutesCard from "@/components/home/MeetingMinutesCard";
 import NoticeCard from "@/components/home/NoticeCard";
 import WeeklyScheduleCard from "@/components/home/WeeklyScheduleCard";
-import { eventPhotos, meetingMinutes, notices, weeklySchedule } from "@/mocks/home";
+
+import dayjs from "dayjs";
+import isoWeek from "dayjs/plugin/isoWeek";
+import { useQuery } from "@tanstack/react-query";
+import { getLessons } from "@/api/lesson/lesson.api";
+import { mapLessonsToWeeklySchedule } from "@/utils/mapLessonsToWeeklySchedule";
+import { eventPhotos, meetingMinutes } from "@/mocks/home";
 import { colors, layout, spacing } from "@/styles/tokens";
 
 export default function HomePage() {
+  dayjs.extend(isoWeek);
+  const from = dayjs().startOf("isoWeek").format("YYYY-MM-DD");
+  const to = dayjs().endOf("isoWeek").format("YYYY-MM-DD");
+
+  const { data: lessons = [] } = useQuery({
+    queryKey: ["lessons", "weekly", { from, to }],
+    queryFn: () => getLessons({ from, to }),
+  });
+
+  const weeklySchedule = mapLessonsToWeeklySchedule(lessons);
+
   return (
     <Main>
       <Content>
@@ -25,7 +42,7 @@ export default function HomePage() {
 
         <BottomGrid>
           <NoticeArea>
-            <NoticeCard notices={notices} />
+            <NoticeCard />
           </NoticeArea>
 
           <MeetingArea>
