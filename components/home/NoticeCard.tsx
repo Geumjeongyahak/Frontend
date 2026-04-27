@@ -7,10 +7,6 @@ import { colors, spacing, typography } from "@/styles/tokens";
 import type { Notice } from "@/types/home";
 import { getPosts } from "@/api/post/post.api";
 
-type NoticeCardProps = {
-  notices: Notice[];
-};
-
 export default function NoticeCard() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["posts", "notice", "top12"],
