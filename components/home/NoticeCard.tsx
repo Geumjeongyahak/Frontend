@@ -4,6 +4,7 @@ import styled from "styled-components";
 import HomeCard from "@/components/home/HomeCard";
 import { colors, spacing, typography } from "@/styles/tokens";
 import type { Notice } from "@/types/home";
+import { getPosts } from "@/api/post/post.api";
 
 type NoticeCardProps = {
   notices: Notice[];
