@@ -37,6 +37,7 @@ export default function NoticeCard() {
           notices.map((notice) => (
             <ListItem key={notice.id}>
               <Title>{notice.title}</Title>
+              {/* <Date>{notice.date}</Date> */}
             </ListItem>
           ))}
       </List>

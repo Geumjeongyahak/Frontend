@@ -6,10 +6,30 @@ import LoginCard from "@/components/home/LoginCard";
 import MeetingMinutesCard from "@/components/home/MeetingMinutesCard";
 import NoticeCard from "@/components/home/NoticeCard";
 import WeeklyScheduleCard from "@/components/home/WeeklyScheduleCard";
-import { eventPhotos, meetingMinutes, notices, weeklySchedule } from "@/mocks/home";
+
+import dayjs from "dayjs";
+import { useQuery } from "@tanstack/react-query";
+import { getLessons } from "@/api/lesson/lesson.api";
+import { mapLessonsToWeeklySchedule } from "@/utils/mapLessonsToWeeklySchedule";
+import { eventPhotos, meetingMinutes } from "@/mocks/home";
 import { colors, layout, spacing } from "@/styles/tokens";
 
 export default function HomePage() {
+  const today = dayjs();
+  const monday =
+    today.day() === 0 ? today.subtract(6, "day") : today.subtract(today.day() - 1, "day");
+  const sunday = monday.add(6, "day");
+
+  const from = monday.format("YYYY-MM-DD");
+  const to = sunday.format("YYYY-MM-DD");
+
+  const { data: lessons = [] } = useQuery({
+    queryKey: ["lessons", "weekly", { from, to }],
+    queryFn: () => getLessons({ from, to }),
+  });
+
+  const weeklySchedule = mapLessonsToWeeklySchedule(lessons);
+
   return (
     <Main>
       <Content>
