@@ -25,7 +25,7 @@ export default function HomePage() {
 
         <BottomGrid>
           <NoticeArea>
-            <NoticeCard notices={notices} />
+            <NoticeCard />
           </NoticeArea>
 
           <MeetingArea>
