@@ -3,7 +3,7 @@
 import dayjs from "dayjs";
 import styled from "styled-components";
 import HomeCard from "@/components/home/HomeCard";
-import { colors, radii, spacing, typography } from "@/styles/tokens";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import type { WeeklyScheduleDay } from "@/types/home";
 
 type WeeklyScheduleCardProps = {
@@ -62,32 +62,48 @@ export default function WeeklyScheduleCard({ schedule }: WeeklyScheduleCardProps
 const Card = styled(HomeCard)`
   width: 100%;
   height: 100%;
-  min-height: 20rem;
+  min-height: 18.75rem;
   border: none;
 `;
 
 const Schedule = styled.div`
-  display: flex;
-  gap: ${spacing.space8};
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.75rem;
+
+  @media (min-width: 120rem) {
+    gap: 1.625rem;
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 `;
 
 const DayColumn = styled.article<{ $highlighted: boolean }>`
-  flex: 1 1 0;
-  width: 7.2rem;
   min-width: 0;
-  min-height: 14.3rem;
-  padding: ${spacing.space16};
+  min-height: 12.125rem;
+  padding: ${spacing.space8} ${spacing.space12};
   border: 0.0625rem solid ${({ $highlighted }) => ($highlighted ? colors.point : colors.white)};
   border-radius: ${radii.radius15};
   background-color: ${colors.white};
+
+  @media (min-width: 120rem) {
+    min-height: 18.3125rem;
+    padding: ${spacing.space12} ${spacing.space20};
+  }
 `;
 
 const DayLabel = styled.h3<{ $highlighted: boolean }>`
   color: ${({ $highlighted }) => ($highlighted ? colors.point : colors.muted)};
-  font-size: ${typography.fontSize14};
+  font-size: ${typography.fontSize13};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
   text-align: center;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const Divider = styled.div`
@@ -110,20 +126,36 @@ const Time = styled.span`
   color: ${colors.muted};
   font-size: ${typography.fontSize13};
   line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const ItemTitle = styled.span`
   color: ${colors.text};
-  font-size: ${typography.fontSize14};
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: ${typography.fontSize13};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const MoreText = styled.span`
   color: ${colors.text};
-  font-size: ${typography.fontSize14};
+  font-size: ${typography.fontSize13};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const EmptyText = styled.p`

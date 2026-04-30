@@ -1,32 +1,13 @@
-"use client";
-
 import styled from "styled-components";
 import EventPhotoCard from "@/components/home/EventPhotoCard";
 import LoginCard from "@/components/home/LoginCard";
 import MeetingMinutesCard from "@/components/home/MeetingMinutesCard";
 import NoticeCard from "@/components/home/NoticeCard";
-import WeeklyScheduleCard from "@/components/home/WeeklyScheduleCard";
-
-import dayjs from "dayjs";
-import isoWeek from "dayjs/plugin/isoWeek";
-import { useQuery } from "@tanstack/react-query";
-import { getLessons } from "@/api/lesson/lesson.api";
-import { mapLessonsToWeeklySchedule } from "@/utils/mapLessonsToWeeklySchedule";
+import WeeklySchedulePanel from "@/components/home/WeeklySchedulePanel";
 import { eventPhotos, meetingMinutes } from "@/mocks/home";
 import { colors, layout, spacing } from "@/styles/tokens";
 
 export default function HomePage() {
-  dayjs.extend(isoWeek);
-  const from = dayjs().startOf("isoWeek").format("YYYY-MM-DD");
-  const to = dayjs().endOf("isoWeek").format("YYYY-MM-DD");
-
-  const { data: lessons = [] } = useQuery({
-    queryKey: ["lessons", "weekly", { from, to }],
-    queryFn: () => getLessons({ from, to }),
-  });
-
-  const weeklySchedule = mapLessonsToWeeklySchedule(lessons);
-
   return (
     <Main>
       <Content>
@@ -36,7 +17,7 @@ export default function HomePage() {
           </LoginArea>
 
           <ScheduleArea>
-            <WeeklyScheduleCard schedule={weeklySchedule} />
+            <WeeklySchedulePanel />
           </ScheduleArea>
         </TopRow>
 
@@ -64,27 +45,58 @@ const Main = styled.main`
 `;
 
 const Content = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${spacing.space40};
-  max-width: ${layout.maxWidth};
+  display: grid;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: ${layout.homeMaxWidth};
   margin: 0 auto;
-  padding: ${spacing.space40} ${spacing.space20} ${spacing.space47};
+  padding: ${spacing.space28} ${spacing.space20} ${spacing.space32};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space40};
+    max-width: ${layout.homeMaxWidthLarge};
+    padding-top: ${spacing.space46};
+    padding-bottom: ${spacing.space47};
+  }
 `;
 
 const TopRow = styled.div`
-  display: flex;
-  min-height: 20rem;
-  gap: ${spacing.space24};
+  display: grid;
+  grid-template-columns: 23.083rem minmax(0, 1fr);
+  gap: 1.9375rem;
+  min-height: 18.75rem;
+
+  @media (min-width: 120rem) {
+    grid-template-columns: 34.625rem minmax(0, 1fr);
+    gap: ${spacing.space47};
+    min-height: 26.5rem;
+  }
+
+  @media (max-width: ${layout.breakpointTablet}) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const BottomGrid = styled.div`
   display: grid;
-  grid-template-columns: 600px minmax(0, 1fr);
+  grid-template-columns: 34.625rem minmax(0, 1fr);
   grid-template-areas:
     "notice meeting"
     "notice event";
-  gap: ${spacing.space24};
+  gap: 1.5rem 1.9375rem;
+
+  @media (min-width: 120rem) {
+    grid-template-columns: 51.9375rem minmax(0, 1fr);
+    gap: 2.1875rem 2.9375rem;
+  }
+
+  @media (max-width: ${layout.breakpointTablet}) {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "notice"
+      "meeting"
+      "event";
+  }
 `;
 
 const LoginArea = styled.div`

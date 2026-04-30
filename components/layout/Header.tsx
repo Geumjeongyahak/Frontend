@@ -85,13 +85,12 @@ const HeaderContainer = styled.div`
   top: 0;
   z-index: 20;
   width: 100%;
-  background-color: ${colors.white};
+  background-color: ${colors.background};
 `;
 
 const HeaderWrapper = styled.header`
   width: 100%;
-  border-bottom: 0.0625rem solid ${colors.border};
-  background-color: ${colors.white};
+  background-color: ${colors.background};
 `;
 
 const Inner = styled.div`
@@ -100,10 +99,15 @@ const Inner = styled.div`
   align-items: center;
   justify-content: center;
   width: 100%;
-  max-width: ${layout.maxWidth};
+  max-width: ${layout.homeMaxWidth};
   min-height: ${layout.headerHeight};
   margin: 0 auto;
   padding: 0 ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    max-width: ${layout.homeMaxWidthLarge};
+    min-height: 7.1875rem;
+  }
 
   @media (max-width: ${layout.breakpointTablet}) {
     flex-wrap: wrap;
@@ -132,6 +136,10 @@ const Logo = styled.img`
   display: block;
   width: 3.5rem;
   height: auto;
+
+  @media (min-width: 120rem) {
+    width: 5.25rem;
+  }
 `;
 
 const Nav = styled.nav`
@@ -147,10 +155,14 @@ const Nav = styled.nav`
 const NavList = styled.ul`
   display: flex;
   align-items: center;
-  gap: ${spacing.space40};
+  gap: 5.5rem;
   margin: 0;
   padding: 0;
   list-style: none;
+
+  @media (min-width: 120rem) {
+    gap: 8.125rem;
+  }
 
   @media (max-width: ${layout.breakpointMobile}) {
     gap: ${spacing.space20};
@@ -162,15 +174,23 @@ const NavItem = styled.li`
   align-items: center;
   justify-content: center;
   padding: ${spacing.space28} 0 ${spacing.space24};
+
+  @media (min-width: 120rem) {
+    padding: ${spacing.space40} 0 ${spacing.space32};
+  }
 `;
 
 const NavLink = styled(Link)`
   color: ${colors.text};
-  font-size: ${typography.fontSize20};
-  font-weight: 600;
+  font-size: ${typography.fontSize16};
+  font-weight: 700;
   line-height: ${typography.lineHeight130};
   text-decoration: none;
   white-space: nowrap;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize24};
+  }
 
   &:hover {
     color: ${colors.point};
@@ -209,6 +229,10 @@ const AuthLink = styled(Link)`
   text-decoration: none;
   white-space: nowrap;
 
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize24};
+  }
+
   &:hover {
     color: ${colors.point};
   }
@@ -224,6 +248,10 @@ const LogoutButton = styled.button`
   line-height: ${typography.lineHeight130};
   cursor: pointer;
   white-space: nowrap;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize24};
+  }
 
   &:hover {
     color: ${colors.point};
@@ -251,51 +279,85 @@ const MegaMenu = styled.div<{ $isOpen: boolean }>`
 
 const MegaMenuInner = styled.div`
   width: 100%;
-  max-width: ${layout.maxWidth};
+  max-width: ${layout.homeMaxWidth};
   margin: 0 auto;
-  padding: ${spacing.space32} ${spacing.space20} ${spacing.space40};
+  padding: ${spacing.space24} ${spacing.space20} ${spacing.space32};
+
+  @media (min-width: 120rem) {
+    max-width: ${layout.homeMaxWidthLarge};
+    padding: ${spacing.space32} ${spacing.space20} ${spacing.space40};
+  }
 `;
 
 const MegaMenuGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: ${spacing.space40};
+  grid-template-columns: repeat(3, 5.5625rem);
+  gap: 5.5rem;
   align-items: start;
+  justify-content: center;
   justify-items: center;
+
+  @media (min-width: 120rem) {
+    grid-template-columns: repeat(3, 5.5625rem);
+    gap: 8.125rem;
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    grid-template-columns: 1fr;
+    gap: ${spacing.space28};
+  }
 `;
 
 const MenuColumn = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 8rem;
+  width: 8.75rem;
+
+  @media (min-width: 120rem) {
+    width: 13.125rem;
+  }
 `;
 
 const MenuTitle = styled(Link)`
   color: ${colors.white};
-  font-size: ${typography.fontSize24};
+  font-size: ${typography.fontSize16};
   font-weight: 700;
   line-height: ${typography.lineHeight130};
   text-align: center;
   text-decoration: none;
   white-space: nowrap;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize24};
+  }
 `;
 
 const MenuDivider = styled.div`
-  width: 3.625rem;
-  height: 0.25rem;
-  margin: ${spacing.space16} 0 ${spacing.space28};
+  width: 2.5rem;
+  height: 0.1875rem;
+  margin: ${spacing.space12} 0 ${spacing.space20};
   border-radius: ${radii.radius999};
   background-color: ${colors.white};
+
+  @media (min-width: 120rem) {
+    width: 3.625rem;
+    height: 0.25rem;
+    margin: ${spacing.space16} 0 ${spacing.space28};
+  }
 `;
 
 const SubMenuList = styled.ul`
   display: grid;
-  gap: ${spacing.space20};
+  gap: ${spacing.space12};
   margin: 0;
   padding: 0;
   list-style: none;
   justify-items: center;
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
 `;
 
 const SubMenuItem = styled.li`
@@ -304,12 +366,16 @@ const SubMenuItem = styled.li`
 
 const SubMenuLink = styled(Link)`
   color: ${colors.white};
-  font-size: ${typography.fontSize20};
+  font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
   text-decoration: none;
   white-space: nowrap;
   opacity: 0.95;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 
   &:hover {
     opacity: 1;
