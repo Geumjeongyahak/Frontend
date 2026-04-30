@@ -57,11 +57,7 @@ export default function LoginForm() {
   }
 
   return (
-    <AuthShell
-      switchText="아직 계정이 없나요?"
-      switchLabel="회원가입"
-      switchHref="/register"
-    >
+    <AuthShell switchText="아직 계정이 없나요?" switchLabel="회원가입" switchHref="/register">
       <Form onSubmit={handleSubmit} aria-label="로그인 폼">
         <FieldGroup>
           <Field>

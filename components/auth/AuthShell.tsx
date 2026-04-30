@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import styled from "styled-components";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 type AuthShellProps = {
   switchLabel: string;
   switchHref: string;
   switchText: string;
+  panelSize?: "narrow" | "wide";
   children: React.ReactNode;
 };
 
@@ -15,12 +16,13 @@ export default function AuthShell({
   switchLabel,
   switchHref,
   switchText,
+  panelSize = "narrow",
   children,
 }: AuthShellProps) {
   return (
     <Main>
       <Content>
-        <Panel>
+        <Panel $panelSize={panelSize}>
           {children}
           <SwitchArea>
             <SwitchText>{switchText}</SwitchText>
@@ -34,20 +36,26 @@ export default function AuthShell({
 
 const Main = styled.main`
   min-height: calc(100vh - ${layout.headerHeight});
-  background:
-    linear-gradient(180deg, rgba(136, 205, 90, 0.12), rgba(248, 248, 248, 0) 28rem),
-    ${colors.background};
+  background-color: ${colors.background};
 `;
 
 const Content = styled.div`
   width: 100%;
-  max-width: 30rem;
+  max-width: ${layout.homeMaxWidth};
   min-height: calc(100vh - ${layout.headerHeight});
   margin: 0 auto;
-  padding: ${spacing.space32} ${spacing.space20};
+  padding: ${spacing.space28} ${spacing.space20} ${spacing.space32};
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
+
+  @media (min-width: 120rem) {
+    max-width: ${layout.homeMaxWidthLarge};
+    min-height: calc(100vh - 7.1875rem);
+    padding-top: ${spacing.space46};
+    padding-bottom: ${spacing.space47};
+  }
 
   @media (max-width: ${layout.breakpointMobile}) {
     min-height: auto;
@@ -56,13 +64,18 @@ const Content = styled.div`
   }
 `;
 
-const Panel = styled.section`
+const Panel = styled.section<{ $panelSize: "narrow" | "wide" }>`
   width: 100%;
-  padding: ${spacing.space28};
+  max-width: ${({ $panelSize }) => ($panelSize === "wide" ? "51.9375rem" : "34.625rem")};
+  padding: ${spacing.space24};
   background-color: ${colors.white};
-  border: 1px solid rgba(34, 34, 34, 0.08);
-  border-radius: 8px;
-  box-shadow: 0 1rem 2rem rgba(34, 34, 34, 0.06);
+  border: 1px solid ${colors.border};
+  border-radius: ${radii.radius30};
+
+  @media (min-width: 120rem) {
+    max-width: ${({ $panelSize }) => ($panelSize === "wide" ? "77.875rem" : "51.9375rem")};
+    padding: ${spacing.space32};
+  }
 
   @media (max-width: ${layout.breakpointMobile}) {
     padding: ${spacing.space24};
@@ -77,12 +90,21 @@ const SwitchArea = styled.div`
   justify-content: center;
   gap: ${spacing.space8};
   border-top: 1px solid ${colors.border};
+
+  @media (min-width: 120rem) {
+    margin-top: ${spacing.space32};
+    padding-top: ${spacing.space28};
+  }
 `;
 
 const SwitchText = styled.span`
-  color: #64705f;
+  color: ${colors.muted};
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const SwitchLink = styled(Link)`
@@ -91,6 +113,10 @@ const SwitchLink = styled(Link)`
   font-weight: 700;
   line-height: ${typography.lineHeight130};
   text-decoration: none;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 
   &:hover {
     text-decoration: underline;

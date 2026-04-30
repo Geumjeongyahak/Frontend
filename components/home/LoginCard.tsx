@@ -122,25 +122,34 @@ export default function LoginCard() {
 }
 
 const Card = styled(HomeCard)`
-  min-width: 400px;
+  min-width: 0;
+  height: 100%;
   background-color: ${colors.background};
   border: 0.0625rem solid ${colors.border};
   display: flex;
   flex-direction: column;
-  gap: ${spacing.space16};
+  gap: ${spacing.space12};
 `;
 
 const Form = styled.form`
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: ${spacing.space40};
+  gap: ${spacing.space28};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space40};
+  }
 `;
 
 const InputGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space16};
+  }
 `;
 
 const ErrorText = styled.p<{ $visible: boolean }>`
@@ -158,6 +167,16 @@ const ErrorText = styled.p<{ $visible: boolean }>`
 
 const Input = styled(AuthInput)`
   font-family: ${typography.fontFamily};
+  height: 3.375rem;
+  border-radius: ${radii.radius12};
+  background-color: ${colors.white};
+  font-size: ${typography.fontSize16};
+
+  @media (min-width: 120rem) {
+    height: 4.6875rem;
+    border-radius: ${radii.radius15};
+    font-size: ${typography.fontSize24};
+  }
 
   &:focus::placeholder {
     color: transparent;
@@ -179,6 +198,12 @@ const SubmitButton = styled.button`
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
+
+  @media (min-width: 120rem) {
+    height: 4.9375rem;
+    border-radius: ${radii.radius15};
+    font-size: ${typography.fontSize24};
+  }
 
   &:disabled {
     cursor: not-allowed;
