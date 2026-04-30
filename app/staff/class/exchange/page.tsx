@@ -1,212 +1,73 @@
-"use client";
+import { redirect } from "next/navigation";
+import StaffRequestBoard, {
+  type StaffRequestBoardRow,
+} from "@/components/staff/StaffRequestBoard";
 
-import styled from "styled-components";
-import { useRouter } from "next/navigation";
-import { spacing, typography } from "@/styles/tokens";
+const ITEMS_PER_PAGE = 10;
+const CURRENT_AUTHOR = "김민지";
 
-const mockRows = Array.from({ length: 9 }, (_, index) => ({
+const exchangeRequests = Array.from({ length: 27 }, (_, index) => ({
   id: index + 1,
-  no: "01",
-  className: "개나리반",
-  title: "개나리반 수학 수업 교환 신청합니다",
-  author: "작성자",
-  date: "00.00.00",
-  status: "대기 중",
+  className: `${["개나리", "해바라기", "민들레"][index % 3]}반`,
+  title: `${index + 1}회차 수업 교환 신청합니다`,
+  author: index % 2 === 0 ? CURRENT_AUTHOR : "최유진",
+  date: `26.04.${String((index % 28) + 1).padStart(2, "0")}`,
+  status: index % 4 === 0 ? "승인 완료" : "대기 중",
 }));
 
-export default function Page() {
-  const router = useRouter();
+type PageProps = {
+  searchParams?: Promise<{
+    page?: string;
+    mineOnly?: string;
+  }>;
+};
 
-  const handleCreateExchangeNote = () => {
-    router.push("/staff/class/exchange/new");
-  };
-
-  const handleMoveToExchangeDetail = (postId: number) => {
-    router.push(`/staff/class/exchange/${postId}`);
-  };
-
-  return (
-    <div className="flex min-h-screen">
-      <main className="flex-1 p-20">
-        <HeaderRow>
-          <Title>수업 교환</Title>
-          <WriteButton type="button" onClick={handleCreateExchangeNote}>
-            수업 교환 신청하기
-          </WriteButton>
-        </HeaderRow>
-
-        <TableSection>
-          <Table>
-            <thead>
-              <tr>
-                <Th width="72px">no.</Th>
-                <Th width="120px">반</Th>
-                <Th>제목</Th>
-                <Th width="140px">작성자</Th>
-                <Th width="140px">작성일</Th>
-                <Th width="140px">신청 현황</Th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {mockRows.map((row) => (
-                <Tr key={row.id} onClick={() => handleMoveToExchangeDetail(row.id)}>
-                  <Td width="72px">{row.no}</Td>
-                  <Td width="120px">{row.className}</Td>
-                  <TitleTd>{row.title}</TitleTd>
-                  <Td width="140px">{row.author}</Td>
-                  <Td width="140px">{row.date}</Td>
-                  <Td width="140px">{row.status}</Td>
-                </Tr>
-              ))}
-            </tbody>
-          </Table>
-        </TableSection>
-
-        <BottomRow>
-          <ToggleArea>
-            <ToggleLabel>내가 작성한 신청서만 보기</ToggleLabel>
-            <ToggleButton type="button" aria-label="내 신청서만 보기">
-              <ToggleThumb />
-            </ToggleButton>
-          </ToggleArea>
-        </BottomRow>
-      </main>
-    </div>
-  );
+function mapRows(items: typeof exchangeRequests, page: number): StaffRequestBoardRow[] {
+  return items.map((item, index) => ({
+    id: item.id,
+    no: String((page - 1) * ITEMS_PER_PAGE + index + 1).padStart(2, "0"),
+    className: item.className,
+    title: item.title,
+    author: item.author,
+    date: item.date,
+    status: item.status,
+    detailHref: `/staff/class/exchange/${item.id}`,
+  }));
 }
 
-const Container = styled.main`
-  min-height: 100vh;
-  padding: 40px 56px 48px;
-`;
+export default async function Page({ searchParams }: PageProps) {
+  const resolvedSearchParams = await searchParams;
+  const rawPage = resolvedSearchParams?.page;
+  const mineOnly = resolvedSearchParams?.mineOnly === "1";
+  const parsedPage = rawPage ? Number(rawPage) : 1;
+  const filteredRequests = mineOnly
+    ? exchangeRequests.filter((request) => request.author === CURRENT_AUTHOR)
+    : exchangeRequests;
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / ITEMS_PER_PAGE));
+  const isInvalidPage =
+    !Number.isInteger(parsedPage) || parsedPage < 1 || parsedPage > totalPages;
 
-const HeaderRow = styled.div`
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: ${spacing.space32};
-`;
-
-const Title = styled.h1`
-  font-size: ${typography.fontSize24};
-  font-weight: 700;
-  margin: 0;
-`;
-
-const WriteButton = styled.button`
-  padding: 14px ${spacing.space24};
-  border: none;
-  background: #e9e9e9;
-  font-size: ${typography.fontSize16};
-  font-weight: 500;
-  cursor: pointer;
-`;
-
-const TableSection = styled.section`
-  width: 100%;
-`;
-
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-`;
-
-const Th = styled.th<{ width?: string }>`
-  width: ${({ width }) => width ?? "auto"};
-  padding: 0 ${spacing.space20} 14px;
-  border-bottom: 1px solid #a8a8a8;
-  font-size: ${typography.fontSize16};
-  font-weight: 700;
-  text-align: center;
-`;
-
-const Tr = styled.tr`
-  border-bottom: 1px solid #a8a8a8;
-  cursor: pointer;
-
-  &:hover {
-    background: #f7f7f7;
+  if (isInvalidPage) {
+    redirect(mineOnly ? "/staff/class/exchange?mineOnly=1" : "/staff/class/exchange");
   }
-`;
 
-const Td = styled.td<{ width?: string }>`
-  width: ${({ width }) => width ?? "auto"};
-  padding: 14px ${spacing.space20};
-  font-size: ${typography.fontSize14};
-  text-align: center;
-  white-space: nowrap;
-`;
+  const startIndex = (parsedPage - 1) * ITEMS_PER_PAGE;
+  const rows = mapRows(
+    filteredRequests.slice(startIndex, startIndex + ITEMS_PER_PAGE),
+    parsedPage,
+  );
 
-const TitleTd = styled.td`
-  padding: 14px ${spacing.space20};
-  font-size: ${typography.fontSize14};
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-`;
-
-const BottomRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: ${spacing.space46};
-`;
-
-const ToggleArea = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 14px;
-`;
-
-const ToggleLabel = styled.span`
-  font-size: ${typography.fontSize14};
-`;
-
-const ToggleButton = styled.button`
-  position: relative;
-  width: 48px;
-  height: 28px;
-  border: none;
-  border-radius: 999px;
-  background: #d9d9d9;
-  cursor: pointer;
-  padding: 0;
-`;
-
-const ToggleThumb = styled.span`
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #6d6d6d;
-`;
-
-const Pagination = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin: 0 auto;
-`;
-
-const ArrowButton = styled.button`
-  border: none;
-  background: transparent;
-  font-size: 18px;
-  cursor: pointer;
-  color: #666;
-`;
-
-const PageNumber = styled.button<{ $active?: boolean }>`
-  border: none;
-  background: transparent;
-  padding: 0;
-  font-size: ${typography.fontSize16};
-  cursor: pointer;
-  color: ${({ $active }) => ($active ? "#111" : "#9a9a9a")};
-  font-weight: ${({ $active }) => ($active ? 700 : 400)};
-`;
+  return (
+    <StaffRequestBoard
+      title="수업 교환"
+      writeLabel="수업 교환 신청하기"
+      writeHref="/staff/class/exchange/new"
+      listPath="/staff/class/exchange"
+      rows={rows}
+      currentPage={parsedPage}
+      totalPages={totalPages}
+      mineOnly={mineOnly}
+      emptyMessage="교환 신청 내역이 없습니다."
+    />
+  );
+}
