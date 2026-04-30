@@ -20,13 +20,10 @@ export default function Header() {
   }
 
   return (
-    <HeaderContainer
-      onMouseEnter={() => setIsMenuOpen(true)}
-      onMouseLeave={() => setIsMenuOpen(false)}
-    >
+    <HeaderContainer onMouseLeave={() => setIsMenuOpen(false)}>
       <HeaderWrapper>
         <Inner>
-          <LogoArea href="/">
+          <LogoArea href="/" onMouseEnter={() => setIsMenuOpen(false)}>
             <Logo src="/logo.svg" alt="금정야학 로고" />
           </LogoArea>
 
@@ -34,13 +31,19 @@ export default function Header() {
             <NavList>
               {headerMenus.map((menu) => (
                 <NavItem key={menu.label}>
-                  <NavLink href={menu.href}>{menu.label}</NavLink>
+                  <NavLink
+                    href={menu.href}
+                    onFocus={() => setIsMenuOpen(true)}
+                    onMouseEnter={() => setIsMenuOpen(true)}
+                  >
+                    {menu.label}
+                  </NavLink>
                 </NavItem>
               ))}
             </NavList>
           </Nav>
 
-          <AuthArea>
+          <AuthArea onMouseEnter={() => setIsMenuOpen(false)}>
             {status === "loading" ? (
               <AuthPlaceholder aria-hidden="true" />
             ) : isAuthenticated ? (
@@ -57,7 +60,7 @@ export default function Header() {
         </Inner>
       </HeaderWrapper>
 
-      <MegaMenu $isOpen={isMenuOpen}>
+      <MegaMenu $isOpen={isMenuOpen} onMouseEnter={() => setIsMenuOpen(true)}>
         <MegaMenuInner>
           <MegaMenuGrid>
             {headerMenus.map((menu) => (
