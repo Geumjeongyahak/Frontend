@@ -1,5 +1,3 @@
-"use client";
-
 import styled from "styled-components";
 import HomeCard from "@/components/home/HomeCard";
 import { colors, spacing, typography } from "@/styles/tokens";

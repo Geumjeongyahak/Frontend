@@ -1,36 +1,21 @@
-"use client";
-
 import styled from "styled-components";
-import { useQuery } from "@tanstack/react-query";
 import HomeCard from "@/components/home/HomeCard";
-import { notices as fallbackNotices } from "@/mocks/home";
 import { colors, spacing, typography } from "@/styles/tokens";
-import { getPosts } from "@/api/post/post.api";
+import type { Notice } from "@/types/home";
 
-export default function NoticeCard() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["posts", "notice", "top12"],
-    queryFn: () =>
-      getPosts({
-        postType: "NOTICE",
-        page: 0,
-        size: 12,
-      }),
-    retry: false,
-  });
+type NoticeCardProps = {
+  notices: Notice[];
+};
 
-  const notices = data?.content && data.content.length > 0 ? data.content : fallbackNotices;
-
+export default function NoticeCard({ notices }: NoticeCardProps) {
   return (
     <Card title="공지사항" actionLabel="더보기">
       <List>
-        {!isLoading && !isError && notices.length === 0 && (
-          <Fallback>공지사항이 없습니다.</Fallback>
-        )}
+        {notices.length === 0 && <Fallback>공지사항이 없습니다.</Fallback>}
         {notices.map((notice) => (
-          <ListItem key={notice.id ?? notice.title}>
-            <Title>{notice.title ?? ""}</Title>
-            <Date>00.00.00</Date>
+          <ListItem key={notice.id}>
+            <Title>{notice.title}</Title>
+            <Date dateTime={notice.date}>{notice.date}</Date>
           </ListItem>
         ))}
       </List>

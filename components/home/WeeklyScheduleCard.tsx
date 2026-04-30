@@ -1,5 +1,3 @@
-"use client";
-
 import dayjs from "dayjs";
 import styled from "styled-components";
 import HomeCard from "@/components/home/HomeCard";

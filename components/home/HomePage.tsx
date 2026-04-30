@@ -3,8 +3,8 @@ import EventPhotoCard from "@/components/home/EventPhotoCard";
 import LoginCard from "@/components/home/LoginCard";
 import MeetingMinutesCard from "@/components/home/MeetingMinutesCard";
 import NoticeCard from "@/components/home/NoticeCard";
-import WeeklySchedulePanel from "@/components/home/WeeklySchedulePanel";
-import { eventPhotos, meetingMinutes } from "@/mocks/home";
+import WeeklyScheduleCard from "@/components/home/WeeklyScheduleCard";
+import { eventPhotos, meetingMinutes, notices, weeklySchedule } from "@/mocks/home";
 import { colors, layout, spacing } from "@/styles/tokens";
 
 export default function HomePage() {
@@ -17,13 +17,13 @@ export default function HomePage() {
           </LoginArea>
 
           <ScheduleArea>
-            <WeeklySchedulePanel />
+            <WeeklyScheduleCard schedule={weeklySchedule} />
           </ScheduleArea>
         </TopRow>
 
         <BottomGrid>
           <NoticeArea>
-            <NoticeCard />
+            <NoticeCard notices={notices} />
           </NoticeArea>
 
           <MeetingArea>
