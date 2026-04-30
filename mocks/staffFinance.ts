@@ -16,7 +16,7 @@ export type FinanceRequest = {
   detail: string;
 };
 
-export const FINANCE_REQUESTS_PER_PAGE = 10;
+export const FINANCE_REQUESTS_PER_PAGE = 9;
 
 export const staffSections: StaffSection[] = [
   {

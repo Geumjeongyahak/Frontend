@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import StaffRequestBoard, {
-  type StaffRequestBoardRow,
-} from "@/components/staff/StaffRequestBoard";
+import ListPanel, {
+  type ListPanelRow,
+} from "@/components/staff/ListPanel";
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 9;
 const CURRENT_AUTHOR = "김민지";
 
 const exchangeRequests = Array.from({ length: 27 }, (_, index) => ({
@@ -22,7 +22,7 @@ type PageProps = {
   }>;
 };
 
-function mapRows(items: typeof exchangeRequests, page: number): StaffRequestBoardRow[] {
+function mapRows(items: typeof exchangeRequests, page: number): ListPanelRow[] {
   return items.map((item, index) => ({
     id: item.id,
     no: String((page - 1) * ITEMS_PER_PAGE + index + 1).padStart(2, "0"),
@@ -58,7 +58,7 @@ export default async function Page({ searchParams }: PageProps) {
   );
 
   return (
-    <StaffRequestBoard
+    <ListPanel
       title="수업 교환"
       writeLabel="수업 교환 신청하기"
       writeHref="/staff/class/exchange/new"

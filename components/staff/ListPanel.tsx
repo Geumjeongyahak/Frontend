@@ -1,8 +1,8 @@
 import Link from "next/link";
 import styled from "styled-components";
-import { colors, spacing, typography } from "@/styles/tokens";
+import { colors, layout, spacing, typography } from "@/styles/tokens";
 
-export type StaffRequestBoardRow = {
+export type ListPanelRow = {
   id: number;
   no: string;
   className: string;
@@ -13,12 +13,12 @@ export type StaffRequestBoardRow = {
   detailHref: string;
 };
 
-type StaffRequestBoardProps = {
+type ListPanelProps = {
   title: string;
   writeLabel: string;
   writeHref: string;
   listPath: string;
-  rows: StaffRequestBoardRow[];
+  rows: ListPanelRow[];
   currentPage: number;
   totalPages: number;
   mineOnly?: boolean;
@@ -44,7 +44,7 @@ function buildHref(path: string, query: Record<string, QueryValue | undefined>) 
   return queryString ? `${path}?${queryString}` : path;
 }
 
-export default function StaffRequestBoard({
+export default function ListPanel({
   title,
   writeLabel,
   writeHref,
@@ -55,7 +55,7 @@ export default function StaffRequestBoard({
   mineOnly = false,
   showMineOnlyToggle = true,
   emptyMessage = "목록이 없습니다.",
-}: StaffRequestBoardProps) {
+}: ListPanelProps) {
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
   const toggleHref = buildHref(listPath, { mineOnly: mineOnly ? undefined : 1 });
@@ -72,12 +72,22 @@ export default function StaffRequestBoard({
         <Table>
           <thead>
             <tr>
-              <Th $width="72px">no.</Th>
-              <Th $width="120px">반</Th>
+              <Th $width720="3.75rem" $width1080="5.5rem">
+                no.
+              </Th>
+              <Th $width720="7.125rem" $width1080="10.75rem">
+                반
+              </Th>
               <Th>제목</Th>
-              <Th $width="140px">작성자</Th>
-              <Th $width="140px">작성일</Th>
-              <Th $width="140px">신청 현황</Th>
+              <Th $width720="5rem" $width1080="7.375rem">
+                작성자
+              </Th>
+              <Th $width720="10.875rem" $width1080="16.3125rem">
+                작성일
+              </Th>
+              <Th $width720="5rem" $width1080="7.375rem">
+                신청 현황
+              </Th>
             </tr>
           </thead>
 
@@ -85,14 +95,24 @@ export default function StaffRequestBoard({
             {rows.length > 0 ? (
               rows.map((row) => (
                 <Tr key={row.id}>
-                  <Td $width="72px">{row.no}</Td>
-                  <Td $width="120px">{row.className}</Td>
+                  <Td $width720="3.75rem" $width1080="5.5rem">
+                    {row.no}
+                  </Td>
+                  <Td $width720="7.125rem" $width1080="10.75rem">
+                    {row.className}
+                  </Td>
                   <TitleTd>
                     <TitleLink href={row.detailHref}>{row.title}</TitleLink>
                   </TitleTd>
-                  <Td $width="140px">{row.author}</Td>
-                  <Td $width="140px">{row.date}</Td>
-                  <Td $width="140px">{row.status}</Td>
+                  <Td $width720="5rem" $width1080="7.375rem">
+                    {row.author}
+                  </Td>
+                  <Td $width720="10.875rem" $width1080="16.3125rem">
+                    {row.date}
+                  </Td>
+                  <Td $width720="5rem" $width1080="7.375rem">
+                    {row.status}
+                  </Td>
                 </Tr>
               ))
             ) : (
@@ -158,15 +178,28 @@ export default function StaffRequestBoard({
 }
 
 const Container = styled.section`
-  min-height: 100vh;
-  padding: 40px 56px 48px;
+  min-height: calc(100vh - ${layout.headerHeight});
+  padding: 2.5rem 3.3125rem 3rem 3.125rem;
+
+  @media (min-width: 120rem) {
+    padding: 3.5rem 5rem 4rem 4.6875rem;
+  }
+
+  @media (max-width: ${layout.breakpointTablet}) {
+    padding: ${spacing.space32} ${spacing.space20} ${spacing.space40};
+  }
 `;
 
 const HeaderRow = styled.div`
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: ${spacing.space32};
+  gap: ${spacing.space24};
+  margin-bottom: 0.875rem;
+
+  @media (min-width: 120rem) {
+    margin-bottom: 1.75rem;
+  }
 `;
 
 const Title = styled.h1`
@@ -179,14 +212,26 @@ const WriteButton = styled(Link)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 14px ${spacing.space24};
+  min-width: 7.75rem;
+  min-height: 2.75rem;
+  padding: 0.75rem ${spacing.space20};
   border: none;
-  background: #e9e9e9;
+  background: #e4e4e4;
   color: ${colors.text};
-  font-size: ${typography.fontSize16};
+  font-size: ${typography.fontSize14};
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
+
+  &:hover {
+    background: #d9d9d9;
+  }
+
+  @media (min-width: 120rem) {
+    min-width: 9.375rem;
+    min-height: 4.25rem;
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const TableSection = styled.section`
@@ -199,25 +244,38 @@ const Table = styled.table`
   table-layout: fixed;
 `;
 
-const Th = styled.th<{ $width?: string }>`
-  width: ${({ $width }) => $width ?? "auto"};
-  padding: 0 ${spacing.space20} 14px;
-  border-bottom: 1px solid #a8a8a8;
+const Th = styled.th<{ $width720?: string; $width1080?: string }>`
+  width: ${({ $width720 }) => $width720 ?? "auto"};
+  padding: 0.8125rem ${spacing.space12};
+  border-bottom: 1px solid #6d6d6d;
   font-size: ${typography.fontSize16};
   font-weight: 700;
   text-align: center;
+  white-space: nowrap;
+
+  @media (min-width: 120rem) {
+    width: ${({ $width1080, $width720 }) => $width1080 ?? $width720 ?? "auto"};
+    padding: ${spacing.space20} ${spacing.space12};
+    font-size: ${typography.fontSize24};
+  }
 `;
 
 const Tr = styled.tr`
-  border-bottom: 1px solid #a8a8a8;
+  border-bottom: 1px solid #6d6d6d;
 `;
 
-const Td = styled.td<{ $width?: string }>`
-  width: ${({ $width }) => $width ?? "auto"};
-  padding: 14px ${spacing.space20};
+const Td = styled.td<{ $width720?: string; $width1080?: string }>`
+  width: ${({ $width720 }) => $width720 ?? "auto"};
+  padding: 0.875rem ${spacing.space12};
   font-size: ${typography.fontSize14};
   text-align: center;
   white-space: nowrap;
+
+  @media (min-width: 120rem) {
+    width: ${({ $width1080, $width720 }) => $width1080 ?? $width720 ?? "auto"};
+    padding: ${spacing.space20} ${spacing.space12};
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const TitleTd = styled(Td)`
@@ -227,7 +285,7 @@ const TitleTd = styled(Td)`
 `;
 
 const EmptyTd = styled.td`
-  padding: 32px 20px;
+  padding: ${spacing.space32} ${spacing.space20};
   color: ${colors.muted};
   font-size: ${typography.fontSize14};
   text-align: center;
@@ -246,7 +304,16 @@ const BottomRow = styled.div<{ $hasToggle: boolean }>`
   display: flex;
   align-items: center;
   justify-content: ${({ $hasToggle }) => ($hasToggle ? "space-between" : "center")};
-  margin-top: ${spacing.space46};
+  gap: ${spacing.space24};
+  margin-top: ${spacing.space32};
+
+  @media (min-width: 120rem) {
+    margin-top: 4rem;
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    flex-direction: column;
+  }
 `;
 
 const ToggleArea = styled.div`
@@ -285,6 +352,11 @@ const Pagination = styled.nav`
   align-items: center;
   gap: 14px;
   margin: 0 auto;
+  font-size: ${typography.fontSize16};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize24};
+  }
 `;
 
 const PageArrow = styled(Link)<{ $isDisabled?: boolean }>`

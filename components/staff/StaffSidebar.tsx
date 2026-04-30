@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styled from "styled-components";
@@ -41,46 +42,77 @@ const staffSections = [
 
 export default function StaffSidebar() {
   const pathname = usePathname();
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(staffSections.map((section) => [section.title, true])),
+  );
 
   const isCurrent = (href: string) => {
     if (href === "/staff/class") return pathname === href;
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
+  const toggleSection = (title: string) => {
+    setOpenSections((current) => ({
+      ...current,
+      [title]: !current[title],
+    }));
+  };
+
   return (
     <Sidebar>
       <SidebarHeader>교원</SidebarHeader>
       <SidebarContent>
-        {staffSections.map((section) => (
-          <SectionBlock key={section.title}>
-            <SectionTitle>{section.title}</SectionTitle>
-            <SectionList>
-              {section.items.map((item) => {
-                const current = isCurrent(item.href);
-                return (
-                  <SectionItem key={item.href}>
-                    <SectionLink
-                      href={item.href}
-                      $isCurrent={current}
-                      aria-current={current ? "page" : undefined}
-                    >
-                      {item.label}
-                    </SectionLink>
-                  </SectionItem>
-                );
-              })}
-            </SectionList>
-          </SectionBlock>
-        ))}
+        {staffSections.map((section, sectionIndex) => {
+          const hasCurrentItem = section.items.some((item) => isCurrent(item.href));
+          const isOpen = openSections[section.title] ?? hasCurrentItem;
+          const sectionId = `staff-sidebar-section-${sectionIndex}`;
+
+          return (
+            <SectionBlock key={section.title}>
+              <SectionButton
+                type="button"
+                onClick={() => toggleSection(section.title)}
+                aria-expanded={isOpen}
+                aria-controls={sectionId}
+                $hasCurrentItem={hasCurrentItem}
+              >
+                <span>{section.title}</span>
+                <Chevron aria-hidden="true" $isOpen={isOpen}>
+                  ▾
+                </Chevron>
+              </SectionButton>
+              <SectionList id={sectionId} $isOpen={isOpen}>
+                {section.items.map((item) => {
+                  const current = isCurrent(item.href);
+                  return (
+                    <SectionItem key={item.href}>
+                      <SectionLink
+                        href={item.href}
+                        $isCurrent={current}
+                        aria-current={current ? "page" : undefined}
+                      >
+                        {item.label}
+                      </SectionLink>
+                    </SectionItem>
+                  );
+                })}
+              </SectionList>
+            </SectionBlock>
+          );
+        })}
       </SidebarContent>
     </Sidebar>
   );
 }
 
 const Sidebar = styled.aside`
-  width: 15.12rem;
+  width: 11.625rem;
   flex-shrink: 0;
-  background-color: #efefef;
+  background-color: #e8e8e8;
+
+  @media (min-width: 120rem) {
+    width: 17.4375rem;
+  }
 
   @media (max-width: ${layout.breakpointTablet}) {
     width: 100%;
@@ -90,48 +122,106 @@ const Sidebar = styled.aside`
 const SidebarHeader = styled.h1`
   display: flex;
   align-items: center;
-  min-height: 3.5rem;
-  padding: 0 1.5rem;
-  background-color: #a3a3a3;
+  min-height: 3.625rem;
+  margin: 0;
+  padding: 0 1.625rem;
+  background-color: #939393;
   color: ${colors.text};
-  font-size: 1.2rem;
+  font-size: ${typography.fontSize16};
   font-weight: 700;
   line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 5.5rem;
+    padding: 0 2.5rem;
+    font-size: ${typography.fontSize24};
+  }
 `;
 
 const SidebarContent = styled.div`
-  padding: 1.5rem 0 2rem;
+  padding: 1.75rem 0 2.5rem;
+
+  @media (min-width: 120rem) {
+    padding: 2.75rem 0 3.75rem;
+  }
 `;
 
 const SectionBlock = styled.section`
   & + & {
-    margin-top: 1.5rem;
+    margin-top: 1.375rem;
+
+    @media (min-width: 120rem) {
+      margin-top: 2.5rem;
+    }
   }
 `;
 
-const SectionTitle = styled.h2`
-  padding: 0 1.5rem;
-  color: #88cd5a;
-  font-size: 1rem;
-  font-weight: 800;
+const SectionButton = styled.button<{ $hasCurrentItem: boolean }>`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 0;
+  padding: 0 1.625rem;
+  background: transparent;
+  color: ${({ $hasCurrentItem }) => ($hasCurrentItem ? colors.text : "#9f9f9f")};
+  font-family: inherit;
+  font-size: ${typography.fontSize14};
+  font-weight: 700;
   line-height: ${typography.lineHeight130};
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    color: ${colors.text};
+  }
+
+  @media (min-width: 120rem) {
+    padding: 0 2.5rem;
+    font-size: ${typography.fontSize20};
+  }
 `;
 
-const SectionList = styled.ul`
-  margin-top: 0.375rem;
+const Chevron = styled.span<{ $isOpen: boolean }>`
+  display: inline-flex;
+  transform: rotate(${({ $isOpen }) => ($isOpen ? "0deg" : "-90deg")});
+  transition: transform 0.2s ease;
+`;
+
+const SectionList = styled.ul<{ $isOpen: boolean }>`
+  max-height: ${({ $isOpen }) => ($isOpen ? "24rem" : "0")};
+  margin: 0.375rem 0 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  transition: max-height 0.2s ease;
+
+  @media (min-width: 120rem) {
+    margin-top: 0.9375rem;
+  }
 `;
 
 const SectionItem = styled.li`
   display: block;
+  min-height: 0;
 `;
 
 const SectionLink = styled(Link)<{ $isCurrent: boolean }>`
   display: block;
-  padding: 0.45rem 1.5rem;
-  background-color: ${({ $isCurrent }) => ($isCurrent ? "#88cd5a" : "transparent")};
-  color: ${({ $isCurrent }) => ($isCurrent ? colors.white : colors.text)};
-  font-size: 1rem;
-  font-weight: ${({ $isCurrent }) => ($isCurrent ? 800 : 600)};
+  padding: 0.25rem 1.625rem;
+  background-color: ${({ $isCurrent }) => ($isCurrent ? "#d9d9d9" : "transparent")};
+  color: ${colors.text};
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
   line-height: ${typography.lineHeight130};
   text-decoration: none;
+
+  &:hover {
+    background-color: ${({ $isCurrent }) => ($isCurrent ? "#d9d9d9" : "#dedede")};
+  }
+
+  @media (min-width: 120rem) {
+    padding: 0.3125rem 2.5rem;
+    font-size: ${typography.fontSize20};
+  }
 `;
