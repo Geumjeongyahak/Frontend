@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export default function MyPage() {
   const router = useRouter();
@@ -96,18 +96,36 @@ const Main = styled.main`
 
 const Content = styled.div`
   width: 100%;
-  max-width: 42rem;
+  max-width: ${layout.homeMaxWidth};
+  min-height: calc(100vh - ${layout.headerHeight});
   margin: 0 auto;
-  padding: ${spacing.space40} ${spacing.space20};
+  padding: ${spacing.space28} ${spacing.space20} ${spacing.space32};
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-items: center;
   gap: ${spacing.space24};
+
+  @media (min-width: 120rem) {
+    max-width: ${layout.homeMaxWidthLarge};
+    min-height: calc(100vh - 7.1875rem);
+    padding-top: ${spacing.space46};
+    padding-bottom: ${spacing.space47};
+    gap: ${spacing.space32};
+  }
 `;
 
 const HeaderBlock = styled.section`
+  width: 100%;
+  max-width: 34.625rem;
   display: flex;
   flex-direction: column;
   gap: ${spacing.space4};
+
+  @media (min-width: 120rem) {
+    max-width: 51.9375rem;
+    gap: ${spacing.space8};
+  }
 `;
 
 const Eyebrow = styled.p`
@@ -115,45 +133,75 @@ const Eyebrow = styled.p`
   font-size: ${typography.fontSize14};
   font-weight: 800;
   line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const Title = styled.h1`
   color: ${colors.text};
-  font-size: ${typography.fontSize32};
+  font-size: ${typography.fontSize24};
   font-weight: 800;
   line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize32};
+  }
 `;
 
 const Panel = styled.section`
+  width: 100%;
+  max-width: 34.625rem;
   min-height: 23.25rem;
-  padding: ${spacing.space28};
+  padding: ${spacing.space24};
   border: 1px solid ${colors.border};
-  border-radius: 8px;
+  border-radius: ${radii.radius30};
   background-color: ${colors.white};
-  box-shadow: 0 1rem 2rem rgba(34, 34, 34, 0.06);
   display: flex;
   flex-direction: column;
+
+  @media (min-width: 120rem) {
+    max-width: 51.9375rem;
+    min-height: 34.875rem;
+    padding: ${spacing.space32};
+  }
 `;
 
 const SectionTitle = styled.h2`
   color: ${colors.text};
-  font-size: ${typography.fontSize24};
+  font-size: ${typography.fontSize20};
   font-weight: 800;
   line-height: ${typography.lineHeight130};
   margin-bottom: ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize32};
+    margin-bottom: ${spacing.space28};
+  }
 `;
 
 const ProfileList = styled.dl`
   display: grid;
   gap: ${spacing.space16};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space24};
+  }
 `;
 
 const ProfileItem = styled.div`
   display: grid;
-  grid-template-columns: 7rem minmax(0, 1fr);
-  gap: ${spacing.space16};
+  grid-template-columns: 5rem minmax(0, 1fr);
+  gap: ${spacing.space12};
   padding-bottom: ${spacing.space16};
   border-bottom: 1px solid ${colors.border};
+
+  @media (min-width: 120rem) {
+    grid-template-columns: 7rem minmax(0, 1fr);
+    gap: ${spacing.space16};
+    padding-bottom: ${spacing.space24};
+  }
 
   &:last-child {
     border-bottom: 0;
@@ -162,10 +210,14 @@ const ProfileItem = styled.div`
 `;
 
 const ProfileLabel = styled.dt`
-  color: #64705f;
+  color: ${colors.muted};
   font-size: ${typography.fontSize14};
   font-weight: 700;
   line-height: ${typography.lineHeight150};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const ProfileValue = styled.dd`
@@ -175,6 +227,10 @@ const ProfileValue = styled.dd`
   font-weight: 700;
   line-height: ${typography.lineHeight150};
   overflow-wrap: anywhere;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize24};
+  }
 `;
 
 const ActionRow = styled.div`
@@ -182,6 +238,11 @@ const ActionRow = styled.div`
   align-items: center;
   gap: ${spacing.space12};
   margin-top: ${spacing.space28};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space16};
+    margin-top: ${spacing.space40};
+  }
 `;
 
 const StateGroup = styled.div`
@@ -196,41 +257,63 @@ const StatusSlot = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+
+  @media (min-width: 120rem) {
+    min-height: 29.625rem;
+  }
 `;
 
 const StateText = styled.p`
-  color: #52604c;
+  color: ${colors.text};
   font-size: ${typography.fontSize16};
   font-weight: 700;
   line-height: ${typography.lineHeight150};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize24};
+  }
 `;
 
 const PrimaryLink = styled(Link)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.75rem;
+  min-height: 3.5rem;
   padding: 0 ${spacing.space20};
-  border-radius: 8px;
+  border-radius: ${radii.radius12};
   background-color: ${colors.point};
   color: ${colors.white};
   font-size: ${typography.fontSize14};
   font-weight: 800;
   line-height: ${typography.lineHeight130};
   text-decoration: none;
+
+  @media (min-width: 120rem) {
+    min-height: 4.9375rem;
+    padding: 0 ${spacing.space32};
+    border-radius: ${radii.radius15};
+    font-size: ${typography.fontSize24};
+  }
 `;
 
 const SecondaryButton = styled.button`
-  min-height: 2.75rem;
+  min-height: 3.5rem;
   padding: 0 ${spacing.space20};
   border: 1px solid ${colors.border};
-  border-radius: 8px;
+  border-radius: ${radii.radius12};
   background-color: ${colors.white};
   color: ${colors.text};
   font-size: ${typography.fontSize14};
   font-weight: 800;
   line-height: ${typography.lineHeight130};
   cursor: pointer;
+
+  @media (min-width: 120rem) {
+    min-height: 4.9375rem;
+    padding: 0 ${spacing.space32};
+    border-radius: ${radii.radius15};
+    font-size: ${typography.fontSize24};
+  }
 
   &:hover {
     border-color: ${colors.point};

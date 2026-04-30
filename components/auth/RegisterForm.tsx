@@ -38,9 +38,7 @@ export default function RegisterForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit =
-    form.username.trim().length > 0 &&
-    form.password.length >= 6 &&
-    form.name.trim().length > 0;
+    form.username.trim().length > 0 && form.password.length >= 6 && form.name.trim().length > 0;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -70,11 +68,7 @@ export default function RegisterForm() {
   }
 
   return (
-    <AuthShell
-      switchText="이미 계정이 있나요?"
-      switchLabel="로그인"
-      switchHref="/login"
-    >
+    <AuthShell switchText="이미 계정이 있나요?" switchLabel="로그인" switchHref="/login">
       <Form onSubmit={handleSubmit} aria-label="회원가입 폼">
         <FieldGroup>
           <Field>
@@ -119,9 +113,7 @@ export default function RegisterForm() {
               autoComplete="name"
               placeholder="이름"
               value={form.name}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, name: event.target.value }))
-              }
+              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
               required
             />
           </Field>

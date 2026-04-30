@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-import { colors, spacing, typography } from "@/styles/tokens";
+import { colors, radii, spacing, typography } from "@/styles/tokens";
 
 type StatusProps = {
   $tone?: "default" | "error";
@@ -11,13 +11,20 @@ type StatusProps = {
 export const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: ${spacing.space24};
+  gap: ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space28};
+  }
 `;
 
 export const FieldGroup = styled.div`
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: ${spacing.space16};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space24};
+  }
 `;
 
 export const Field = styled.div`
@@ -27,20 +34,24 @@ export const Field = styled.div`
 `;
 
 export const Label = styled.label`
-  color: #4d5848;
+  color: ${colors.text};
   font-size: ${typography.fontSize14};
   font-weight: 700;
   line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 export const Input = styled.input`
   width: 100%;
-  height: 3.25rem;
+  height: 3.375rem;
   padding: 0 ${spacing.space16};
   color: ${colors.text};
-  background-color: #fbfdf9;
+  background-color: ${colors.white};
   border: 1px solid ${colors.border};
-  border-radius: 8px;
+  border-radius: ${radii.radius12};
   font-size: ${typography.fontSize16};
   line-height: ${typography.lineHeight150};
   outline: none;
@@ -58,6 +69,13 @@ export const Input = styled.input`
     background-color: ${colors.white};
     box-shadow: 0 0 0 0.1875rem rgba(136, 205, 90, 0.18);
   }
+
+  @media (min-width: 120rem) {
+    height: 4.6875rem;
+    padding: 0 ${spacing.space24};
+    border-radius: ${radii.radius15};
+    font-size: ${typography.fontSize24};
+  }
 `;
 
 export const Status = styled.p<StatusProps>`
@@ -67,13 +85,18 @@ export const Status = styled.p<StatusProps>`
   font-weight: 600;
   line-height: ${typography.lineHeight150};
   visibility: ${({ $visible }) => ($visible ? "visible" : "hidden")};
+
+  @media (min-width: 120rem) {
+    min-height: 1.875rem;
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 export const SubmitButton = styled.button`
   width: 100%;
   height: 3.5rem;
   border: 0;
-  border-radius: 8px;
+  border-radius: ${radii.radius12};
   background-color: ${colors.point};
   color: ${colors.white};
   font-size: ${typography.fontSize16};
@@ -84,6 +107,12 @@ export const SubmitButton = styled.button`
     transform 0.2s ease,
     box-shadow 0.2s ease,
     opacity 0.2s ease;
+
+  @media (min-width: 120rem) {
+    height: 4.9375rem;
+    border-radius: ${radii.radius15};
+    font-size: ${typography.fontSize24};
+  }
 
   &:hover:not(:disabled) {
     transform: translateY(-0.0625rem);
