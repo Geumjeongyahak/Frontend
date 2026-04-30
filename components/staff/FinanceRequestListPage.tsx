@@ -8,14 +8,12 @@ type FinanceRequestListPageProps = {
   currentPage: number;
   requests: FinanceRequest[];
   totalPages: number;
-  mineOnly: boolean;
 };
 
 export default function FinanceRequestListPage({
   currentPage,
   requests,
   totalPages,
-  mineOnly,
 }: FinanceRequestListPageProps) {
   const rows = requests.map((request, index) => ({
     id: request.id,
@@ -41,7 +39,7 @@ export default function FinanceRequestListPage({
           rows={rows}
           currentPage={currentPage}
           totalPages={totalPages}
-          mineOnly={mineOnly}
+          showMineOnlyToggle={false}
           emptyMessage="결제 신청 내역이 없습니다."
         />
       </Content>

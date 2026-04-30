@@ -21,7 +21,8 @@ type StaffRequestBoardProps = {
   rows: StaffRequestBoardRow[];
   currentPage: number;
   totalPages: number;
-  mineOnly: boolean;
+  mineOnly?: boolean;
+  showMineOnlyToggle?: boolean;
   emptyMessage?: string;
 };
 
@@ -51,13 +52,14 @@ export default function StaffRequestBoard({
   rows,
   currentPage,
   totalPages,
-  mineOnly,
+  mineOnly = false,
+  showMineOnlyToggle = true,
   emptyMessage = "목록이 없습니다.",
 }: StaffRequestBoardProps) {
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
   const toggleHref = buildHref(listPath, { mineOnly: mineOnly ? undefined : 1 });
-  const baseQuery = mineOnly ? { mineOnly: 1 } : {};
+  const baseQuery = showMineOnlyToggle && mineOnly ? { mineOnly: 1 } : {};
 
   return (
     <Container>
@@ -102,18 +104,20 @@ export default function StaffRequestBoard({
         </Table>
       </TableSection>
 
-      <BottomRow>
-        <ToggleArea>
-          <ToggleLabel>내가 작성한 신청서만 보기</ToggleLabel>
-          <ToggleButtonLink
-            href={toggleHref}
-            aria-label="내 신청서만 보기"
-            aria-pressed={mineOnly}
-            $active={mineOnly}
-          >
-            <ToggleThumb $active={mineOnly} />
-          </ToggleButtonLink>
-        </ToggleArea>
+      <BottomRow $hasToggle={showMineOnlyToggle}>
+        {showMineOnlyToggle ? (
+          <ToggleArea>
+            <ToggleLabel>내가 작성한 신청서만 보기</ToggleLabel>
+            <ToggleButtonLink
+              href={toggleHref}
+              aria-label="내 신청서만 보기"
+              aria-pressed={mineOnly}
+              $active={mineOnly}
+            >
+              <ToggleThumb $active={mineOnly} />
+            </ToggleButtonLink>
+          </ToggleArea>
+        ) : null}
 
         <Pagination aria-label="페이지 이동">
           <PageArrow
@@ -238,10 +242,10 @@ const TitleLink = styled(Link)`
   }
 `;
 
-const BottomRow = styled.div`
+const BottomRow = styled.div<{ $hasToggle: boolean }>`
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: ${({ $hasToggle }) => ($hasToggle ? "space-between" : "center")};
   margin-top: ${spacing.space46};
 `;
 
