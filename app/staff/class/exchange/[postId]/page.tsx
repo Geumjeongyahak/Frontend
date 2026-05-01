@@ -1,12 +1,12 @@
-import Link from "next/link";
-import styled from "styled-components";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+"use client";
 
-type PageProps = {
-  params: Promise<{
-    postId: string;
-  }>;
-};
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import styled from "styled-components";
+import { getLessonExchangeRequestDetail } from "@/api/request/request.api";
+import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const proposals = [
   {
@@ -27,8 +27,35 @@ const proposals = [
   },
 ];
 
-export default async function ExchangePostPage({ params }: PageProps) {
-  const { postId } = await params;
+function formatStatus(status?: string) {
+  if (status === "APPROVED") return "승인 완료";
+  if (status === "REJECTED") return "반려";
+  return "대기 중";
+}
+
+export default function ExchangePostPage() {
+  const params = useParams<{ postId: string }>();
+  const postId = Number(params.postId);
+  const isValidPostId = Number.isInteger(postId) && postId > 0;
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["lesson-exchange-request", postId],
+    queryFn: () => getLessonExchangeRequestDetail({ requestId: postId }),
+    enabled: isValidPostId,
+    retry: false,
+  });
+
+  const detailTitle = isLoading
+    ? "불러오는 중..."
+    : isError
+      ? "수업 교환 신청을 불러오지 못했습니다."
+      : data?.title ?? "제목";
+  const detailWriter = data?.requestedByName ?? "홍길동";
+  const detailLessonDate = formatUtcToKstShortDate(data?.lessonDate);
+  const detailContent = isError ? "교환 신청 사유를 불러오지 못했습니다." : data?.content ?? "교환 신청 사유";
+  const detailStatus = isError ? "확인 불가" : formatStatus(data?.status);
+  const detailCreatedDate = formatUtcToKstShortDate(data?.createdAt);
+
   const acceptedHref = `/staff/class/exchange/${postId}/accepted`;
 
   return (
@@ -40,30 +67,30 @@ export default async function ExchangePostPage({ params }: PageProps) {
       </TopButtonRow>
 
       <ContentColumn>
-        <DateBar>00.00.00</DateBar>
+        <DateBar>{detailCreatedDate}</DateBar>
 
         <PostSection>
           <Label>제목</Label>
-          <ValueBox $weight="semibold">제목</ValueBox>
+          <ValueBox $weight="semibold">{detailTitle}</ValueBox>
 
           <Label>신청자 정보</Label>
           <InfoRow>
             <FieldLabel>반 이름</FieldLabel>
             <FieldValue>개나리반</FieldValue>
             <FieldLabel>수업 일자</FieldLabel>
-            <FieldValue>00.00.00</FieldValue>
+            <FieldValue>{detailLessonDate}</FieldValue>
             <FieldLabel>작성자</FieldLabel>
-            <FieldValue>홍길동</FieldValue>
+            <FieldValue>{detailWriter}</FieldValue>
           </InfoRow>
 
           <Label>교환 신청 사유</Label>
-          <TextBox>교환 신청 사유</TextBox>
+          <TextBox>{detailContent}</TextBox>
 
           <Label>만료일</Label>
           <DateBox>00.00.00</DateBox>
 
           <Label>신청 현황</Label>
-          <StatusBox>대기 중</StatusBox>
+          <StatusBox>{detailStatus}</StatusBox>
         </PostSection>
 
         <Divider />
