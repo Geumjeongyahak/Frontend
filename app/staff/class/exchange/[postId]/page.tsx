@@ -1,14 +1,11 @@
-"use client";
-
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 type PageProps = {
-  params: {
+  params: Promise<{
     postId: string;
-  };
+  }>;
 };
 
 const proposals = [
@@ -30,13 +27,9 @@ const proposals = [
   },
 ];
 
-export default function ExchangePostPage({ params }: PageProps) {
-  const { postId } = params;
-  const router = useRouter();
-
-  const handleAcceptProposal = () => {
-    router.push(`/staff/class/exchange/${postId}/accepted`);
-  };
+export default async function ExchangePostPage({ params }: PageProps) {
+  const { postId } = await params;
+  const acceptedHref = `/staff/class/exchange/${postId}/accepted`;
 
   return (
     <PageWrapper>
@@ -107,9 +100,9 @@ export default function ExchangePostPage({ params }: PageProps) {
               <ProposalContent>{proposal.content}</ProposalContent>
               <ProposalFooter>
                 <ProposalDate>{proposal.createdAt}</ProposalDate>
-                <AcceptButton type="button" onClick={handleAcceptProposal}>
+                <AcceptLink href={acceptedHref}>
                   제안 수락하기
-                </AcceptButton>
+                </AcceptLink>
               </ProposalFooter>
             </ProposalCard>
           ))}
@@ -534,6 +527,23 @@ const ProposalDate = styled.span`
   }
 `;
 
-const AcceptButton = styled(SecondaryButton)`
+const AcceptLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space20};
+  border: 0;
   background: #9d9d9d;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  text-decoration: none;
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
 `;

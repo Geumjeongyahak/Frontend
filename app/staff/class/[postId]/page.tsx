@@ -1,13 +1,11 @@
-"use client";
-
 import Link from "next/link";
 import styled from "styled-components";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 type PageProps = {
-  params: {
+  params: Promise<{
     postId: string;
-  };
+  }>;
 };
 
 const journalPosts = [
@@ -49,8 +47,9 @@ const detailFields = [
   { label: "활동 시간", key: "activityTime" },
 ] as const;
 
-export default function StaffClassJournalPostPage({ params }: PageProps) {
-  const journal = journalPosts.find((item) => item.id === params.postId) ?? journalPosts[0];
+export default async function StaffClassJournalPostPage({ params }: PageProps) {
+  const { postId } = await params;
+  const journal = journalPosts.find((item) => item.id === postId) ?? journalPosts[0];
 
   return (
     <PageSection>

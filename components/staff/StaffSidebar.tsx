@@ -65,21 +65,42 @@ function getStoredOpenSections() {
   }
 }
 
+function isCurrentStaffPath(pathname: string, href: string) {
+  if (href === "/staff/class") {
+    return (
+      pathname === href ||
+      pathname === "/staff/class/new" ||
+      /^\/staff\/class\/(?!(exchange|absence)$)[^/]+$/.test(pathname)
+    );
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function getCurrentSectionTitle(pathname: string) {
+  return staffSections.find((section) =>
+    section.items.some((item) => isCurrentStaffPath(pathname, item.href)),
+  )?.title;
+}
+
 export default function StaffSidebar() {
   const pathname = usePathname();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(getClosedSections);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      setOpenSections(getStoredOpenSections());
+      const currentSectionTitle = getCurrentSectionTitle(pathname);
+      setOpenSections({
+        ...getStoredOpenSections(),
+        ...(currentSectionTitle ? { [currentSectionTitle]: true } : {}),
+      });
     }, 0);
 
     return () => window.clearTimeout(timerId);
-  }, []);
+  }, [pathname]);
 
   const isCurrent = (href: string) => {
-    if (href === "/staff/class") return pathname === href;
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return isCurrentStaffPath(pathname, href);
   };
 
   const toggleSection = (title: string) => {
