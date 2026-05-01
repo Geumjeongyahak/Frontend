@@ -4,13 +4,13 @@ import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getLessonExchangeRequests } from "@/api/request/request.api";
+import { getCurrentUser } from "@/api/user/user.api";
 import ListPanel, {
   type ListPanelRow,
 } from "@/components/staff/ListPanel";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const ITEMS_PER_PAGE = 9;
-const CURRENT_AUTHOR = "김민지";
 
 function formatStatus(status?: string) {
   if (status === "APPROVED") return "승인 완료";
@@ -30,12 +30,23 @@ export default function Page() {
     retry: false,
   });
 
+  const { data: currentUser } = useQuery({
+    queryKey: ["users", "me"],
+    queryFn: getCurrentUser,
+    retry: false,
+  });
+
+  const currentUserName = currentUser?.name?.trim();
+
   const filteredRequests = useMemo(
     () =>
       mineOnly
-        ? exchangeRequests.filter((request) => request.requestedByName === CURRENT_AUTHOR)
+        ? exchangeRequests.filter((request) => {
+            const requestedByName = request.requestedByName?.trim();
+            return Boolean(currentUserName) && requestedByName === currentUserName;
+          })
         : exchangeRequests,
-    [exchangeRequests, mineOnly],
+    [currentUserName, exchangeRequests, mineOnly],
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredRequests.length / ITEMS_PER_PAGE));

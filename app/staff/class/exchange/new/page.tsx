@@ -7,8 +7,23 @@ import styled from "styled-components";
 import { createLessonExchangeRequest } from "@/api/request/request.api";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
+function getKstTodayShortDate() {
+  const formatter = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "2-digit",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value ?? "00";
+  const month = parts.find((part) => part.type === "month")?.value ?? "00";
+  const day = parts.find((part) => part.type === "day")?.value ?? "00";
+  return `${year}.${month}.${day}`;
+}
+
 export default function Page() {
-  const [expireDateText, setExpireDateText] = useState("00.00.00");
+  const kstToday = getKstTodayShortDate();
+  const [expireDateText, setExpireDateText] = useState(kstToday);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -30,8 +45,8 @@ export default function Page() {
     const value = event.target.value;
     if (!value) return;
 
-    const [, month, day] = value.split("-");
-    setExpireDateText(`00.${month}.${day}`);
+    const [year, month, day] = value.split("-");
+    setExpireDateText(`${year.slice(-2)}.${month}.${day}`);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -85,9 +100,9 @@ export default function Page() {
             <FieldLabel htmlFor="className">반 이름</FieldLabel>
             <InlineInput id="className" name="className" defaultValue="개나리반" />
             <FieldLabel htmlFor="lessonDate">수업 일자</FieldLabel>
-            <InlineInput id="lessonDate" name="lessonDate" defaultValue="00.00.00" />
+            <InlineInput id="lessonDate" name="lessonDate" defaultValue={kstToday} disabled />
             <FieldLabel htmlFor="writer">작성자</FieldLabel>
-            <InlineInput id="writer" name="writer" defaultValue="홍길동" />
+            <InlineInput id="writer" name="writer" defaultValue="홍길동" disabled />
           </InfoRow>
         </Section>
 
@@ -283,6 +298,12 @@ const InlineInput = styled.input`
   font-weight: 400;
   line-height: ${typography.lineHeight130};
   outline: none;
+
+  &:disabled {
+    background: #b5b5b5;
+    color: #4f4f4f;
+    cursor: not-allowed;
+  }
 
   @media (min-width: 120rem) {
     min-height: 4rem;
