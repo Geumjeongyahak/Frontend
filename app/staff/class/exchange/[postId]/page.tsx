@@ -1,14 +1,11 @@
-"use client";
-
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import styled from "styled-components";
-import { colors, spacing, typography } from "@/styles/tokens";
+import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 type PageProps = {
-  params: {
+  params: Promise<{
     postId: string;
-  };
+  }>;
 };
 
 const proposals = [
@@ -17,7 +14,7 @@ const proposals = [
     className: "개나리반",
     lessonDate: "00.00.00",
     writer: "최양진",
-    content: "내용내용내용내용내용내용내용내용내용내용내용내용",
+    content: "내용내용내용내용내용내용내용내용내용내용내용내용내용내용",
     createdAt: "00.00.00",
   },
   {
@@ -25,18 +22,14 @@ const proposals = [
     className: "개나리반",
     lessonDate: "00.00.00",
     writer: "최양진",
-    content: "내용내용내용내용내용내용내용내용내용내용내용내용",
+    content: "내용내용내용내용내용내용내용내용내용내용내용내용내용내용",
     createdAt: "00.00.00",
   },
 ];
 
-export default function ExchangePostAcceptedPage({ params }: PageProps) {
-  const { postId } = params;
-  const router = useRouter();
-
-  const handleAcceptProposal = () => {
-    router.push(`/staff/class/exchange/${postId}/accepted`);
-  };
+export default async function ExchangePostPage({ params }: PageProps) {
+  const { postId } = await params;
+  const acceptedHref = `/staff/class/exchange/${postId}/accepted`;
 
   return (
     <PageWrapper>
@@ -46,257 +39,511 @@ export default function ExchangePostAcceptedPage({ params }: PageProps) {
         <LinkButton href="/staff/class/exchange">목록</LinkButton>
       </TopButtonRow>
 
-      <Section>
-        <Label>제목</Label>
-        <ValueBox>제목</ValueBox>
-      </Section>
+      <ContentColumn>
+        <DateBar>00.00.00</DateBar>
 
-      <Section>
-        <Label>신청자 정보</Label>
-        <Row>
-          <FieldBox>
+        <PostSection>
+          <Label>제목</Label>
+          <ValueBox $weight="semibold">제목</ValueBox>
+
+          <Label>신청자 정보</Label>
+          <InfoRow>
             <FieldLabel>반 이름</FieldLabel>
             <FieldValue>개나리반</FieldValue>
-          </FieldBox>
-          <FieldBox>
             <FieldLabel>수업 일자</FieldLabel>
             <FieldValue>00.00.00</FieldValue>
-          </FieldBox>
-        </Row>
-      </Section>
+            <FieldLabel>작성자</FieldLabel>
+            <FieldValue>홍길동</FieldValue>
+          </InfoRow>
 
-      <Section>
-        <Label>교환 신청 사유</Label>
-        <TextBox>교환 신청 사유</TextBox>
-      </Section>
+          <Label>교환 신청 사유</Label>
+          <TextBox>교환 신청 사유</TextBox>
 
-      <Section>
-        <Label>만료일</Label>
-        <ValueBoxSmall>00.00.00</ValueBoxSmall>
-      </Section>
+          <Label>만료일</Label>
+          <DateBox>00.00.00</DateBox>
 
-      <Section>
-        <Label>신청 현황</Label>
-        <StatusBox>대기 중</StatusBox>
-      </Section>
+          <Label>신청 현황</Label>
+          <StatusBox>대기 중</StatusBox>
+        </PostSection>
 
-      <Divider />
+        <Divider />
 
-      <ProposalHeader>
-        <ProposalTitle>교환 제안서</ProposalTitle>
-        <ActionButton type="button">작성 완료</ActionButton>
-      </ProposalHeader>
+        <ProposalHeader>
+          <ProposalTitle>교환 제안서</ProposalTitle>
+          <SecondaryButton type="button">작성 완료</SecondaryButton>
+        </ProposalHeader>
 
-      <FormRow>
-        <Input placeholder="반 이름" />
-        <Input placeholder="수업 일자" />
-        <Input placeholder="작성자" />
-      </FormRow>
+        <ProposalForm>
+          <ProposalInput placeholder="반 이름" />
+          <ProposalInput placeholder="수업 일자" />
+          <ProposalInput placeholder="작성자" />
+          <ProposalTextarea placeholder="내용" />
+        </ProposalForm>
 
-      <Textarea placeholder="내용" />
-
-      <ProposalList>
-        {proposals.map((proposal) => (
-          <ProposalCard key={proposal.id}>
-            <MetaRow>
-              <MetaBox>{proposal.className}</MetaBox>
-              <MetaBox>{proposal.lessonDate}</MetaBox>
-              <MetaBox>{proposal.writer}</MetaBox>
-            </MetaRow>
-
-            <ContentBox>{proposal.content}</ContentBox>
-
-            <CardBottom>
-              <DateText>{proposal.createdAt}</DateText>
-              <ActionButton type="button" onClick={handleAcceptProposal}>
-                제안 수락하기
-              </ActionButton>
-            </CardBottom>
-          </ProposalCard>
-        ))}
-      </ProposalList>
+        <ProposalList>
+          {proposals.map((proposal) => (
+            <ProposalCard key={proposal.id}>
+              <ProposalMetaRow>
+                <ProposalMeta>
+                  <MetaLabel>반 이름</MetaLabel>
+                  <span>{proposal.className}</span>
+                </ProposalMeta>
+                <ProposalMeta>
+                  <MetaLabel>수업일자</MetaLabel>
+                  <span>{proposal.lessonDate}</span>
+                </ProposalMeta>
+                <ProposalMeta>
+                  <MetaLabel>작성자</MetaLabel>
+                  <span>{proposal.writer}</span>
+                </ProposalMeta>
+              </ProposalMetaRow>
+              <ProposalContent>{proposal.content}</ProposalContent>
+              <ProposalFooter>
+                <ProposalDate>{proposal.createdAt}</ProposalDate>
+                <AcceptLink href={acceptedHref}>
+                  제안 수락하기
+                </AcceptLink>
+              </ProposalFooter>
+            </ProposalCard>
+          ))}
+        </ProposalList>
+      </ContentColumn>
     </PageWrapper>
   );
 }
 
-const PageWrapper = styled.main`
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: ${spacing.space32} ${spacing.space24} 80px;
+const PageWrapper = styled.section`
+  min-height: calc(100vh - ${layout.headerHeight});
+  padding: 1.8125rem 3.125rem 4rem;
   background: ${colors.white};
+
+  @media (min-width: 120rem) {
+    min-height: calc(100vh - 7.1875rem);
+    padding: 2.75rem 4.6875rem 6rem;
+  }
+
+  @media (max-width: ${layout.breakpointTablet}) {
+    padding: ${spacing.space32} ${spacing.space20} ${spacing.space40};
+  }
 `;
 
 const TopButtonRow = styled.div`
   display: flex;
   justify-content: flex-end;
-  gap: ${spacing.space16};
-  margin-bottom: ${spacing.space32};
+  gap: ${spacing.space20};
+  margin-bottom: 2.25rem;
+
+  @media (min-width: 120rem) {
+    gap: 1.875rem;
+    margin-bottom: 3rem;
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    flex-wrap: wrap;
+  }
 `;
 
 const ActionButton = styled.button`
-  min-width: 80px;
-  height: 48px;
-  border: none;
-  background: #e6e6e6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.9375rem;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space20};
+  border: 0;
+  background: #e4e4e4;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
   cursor: pointer;
+
+  &:hover {
+    background: #d9d9d9;
+  }
+
+  @media (min-width: 120rem) {
+    min-width: 5.9375rem;
+    min-height: 4rem;
+    padding: ${spacing.space20} 1.875rem;
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const LinkButton = styled(Link)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 80px;
-  height: 48px;
-  padding: 0 ${spacing.space16};
-  background: #e6e6e6;
-  color: ${colors.text};
+  min-width: 3.9375rem;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space20};
+  background: #e4e4e4;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
   text-decoration: none;
+
+  &:hover {
+    background: #d9d9d9;
+  }
+
+  @media (min-width: 120rem) {
+    min-width: 5.9375rem;
+    min-height: 4rem;
+    padding: ${spacing.space20} 1.875rem;
+    font-size: ${typography.fontSize20};
+  }
 `;
 
-const Section = styled.section`
-  margin-bottom: ${spacing.space24};
+const ContentColumn = styled.article`
+  display: flex;
+  flex-direction: column;
+  gap: 1.3125rem;
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space32};
+  }
 `;
 
-const Label = styled.h3`
-  margin: 0 0 12px;
-  font-size: ${typography.fontSize18};
-  font-weight: 700;
+const DateBar = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  border-bottom: 1px solid #a9a9a9;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
 `;
 
-const ValueBox = styled.div`
-  min-height: 48px;
-  padding: 14px ${spacing.space16};
-  background: #f3f3f3;
+const PostSection = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    gap: 1.875rem;
+  }
 `;
 
-const ValueBoxSmall = styled.div`
-  width: 120px;
-  height: 48px;
-  padding: 0 12px;
-  background: #f3f3f3;
+const Label = styled.h2`
+  margin: 0;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ValueBox = styled.div<{ $weight?: "regular" | "semibold" }>`
   display: flex;
   align-items: center;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  background: #f7f7f7;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: ${({ $weight }) => ($weight === "semibold" ? 600 : 400)};
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
 `;
 
-const Row = styled.div`
-  display: flex;
-  gap: ${typography.fontSize18};
-`;
-
-const FieldBox = styled.div`
-  flex: 1;
-  min-height: 48px;
-  padding: 14px ${spacing.space16};
-  background: #f3f3f3;
-  display: flex;
+const InfoRow = styled.div`
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: ${spacing.space16};
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const FieldLabel = styled.span`
-  font-weight: 700;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  white-space: nowrap;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
-const FieldValue = styled.span``;
-
-const TextBox = styled.div`
-  min-height: 100px;
-  padding: ${spacing.space16};
-  background: #f3f3f3;
+const FieldValue = styled(ValueBox)`
+  min-width: 0;
 `;
 
-const StatusBox = styled.div`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 92px;
-  height: 42px;
-  padding: 0 ${spacing.space16};
-  background: #f3f3f3;
+const TextBox = styled(ValueBox)`
+  align-items: flex-start;
+  min-height: 6.875rem;
+  padding-top: 0.75rem;
+
+  @media (min-width: 120rem) {
+    min-height: 9.6875rem;
+    padding-top: 1.125rem;
+  }
+`;
+
+const DateBox = styled(ValueBox)`
+  width: 7.75rem;
+
+  @media (min-width: 120rem) {
+    width: 11.625rem;
+  }
+`;
+
+const StatusBox = styled(ValueBox)`
+  width: fit-content;
+  padding-inline: ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    padding-inline: 1.875rem;
+  }
 `;
 
 const Divider = styled.hr`
-  border: none;
-  border-top: 1px solid #d7d7d7;
-  margin: 32px 0 28px;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid #a9a9a9;
+  margin: 0;
 `;
 
 const ProposalHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  gap: ${spacing.space24};
 `;
 
 const ProposalTitle = styled.h2`
   margin: 0;
-  font-size: ${typography.fontSize32};
-  font-weight: 700;
+  color: #000000;
+  font-size: ${typography.fontSize20};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize32};
+  }
 `;
 
-const FormRow = styled.div`
+const SecondaryButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space20};
+  border: 0;
+  background: #a0a0a0;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  cursor: pointer;
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ProposalForm = styled.form`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    grid-template-columns: 1fr;
+  }
 `;
 
-const Input = styled.input`
-  height: 48px;
-  padding: 0 14px;
-  border: 1px solid #999;
+const ProposalInput = styled.input`
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  border: 1px solid #000000;
+  background: #e9e9e9;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
   outline: none;
+
+  &::placeholder {
+    color: #9c9c9c;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
 `;
 
-const Textarea = styled.textarea`
-  width: 100%;
-  min-height: 120px;
-  padding: 14px;
-  border: 1px solid #999;
+const ProposalTextarea = styled.textarea`
+  grid-column: 1 / -1;
+  min-height: 6.75rem;
+  padding: 0.8125rem ${spacing.space12};
+  border: 1px solid #000000;
+  background: #e9e9e9;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
   resize: none;
   outline: none;
-  margin-bottom: 24px;
+
+  &::placeholder {
+    color: #9c9c9c;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 10.0625rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const ProposalList = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: ${spacing.space20};
 `;
 
 const ProposalCard = styled.article`
-  border-top: 1px solid #d7d7d7;
-  padding-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8125rem;
+  padding-top: ${spacing.space20};
+  border-top: 1px solid #a9a9a9;
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+    padding-top: 1.875rem;
+  }
 `;
 
-const MetaRow = styled.div`
+const ProposalMetaRow = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    grid-template-columns: 1fr;
+  }
 `;
 
-const MetaBox = styled.div`
-  height: 48px;
-  padding: 0 14px;
-  background: #f3f3f3;
+const ProposalMeta = styled.div`
   display: flex;
   align-items: center;
+  gap: ${spacing.space8};
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  background: #e8e8e8;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    gap: 0.625rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
 `;
 
-const ContentBox = styled.div`
-  min-height: 48px;
-  padding: 14px;
-  background: #f3f3f3;
+const MetaLabel = styled.span`
+  color: #878787;
+  font-weight: 600;
 `;
 
-const CardBottom = styled.div`
+const ProposalContent = styled.div`
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  background: #e8e8e8;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ProposalFooter = styled.div`
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-end;
-  margin-top: 12px;
+  gap: ${spacing.space20};
+  padding-left: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    padding-left: ${spacing.space20};
+  }
 `;
 
-const DateText = styled.span`
+const ProposalDate = styled.span`
   color: ${colors.muted};
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const AcceptLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space20};
+  border: 0;
+  background: #9d9d9d;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  text-decoration: none;
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
 `;

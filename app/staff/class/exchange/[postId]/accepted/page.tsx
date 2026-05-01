@@ -2,17 +2,16 @@
 
 import Link from "next/link";
 import styled from "styled-components";
-import { colors, spacing, typography } from "@/styles/tokens";
+import { colors, layout, spacing, typography } from "@/styles/tokens";
 
-type PageProps = {
-  params: {
-    postId: string;
-  };
+const exchangeTarget = {
+  className: "개나리반",
+  lessonDate: "00.00.00",
+  writer: "최양진",
+  content: "내용내용내용내용내용내용내용내용내용내용내용내용내용내용",
 };
 
-export default function ExchangePostDetailPage({ params }: PageProps) {
-  const { postId } = params;
-
+export default function ExchangeAcceptedPage() {
   return (
     <PageWrapper>
       <TopButtonRow>
@@ -21,166 +20,323 @@ export default function ExchangePostDetailPage({ params }: PageProps) {
         <LinkButton href="/staff/class/exchange">목록</LinkButton>
       </TopButtonRow>
 
-      <Section>
-        <Label>제목</Label>
-        <ValueBox>제목</ValueBox>
-      </Section>
+      <ContentColumn>
+        <PostSection>
+          <Label>제목</Label>
+          <ValueBox $weight="semibold">제목</ValueBox>
 
-      <Section>
-        <Label>신청자 정보</Label>
-        <Row>
-          <FieldBox>
+          <Label>신청자 정보</Label>
+          <InfoRow>
             <FieldLabel>반 이름</FieldLabel>
             <FieldValue>개나리반</FieldValue>
-          </FieldBox>
-          <FieldBox>
             <FieldLabel>수업 일자</FieldLabel>
             <FieldValue>00.00.00</FieldValue>
-          </FieldBox>
-        </Row>
-      </Section>
+            <FieldLabel>작성자</FieldLabel>
+            <FieldValue>홍길동</FieldValue>
+          </InfoRow>
 
-      <Section>
-        <Label>교환 신청 사유</Label>
-        <TextBox>교환 신청 사유</TextBox>
-      </Section>
+          <Label>교환 신청 사유</Label>
+          <TextBox>교환 신청 사유</TextBox>
 
-      <Section>
-        <Label>신청 현황</Label>
-        <StatusBox>대기 중</StatusBox>
-      </Section>
+          <Label>신청 현황</Label>
+          <StatusBox>대기 중</StatusBox>
 
-      <Section>
-        <Label>교환 대상</Label>
+          <Label>교환 대상</Label>
+          <TargetSection>
+            <TargetMetaRow>
+              <TargetMeta>
+                <MetaLabel>반 이름</MetaLabel>
+                <span>{exchangeTarget.className}</span>
+              </TargetMeta>
+              <TargetMeta>
+                <MetaLabel>수업일자</MetaLabel>
+                <span>{exchangeTarget.lessonDate}</span>
+              </TargetMeta>
+              <TargetMeta>
+                <MetaLabel>작성자</MetaLabel>
+                <span>{exchangeTarget.writer}</span>
+              </TargetMeta>
+            </TargetMetaRow>
 
-        <TargetMetaRow>
-          <MetaBox>개나리반</MetaBox>
-          <MetaBox>00.00.00</MetaBox>
-          <MetaBox>최양진</MetaBox>
-        </TargetMetaRow>
-
-        <TargetContent>내용내용내용내용내용내용내용내용내용내용내용내용</TargetContent>
-        <TargetDate>00.00.00</TargetDate>
-      </Section>
+            <TargetContent>{exchangeTarget.content}</TargetContent>
+            <ChangeTargetButton type="button">교환 대상 변경하기</ChangeTargetButton>
+          </TargetSection>
+        </PostSection>
+      </ContentColumn>
     </PageWrapper>
   );
 }
 
-const PageWrapper = styled.main`
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: ${spacing.space32} ${spacing.space24} 80px;
+const PageWrapper = styled.section`
+  min-height: calc(100vh - ${layout.headerHeight});
+  padding: 0.3125rem 3.125rem 4rem;
   background: ${colors.white};
+
+  @media (min-width: 120rem) {
+    min-height: calc(100vh - 7.1875rem);
+    padding: 2.75rem 4.6875rem 6rem;
+  }
+
+  @media (max-width: ${layout.breakpointTablet}) {
+    padding: ${spacing.space32} ${spacing.space20} ${spacing.space40};
+  }
 `;
 
 const TopButtonRow = styled.div`
   display: flex;
   justify-content: flex-end;
-  gap: ${spacing.space16};
-  margin-bottom: ${spacing.space32};
+  gap: ${spacing.space20};
+  margin-bottom: ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    gap: 1.875rem;
+    margin-bottom: 3rem;
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    flex-wrap: wrap;
+  }
 `;
 
 const ActionButton = styled.button`
-  width: 80px;
-  height: 48px;
-  border: none;
-  background: #e6e6e6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.9375rem;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space20};
+  border: 0;
+  background: #e4e4e4;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
   cursor: pointer;
+
+  &:hover {
+    background: #d9d9d9;
+  }
+
+  @media (min-width: 120rem) {
+    min-width: 5.9375rem;
+    min-height: 4rem;
+    padding: ${spacing.space20} 1.875rem;
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const LinkButton = styled(Link)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 80px;
-  height: 48px;
-  padding: 0 ${spacing.space16};
-  background: #e6e6e6;
-  color: ${colors.text};
+  min-width: 3.9375rem;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space20};
+  background: #e4e4e4;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
   text-decoration: none;
+
+  &:hover {
+    background: #d9d9d9;
+  }
+
+  @media (min-width: 120rem) {
+    min-width: 5.9375rem;
+    min-height: 4rem;
+    padding: ${spacing.space20} 1.875rem;
+    font-size: ${typography.fontSize20};
+  }
 `;
 
-const Section = styled.section`
-  margin-bottom: ${spacing.space24};
-`;
-
-const Label = styled.h3`
-  margin: 0 0 12px;
-  font-size: ${typography.fontSize18};
-  font-weight: 700;
-`;
-
-const ValueBox = styled.div`
-  min-height: 48px;
-  padding: 14px ${spacing.space16};
-  background: #f3f3f3;
-`;
-
-const Row = styled.div`
+const ContentColumn = styled.article`
   display: flex;
-  gap: ${typography.fontSize18};
+  flex-direction: column;
+  width: 100%;
 `;
 
-const FieldBox = styled.div`
-  flex: 1;
-  min-height: 48px;
-  padding: 14px ${spacing.space16};
-  background: #f3f3f3;
+const PostSection = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: 1.875rem;
+  }
+`;
+
+const Label = styled.h2`
+  margin: 0;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ValueBox = styled.div<{ $weight?: "regular" | "semibold" }>`
   display: flex;
   align-items: center;
-  gap: ${spacing.space16};
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  background: #f7f7f7;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: ${({ $weight }) => ($weight === "semibold" ? 600 : 400)};
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const InfoRow = styled.div`
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const FieldLabel = styled.span`
-  font-weight: 700;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  white-space: nowrap;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
-const FieldValue = styled.span``;
-
-const TextBox = styled.div`
-  min-height: 100px;
-  padding: ${spacing.space16};
-  background: #f3f3f3;
+const FieldValue = styled(ValueBox)`
+  min-width: 0;
 `;
 
-const StatusBox = styled.div`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 92px;
-  height: 42px;
-  padding: 0 ${spacing.space16};
-  background: #f3f3f3;
+const TextBox = styled(ValueBox)`
+  align-items: flex-start;
+  min-height: 5.1875rem;
+  padding-top: 0.75rem;
+
+  @media (min-width: 120rem) {
+    min-height: 9.6875rem;
+    padding-top: 1.125rem;
+  }
+`;
+
+const StatusBox = styled(ValueBox)`
+  width: fit-content;
+  padding-inline: ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    padding-inline: 1.875rem;
+  }
+`;
+
+const TargetSection = styled.section`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: ${spacing.space8};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
 `;
 
 const TargetMetaRow = styled.div`
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: ${spacing.space12};
+  width: 100%;
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    grid-template-columns: 1fr;
+  }
 `;
 
-const MetaBox = styled.div`
-  height: 48px;
-  padding: 0 14px;
-  background: #f3f3f3;
+const TargetMeta = styled.div`
   display: flex;
   align-items: center;
+  gap: ${spacing.space8};
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  background: #f7f7f7;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    gap: 0.625rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const MetaLabel = styled.span`
+  color: #878787;
+  font-weight: 600;
 `;
 
 const TargetContent = styled.div`
-  min-height: 48px;
-  padding: 14px;
-  background: #f3f3f3;
+  width: 100%;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  background: #f7f7f7;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
 `;
 
-const TargetDate = styled.div`
-  margin-top: 10px;
-  color: ${colors.muted};
-`;
+const ChangeTargetButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space20};
+  border: 0;
+  background: #9d9d9d;
+  color: #1c1c1c;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  cursor: pointer;
 
-const BottomRow = styled.div`
-  margin-top: ${spacing.space32};
-  display: flex;
-  justify-content: flex-end;
+  &:hover {
+    background: #8f8f8f;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
 `;

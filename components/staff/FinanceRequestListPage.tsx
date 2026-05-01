@@ -78,5 +78,4 @@ const Stage = styled.div`
 const Content = styled.section`
   flex: 1;
   min-width: 0;
-  overflow-x: auto;
 `;

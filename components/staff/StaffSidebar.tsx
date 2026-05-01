@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styled from "styled-components";
 import { colors, layout, typography } from "@/styles/tokens";
+
+const SIDEBAR_STORAGE_KEY = "staff-sidebar-open-sections";
 
 const staffSections = [
   {
@@ -40,22 +42,86 @@ const staffSections = [
   },
 ];
 
+function getClosedSections() {
+  return Object.fromEntries(staffSections.map((section) => [section.title, false]));
+}
+
+function getStoredOpenSections() {
+  const storedValue = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+  if (!storedValue) return getClosedSections();
+
+  try {
+    const parsedValue = JSON.parse(storedValue) as Record<string, boolean>;
+
+    return {
+      ...getClosedSections(),
+      ...Object.fromEntries(
+        staffSections.map((section) => [section.title, Boolean(parsedValue[section.title])]),
+      ),
+    };
+  } catch {
+    window.localStorage.removeItem(SIDEBAR_STORAGE_KEY);
+    return getClosedSections();
+  }
+}
+
+function isCurrentStaffPath(pathname: string, href: string) {
+  if (href === "/staff/class") {
+    return (
+      pathname === href ||
+      pathname === "/staff/class/new" ||
+      /^\/staff\/class\/(?!(exchange|absence)$)[^/]+$/.test(pathname)
+    );
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function getCurrentSectionTitle(pathname: string) {
+  return staffSections.find((section) =>
+    section.items.some((item) => isCurrentStaffPath(pathname, item.href)),
+  )?.title;
+}
+
 export default function StaffSidebar() {
   const pathname = usePathname();
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(staffSections.map((section) => [section.title, true])),
-  );
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(getClosedSections);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      const currentSectionTitle = getCurrentSectionTitle(pathname);
+      setOpenSections({
+        ...getStoredOpenSections(),
+        ...(currentSectionTitle ? { [currentSectionTitle]: true } : {}),
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timerId);
+  }, [pathname]);
 
   const isCurrent = (href: string) => {
-    if (href === "/staff/class") return pathname === href;
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return isCurrentStaffPath(pathname, href);
   };
 
   const toggleSection = (title: string) => {
-    setOpenSections((current) => ({
-      ...current,
-      [title]: !current[title],
-    }));
+    setOpenSections((current) => {
+      const nextOpenSections = {
+        ...current,
+        [title]: !current[title],
+      };
+
+      window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(nextOpenSections));
+
+      return nextOpenSections;
+    });
+  };
+
+  const keepOnlySectionOpen = (title: string) => {
+    const nextOpenSections = Object.fromEntries(
+      staffSections.map((section) => [section.title, section.title === title]),
+    );
+
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(nextOpenSections));
   };
 
   return (
@@ -63,8 +129,7 @@ export default function StaffSidebar() {
       <SidebarHeader>교원</SidebarHeader>
       <SidebarContent>
         {staffSections.map((section, sectionIndex) => {
-          const hasCurrentItem = section.items.some((item) => isCurrent(item.href));
-          const isOpen = openSections[section.title] ?? hasCurrentItem;
+          const isOpen = openSections[section.title] ?? false;
           const sectionId = `staff-sidebar-section-${sectionIndex}`;
 
           return (
@@ -74,7 +139,6 @@ export default function StaffSidebar() {
                 onClick={() => toggleSection(section.title)}
                 aria-expanded={isOpen}
                 aria-controls={sectionId}
-                $hasCurrentItem={hasCurrentItem}
               >
                 <span>{section.title}</span>
                 <Chevron aria-hidden="true" $isOpen={isOpen}>
@@ -90,6 +154,7 @@ export default function StaffSidebar() {
                         href={item.href}
                         $isCurrent={current}
                         aria-current={current ? "page" : undefined}
+                        onClick={() => keepOnlySectionOpen(section.title)}
                       >
                         {item.label}
                       </SectionLink>
@@ -108,7 +173,8 @@ export default function StaffSidebar() {
 const Sidebar = styled.aside`
   width: 11.625rem;
   flex-shrink: 0;
-  background-color: #e8e8e8;
+  background-color: ${colors.background};
+  border-right: 1px solid ${colors.border};
 
   @media (min-width: 120rem) {
     width: 17.4375rem;
@@ -125,8 +191,8 @@ const SidebarHeader = styled.h1`
   min-height: 3.625rem;
   margin: 0;
   padding: 0 1.625rem;
-  background-color: #939393;
-  color: ${colors.text};
+  background-color: ${colors.point};
+  color: ${colors.white};
   font-size: ${typography.fontSize16};
   font-weight: 700;
   line-height: ${typography.lineHeight130};
@@ -151,12 +217,12 @@ const SectionBlock = styled.section`
     margin-top: 1.375rem;
 
     @media (min-width: 120rem) {
-      margin-top: 2.5rem;
+      margin-top: 1.5rem;
     }
   }
 `;
 
-const SectionButton = styled.button<{ $hasCurrentItem: boolean }>`
+const SectionButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -164,7 +230,7 @@ const SectionButton = styled.button<{ $hasCurrentItem: boolean }>`
   border: 0;
   padding: 0 1.625rem;
   background: transparent;
-  color: ${({ $hasCurrentItem }) => ($hasCurrentItem ? colors.text : "#9f9f9f")};
+  color: ${colors.point};
   font-family: inherit;
   font-size: ${typography.fontSize14};
   font-weight: 700;
@@ -190,14 +256,20 @@ const Chevron = styled.span<{ $isOpen: boolean }>`
 
 const SectionList = styled.ul<{ $isOpen: boolean }>`
   max-height: ${({ $isOpen }) => ($isOpen ? "24rem" : "0")};
-  margin: 0.375rem 0 0;
+  margin: ${({ $isOpen }) => ($isOpen ? "0.625rem 0 0" : "0")};
   padding: 0;
   overflow: hidden;
   list-style: none;
-  transition: max-height 0.2s ease;
+  opacity: ${({ $isOpen }) => ($isOpen ? 1 : 0)};
+  transform: translateY(${({ $isOpen }) => ($isOpen ? "0" : "-0.375rem")});
+  transition:
+    max-height 0.28s ease,
+    margin 0.28s ease,
+    opacity 0.18s ease,
+    transform 0.28s ease;
 
   @media (min-width: 120rem) {
-    margin-top: 0.9375rem;
+    margin-top: ${({ $isOpen }) => ($isOpen ? "0.9375rem" : "0")};
   }
 `;
 
@@ -209,15 +281,18 @@ const SectionItem = styled.li`
 const SectionLink = styled(Link)<{ $isCurrent: boolean }>`
   display: block;
   padding: 0.25rem 1.625rem;
-  background-color: ${({ $isCurrent }) => ($isCurrent ? "#d9d9d9" : "transparent")};
-  color: ${colors.text};
+  background-color: ${({ $isCurrent }) => ($isCurrent ? colors.point : "transparent")};
+  color: ${({ $isCurrent }) => ($isCurrent ? colors.white : "#000000")};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
   text-decoration: none;
+  transition:
+    background-color 0.28s ease,
+    color 0.28s ease;
 
   &:hover {
-    background-color: ${({ $isCurrent }) => ($isCurrent ? "#d9d9d9" : "#dedede")};
+    background-color: ${({ $isCurrent }) => ($isCurrent ? colors.point : "#eeeeee")};
   }
 
   @media (min-width: 120rem) {
