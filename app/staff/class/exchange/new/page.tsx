@@ -1,11 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { IconCalendarMonth } from "@tabler/icons-react";
 import { useMutation } from "@tanstack/react-query";
 import styled from "styled-components";
-import { createLessonExchangeRequest } from "@/api/request/request.api";
+import { createLessonExchangeRequest } from "@/api/lessonExchange/lessonExchange.api";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 function getKstTodayShortDate() {
@@ -22,12 +22,26 @@ function getKstTodayShortDate() {
   return `${year}.${month}.${day}`;
 }
 
+function shortDateToIsoDate(text: string): string | null {
+  const m = /^(\d{2})\.(\d{2})\.(\d{2})$/.exec(text.trim());
+  if (!m) return null;
+  const yy = Number(m[1]);
+  const [, , mm, dd] = m;
+  const fullYear = 2000 + yy;
+  return `${fullYear}-${mm}-${dd}`;
+}
+
+function shortDateToExpiresAt(text: string): string | null {
+  const datePart = shortDateToIsoDate(text);
+  if (!datePart) return null;
+  return `${datePart}T22:00:00`;
+}
+
 export default function Page() {
   const kstToday = getKstTodayShortDate();
   const [expireDateText, setExpireDateText] = useState(kstToday);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const searchParams = useSearchParams();
   const createLessonExchangeMutation = useMutation({
     mutationFn: createLessonExchangeRequest,
     onSuccess: () => {
@@ -66,17 +80,39 @@ export default function Page() {
     const formData = new FormData(event.currentTarget);
     const title = String(formData.get("title") ?? "").trim();
     const content = String(formData.get("reason") ?? "").trim();
-    const lessonId = Number(searchParams.get("lessonId") ?? "1");
+    const lessonDateRaw = String(formData.get("lessonDate") ?? "").trim();
+    const periodFromRaw = String(formData.get("lessonPeriodFrom") ?? "").trim();
+    const periodToRaw = String(formData.get("lessonPeriodTo") ?? "").trim();
 
-    if (!title || !content || !Number.isInteger(lessonId) || lessonId < 1) {
+    const lessonDate = shortDateToIsoDate(lessonDateRaw);
+    const expiresAt = shortDateToExpiresAt(expireDateText.trim());
+    const startPeriod = Number.parseInt(periodFromRaw, 10);
+    const endPeriod = Number.parseInt(periodToRaw, 10);
+
+    if (!title || !content) {
       window.alert("필수 입력값을 확인해주세요.");
+      return;
+    }
+    if (!lessonDate) {
+      window.alert("수업 일자를 YY.MM.DD 형식으로 입력해 주세요.");
+      return;
+    }
+    if (!expiresAt) {
+      window.alert("만료일을 달력에서 선택해 주세요.");
+      return;
+    }
+    if (!Number.isFinite(startPeriod) || !Number.isFinite(endPeriod) || startPeriod < 1 || endPeriod < 1) {
+      window.alert("수업 교시를 올바른 숫자로 입력해 주세요.");
       return;
     }
 
     createLessonExchangeMutation.mutate({
-      lessonId,
+      lessonDate,
       title,
       content,
+      startPeriod,
+      endPeriod,
+      expiresAt,
     });
   };
 

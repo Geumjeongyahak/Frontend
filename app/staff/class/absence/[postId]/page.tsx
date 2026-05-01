@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
 import { deleteAbsenceRequest, getAbsenceRequestDetail } from "@/api/request/request.api";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
@@ -52,11 +52,11 @@ export default function AbsencePostPage() {
   return (
     <PageWrapper>
       <TopButtonRow>
-        <ActionButton type="button" onClick={handleDelete} disabled={deleteAbsenceMutation.isPending}>
+        <ToolbarDangerButton type="button" onClick={handleDelete} disabled={deleteAbsenceMutation.isPending}>
           {deleteAbsenceMutation.isPending ? "삭제 중..." : "삭제"}
-        </ActionButton>
-        <ActionButton type="button">수정</ActionButton>
-        <LinkButton href="/staff/class/absence">목록</LinkButton>
+        </ToolbarDangerButton>
+        <ToolbarPrimaryButton type="button">수정</ToolbarPrimaryButton>
+        <ToolbarListLink href="/staff/class/absence">목록</ToolbarListLink>
       </TopButtonRow>
 
       <ContentColumn>
@@ -118,7 +118,7 @@ const TopButtonRow = styled.div`
   }
 `;
 
-const ActionButton = styled.button`
+const toolbarButtonBase = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -126,16 +126,12 @@ const ActionButton = styled.button`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
   border: 0;
-  background: #e4e4e4;
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
+  white-space: nowrap;
   cursor: pointer;
-
-  &:hover {
-    background: #d9d9d9;
-  }
+  border-radius: ${radii.radius12};
 
   @media (min-width: 120rem) {
     min-width: 5.9375rem;
@@ -145,29 +141,39 @@ const ActionButton = styled.button`
   }
 `;
 
-const LinkButton = styled(Link)`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 3.9375rem;
-  min-height: 2.6875rem;
-  padding: 0.8125rem ${spacing.space20};
-  background: #e4e4e4;
-  color: #000000;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
+const ToolbarDangerButton = styled.button`
+  ${toolbarButtonBase}
+  background: #fde4e2;
+  color: #da3a30;
+
+  &:hover:not(:disabled) {
+    filter: brightness(0.97);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const ToolbarPrimaryButton = styled.button`
+  ${toolbarButtonBase}
+  background: ${colors.point};
+  color: ${colors.white};
+
+  &:hover {
+    filter: brightness(0.95);
+  }
+`;
+
+const ToolbarListLink = styled(Link)`
+  ${toolbarButtonBase}
+  background: ${colors.point};
+  color: ${colors.white};
   text-decoration: none;
 
   &:hover {
-    background: #d9d9d9;
-  }
-
-  @media (min-width: 120rem) {
-    min-width: 5.9375rem;
-    min-height: 4rem;
-    padding: ${spacing.space20} 1.875rem;
-    font-size: ${typography.fontSize20};
+    filter: brightness(0.95);
   }
 `;
 

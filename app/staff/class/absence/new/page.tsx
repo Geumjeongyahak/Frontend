@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import styled from "styled-components";
 import { createAbsenceRequest } from "@/api/request/request.api";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export default function Page() {
   const router = useRouter();
@@ -48,7 +48,7 @@ export default function Page() {
       <Form id="absence-form" onSubmit={handleSubmit}>
         <Section>
           <Label htmlFor="title">제목</Label>
-          <Input id="title" name="title" placeholder="제목" />
+          <TitleInput id="title" name="title" placeholder="제목" />
         </Section>
 
         <Section>
@@ -119,12 +119,12 @@ const SubmitButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 4.75rem;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
   border: 0;
-  background: #e4e4e4;
-  color: #000000;
+  border-radius: ${radii.radius12};
+  background-color: ${colors.point};
+  color: ${colors.white};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -132,11 +132,15 @@ const SubmitButton = styled.button`
   cursor: pointer;
 
   &:hover {
-    background: #d9d9d9;
+    filter: brightness(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   @media (min-width: 120rem) {
-    min-width: 6.75rem;
     min-height: 4rem;
     padding: ${spacing.space20} 1.875rem;
     font-size: ${typography.fontSize20};
@@ -175,15 +179,15 @@ const Label = styled.label`
   }
 `;
 
-const Input = styled.input`
-  width: 100%;
+const InlineInput = styled.input`
+  min-width: 0;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
   border: 0;
-  background: ${colors.point};
-  color: #b1b1b1;
+  background: ${colors.background};
+  color: #000000;
   font-size: ${typography.fontSize14};
-  font-weight: 500;
+  font-weight: 400;
   line-height: ${typography.lineHeight130};
   outline: none;
 
@@ -196,6 +200,10 @@ const Input = styled.input`
     padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
   }
+`;
+
+const TitleInput = styled(InlineInput)`
+  width: 100%;
 `;
 
 const InfoRow = styled.div`
@@ -225,36 +233,13 @@ const FieldLabel = styled.label`
   }
 `;
 
-const InlineInput = styled.input`
-  min-width: 0;
-  min-height: 2.6875rem;
-  padding: 0.8125rem ${spacing.space12};
-  border: 0;
-  background: ${colors.point};
-  color: #b1b1b1;
-  font-size: ${typography.fontSize14};
-  font-weight: 400;
-  line-height: ${typography.lineHeight130};
-  outline: none;
-
-  &::placeholder {
-    color: #b1b1b1;
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20};
-    font-size: ${typography.fontSize20};
-  }
-`;
-
 const TextArea = styled.textarea`
   width: 100%;
   min-height: 6.875rem;
   padding: 0.75rem ${spacing.space12};
   border: 0;
-  background: ${colors.point};
-  color: #b1b1b1;
+  background: ${colors.background};
+  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
