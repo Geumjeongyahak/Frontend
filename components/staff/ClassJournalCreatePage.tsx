@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const teacherFields = [
   { id: "writer", label: "작성자", placeholder: "홍길동" },
@@ -57,24 +57,26 @@ export default function ClassJournalCreatePage() {
 
         <AttendanceSection>
           <SectionTitle>출석</SectionTitle>
-          <AttendanceGrid aria-label="출석부">
-            {attendanceColumns.map((column) => (
-              <AttendanceInput
-                key={`student-${column}`}
-                name={`studentName${column + 1}`}
-                aria-label={`${column + 1}번 학생 이름`}
-                placeholder={column < 4 ? "최양진" : ""}
-              />
-            ))}
-            {attendanceColumns.map((column) => (
-              <AttendanceInput
-                key={`attendance-${column}`}
-                name={`attendanceStatus${column + 1}`}
-                aria-label={`${column + 1}번 출석 상태`}
-              />
-            ))}
-          </AttendanceGrid>
-          <AddAttendanceButton type="button">출석부 추가하기</AddAttendanceButton>
+          <AttendanceTableWrap>
+            <AttendanceGrid aria-label="출석부">
+              {attendanceColumns.map((column) => (
+                <AttendanceInput
+                  key={`student-${column}`}
+                  name={`studentName${column + 1}`}
+                  aria-label={`${column + 1}번 학생 이름`}
+                  placeholder={column < 4 ? "최양진" : ""}
+                />
+              ))}
+              {attendanceColumns.map((column) => (
+                <AttendanceInput
+                  key={`attendance-${column}`}
+                  name={`attendanceStatus${column + 1}`}
+                  aria-label={`${column + 1}번 출석 상태`}
+                />
+              ))}
+            </AttendanceGrid>
+            <AddAttendanceButton type="button">출석부 추가하기</AddAttendanceButton>
+          </AttendanceTableWrap>
         </AttendanceSection>
       </Form>
     </PageSection>
@@ -157,13 +159,37 @@ const ConsentLabel = styled.label`
 `;
 
 const ConsentCheckbox = styled.input`
+  flex-shrink: 0;
   width: 1rem;
   height: 1rem;
-  accent-color: ${colors.point};
+  margin: 0;
+  appearance: none;
+  border: 1px solid #c8deb8;
+  border-radius: 4px;
+  background-color: #eef9e6;
+  cursor: pointer;
+
+  &:checked {
+    background-color: #eef9e6;
+    border-color: ${colors.point};
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%2388CD5A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2 6l3 3 5-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 0.75rem;
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${colors.point};
+    outline-offset: 2px;
+  }
 
   @media (min-width: 120rem) {
     width: 1.5625rem;
     height: 1.5625rem;
+
+    &:checked {
+      background-size: 1rem;
+    }
   }
 `;
 
@@ -174,8 +200,9 @@ const SubmitButton = styled.button`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
   border: 0;
-  background-color: #e4e4e4;
-  color: #000000;
+  border-radius: ${radii.radius12};
+  background-color: #88cd5a;
+  color: ${colors.white};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -183,7 +210,12 @@ const SubmitButton = styled.button`
   cursor: pointer;
 
   &:hover {
-    background-color: #d9d9d9;
+    filter: brightness(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   @media (min-width: 120rem) {
@@ -254,7 +286,7 @@ const FieldInput = styled.input`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
   border: 0;
-  background-color: #d9d9d9;
+  background-color: #f8f8f8;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -291,7 +323,7 @@ const LessonTextArea = styled.textarea`
   min-height: 5.375rem;
   padding: 0.8125rem ${spacing.space12};
   border: 0;
-  background-color: #e2e2e2;
+  background-color: #f8f8f8;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -320,12 +352,25 @@ const AttendanceSection = styled.section`
   }
 `;
 
+const AttendanceTableWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  max-width: 100%;
+  align-self: flex-start;
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+`;
+
 const AttendanceGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(10, minmax(4.5rem, 1fr));
   overflow-x: auto;
-  border-top: 1px solid #000000;
-  border-left: 1px solid #000000;
+  border-top: 1px solid #c0c0c0;
+  border-left: 1px solid #c0c0c0;
 `;
 
 const AttendanceInput = styled.input`
@@ -333,9 +378,9 @@ const AttendanceInput = styled.input`
   min-height: 2.75rem;
   padding: ${spacing.space8};
   border: 0;
-  border-right: 1px solid #000000;
-  border-bottom: 1px solid #000000;
-  background-color: #e2e2e2;
+  border-right: 1px solid #c0c0c0;
+  border-bottom: 1px solid #c0c0c0;
+  background: transparent;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -359,8 +404,8 @@ const AddAttendanceButton = styled.button`
   justify-content: center;
   width: 100%;
   min-height: 2.6875rem;
-  border: 1px solid #000000;
-  background-color: #e2e2e2;
+  border: 1px solid #88cd5a;
+  background-color: #eef9e6;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
@@ -368,7 +413,7 @@ const AddAttendanceButton = styled.button`
   cursor: pointer;
 
   &:hover {
-    background-color: #d9d9d9;
+    filter: brightness(0.97);
   }
 
   @media (min-width: 120rem) {

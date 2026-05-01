@@ -12,12 +12,12 @@ import { useAuthSession } from "@/hooks/useAuthSession";
 import { colors, radii, spacing, typography } from "@/styles/tokens";
 
 type LoginFormState = {
-  username: string;
+  email: string;
   password: string;
 };
 
 const initialLoginForm: LoginFormState = {
-  username: "",
+  email: "",
   password: "",
 };
 
@@ -28,7 +28,7 @@ export default function LoginCard() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const displayName = user?.name ?? "회원";
-  const canSubmit = form.username.trim().length > 0 && form.password.length > 0;
+  const canSubmit = form.email.trim().length > 0 && form.password.length > 0;
 
   async function handleLogout() {
     await signOut();
@@ -47,7 +47,7 @@ export default function LoginCard() {
 
     try {
       await login({
-        username: form.username.trim(),
+        email: form.email.trim(),
         password: form.password,
       });
       setForm(initialLoginForm);
@@ -92,12 +92,12 @@ export default function LoginCard() {
       <Form aria-label="로그인 폼" onSubmit={handleLogin}>
         <InputGroup>
           <Input
-            type="text"
-            placeholder="아이디"
-            autoComplete="username"
-            value={form.username}
+            type="email"
+            placeholder="이메일"
+            autoComplete="email"
+            value={form.email}
             onChange={(event) =>
-              setForm((current) => ({ ...current, username: event.target.value }))
+              setForm((current) => ({ ...current, email: event.target.value }))
             }
           />
           <Input

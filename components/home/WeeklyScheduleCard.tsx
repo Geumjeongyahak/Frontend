@@ -29,7 +29,11 @@ export default function WeeklyScheduleCard({ schedule }: WeeklyScheduleCardProps
               <ItemList>
                 {daySchedule.items.length === 0 ? (
                   <EmptyText>
-                    예정된 수업이 <br /> 없습니다
+                    예정된
+                    <br />
+                    수업이
+                    <br />
+                    없습니다
                   </EmptyText>
                 ) : (
                   <>
@@ -134,6 +138,9 @@ const ItemTitle = styled.span`
   color: ${colors.text};
   display: -webkit-box;
   overflow: hidden;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
   font-size: ${typography.fontSize13};
   font-weight: 500;
   line-height: ${typography.lineHeight130};

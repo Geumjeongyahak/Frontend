@@ -194,7 +194,7 @@ const ActionButton = styled.button`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
   border: 0;
-  border-radius: ${radii.radius15};
+  border-radius: ${radii.radius12};
   background-color: ${colors.point};
   color: ${colors.white};
   font-size: ${typography.fontSize14};
@@ -265,9 +265,11 @@ const JournalCard = styled(Link)`
   flex-direction: column;
   justify-content: space-between;
   height: 12.6875rem;
-  background-color: #d9d9d9;
   color: #000000;
   text-decoration: none;
+  border: 1px solid #88cd5a;
+  overflow: hidden;
+  border-radius: ${radii.radius20};
 
   @media (min-width: 120rem) {
     height: 19.0625rem;
@@ -328,7 +330,7 @@ const CardFooter = styled.footer`
   gap: ${spacing.space8};
   min-height: 2.625rem;
   padding: 0 ${spacing.space16};
-  background-color: #f3f3f3;
+  background-color: #88cd5a;
 
   @media (min-width: 120rem) {
     min-height: 3.9375rem;
@@ -339,7 +341,7 @@ const CardFooter = styled.footer`
 const ClassName = styled.strong`
   min-width: 0;
   overflow: hidden;
-  color: #000000;
+  color: #ffffff;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -363,7 +365,7 @@ const MetaGroup = styled.div`
 `;
 
 const Teacher = styled.span`
-  color: #000000;
+  color: #ffffff;
   font-size: 0.6875rem;
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -421,11 +423,12 @@ const SwitchInput = styled.input`
   opacity: 0;
 
   &:checked + span {
-    background-color: #bbc4ff;
+    background-color: #eef9e6;
   }
 
   &:checked + span span {
     transform: translateX(1.3125rem);
+    background-color: #88cd5a;
 
     @media (min-width: 120rem) {
       transform: translateX(2.125rem);
@@ -460,7 +463,7 @@ const SwitchThumb = styled.span`
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 50%;
-  background-color: #6d6d6d;
+  background-color: #616161;
   transition: transform 0.2s ease;
 
   @media (min-width: 120rem) {

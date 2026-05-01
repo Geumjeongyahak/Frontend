@@ -1,6 +1,6 @@
 import Link from "next/link";
 import styled from "styled-components";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { colors, layout, spacing, typography, radii } from "@/styles/tokens";
 
 type PageProps = {
   params: Promise<{
@@ -136,12 +136,13 @@ const ActionButton = styled.button`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
   border: 0;
-  background-color: #e4e4e4;
-  color: #000000;
+  background-color: #88cd5a;
+  color: #ffffff;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
   cursor: pointer;
+  border-radius: ${radii.radius12};
 
   &:hover {
     background-color: #d9d9d9;
@@ -162,12 +163,13 @@ const LinkButton = styled(Link)`
   min-width: 3.9375rem;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  background-color: #e4e4e4;
-  color: #000000;
+  background-color: #88cd5a;
+  color: #ffffff;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
   text-decoration: none;
+  border-radius: ${radii.radius12};
 
   &:hover {
     background-color: #d9d9d9;

@@ -1,40 +1,86 @@
 "use client";
 
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { deleteAbsenceRequest, getAbsenceRequestDetail } from "@/api/request/request.api";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { useAuthSession } from "@/hooks/useAuthSession";
+import { queryKeys } from "@/lib/queryKeys";
+import { formatRequestStatus } from "@/utils/formatRequestStatus";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 export default function AbsencePostPage() {
+  const params = useParams<{ postId: string }>();
+  const router = useRouter();
+  const { status: authStatus } = useAuthSession();
+  const isAuthenticated = authStatus === "authenticated";
+  const postId = Number(params.postId);
+  const isValidPostId = Number.isInteger(postId) && postId > 0;
+  const deleteAbsenceMutation = useMutation({
+    mutationFn: deleteAbsenceRequest,
+    onSuccess: () => {
+      router.push("/staff/class/absence");
+      router.refresh();
+    },
+    onError: () => {
+      window.alert("결강 신청서 삭제에 실패했습니다.");
+    },
+  });
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: queryKeys.requests.absenceDetail(postId),
+    queryFn: () => getAbsenceRequestDetail({ requestId: postId }),
+    enabled: isAuthenticated && isValidPostId,
+    retry: false,
+  });
+
+  const detailCreatedDate = formatUtcToKstShortDate(data?.createdAt);
+  const detailLessonDate = formatUtcToKstShortDate(data?.lessonDate);
+  const detailWriter = data?.requestedByName ?? "-";
+  const detailReason = isError ? "결강 신청 사유를 불러오지 못했습니다." : data?.reason ?? "결강 신청 사유";
+  const detailStatus = isError ? "확인 불가" : formatRequestStatus(data?.status);
+  const detailTitle = isLoading ? "불러오는 중..." : "-";
+
+  const handleDelete = async () => {
+    if (!isValidPostId || deleteAbsenceMutation.isPending) return;
+    if (!window.confirm("결강 신청서를 삭제하시겠습니까?")) return;
+    deleteAbsenceMutation.mutate({ requestId: postId });
+  };
+
   return (
     <PageWrapper>
       <TopButtonRow>
-        <ActionButton type="button">삭제</ActionButton>
-        <ActionButton type="button">수정</ActionButton>
-        <LinkButton href="/staff/class/absence">목록</LinkButton>
+        <ToolbarDangerButton type="button" onClick={handleDelete} disabled={deleteAbsenceMutation.isPending}>
+          {deleteAbsenceMutation.isPending ? "삭제 중..." : "삭제"}
+        </ToolbarDangerButton>
+        <ToolbarPrimaryButton type="button">수정</ToolbarPrimaryButton>
+        <ToolbarListLink href="/staff/class/absence">목록</ToolbarListLink>
       </TopButtonRow>
 
       <ContentColumn>
-        <DateBar>00.00.00</DateBar>
+        <DateBar>{detailCreatedDate}</DateBar>
 
         <PostSection>
           <Label>제목</Label>
-          <ValueBox>제목</ValueBox>
+          <ValueBox>{detailTitle}</ValueBox>
 
           <Label>신청자 정보</Label>
           <InfoRow>
             <FieldLabel>반 이름</FieldLabel>
-            <FieldValue>개나리반</FieldValue>
+            <FieldValue>-</FieldValue>
             <FieldLabel>수업 일자</FieldLabel>
-            <FieldValue>00.00.00</FieldValue>
+            <FieldValue>{detailLessonDate}</FieldValue>
             <FieldLabel>작성자</FieldLabel>
-            <FieldValue>홍길동</FieldValue>
+            <FieldValue>{detailWriter}</FieldValue>
           </InfoRow>
 
           <Label>결강 신청 사유</Label>
-          <TextBox>결강 신청 사유</TextBox>
+          <TextBox>{detailReason}</TextBox>
 
           <Label>신청 현황</Label>
-          <StatusBox>대기 중</StatusBox>
+          <StatusBox>{detailStatus}</StatusBox>
         </PostSection>
       </ContentColumn>
     </PageWrapper>
@@ -72,7 +118,7 @@ const TopButtonRow = styled.div`
   }
 `;
 
-const ActionButton = styled.button`
+const toolbarButtonBase = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -80,16 +126,12 @@ const ActionButton = styled.button`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
   border: 0;
-  background: #e4e4e4;
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
+  white-space: nowrap;
   cursor: pointer;
-
-  &:hover {
-    background: #d9d9d9;
-  }
+  border-radius: ${radii.radius12};
 
   @media (min-width: 120rem) {
     min-width: 5.9375rem;
@@ -99,29 +141,39 @@ const ActionButton = styled.button`
   }
 `;
 
-const LinkButton = styled(Link)`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 3.9375rem;
-  min-height: 2.6875rem;
-  padding: 0.8125rem ${spacing.space20};
-  background: #e4e4e4;
-  color: #000000;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
+const ToolbarDangerButton = styled.button`
+  ${toolbarButtonBase}
+  background: #fde4e2;
+  color: #da3a30;
+
+  &:hover:not(:disabled) {
+    filter: brightness(0.97);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const ToolbarPrimaryButton = styled.button`
+  ${toolbarButtonBase}
+  background: ${colors.point};
+  color: ${colors.white};
+
+  &:hover {
+    filter: brightness(0.95);
+  }
+`;
+
+const ToolbarListLink = styled(Link)`
+  ${toolbarButtonBase}
+  background: ${colors.point};
+  color: ${colors.white};
   text-decoration: none;
 
   &:hover {
-    background: #d9d9d9;
-  }
-
-  @media (min-width: 120rem) {
-    min-width: 5.9375rem;
-    min-height: 4rem;
-    padding: ${spacing.space20} 1.875rem;
-    font-size: ${typography.fontSize20};
+    filter: brightness(0.95);
   }
 `;
 

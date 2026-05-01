@@ -15,12 +15,12 @@ import {
 import AuthShell from "@/components/auth/AuthShell";
 
 type LoginFormState = {
-  username: string;
+  email: string;
   password: string;
 };
 
 const initialState: LoginFormState = {
-  username: "",
+  email: "",
   password: "",
 };
 
@@ -30,7 +30,7 @@ export default function LoginForm() {
   const [statusMessage, setStatusMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canSubmit = form.username.trim().length > 0 && form.password.length > 0;
+  const canSubmit = form.email.trim().length > 0 && form.password.length > 0;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -44,7 +44,7 @@ export default function LoginForm() {
 
     try {
       await login({
-        username: form.username.trim(),
+        email: form.email.trim(),
         password: form.password,
       });
       setStatusMessage("로그인되었습니다. 잠시 후 메인으로 이동합니다.");
@@ -61,16 +61,16 @@ export default function LoginForm() {
       <Form onSubmit={handleSubmit} aria-label="로그인 폼">
         <FieldGroup>
           <Field>
-            <Label htmlFor="login-username">아이디</Label>
+            <Label htmlFor="login-email">이메일</Label>
             <Input
-              id="login-username"
-              name="username"
-              type="text"
-              autoComplete="username"
-              placeholder="아이디를 입력하세요"
-              value={form.username}
+              id="login-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              placeholder="이메일을 입력하세요"
+              value={form.email}
               onChange={(event) =>
-                setForm((current) => ({ ...current, username: event.target.value }))
+                setForm((current) => ({ ...current, email: event.target.value }))
               }
               required
             />

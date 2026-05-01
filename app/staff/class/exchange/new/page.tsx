@@ -1,13 +1,33 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { IconCalendarMonth } from "@tabler/icons-react";
+import { useMutation } from "@tanstack/react-query";
 import styled from "styled-components";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { createLessonExchangeRequest } from "@/api/lessonExchange/lessonExchange.api";
+import {
+  getKstTodayShortDate,
+  koreanShortDateToLocalDateTime,
+  parseKoreanShortDateToIsoDate,
+} from "@/utils/kstShortDate";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export default function Page() {
-  const [expireDateText, setExpireDateText] = useState("00.00.00");
+  const kstToday = getKstTodayShortDate();
+  const [expireDateText, setExpireDateText] = useState(kstToday);
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const createLessonExchangeMutation = useMutation({
+    mutationFn: createLessonExchangeRequest,
+    onSuccess: () => {
+      router.push("/staff/class/exchange");
+      router.refresh();
+    },
+    onError: () => {
+      window.alert("수업 교환 신청서 생성에 실패했습니다.");
+    },
+  });
 
   const handleOpenDatePicker = () => {
     const dateInput = dateInputRef.current;
@@ -25,20 +45,63 @@ export default function Page() {
     const value = event.target.value;
     if (!value) return;
 
-    const [, month, day] = value.split("-");
-    setExpireDateText(`00.${month}.${day}`);
+    const [year, month, day] = value.split("-");
+    setExpireDateText(`${year.slice(-2)}.${month}.${day}`);
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (createLessonExchangeMutation.isPending) return;
+
+    const formData = new FormData(event.currentTarget);
+    const title = String(formData.get("title") ?? "").trim();
+    const content = String(formData.get("reason") ?? "").trim();
+    const lessonDateRaw = String(formData.get("lessonDate") ?? "").trim();
+    const periodFromRaw = String(formData.get("lessonPeriodFrom") ?? "").trim();
+    const periodToRaw = String(formData.get("lessonPeriodTo") ?? "").trim();
+
+    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateRaw);
+    const expiresAt = koreanShortDateToLocalDateTime(expireDateText.trim());
+    const startPeriod = Number.parseInt(periodFromRaw, 10);
+    const endPeriod = Number.parseInt(periodToRaw, 10);
+
+    if (!title || !content) {
+      window.alert("필수 입력값을 확인해주세요.");
+      return;
+    }
+    if (!lessonDate) {
+      window.alert("수업 일자를 YY.MM.DD 형식으로 입력해 주세요.");
+      return;
+    }
+    if (!expiresAt) {
+      window.alert("만료일을 달력에서 선택해 주세요.");
+      return;
+    }
+    if (!Number.isFinite(startPeriod) || !Number.isFinite(endPeriod) || startPeriod < 1 || endPeriod < 1) {
+      window.alert("수업 교시를 올바른 숫자로 입력해 주세요.");
+      return;
+    }
+
+    createLessonExchangeMutation.mutate({
+      lessonDate,
+      title,
+      content,
+      startPeriod,
+      endPeriod,
+      expiresAt,
+    });
   };
 
   return (
     <PageWrapper>
       <HeaderRow>
         <Title>교환 신청서 작성하기</Title>
-        <SubmitButton type="submit" form="exchange-form">
-          작성 완료
+        <SubmitButton type="submit" form="exchange-form" disabled={createLessonExchangeMutation.isPending}>
+          {createLessonExchangeMutation.isPending ? "작성 중..." : "작성 완료"}
         </SubmitButton>
       </HeaderRow>
 
-      <Form id="exchange-form">
+      <Form id="exchange-form" onSubmit={handleSubmit}>
         <Section>
           <Label htmlFor="title">제목</Label>
           <Input id="title" name="title" defaultValue="제목" />
@@ -46,14 +109,28 @@ export default function Page() {
 
         <Section>
           <Label as="h2">신청자 정보</Label>
-          <InfoRow>
-            <FieldLabel htmlFor="className">반 이름</FieldLabel>
-            <InlineInput id="className" name="className" defaultValue="개나리반" />
-            <FieldLabel htmlFor="lessonDate">수업 일자</FieldLabel>
-            <InlineInput id="lessonDate" name="lessonDate" defaultValue="00.00.00" />
-            <FieldLabel htmlFor="writer">작성자</FieldLabel>
-            <InlineInput id="writer" name="writer" defaultValue="홍길동" />
-          </InfoRow>
+          <InfoStack>
+            <InfoPairRow $wideFirst>
+              <FieldLabel htmlFor="className">반 이름</FieldLabel>
+              <InlineInput id="className" name="className" defaultValue="개나리반" />
+              <FieldLabel htmlFor="writer">작성자</FieldLabel>
+              <InlineInput id="writer" name="writer" defaultValue="홍길동" disabled />
+            </InfoPairRow>
+            <InfoPairRow>
+              <FieldLabel htmlFor="lessonDate">수업 일자</FieldLabel>
+              <InlineInput id="lessonDate" name="lessonDate" defaultValue={kstToday} />
+              <FieldLabel id="lessonPeriod-label">수업 교시</FieldLabel>
+              <LessonPeriodInputs role="group" aria-labelledby="lessonPeriod-label">
+                <LessonPeriodInput
+                  name="lessonPeriodFrom"
+                  defaultValue="1"
+                  aria-label="수업 교시 시작"
+                />
+                <PeriodTilde aria-hidden>~</PeriodTilde>
+                <LessonPeriodInput name="lessonPeriodTo" defaultValue="2" aria-label="수업 교시 끝" />
+              </LessonPeriodInputs>
+            </InfoPairRow>
+          </InfoStack>
         </Section>
 
         <Section>
@@ -79,7 +156,7 @@ export default function Page() {
               tabIndex={-1}
             />
             <CalendarButton type="button" aria-label="달력 열기" onClick={handleOpenDatePicker}>
-              <IconCalendarMonth size={16} stroke={2} />
+              <IconCalendarMonth size={16} stroke={2} color={colors.white} />
             </CalendarButton>
           </DateRow>
         </Section>
@@ -139,8 +216,9 @@ const SubmitButton = styled.button`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
   border: 0;
-  background: #e4e4e4;
-  color: #000000;
+  border-radius: ${radii.radius12};
+  background-color: ${colors.point};
+  color: ${colors.white};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -148,7 +226,12 @@ const SubmitButton = styled.button`
   cursor: pointer;
 
   &:hover {
-    background: #d9d9d9;
+    filter: brightness(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   @media (min-width: 120rem) {
@@ -196,7 +279,7 @@ const Input = styled.input`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
   border: 0;
-  background: #e2e2e2;
+  background: ${colors.background};
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
@@ -210,9 +293,20 @@ const Input = styled.input`
   }
 `;
 
-const InfoRow = styled.div`
+const InfoStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+`;
+
+const InfoPairRow = styled.div<{ $wideFirst?: boolean }>`
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: ${({ $wideFirst }) =>
+    $wideFirst ? `auto minmax(0, 2.25fr) auto minmax(0, 1fr)` : `auto minmax(0, 1fr) auto minmax(0, 1fr)`};
   align-items: center;
   gap: ${spacing.space12};
 
@@ -222,6 +316,29 @@ const InfoRow = styled.div`
 
   @media (max-width: ${layout.breakpointMobile}) {
     grid-template-columns: 1fr;
+  }
+`;
+
+const LessonPeriodInputs = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space8};
+  min-width: 0;
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space12};
+  }
+`;
+
+const PeriodTilde = styled.span`
+  flex-shrink: 0;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
   }
 `;
 
@@ -242,12 +359,18 @@ const InlineInput = styled.input`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
   border: 0;
-  background: #e2e2e2;
+  background: ${colors.background};
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 400;
   line-height: ${typography.lineHeight130};
   outline: none;
+
+  &:disabled {
+    background: #b5b5b5;
+    color: #4f4f4f;
+    cursor: not-allowed;
+  }
 
   @media (min-width: 120rem) {
     min-height: 4rem;
@@ -256,12 +379,18 @@ const InlineInput = styled.input`
   }
 `;
 
+const LessonPeriodInput = styled(InlineInput)`
+  flex: 1 1 0;
+  min-width: 2.5rem;
+  text-align: center;
+`;
+
 const TextArea = styled.textarea`
   width: 100%;
   min-height: 6.875rem;
   padding: 0.75rem ${spacing.space12};
   border: 0;
-  background: #e2e2e2;
+  background: ${colors.background};
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -283,7 +412,7 @@ const DateRow = styled.div`
   width: 7.75rem;
   min-height: 2.6875rem;
   padding: 0.4375rem ${spacing.space12};
-  background: #e2e2e2;
+  background: ${colors.background};
 
   @media (min-width: 120rem) {
     width: 11.625rem;
@@ -324,8 +453,8 @@ const CalendarButton = styled.button`
   height: 1.5rem;
   border: 0;
   border-radius: 50%;
-  background: #a8a8a8;
-  color: #000000;
+  background: ${colors.point};
+  color: ${colors.white};
   cursor: pointer;
 
   @media (min-width: 120rem) {

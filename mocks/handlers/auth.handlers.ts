@@ -10,7 +10,8 @@ import type {
 
 export const API_BASE_URL = "http://localhost:8080";
 
-export const VALID_USERNAME = "valid-user";
+/** MSW 로그인 성공에 사용하는 이메일(백엔드 login API는 `email` 필드 기준) */
+export const VALID_LOGIN_EMAIL = "valid-user@example.com";
 export const VALID_PASSWORD = "correct-password";
 export const VALID_ACCESS_TOKEN = "valid-access-token";
 export const EXPIRED_ACCESS_TOKEN = "expired-access-token";
@@ -20,7 +21,7 @@ export const REFRESHED_REFRESH_TOKEN = "refreshed-refresh-token";
 export const INVALID_REFRESH_TOKEN = "invalid-refresh-token";
 
 export const DEFAULT_LOGIN_REQUEST: LoginRequestDto = {
-  username: VALID_USERNAME,
+  email: VALID_LOGIN_EMAIL,
   password: VALID_PASSWORD,
 };
 
@@ -46,7 +47,7 @@ export const authHandlers = [
   http.post(`${API_BASE_URL}/api/v1/auth/login`, async ({ request }) => {
     const body = (await request.json()) as LoginRequestDto;
 
-    if (body.username !== VALID_USERNAME || body.password !== VALID_PASSWORD) {
+    if (body.email !== VALID_LOGIN_EMAIL || body.password !== VALID_PASSWORD) {
       return createUnauthorizedResponse("Invalid credentials");
     }
 
