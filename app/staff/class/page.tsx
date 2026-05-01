@@ -43,7 +43,7 @@ export default function StaffClassPage() {
 
       <JournalGrid aria-label="수업 일지 목록">
         {classJournals.map((journal) => (
-          <JournalCard key={journal.id}>
+          <JournalCard key={journal.id} href={`/staff/class/${journal.id}`}>
             <LessonList>
               {journalLessons.map((lesson) => (
                 <LessonItem key={lesson.period}>
@@ -211,12 +211,14 @@ const JournalGrid = styled.div`
   }
 `;
 
-const JournalCard = styled.article`
+const JournalCard = styled(Link)`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   height: 12.6875rem;
   background-color: #d9d9d9;
+  color: #000000;
+  text-decoration: none;
 
   @media (min-width: 120rem) {
     height: 19.0625rem;
