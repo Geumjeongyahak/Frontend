@@ -4,7 +4,7 @@ import LoginCard from "@/components/home/LoginCard";
 import MeetingMinutesCard from "@/components/home/MeetingMinutesCard";
 import NoticeCard from "@/components/home/NoticeCard";
 import WeeklyScheduleCard from "@/components/home/WeeklyScheduleCard";
-import { eventPhotos, meetingMinutes, notices, weeklySchedule } from "@/mocks/home";
+import { eventPhotos, meetingMinutes, weeklySchedule } from "@/mocks/home";
 import { colors, layout, spacing } from "@/styles/tokens";
 
 export default function HomePage() {
@@ -23,7 +23,7 @@ export default function HomePage() {
 
         <BottomGrid>
           <NoticeArea>
-            <NoticeCard notices={notices} />
+            <NoticeCard />
           </NoticeArea>
 
           <MeetingArea>
