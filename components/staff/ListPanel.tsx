@@ -178,14 +178,17 @@ export default function ListPanel({
 }
 
 const Container = styled.section`
-  min-height: calc(100vh - ${layout.headerHeight});
-  padding: 2.5rem 3.3125rem 3rem 3.125rem;
+  min-height: 0;
+  overflow: visible;
+  padding: 2.1875rem 3.3125rem 0 3.125rem;
 
   @media (min-width: 120rem) {
-    padding: 3.5rem 5rem 4rem 4.6875rem;
+    padding: 3.5rem 4.6875rem 3.875rem;
   }
 
   @media (max-width: ${layout.breakpointTablet}) {
+    height: auto;
+    overflow: visible;
     padding: ${spacing.space32} ${spacing.space20} ${spacing.space40};
   }
 `;
@@ -195,7 +198,7 @@ const HeaderRow = styled.div`
   align-items: flex-start;
   justify-content: space-between;
   gap: ${spacing.space24};
-  margin-bottom: 0.875rem;
+  margin-bottom: 1.4375rem;
 
   @media (min-width: 120rem) {
     margin-bottom: 1.75rem;
@@ -246,7 +249,7 @@ const Table = styled.table`
 
 const Th = styled.th<{ $width720?: string; $width1080?: string }>`
   width: ${({ $width720 }) => $width720 ?? "auto"};
-  padding: 0.8125rem ${spacing.space12};
+  padding: 0.625rem ${spacing.space12};
   border-bottom: 1px solid #6d6d6d;
   font-size: ${typography.fontSize16};
   font-weight: 700;
@@ -255,7 +258,7 @@ const Th = styled.th<{ $width720?: string; $width1080?: string }>`
 
   @media (min-width: 120rem) {
     width: ${({ $width1080, $width720 }) => $width1080 ?? $width720 ?? "auto"};
-    padding: ${spacing.space20} ${spacing.space12};
+    padding: 1rem ${spacing.space12};
     font-size: ${typography.fontSize24};
   }
 `;
@@ -266,14 +269,14 @@ const Tr = styled.tr`
 
 const Td = styled.td<{ $width720?: string; $width1080?: string }>`
   width: ${({ $width720 }) => $width720 ?? "auto"};
-  padding: 0.875rem ${spacing.space12};
+  padding: 0.65625rem ${spacing.space12};
   font-size: ${typography.fontSize14};
   text-align: center;
   white-space: nowrap;
 
   @media (min-width: 120rem) {
     width: ${({ $width1080, $width720 }) => $width1080 ?? $width720 ?? "auto"};
-    padding: ${spacing.space20} ${spacing.space12};
+    padding: 1.1875rem ${spacing.space12};
     font-size: ${typography.fontSize20};
   }
 `;
@@ -301,29 +304,45 @@ const TitleLink = styled(Link)`
 `;
 
 const BottomRow = styled.div<{ $hasToggle: boolean }>`
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: ${({ $hasToggle }) => ($hasToggle ? "space-between" : "center")};
+  justify-content: center;
   gap: ${spacing.space24};
-  margin-top: ${spacing.space32};
+  margin-top: 1.75rem;
 
   @media (min-width: 120rem) {
-    margin-top: 4rem;
+    margin-top: 3.25rem;
   }
 
   @media (max-width: ${layout.breakpointMobile}) {
     flex-direction: column;
+    align-items: flex-start;
   }
 `;
 
 const ToggleArea = styled.div`
+  position: absolute;
+  left: 0;
   display: flex;
   align-items: center;
   gap: 14px;
+
+  @media (min-width: 120rem) {
+    gap: 1.1875rem;
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    position: static;
+  }
 `;
 
 const ToggleLabel = styled.span`
   font-size: ${typography.fontSize14};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const ToggleButtonLink = styled(Link)<{ $active: boolean }>`
@@ -334,6 +353,11 @@ const ToggleButtonLink = styled(Link)<{ $active: boolean }>`
   border: none;
   border-radius: 999px;
   background: ${({ $active }) => ($active ? "#bbc4ff" : "#d9d9d9")};
+
+  @media (min-width: 120rem) {
+    width: 4.5rem;
+    height: 2.375rem;
+  }
 `;
 
 const ToggleThumb = styled.span<{ $active: boolean }>`
@@ -345,6 +369,12 @@ const ToggleThumb = styled.span<{ $active: boolean }>`
   border-radius: 50%;
   background: #6d6d6d;
   transition: left 0.2s ease;
+
+  @media (min-width: 120rem) {
+    left: ${({ $active }) => ($active ? "2.25rem" : "0.125rem")};
+    width: 2.125rem;
+    height: 2.125rem;
+  }
 `;
 
 const Pagination = styled.nav`
@@ -355,6 +385,7 @@ const Pagination = styled.nav`
   font-size: ${typography.fontSize16};
 
   @media (min-width: 120rem) {
+    gap: ${spacing.space16};
     font-size: ${typography.fontSize24};
   }
 `;
@@ -376,4 +407,8 @@ const PageNumber = styled(Link)<{ $isActive?: boolean }>`
   font-size: ${typography.fontSize16};
   color: ${({ $isActive }) => ($isActive ? "#111" : "#9a9a9a")};
   font-weight: ${({ $isActive }) => ($isActive ? 700 : 400)};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize24};
+  }
 `;
