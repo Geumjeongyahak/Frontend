@@ -1,61 +1,66 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { getLessonExchangeRequests } from "@/api/request/request.api";
 import ListPanel, {
   type ListPanelRow,
 } from "@/components/staff/ListPanel";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const ITEMS_PER_PAGE = 9;
 const CURRENT_AUTHOR = "김민지";
 
-const exchangeRequests = Array.from({ length: 27 }, (_, index) => ({
-  id: index + 1,
-  className: `${["개나리", "해바라기", "민들레"][index % 3]}반`,
-  title: `${index + 1}회차 수업 교환 신청합니다`,
-  author: index % 2 === 0 ? CURRENT_AUTHOR : "최유진",
-  date: `26.04.${String((index % 28) + 1).padStart(2, "0")}`,
-  status: index % 4 === 0 ? "승인 완료" : "대기 중",
-}));
-
-type PageProps = {
-  searchParams?: Promise<{
-    page?: string;
-    mineOnly?: string;
-  }>;
-};
-
-function mapRows(items: typeof exchangeRequests, page: number): ListPanelRow[] {
-  return items.map((item, index) => ({
-    id: item.id,
-    no: String((page - 1) * ITEMS_PER_PAGE + index + 1).padStart(2, "0"),
-    className: item.className,
-    title: item.title,
-    author: item.author,
-    date: item.date,
-    status: item.status,
-    detailHref: `/staff/class/exchange/${item.id}`,
-  }));
+function formatStatus(status?: string) {
+  if (status === "APPROVED") return "승인 완료";
+  if (status === "REJECTED") return "반려";
+  return "대기 중";
 }
 
-export default async function Page({ searchParams }: PageProps) {
-  const resolvedSearchParams = await searchParams;
-  const rawPage = resolvedSearchParams?.page;
-  const mineOnly = resolvedSearchParams?.mineOnly === "1";
+export default function Page() {
+  const searchParams = useSearchParams();
+  const rawPage = searchParams.get("page");
+  const mineOnly = searchParams.get("mineOnly") === "1";
   const parsedPage = rawPage ? Number(rawPage) : 1;
-  const filteredRequests = mineOnly
-    ? exchangeRequests.filter((request) => request.author === CURRENT_AUTHOR)
-    : exchangeRequests;
-  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / ITEMS_PER_PAGE));
-  const isInvalidPage =
-    !Number.isInteger(parsedPage) || parsedPage < 1 || parsedPage > totalPages;
 
-  if (isInvalidPage) {
-    redirect(mineOnly ? "/staff/class/exchange?mineOnly=1" : "/staff/class/exchange");
-  }
+  const { data: exchangeRequests = [], isLoading, isError } = useQuery({
+    queryKey: ["lesson-exchange-requests"],
+    queryFn: () => getLessonExchangeRequests(),
+    retry: false,
+  });
 
-  const startIndex = (parsedPage - 1) * ITEMS_PER_PAGE;
-  const rows = mapRows(
-    filteredRequests.slice(startIndex, startIndex + ITEMS_PER_PAGE),
-    parsedPage,
+  const filteredRequests = useMemo(
+    () =>
+      mineOnly
+        ? exchangeRequests.filter((request) => request.requestedByName === CURRENT_AUTHOR)
+        : exchangeRequests,
+    [exchangeRequests, mineOnly],
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / ITEMS_PER_PAGE));
+  const currentPage =
+    Number.isInteger(parsedPage) && parsedPage >= 1 && parsedPage <= totalPages ? parsedPage : 1;
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const rows: ListPanelRow[] = filteredRequests
+    .slice(startIndex, startIndex + ITEMS_PER_PAGE)
+    .map((item, index) => ({
+      id: item.id ?? startIndex + index + 1,
+      no: String(startIndex + index + 1).padStart(2, "0"),
+      className: "-",
+      title: item.title ?? "제목 없음",
+      author: item.requestedByName ?? "-",
+      date: formatUtcToKstShortDate(item.createdAt ?? item.lessonDate),
+      status: formatStatus(item.status),
+      detailHref: `/staff/class/exchange/${item.id ?? ""}`,
+    }));
+
+  const emptyMessage = isLoading
+    ? "교환 신청 내역을 불러오는 중입니다."
+    : isError
+      ? "교환 신청 내역을 불러오지 못했습니다."
+      : "교환 신청 내역이 없습니다.";
 
   return (
     <ListPanel
@@ -64,10 +69,10 @@ export default async function Page({ searchParams }: PageProps) {
       writeHref="/staff/class/exchange/new"
       listPath="/staff/class/exchange"
       rows={rows}
-      currentPage={parsedPage}
+      currentPage={currentPage}
       totalPages={totalPages}
       mineOnly={mineOnly}
-      emptyMessage="교환 신청 내역이 없습니다."
+      emptyMessage={emptyMessage}
       headerTone="journal"
     />
   );

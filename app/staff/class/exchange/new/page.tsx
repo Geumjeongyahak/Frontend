@@ -1,13 +1,18 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { IconCalendarMonth } from "@tabler/icons-react";
 import styled from "styled-components";
+import { createLessonExchangeRequest } from "@/api/request/request.api";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 export default function Page() {
   const [expireDateText, setExpireDateText] = useState("00.00.00");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handleOpenDatePicker = () => {
     const dateInput = dateInputRef.current;
@@ -29,16 +34,46 @@ export default function Page() {
     setExpireDateText(`00.${month}.${day}`);
   };
 
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+
+    const formData = new FormData(event.currentTarget);
+    const title = String(formData.get("title") ?? "").trim();
+    const content = String(formData.get("reason") ?? "").trim();
+    const lessonId = Number(searchParams.get("lessonId") ?? "1");
+
+    if (!title || !content || !Number.isInteger(lessonId) || lessonId < 1) {
+      window.alert("필수 입력값을 확인해주세요.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await createLessonExchangeRequest({
+        lessonId,
+        title,
+        content,
+      });
+      router.push("/staff/class/exchange");
+      router.refresh();
+    } catch {
+      window.alert("수업 교환 신청서 생성에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <PageWrapper>
       <HeaderRow>
         <Title>교환 신청서 작성하기</Title>
-        <SubmitButton type="submit" form="exchange-form">
-          작성 완료
+        <SubmitButton type="submit" form="exchange-form" disabled={isSubmitting}>
+          {isSubmitting ? "작성 중..." : "작성 완료"}
         </SubmitButton>
       </HeaderRow>
 
-      <Form id="exchange-form">
+      <Form id="exchange-form" onSubmit={handleSubmit}>
         <Section>
           <Label htmlFor="title">제목</Label>
           <Input id="title" name="title" defaultValue="제목" />
