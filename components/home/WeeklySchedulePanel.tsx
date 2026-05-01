@@ -5,7 +5,6 @@ import isoWeek from "dayjs/plugin/isoWeek";
 import { useQuery } from "@tanstack/react-query";
 import { getLessons } from "@/api/lesson/lesson.api";
 import WeeklyScheduleCard from "@/components/home/WeeklyScheduleCard";
-import { weeklySchedule as fallbackWeeklySchedule } from "@/mocks/home";
 import { mapLessonsToWeeklySchedule } from "@/utils/mapLessonsToWeeklySchedule";
 
 dayjs.extend(isoWeek);
@@ -20,8 +19,7 @@ export default function WeeklySchedulePanel() {
     retry: false,
   });
 
-  const weeklySchedule =
-    lessons.length > 0 ? mapLessonsToWeeklySchedule(lessons) : fallbackWeeklySchedule;
+  const weeklySchedule = mapLessonsToWeeklySchedule(lessons);
 
   return <WeeklyScheduleCard schedule={weeklySchedule} />;
 }
