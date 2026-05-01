@@ -4,10 +4,10 @@ import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { getLessonExchangeRequests } from "@/api/request/request.api";
-import { getCurrentUser } from "@/api/user/user.api";
 import ListPanel, {
   type ListPanelRow,
 } from "@/components/staff/ListPanel";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
@@ -15,6 +15,8 @@ const ITEMS_PER_PAGE = 9;
 
 export default function Page() {
   const searchParams = useSearchParams();
+  const { status: authStatus, user } = useAuthSession();
+  const isAuthenticated = authStatus === "authenticated";
   const rawPage = searchParams.get("page");
   const mineOnly = searchParams.get("mineOnly") === "1";
   const parsedPage = rawPage ? Number(rawPage) : 1;
@@ -22,16 +24,10 @@ export default function Page() {
   const { data: exchangeRequests = [], isLoading, isError } = useQuery({
     queryKey: ["lesson-exchange-requests"],
     queryFn: () => getLessonExchangeRequests(),
+    enabled: isAuthenticated,
     retry: false,
   });
-
-  const { data: currentUser } = useQuery({
-    queryKey: ["users", "me"],
-    queryFn: getCurrentUser,
-    retry: false,
-  });
-
-  const currentUserName = currentUser?.name?.trim();
+  const currentUserName = user?.name?.trim();
 
   const filteredRequests = useMemo(
     () =>
@@ -62,7 +58,11 @@ export default function Page() {
       detailHref: `/staff/class/exchange/${item.id ?? ""}`,
     }));
 
-  const emptyMessage = isLoading
+  const emptyMessage = authStatus === "loading"
+    ? "사용자 정보를 확인하는 중입니다."
+    : !isAuthenticated
+      ? "로그인이 필요합니다."
+      : isLoading
     ? "교환 신청 내역을 불러오는 중입니다."
     : isError
       ? "교환 신청 내역을 불러오지 못했습니다."

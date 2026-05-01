@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
 import { getLessonExchangeRequestDetail } from "@/api/request/request.api";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
@@ -30,13 +31,15 @@ const proposals = [
 
 export default function ExchangePostPage() {
   const params = useParams<{ postId: string }>();
+  const { status: authStatus } = useAuthSession();
+  const isAuthenticated = authStatus === "authenticated";
   const postId = Number(params.postId);
   const isValidPostId = Number.isInteger(postId) && postId > 0;
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["lesson-exchange-request", postId],
     queryFn: () => getLessonExchangeRequestDetail({ requestId: postId }),
-    enabled: isValidPostId,
+    enabled: isAuthenticated && isValidPostId,
     retry: false,
   });
 

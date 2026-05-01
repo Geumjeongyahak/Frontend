@@ -6,12 +6,15 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
 import { deleteAbsenceRequest, getAbsenceRequestDetail } from "@/api/request/request.api";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 export default function AbsencePostPage() {
   const params = useParams<{ postId: string }>();
   const router = useRouter();
+  const { status: authStatus } = useAuthSession();
+  const isAuthenticated = authStatus === "authenticated";
   const postId = Number(params.postId);
   const isValidPostId = Number.isInteger(postId) && postId > 0;
   const deleteAbsenceMutation = useMutation({
@@ -28,7 +31,7 @@ export default function AbsencePostPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["absence-request", postId],
     queryFn: () => getAbsenceRequestDetail({ requestId: postId }),
-    enabled: isValidPostId,
+    enabled: isAuthenticated && isValidPostId,
     retry: false,
   });
 
