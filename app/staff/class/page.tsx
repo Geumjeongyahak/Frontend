@@ -37,7 +37,7 @@ export default function StaffClassPage() {
         <Title>수업 일지</Title>
         <ActionGroup>
           <ActionButton type="button">수업 일지 출력</ActionButton>
-          <ActionButton type="button">새 수업 일지 작성하기</ActionButton>
+          <ActionLink href="/staff/class/new">새 수업 일지 작성하기</ActionLink>
         </ActionGroup>
       </HeaderRow>
 
@@ -179,6 +179,34 @@ const ActionButton = styled.button`
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #76bd49;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20} 1.875rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ActionLink = styled(Link)`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space20};
+  border: 0;
+  border-radius: ${radii.radius15};
+  background-color: ${colors.point};
+  color: ${colors.white};
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
 
