@@ -68,6 +68,7 @@ export default async function Page({ searchParams }: PageProps) {
       totalPages={totalPages}
       mineOnly={mineOnly}
       emptyMessage="결강 신청 내역이 없습니다."
+      headerTone="journal"
     />
   );
 }

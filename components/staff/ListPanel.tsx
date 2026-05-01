@@ -1,6 +1,6 @@
 import Link from "next/link";
 import styled from "styled-components";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export type ListPanelRow = {
   id: number;
@@ -24,6 +24,7 @@ type ListPanelProps = {
   mineOnly?: boolean;
   showMineOnlyToggle?: boolean;
   emptyMessage?: string;
+  headerTone?: "default" | "journal";
 };
 
 type QueryValue = string | number | boolean;
@@ -55,6 +56,7 @@ export default function ListPanel({
   mineOnly = false,
   showMineOnlyToggle = true,
   emptyMessage = "목록이 없습니다.",
+  headerTone = "default",
 }: ListPanelProps) {
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
@@ -64,8 +66,10 @@ export default function ListPanel({
   return (
     <Container>
       <HeaderRow>
-        <Title>{title}</Title>
-        <WriteButton href={writeHref}>{writeLabel}</WriteButton>
+        <Title $tone={headerTone}>{title}</Title>
+        <WriteButton href={writeHref} $tone={headerTone}>
+          {writeLabel}
+        </WriteButton>
       </HeaderRow>
 
       <TableSection>
@@ -205,34 +209,44 @@ const HeaderRow = styled.div`
   }
 `;
 
-const Title = styled.h1`
-  font-size: ${typography.fontSize24};
-  font-weight: 700;
+const Title = styled.h1<{ $tone: "default" | "journal" }>`
   margin: 0;
+  color: #000000;
+  font-size: ${({ $tone }) => ($tone === "journal" ? "1.625rem" : typography.fontSize24)};
+  font-weight: ${({ $tone }) => ($tone === "journal" ? 600 : 700)};
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${({ $tone }) => ($tone === "journal" ? "2.5rem" : typography.fontSize24)};
+  }
 `;
 
-const WriteButton = styled(Link)`
+const WriteButton = styled(Link)<{ $tone: "default" | "journal" }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 7.75rem;
-  min-height: 2.75rem;
-  padding: 0.75rem ${spacing.space20};
-  border: none;
-  background: #e4e4e4;
-  color: ${colors.text};
+  min-width: ${({ $tone }) => ($tone === "journal" ? "auto" : "7.75rem")};
+  min-height: ${({ $tone }) => ($tone === "journal" ? "2.6875rem" : "2.75rem")};
+  padding: ${({ $tone }) => ($tone === "journal" ? `0.8125rem ${spacing.space20}` : `0.75rem ${spacing.space20}`)};
+  border: 0;
+  border-radius: ${({ $tone }) => ($tone === "journal" ? radii.radius15 : "0")};
+  background: ${({ $tone }) => ($tone === "journal" ? colors.point : "#e4e4e4")};
+  color: ${({ $tone }) => ($tone === "journal" ? colors.white : colors.text)};
   font-size: ${typography.fontSize14};
   font-weight: 500;
+  line-height: ${typography.lineHeight130};
   text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
 
   &:hover {
-    background: #d9d9d9;
+    background: ${({ $tone }) => ($tone === "journal" ? "#76bd49" : "#d9d9d9")};
   }
 
   @media (min-width: 120rem) {
-    min-width: 9.375rem;
-    min-height: 4.25rem;
+    min-width: ${({ $tone }) => ($tone === "journal" ? "auto" : "9.375rem")};
+    min-height: ${({ $tone }) => ($tone === "journal" ? "4rem" : "4.25rem")};
+    padding: ${({ $tone }) => ($tone === "journal" ? `${spacing.space20} 1.875rem` : `0.75rem ${spacing.space20}`)};
     font-size: ${typography.fontSize20};
   }
 `;
