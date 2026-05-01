@@ -1,10 +1,7 @@
 import styled from "styled-components";
 import ListPanel from "@/components/staff/ListPanel";
 import StaffSidebar from "@/components/staff/StaffSidebar";
-import {
-  FINANCE_REQUESTS_PER_PAGE,
-  type FinanceRequest,
-} from "@/mocks/staffFinance";
+import { FINANCE_REQUESTS_PER_PAGE, type FinanceRequest } from "@/mocks/staffFinance";
 import { colors, layout } from "@/styles/tokens";
 
 type FinanceRequestListPageProps = {
@@ -45,6 +42,7 @@ export default function FinanceRequestListPage({
             totalPages={totalPages}
             showMineOnlyToggle={false}
             emptyMessage="결제 신청 내역이 없습니다."
+            headerTone="finance"
           />
         </Content>
       </Stage>
