@@ -4,11 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
 import { getPosts } from "@/api/post/post.api";
 import HomeCard from "@/components/home/HomeCard";
+import { queryKeys } from "@/lib/queryKeys";
 import { colors, spacing, typography } from "@/styles/tokens";
 
 export default function NoticeCard() {
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["posts", "notice", "top12"],
+    queryKey: queryKeys.posts.noticeTop12(),
     queryFn: () =>
       getPosts({
         postType: "NOTICE",

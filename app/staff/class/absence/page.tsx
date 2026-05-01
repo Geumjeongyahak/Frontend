@@ -8,6 +8,7 @@ import ListPanel, {
   type ListPanelRow,
 } from "@/components/staff/ListPanel";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { queryKeys } from "@/lib/queryKeys";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
@@ -22,7 +23,7 @@ export default function Page() {
   const parsedPage = rawPage ? Number(rawPage) : 1;
 
   const { data: absenceRequests = [], isLoading, isError } = useQuery({
-    queryKey: ["absence-requests"],
+    queryKey: queryKeys.requests.absenceList(),
     queryFn: () => getAbsenceRequests(),
     enabled: isAuthenticated,
     retry: false,

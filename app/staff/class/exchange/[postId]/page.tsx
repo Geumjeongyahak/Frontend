@@ -7,6 +7,7 @@ import styled from "styled-components";
 import { getLessonExchangeRequestDetail } from "@/api/request/request.api";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { queryKeys } from "@/lib/queryKeys";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
@@ -37,7 +38,7 @@ export default function ExchangePostPage() {
   const isValidPostId = Number.isInteger(postId) && postId > 0;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["lesson-exchange-request", postId],
+    queryKey: queryKeys.requests.lessonExchangeDetail(postId),
     queryFn: () => getLessonExchangeRequestDetail({ requestId: postId }),
     enabled: isAuthenticated && isValidPostId,
     retry: false,

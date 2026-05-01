@@ -7,6 +7,7 @@ import styled from "styled-components";
 import { deleteAbsenceRequest, getAbsenceRequestDetail } from "@/api/request/request.api";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { queryKeys } from "@/lib/queryKeys";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
@@ -29,7 +30,7 @@ export default function AbsencePostPage() {
   });
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["absence-request", postId],
+    queryKey: queryKeys.requests.absenceDetail(postId),
     queryFn: () => getAbsenceRequestDetail({ requestId: postId }),
     enabled: isAuthenticated && isValidPostId,
     retry: false,
