@@ -20,6 +20,9 @@ export * as departmentDto from "./department/department.dto";
 export * as lessonApi from "./lesson/lesson.api";
 export * as lessonDto from "./lesson/lesson.dto";
 
+export * as lessonExchangeApi from "./lessonExchange/lessonExchange.api";
+export * as lessonExchangeDto from "./lessonExchange/lessonExchange.dto";
+
 export * as postApi from "./post/post.api";
 export * as postDto from "./post/post.dto";
 
