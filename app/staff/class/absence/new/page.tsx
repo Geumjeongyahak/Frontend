@@ -1,19 +1,51 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import styled from "styled-components";
+import { createAbsenceRequest } from "@/api/request/request.api";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 export default function Page() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+
+    const formData = new FormData(event.currentTarget);
+    const reason = String(formData.get("reason") ?? "").trim();
+    const lessonId = Number(searchParams.get("lessonId") ?? "1");
+
+    if (!reason || !Number.isInteger(lessonId) || lessonId < 1) {
+      window.alert("필수 입력값을 확인해주세요.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await createAbsenceRequest({ lessonId, reason });
+      router.push("/staff/class/absence");
+      router.refresh();
+    } catch {
+      window.alert("결강 신청서 생성에 실패했습니다.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <PageWrapper>
       <HeaderRow>
         <Title>결강 신청서 작성하기</Title>
-        <SubmitButton type="submit" form="absence-form">
-          작성 완료
+        <SubmitButton type="submit" form="absence-form" disabled={isSubmitting}>
+          {isSubmitting ? "작성 중..." : "작성 완료"}
         </SubmitButton>
       </HeaderRow>
 
-      <Form id="absence-form">
+      <Form id="absence-form" onSubmit={handleSubmit}>
         <Section>
           <Label htmlFor="title">제목</Label>
           <Input id="title" name="title" placeholder="제목" />

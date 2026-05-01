@@ -1,40 +1,88 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
+import { deleteAbsenceRequest, getAbsenceRequestDetail } from "@/api/request/request.api";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
+
+function formatStatus(status?: string) {
+  if (status === "APPROVED") return "승인 완료";
+  if (status === "REJECTED") return "반려";
+  return "대기 중";
+}
 
 export default function AbsencePostPage() {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const params = useParams<{ postId: string }>();
+  const router = useRouter();
+  const postId = Number(params.postId);
+  const isValidPostId = Number.isInteger(postId) && postId > 0;
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["absence-request", postId],
+    queryFn: () => getAbsenceRequestDetail({ requestId: postId }),
+    enabled: isValidPostId,
+    retry: false,
+  });
+
+  const detailCreatedDate = formatUtcToKstShortDate(data?.createdAt);
+  const detailLessonDate = formatUtcToKstShortDate(data?.lessonDate);
+  const detailWriter = data?.requestedByName ?? "-";
+  const detailReason = isError ? "결강 신청 사유를 불러오지 못했습니다." : data?.reason ?? "결강 신청 사유";
+  const detailStatus = isError ? "확인 불가" : formatStatus(data?.status);
+  const detailTitle = isLoading ? "불러오는 중..." : "-";
+
+  const handleDelete = async () => {
+    if (!isValidPostId || isDeleting) return;
+    if (!window.confirm("결강 신청서를 삭제하시겠습니까?")) return;
+
+    try {
+      setIsDeleting(true);
+      await deleteAbsenceRequest({ requestId: postId });
+      router.push("/staff/class/absence");
+      router.refresh();
+    } catch {
+      window.alert("결강 신청서 삭제에 실패했습니다.");
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <PageWrapper>
       <TopButtonRow>
-        <ActionButton type="button">삭제</ActionButton>
+        <ActionButton type="button" onClick={handleDelete} disabled={isDeleting}>
+          {isDeleting ? "삭제 중..." : "삭제"}
+        </ActionButton>
         <ActionButton type="button">수정</ActionButton>
         <LinkButton href="/staff/class/absence">목록</LinkButton>
       </TopButtonRow>
 
       <ContentColumn>
-        <DateBar>00.00.00</DateBar>
+        <DateBar>{detailCreatedDate}</DateBar>
 
         <PostSection>
           <Label>제목</Label>
-          <ValueBox>제목</ValueBox>
+          <ValueBox>{detailTitle}</ValueBox>
 
           <Label>신청자 정보</Label>
           <InfoRow>
             <FieldLabel>반 이름</FieldLabel>
-            <FieldValue>개나리반</FieldValue>
+            <FieldValue>-</FieldValue>
             <FieldLabel>수업 일자</FieldLabel>
-            <FieldValue>00.00.00</FieldValue>
+            <FieldValue>{detailLessonDate}</FieldValue>
             <FieldLabel>작성자</FieldLabel>
-            <FieldValue>홍길동</FieldValue>
+            <FieldValue>{detailWriter}</FieldValue>
           </InfoRow>
 
           <Label>결강 신청 사유</Label>
-          <TextBox>결강 신청 사유</TextBox>
+          <TextBox>{detailReason}</TextBox>
 
           <Label>신청 현황</Label>
-          <StatusBox>대기 중</StatusBox>
+          <StatusBox>{detailStatus}</StatusBox>
         </PostSection>
       </ContentColumn>
     </PageWrapper>
