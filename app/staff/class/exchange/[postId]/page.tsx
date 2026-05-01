@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
 import { getLessonExchangeRequestDetail } from "@/api/request/request.api";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const proposals = [
@@ -27,12 +28,6 @@ const proposals = [
   },
 ];
 
-function formatStatus(status?: string) {
-  if (status === "APPROVED") return "승인 완료";
-  if (status === "REJECTED") return "반려";
-  return "대기 중";
-}
-
 export default function ExchangePostPage() {
   const params = useParams<{ postId: string }>();
   const postId = Number(params.postId);
@@ -53,7 +48,7 @@ export default function ExchangePostPage() {
   const detailWriter = data?.requestedByName ?? "홍길동";
   const detailLessonDate = formatUtcToKstShortDate(data?.lessonDate);
   const detailContent = isError ? "교환 신청 사유를 불러오지 못했습니다." : data?.content ?? "교환 신청 사유";
-  const detailStatus = isError ? "확인 불가" : formatStatus(data?.status);
+  const detailStatus = isError ? "확인 불가" : formatRequestStatus(data?.status);
   const detailCreatedDate = formatUtcToKstShortDate(data?.createdAt);
 
   const acceptedHref = `/staff/class/exchange/${postId}/accepted`;

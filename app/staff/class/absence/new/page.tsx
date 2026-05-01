@@ -1,19 +1,28 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useMutation } from "@tanstack/react-query";
 import styled from "styled-components";
 import { createAbsenceRequest } from "@/api/request/request.api";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 export default function Page() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const createAbsenceMutation = useMutation({
+    mutationFn: createAbsenceRequest,
+    onSuccess: () => {
+      router.push("/staff/class/absence");
+      router.refresh();
+    },
+    onError: () => {
+      window.alert("결강 신청서 생성에 실패했습니다.");
+    },
+  });
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isSubmitting) return;
+    if (createAbsenceMutation.isPending) return;
 
     const formData = new FormData(event.currentTarget);
     const reason = String(formData.get("reason") ?? "").trim();
@@ -24,24 +33,15 @@ export default function Page() {
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      await createAbsenceRequest({ lessonId, reason });
-      router.push("/staff/class/absence");
-      router.refresh();
-    } catch {
-      window.alert("결강 신청서 생성에 실패했습니다.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    createAbsenceMutation.mutate({ lessonId, reason });
   };
 
   return (
     <PageWrapper>
       <HeaderRow>
         <Title>결강 신청서 작성하기</Title>
-        <SubmitButton type="submit" form="absence-form" disabled={isSubmitting}>
-          {isSubmitting ? "작성 중..." : "작성 완료"}
+        <SubmitButton type="submit" form="absence-form" disabled={createAbsenceMutation.isPending}>
+          {createAbsenceMutation.isPending ? "작성 중..." : "작성 완료"}
         </SubmitButton>
       </HeaderRow>
 

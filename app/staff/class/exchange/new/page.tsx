@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { IconCalendarMonth } from "@tabler/icons-react";
+import { useMutation } from "@tanstack/react-query";
 import styled from "styled-components";
 import { createLessonExchangeRequest } from "@/api/request/request.api";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
@@ -24,10 +25,19 @@ function getKstTodayShortDate() {
 export default function Page() {
   const kstToday = getKstTodayShortDate();
   const [expireDateText, setExpireDateText] = useState(kstToday);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const createLessonExchangeMutation = useMutation({
+    mutationFn: createLessonExchangeRequest,
+    onSuccess: () => {
+      router.push("/staff/class/exchange");
+      router.refresh();
+    },
+    onError: () => {
+      window.alert("수업 교환 신청서 생성에 실패했습니다.");
+    },
+  });
 
   const handleOpenDatePicker = () => {
     const dateInput = dateInputRef.current;
@@ -51,7 +61,7 @@ export default function Page() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isSubmitting) return;
+    if (createLessonExchangeMutation.isPending) return;
 
     const formData = new FormData(event.currentTarget);
     const title = String(formData.get("title") ?? "").trim();
@@ -63,28 +73,19 @@ export default function Page() {
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      await createLessonExchangeRequest({
-        lessonId,
-        title,
-        content,
-      });
-      router.push("/staff/class/exchange");
-      router.refresh();
-    } catch {
-      window.alert("수업 교환 신청서 생성에 실패했습니다.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    createLessonExchangeMutation.mutate({
+      lessonId,
+      title,
+      content,
+    });
   };
 
   return (
     <PageWrapper>
       <HeaderRow>
         <Title>교환 신청서 작성하기</Title>
-        <SubmitButton type="submit" form="exchange-form" disabled={isSubmitting}>
-          {isSubmitting ? "작성 중..." : "작성 완료"}
+        <SubmitButton type="submit" form="exchange-form" disabled={createLessonExchangeMutation.isPending}>
+          {createLessonExchangeMutation.isPending ? "작성 중..." : "작성 완료"}
         </SubmitButton>
       </HeaderRow>
 

@@ -8,15 +8,10 @@ import { getCurrentUser } from "@/api/user/user.api";
 import ListPanel, {
   type ListPanelRow,
 } from "@/components/staff/ListPanel";
+import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const ITEMS_PER_PAGE = 9;
-
-function formatStatus(status?: string) {
-  if (status === "APPROVED") return "승인 완료";
-  if (status === "REJECTED") return "반려";
-  return "대기 중";
-}
 
 export default function Page() {
   const searchParams = useSearchParams();
@@ -63,7 +58,7 @@ export default function Page() {
       title: item.title ?? "제목 없음",
       author: item.requestedByName ?? "-",
       date: formatUtcToKstShortDate(item.createdAt ?? item.lessonDate),
-      status: formatStatus(item.status),
+      status: formatRequestStatus(item.status),
       detailHref: `/staff/class/exchange/${item.id ?? ""}`,
     }));
 
