@@ -423,11 +423,12 @@ const SwitchInput = styled.input`
   opacity: 0;
 
   &:checked + span {
-    background-color: #bbc4ff;
+    background-color: #eef9e6;
   }
 
   &:checked + span span {
     transform: translateX(1.3125rem);
+    background-color: #88cd5a;
 
     @media (min-width: 120rem) {
       transform: translateX(2.125rem);
@@ -462,7 +463,7 @@ const SwitchThumb = styled.span`
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 50%;
-  background-color: #6d6d6d;
+  background-color: #616161;
   transition: transform 0.2s ease;
 
   @media (min-width: 120rem) {

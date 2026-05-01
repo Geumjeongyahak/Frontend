@@ -6,36 +6,12 @@ import { IconCalendarMonth } from "@tabler/icons-react";
 import { useMutation } from "@tanstack/react-query";
 import styled from "styled-components";
 import { createLessonExchangeRequest } from "@/api/lessonExchange/lessonExchange.api";
+import {
+  getKstTodayShortDate,
+  koreanShortDateToLocalDateTime,
+  parseKoreanShortDateToIsoDate,
+} from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
-
-function getKstTodayShortDate() {
-  const formatter = new Intl.DateTimeFormat("ko-KR", {
-    timeZone: "Asia/Seoul",
-    year: "2-digit",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(new Date());
-  const year = parts.find((part) => part.type === "year")?.value ?? "00";
-  const month = parts.find((part) => part.type === "month")?.value ?? "00";
-  const day = parts.find((part) => part.type === "day")?.value ?? "00";
-  return `${year}.${month}.${day}`;
-}
-
-function shortDateToIsoDate(text: string): string | null {
-  const m = /^(\d{2})\.(\d{2})\.(\d{2})$/.exec(text.trim());
-  if (!m) return null;
-  const yy = Number(m[1]);
-  const [, , mm, dd] = m;
-  const fullYear = 2000 + yy;
-  return `${fullYear}-${mm}-${dd}`;
-}
-
-function shortDateToExpiresAt(text: string): string | null {
-  const datePart = shortDateToIsoDate(text);
-  if (!datePart) return null;
-  return `${datePart}T22:00:00`;
-}
 
 export default function Page() {
   const kstToday = getKstTodayShortDate();
@@ -84,8 +60,8 @@ export default function Page() {
     const periodFromRaw = String(formData.get("lessonPeriodFrom") ?? "").trim();
     const periodToRaw = String(formData.get("lessonPeriodTo") ?? "").trim();
 
-    const lessonDate = shortDateToIsoDate(lessonDateRaw);
-    const expiresAt = shortDateToExpiresAt(expireDateText.trim());
+    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateRaw);
+    const expiresAt = koreanShortDateToLocalDateTime(expireDateText.trim());
     const startPeriod = Number.parseInt(periodFromRaw, 10);
     const endPeriod = Number.parseInt(periodToRaw, 10);
 
