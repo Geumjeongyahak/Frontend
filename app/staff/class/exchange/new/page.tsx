@@ -6,7 +6,7 @@ import { IconCalendarMonth } from "@tabler/icons-react";
 import { useMutation } from "@tanstack/react-query";
 import styled from "styled-components";
 import { createLessonExchangeRequest } from "@/api/request/request.api";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 function getKstTodayShortDate() {
   const formatter = new Intl.DateTimeFormat("ko-KR", {
@@ -97,14 +97,28 @@ export default function Page() {
 
         <Section>
           <Label as="h2">신청자 정보</Label>
-          <InfoRow>
-            <FieldLabel htmlFor="className">반 이름</FieldLabel>
-            <InlineInput id="className" name="className" defaultValue="개나리반" />
-            <FieldLabel htmlFor="lessonDate">수업 일자</FieldLabel>
-            <InlineInput id="lessonDate" name="lessonDate" defaultValue={kstToday} disabled />
-            <FieldLabel htmlFor="writer">작성자</FieldLabel>
-            <InlineInput id="writer" name="writer" defaultValue="홍길동" disabled />
-          </InfoRow>
+          <InfoStack>
+            <InfoPairRow $wideFirst>
+              <FieldLabel htmlFor="className">반 이름</FieldLabel>
+              <InlineInput id="className" name="className" defaultValue="개나리반" />
+              <FieldLabel htmlFor="writer">작성자</FieldLabel>
+              <InlineInput id="writer" name="writer" defaultValue="홍길동" disabled />
+            </InfoPairRow>
+            <InfoPairRow>
+              <FieldLabel htmlFor="lessonDate">수업 일자</FieldLabel>
+              <InlineInput id="lessonDate" name="lessonDate" defaultValue={kstToday} />
+              <FieldLabel id="lessonPeriod-label">수업 교시</FieldLabel>
+              <LessonPeriodInputs role="group" aria-labelledby="lessonPeriod-label">
+                <LessonPeriodInput
+                  name="lessonPeriodFrom"
+                  defaultValue="1"
+                  aria-label="수업 교시 시작"
+                />
+                <PeriodTilde aria-hidden>~</PeriodTilde>
+                <LessonPeriodInput name="lessonPeriodTo" defaultValue="2" aria-label="수업 교시 끝" />
+              </LessonPeriodInputs>
+            </InfoPairRow>
+          </InfoStack>
         </Section>
 
         <Section>
@@ -130,7 +144,7 @@ export default function Page() {
               tabIndex={-1}
             />
             <CalendarButton type="button" aria-label="달력 열기" onClick={handleOpenDatePicker}>
-              <IconCalendarMonth size={16} stroke={2} />
+              <IconCalendarMonth size={16} stroke={2} color={colors.white} />
             </CalendarButton>
           </DateRow>
         </Section>
@@ -190,8 +204,9 @@ const SubmitButton = styled.button`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
   border: 0;
-  background: #e4e4e4;
-  color: #000000;
+  border-radius: ${radii.radius12};
+  background-color: ${colors.point};
+  color: ${colors.white};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -199,7 +214,12 @@ const SubmitButton = styled.button`
   cursor: pointer;
 
   &:hover {
-    background: #d9d9d9;
+    filter: brightness(0.95);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   @media (min-width: 120rem) {
@@ -247,7 +267,7 @@ const Input = styled.input`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
   border: 0;
-  background: #e2e2e2;
+  background: ${colors.background};
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
@@ -261,9 +281,20 @@ const Input = styled.input`
   }
 `;
 
-const InfoRow = styled.div`
+const InfoStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+`;
+
+const InfoPairRow = styled.div<{ $wideFirst?: boolean }>`
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: ${({ $wideFirst }) =>
+    $wideFirst ? `auto minmax(0, 2.25fr) auto minmax(0, 1fr)` : `auto minmax(0, 1fr) auto minmax(0, 1fr)`};
   align-items: center;
   gap: ${spacing.space12};
 
@@ -273,6 +304,29 @@ const InfoRow = styled.div`
 
   @media (max-width: ${layout.breakpointMobile}) {
     grid-template-columns: 1fr;
+  }
+`;
+
+const LessonPeriodInputs = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space8};
+  min-width: 0;
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space12};
+  }
+`;
+
+const PeriodTilde = styled.span`
+  flex-shrink: 0;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
   }
 `;
 
@@ -293,7 +347,7 @@ const InlineInput = styled.input`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
   border: 0;
-  background: #e2e2e2;
+  background: ${colors.background};
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 400;
@@ -313,12 +367,18 @@ const InlineInput = styled.input`
   }
 `;
 
+const LessonPeriodInput = styled(InlineInput)`
+  flex: 1 1 0;
+  min-width: 2.5rem;
+  text-align: center;
+`;
+
 const TextArea = styled.textarea`
   width: 100%;
   min-height: 6.875rem;
   padding: 0.75rem ${spacing.space12};
   border: 0;
-  background: #e2e2e2;
+  background: ${colors.background};
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -340,7 +400,7 @@ const DateRow = styled.div`
   width: 7.75rem;
   min-height: 2.6875rem;
   padding: 0.4375rem ${spacing.space12};
-  background: #e2e2e2;
+  background: ${colors.background};
 
   @media (min-width: 120rem) {
     width: 11.625rem;
@@ -381,8 +441,8 @@ const CalendarButton = styled.button`
   height: 1.5rem;
   border: 0;
   border-radius: 50%;
-  background: #a8a8a8;
-  color: #000000;
+  background: ${colors.point};
+  color: ${colors.white};
   cursor: pointer;
 
   @media (min-width: 120rem) {

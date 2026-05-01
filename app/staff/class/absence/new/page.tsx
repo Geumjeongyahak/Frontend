@@ -180,8 +180,8 @@ const Input = styled.input`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
   border: 0;
-  background: #d9d9d9;
-  color: #000000;
+  background: ${colors.point};
+  color: #b1b1b1;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -230,8 +230,8 @@ const InlineInput = styled.input`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
   border: 0;
-  background: #d9d9d9;
-  color: #000000;
+  background: ${colors.point};
+  color: #b1b1b1;
   font-size: ${typography.fontSize14};
   font-weight: 400;
   line-height: ${typography.lineHeight130};
@@ -253,8 +253,8 @@ const TextArea = styled.textarea`
   min-height: 6.875rem;
   padding: 0.75rem ${spacing.space12};
   border: 0;
-  background: #d9d9d9;
-  color: #000000;
+  background: ${colors.point};
+  color: #b1b1b1;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
