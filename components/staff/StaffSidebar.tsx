@@ -24,12 +24,12 @@ const staffSections = [
   {
     title: "자료실",
     items: [
-      { label: "교칙", href: "/docs/rules" },
-      { label: "연락망", href: "/docs/contact" },
-      { label: "교학 회의록", href: "/docs/meeting" },
-      { label: "인수인계서", href: "/docs/handover" },
-      { label: "시험 문제 자료", href: "/docs/exam" },
-      { label: "서류 양식", href: "/docs/forms" },
+      { label: "교칙", href: "/staff/archive/rules" },
+      { label: "연락망", href: "/staff/archive/contact" },
+      { label: "교학 회의록", href: "/staff/archive/meeting" },
+      { label: "인수인계서", href: "/staff/archive/handover" },
+      { label: "시험 문제 자료", href: "/staff/archive/exam" },
+      { label: "서류 양식", href: "/staff/archive/forms" },
     ],
   },
   {
@@ -83,11 +83,20 @@ function getCurrentSectionTitle(pathname: string) {
   )?.title;
 }
 
-export default function StaffSidebar() {
+type StaffSidebarProps = {
+  mode?: "accordion" | "expanded";
+};
+
+export default function StaffSidebar({ mode = "accordion" }: StaffSidebarProps) {
   const pathname = usePathname();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(getClosedSections);
+  const isExpandedMode = mode === "expanded";
 
   useEffect(() => {
+    if (isExpandedMode) {
+      return;
+    }
+
     const timerId = window.setTimeout(() => {
       const currentSectionTitle = getCurrentSectionTitle(pathname);
       setOpenSections({
@@ -97,7 +106,7 @@ export default function StaffSidebar() {
     }, 0);
 
     return () => window.clearTimeout(timerId);
-  }, [pathname]);
+  }, [isExpandedMode, pathname]);
 
   const isCurrent = (href: string) => {
     return isCurrentStaffPath(pathname, href);
@@ -129,22 +138,26 @@ export default function StaffSidebar() {
       <SidebarHeader>교원</SidebarHeader>
       <SidebarContent>
         {staffSections.map((section, sectionIndex) => {
-          const isOpen = openSections[section.title] ?? false;
+          const isOpen = isExpandedMode || (openSections[section.title] ?? false);
           const sectionId = `staff-sidebar-section-${sectionIndex}`;
 
           return (
             <SectionBlock key={section.title}>
-              <SectionButton
-                type="button"
-                onClick={() => toggleSection(section.title)}
-                aria-expanded={isOpen}
-                aria-controls={sectionId}
-              >
-                <span>{section.title}</span>
-                <Chevron aria-hidden="true" $isOpen={isOpen}>
-                  ▾
-                </Chevron>
-              </SectionButton>
+              {isExpandedMode ? (
+                <SectionLabel>{section.title}</SectionLabel>
+              ) : (
+                <SectionButton
+                  type="button"
+                  onClick={() => toggleSection(section.title)}
+                  aria-expanded={isOpen}
+                  aria-controls={sectionId}
+                >
+                  <span>{section.title}</span>
+                  <Chevron aria-hidden="true" $isOpen={isOpen}>
+                    ▾
+                  </Chevron>
+                </SectionButton>
+              )}
               <SectionList id={sectionId} $isOpen={isOpen}>
                 {section.items.map((item) => {
                   const current = isCurrent(item.href);
@@ -241,6 +254,19 @@ const SectionButton = styled.button`
   &:hover {
     color: ${colors.text};
   }
+
+  @media (min-width: 120rem) {
+    padding: 0 2.5rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const SectionLabel = styled.p`
+  padding: 0 1.625rem;
+  color: ${colors.point};
+  font-size: ${typography.fontSize14};
+  font-weight: 700;
+  line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
     padding: 0 2.5rem;
