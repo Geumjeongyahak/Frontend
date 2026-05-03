@@ -6,7 +6,7 @@ export default function ArchiveLayout({ children }: { children: React.ReactNode 
   return (
     <ArchiveShell>
       <ArchiveStage>
-        <StaffSidebar mode="expanded" />
+        <StaffSidebar />
         <ArchiveContent>{children}</ArchiveContent>
       </ArchiveStage>
     </ArchiveShell>

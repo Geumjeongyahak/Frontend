@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styled from "styled-components";
 import { colors, layout, typography } from "@/styles/tokens";
-
-const SIDEBAR_STORAGE_KEY = "staff-sidebar-open-sections";
 
 const staffSections = [
   {
@@ -42,29 +40,6 @@ const staffSections = [
   },
 ];
 
-function getClosedSections() {
-  return Object.fromEntries(staffSections.map((section) => [section.title, false]));
-}
-
-function getStoredOpenSections() {
-  const storedValue = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
-  if (!storedValue) return getClosedSections();
-
-  try {
-    const parsedValue = JSON.parse(storedValue) as Record<string, boolean>;
-
-    return {
-      ...getClosedSections(),
-      ...Object.fromEntries(
-        staffSections.map((section) => [section.title, Boolean(parsedValue[section.title])]),
-      ),
-    };
-  } catch {
-    window.localStorage.removeItem(SIDEBAR_STORAGE_KEY);
-    return getClosedSections();
-  }
-}
-
 function isCurrentStaffPath(pathname: string, href: string) {
   if (href === "/staff/class") {
     return (
@@ -83,30 +58,29 @@ function getCurrentSectionTitle(pathname: string) {
   )?.title;
 }
 
+function getOpenSectionsForTitle(title?: string) {
+  return Object.fromEntries(
+    staffSections.map((section) => [section.title, Boolean(title && section.title === title)]),
+  );
+}
+
+function getOpenSectionsForPath(pathname: string) {
+  return getOpenSectionsForTitle(getCurrentSectionTitle(pathname));
+}
+
 type StaffSidebarProps = {
   mode?: "accordion" | "expanded";
 };
 
 export default function StaffSidebar({ mode = "accordion" }: StaffSidebarProps) {
   const pathname = usePathname();
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(getClosedSections);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
+    getOpenSectionsForPath(pathname),
+  );
+  const [overridePathname, setOverridePathname] = useState<string | null>(null);
   const isExpandedMode = mode === "expanded";
-
-  useEffect(() => {
-    if (isExpandedMode) {
-      return;
-    }
-
-    const timerId = window.setTimeout(() => {
-      const currentSectionTitle = getCurrentSectionTitle(pathname);
-      setOpenSections({
-        ...getStoredOpenSections(),
-        ...(currentSectionTitle ? { [currentSectionTitle]: true } : {}),
-      });
-    }, 0);
-
-    return () => window.clearTimeout(timerId);
-  }, [isExpandedMode, pathname]);
+  const routeOpenSections = getOpenSectionsForPath(pathname);
+  const visibleOpenSections = overridePathname === pathname ? openSections : routeOpenSections;
 
   const isCurrent = (href: string) => {
     return isCurrentStaffPath(pathname, href);
@@ -114,23 +88,22 @@ export default function StaffSidebar({ mode = "accordion" }: StaffSidebarProps) 
 
   const toggleSection = (title: string) => {
     setOpenSections((current) => {
+      const sourceOpenSections = overridePathname === pathname ? current : routeOpenSections;
       const nextOpenSections = {
-        ...current,
-        [title]: !current[title],
+        ...sourceOpenSections,
+        [title]: !sourceOpenSections[title],
       };
-
-      window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(nextOpenSections));
 
       return nextOpenSections;
     });
+    setOverridePathname(pathname);
   };
 
   const keepOnlySectionOpen = (title: string) => {
-    const nextOpenSections = Object.fromEntries(
-      staffSections.map((section) => [section.title, section.title === title]),
-    );
+    const nextOpenSections = getOpenSectionsForTitle(title);
 
-    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(nextOpenSections));
+    setOpenSections(nextOpenSections);
+    setOverridePathname(pathname);
   };
 
   return (
@@ -138,7 +111,7 @@ export default function StaffSidebar({ mode = "accordion" }: StaffSidebarProps) 
       <SidebarHeader>교원</SidebarHeader>
       <SidebarContent>
         {staffSections.map((section, sectionIndex) => {
-          const isOpen = isExpandedMode || (openSections[section.title] ?? false);
+          const isOpen = isExpandedMode || (visibleOpenSections[section.title] ?? false);
           const sectionId = `staff-sidebar-section-${sectionIndex}`;
 
           return (
