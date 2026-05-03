@@ -29,6 +29,7 @@ type ListPanelProps = {
   emptyMessage?: string;
   headerTone?: ListPanelTone;
   showClassColumn?: boolean;
+  showStatusColumn?: boolean;
   statusHeader?: string;
   writeIcon?: ReactNode;
 };
@@ -64,6 +65,7 @@ export default function ListPanel({
   emptyMessage = "목록이 없습니다.",
   headerTone = "default",
   showClassColumn = true,
+  showStatusColumn = true,
   statusHeader = "신청 현황",
   writeIcon,
 }: ListPanelProps) {
@@ -101,9 +103,11 @@ export default function ListPanel({
               <Th $width720="10.875rem" $width1080="16.3125rem" $tone={headerTone}>
                 작성일
               </Th>
-              <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone}>
-                {statusHeader}
-              </Th>
+              {showStatusColumn ? (
+                <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone}>
+                  {statusHeader}
+                </Th>
+              ) : null}
             </tr>
           </thead>
 
@@ -128,14 +132,18 @@ export default function ListPanel({
                   <Td $width720="10.875rem" $width1080="16.3125rem">
                     {row.date}
                   </Td>
-                  <Td $width720="5rem" $width1080="7.375rem">
-                    {row.status}
-                  </Td>
+                  {showStatusColumn ? (
+                    <Td $width720="5rem" $width1080="7.375rem">
+                      {row.status}
+                    </Td>
+                  ) : null}
                 </Tr>
               ))
             ) : (
               <Tr $tone={headerTone}>
-                <EmptyTd colSpan={showClassColumn ? 6 : 5}>{emptyMessage}</EmptyTd>
+                <EmptyTd colSpan={2 + Number(showClassColumn) + 2 + Number(showStatusColumn)}>
+                  {emptyMessage}
+                </EmptyTd>
               </Tr>
             )}
           </tbody>
