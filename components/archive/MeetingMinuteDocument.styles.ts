@@ -1,0 +1,365 @@
+import Link from "next/link";
+import styled, { css } from "styled-components";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+
+export const DocumentSection = styled.section`
+  min-height: 0;
+  overflow: visible;
+  padding: 1.8125rem 3.125rem 4rem;
+  background-color: ${colors.white};
+
+  @media (min-width: 120rem) {
+    padding: 2.75rem 4.6875rem 6rem;
+  }
+
+  @media (max-width: ${layout.breakpointTablet}) {
+    padding: ${spacing.space32} ${spacing.space20} ${spacing.space40};
+  }
+`;
+
+export const Toolbar = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: ${spacing.space20};
+  margin-bottom: 2.1875rem;
+
+  @media (min-width: 120rem) {
+    margin-bottom: 3rem;
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    flex-direction: column;
+  }
+`;
+
+export const ToolbarRight = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    gap: 1.875rem;
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    flex-wrap: wrap;
+  }
+`;
+
+const actionStyle = css<{ $variant?: "default" | "danger" | "muted" }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.9375rem;
+  min-height: 2.6875rem;
+  border: ${({ $variant }) => ($variant === "muted" ? `1px solid ${colors.border}` : 0)};
+  border-radius: ${radii.radius15};
+  background-color: ${({ $variant }) =>
+    $variant === "danger"
+      ? "#fde4e2"
+      : $variant === "muted"
+        ? colors.background
+        : colors.point};
+  padding: 0.8125rem ${spacing.space20};
+  color: ${({ $variant }) =>
+    $variant === "danger" ? "#da3a30" : $variant === "muted" ? colors.text : colors.white};
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    filter: brightness(0.97);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  @media (min-width: 120rem) {
+    min-width: 5.9375rem;
+    min-height: 4rem;
+    padding: ${spacing.space20} 1.875rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+export const ActionLink = styled(Link)<{ $variant?: "default" | "danger" | "muted" }>`
+  ${actionStyle}
+`;
+
+export const ActionButton = styled.button<{ $variant?: "default" | "danger" | "muted" }>`
+  ${actionStyle}
+`;
+
+export const PageTitle = styled.h1`
+  margin: 0;
+  color: #000000;
+  font-size: 1.625rem;
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize32};
+  }
+`;
+
+export const DateBar = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  border-bottom: 1px solid #b4b4b4;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+export const ContentStack = styled.article`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    gap: 1.875rem;
+  }
+`;
+
+export const Label = styled.h2`
+  margin: 0;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+export const FieldBox = styled.div<{ $isMuted?: boolean }>`
+  display: flex;
+  align-items: center;
+  min-height: 2.6875rem;
+  min-width: 0;
+  background-color: ${colors.background};
+  padding: 0.8125rem ${spacing.space12};
+  color: ${({ $isMuted }) => ($isMuted ? "#949494" : "#000000")};
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+  overflow-wrap: anywhere;
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+export const TextBox = styled(FieldBox)`
+  align-items: flex-start;
+  min-height: 6.875rem;
+
+  @media (min-width: 120rem) {
+    min-height: 9.6875rem;
+  }
+`;
+
+export const Divider = styled.hr`
+  width: 100%;
+  margin: ${spacing.space8} 0;
+  border: 0;
+  border-top: 1px solid ${colors.border};
+
+  @media (min-width: 120rem) {
+    margin: ${spacing.space12} 0;
+  }
+`;
+
+export const AbsenceHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${spacing.space20};
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+`;
+
+export const AbsenceTitle = styled.h2`
+  margin: 0;
+  color: #000000;
+  font-size: 1.375rem;
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize32};
+  }
+`;
+
+export const AbsenceStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+`;
+
+export const AbsenceBox = styled.div<{ $tone?: "draft" | "submitted"; $height?: "short" | "medium" | "large" }>`
+  display: flex;
+  flex-direction: column;
+  justify-content: ${({ $height }) => ($height === "short" ? "center" : "flex-start")};
+  gap: ${spacing.space8};
+  min-height: ${({ $height }) =>
+    $height === "large" ? "7.5rem" : $height === "medium" ? "6.75rem" : "2.6875rem"};
+  border: ${({ $tone }) => ($tone === "draft" ? `1px solid ${colors.border}` : 0)};
+  background-color: ${({ $tone }) => ($tone === "draft" ? "#eef9e6" : colors.background)};
+  padding: 0.8125rem ${spacing.space12};
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    gap: 0.625rem;
+    min-height: ${({ $height }) =>
+      $height === "large" ? "11.375rem" : $height === "medium" ? "10.0625rem" : "4rem"};
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+export const AbsenceBoxLabel = styled.strong<{ $draft?: boolean }>`
+  color: ${({ $draft }) => ($draft ? "#9c9c9c" : "#a1a1a1")};
+  font-weight: 600;
+`;
+
+export const AbsenceInput = styled.input`
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #000000;
+  font: inherit;
+  outline: none;
+
+  &::placeholder {
+    color: #9c9c9c;
+  }
+`;
+
+export const AbsenceTextarea = styled.textarea`
+  width: 100%;
+  min-height: 100%;
+  resize: vertical;
+  border: 0;
+  background: transparent;
+  color: #000000;
+  font: inherit;
+  line-height: ${typography.lineHeight130};
+  outline: none;
+
+  &::placeholder {
+    color: #9c9c9c;
+  }
+`;
+
+export const Form = styled.form`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    gap: 1.875rem;
+  }
+`;
+
+export const TabRow = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    gap: 1.875rem;
+  }
+`;
+
+export const TabButton = styled.button<{ $active?: boolean }>`
+  min-width: 0;
+  min-height: 2.6875rem;
+  border: 1px solid ${colors.point};
+  background-color: ${({ $active }) => ($active ? colors.point : colors.white)};
+  padding: 0.8125rem ${spacing.space12};
+  color: ${({ $active }) => ($active ? colors.white : "#000000")};
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  text-align: left;
+  cursor: pointer;
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+export const Input = styled.input`
+  width: 100%;
+  min-height: 2.6875rem;
+  border: 0;
+  background-color: ${colors.background};
+  padding: 0.8125rem ${spacing.space12};
+  color: #000000;
+  font: inherit;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+
+  &::placeholder {
+    color: #949494;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+export const Textarea = styled.textarea`
+  width: 100%;
+  min-height: 6.875rem;
+  resize: vertical;
+  border: 0;
+  background-color: ${colors.background};
+  padding: 0.8125rem ${spacing.space12};
+  color: #000000;
+  font: inherit;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+
+  &::placeholder {
+    color: #949494;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 9.6875rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;

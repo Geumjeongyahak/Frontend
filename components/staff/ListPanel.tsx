@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import styled from "styled-components";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
@@ -13,7 +14,7 @@ export type ListPanelRow = {
   detailHref: string;
 };
 
-type ListPanelTone = "default" | "journal" | "finance";
+type ListPanelTone = "default" | "journal" | "finance" | "archive";
 
 type ListPanelProps = {
   title: string;
@@ -27,6 +28,10 @@ type ListPanelProps = {
   showMineOnlyToggle?: boolean;
   emptyMessage?: string;
   headerTone?: ListPanelTone;
+  showClassColumn?: boolean;
+  showStatusColumn?: boolean;
+  statusHeader?: string;
+  writeIcon?: ReactNode;
 };
 
 type QueryValue = string | number | boolean;
@@ -59,6 +64,10 @@ export default function ListPanel({
   showMineOnlyToggle = true,
   emptyMessage = "목록이 없습니다.",
   headerTone = "default",
+  showClassColumn = true,
+  showStatusColumn = true,
+  statusHeader = "신청 현황",
+  writeIcon,
 }: ListPanelProps) {
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
@@ -70,7 +79,8 @@ export default function ListPanel({
       <HeaderRow>
         <Title $tone={headerTone}>{title}</Title>
         <WriteButton href={writeHref} $tone={headerTone}>
-          {writeLabel}
+          <span>{writeLabel}</span>
+          {writeIcon}
         </WriteButton>
       </HeaderRow>
 
@@ -81,9 +91,11 @@ export default function ListPanel({
               <Th $width720="3.75rem" $width1080="5.5rem" $tone={headerTone}>
                 no.
               </Th>
-              <Th $width720="7.125rem" $width1080="10.75rem" $tone={headerTone}>
-                반
-              </Th>
+              {showClassColumn ? (
+                <Th $width720="7.125rem" $width1080="10.75rem" $tone={headerTone}>
+                  반
+                </Th>
+              ) : null}
               <Th $tone={headerTone}>제목</Th>
               <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone}>
                 작성자
@@ -91,9 +103,11 @@ export default function ListPanel({
               <Th $width720="10.875rem" $width1080="16.3125rem" $tone={headerTone}>
                 작성일
               </Th>
-              <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone}>
-                신청 현황
-              </Th>
+              {showStatusColumn ? (
+                <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone}>
+                  {statusHeader}
+                </Th>
+              ) : null}
             </tr>
           </thead>
 
@@ -104,9 +118,11 @@ export default function ListPanel({
                   <Td $width720="3.75rem" $width1080="5.5rem">
                     {row.no}
                   </Td>
-                  <Td $width720="7.125rem" $width1080="10.75rem">
-                    {row.className}
-                  </Td>
+                  {showClassColumn ? (
+                    <Td $width720="7.125rem" $width1080="10.75rem">
+                      {row.className}
+                    </Td>
+                  ) : null}
                   <TitleTd>
                     <TitleLink href={row.detailHref}>{row.title}</TitleLink>
                   </TitleTd>
@@ -116,14 +132,18 @@ export default function ListPanel({
                   <Td $width720="10.875rem" $width1080="16.3125rem">
                     {row.date}
                   </Td>
-                  <Td $width720="5rem" $width1080="7.375rem">
-                    {row.status}
-                  </Td>
+                  {showStatusColumn ? (
+                    <Td $width720="5rem" $width1080="7.375rem">
+                      {row.status}
+                    </Td>
+                  ) : null}
                 </Tr>
               ))
             ) : (
               <Tr $tone={headerTone}>
-                <EmptyTd colSpan={6}>{emptyMessage}</EmptyTd>
+                <EmptyTd colSpan={2 + Number(showClassColumn) + 2 + Number(showStatusColumn)}>
+                  {emptyMessage}
+                </EmptyTd>
               </Tr>
             )}
           </tbody>
@@ -221,13 +241,18 @@ const Title = styled.h1<{ $tone: ListPanelTone }>`
   margin: 0;
   color: #000000;
   font-size: ${({ $tone }) =>
-    $tone === "journal" || $tone === "finance" ? "1.625rem" : typography.fontSize24};
-  font-weight: ${({ $tone }) => ($tone === "journal" || $tone === "finance" ? 600 : 700)};
+    $tone === "journal" || $tone === "finance" || $tone === "archive"
+      ? "1.625rem"
+      : typography.fontSize24};
+  font-weight: ${({ $tone }) =>
+    $tone === "journal" || $tone === "finance" || $tone === "archive" ? 600 : 700};
   line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
     font-size: ${({ $tone }) =>
-      $tone === "journal" || $tone === "finance" ? "2.5rem" : typography.fontSize24};
+      $tone === "journal" || $tone === "finance" || $tone === "archive"
+        ? "2.5rem"
+        : typography.fontSize24};
   }
 `;
 
@@ -235,20 +260,30 @@ const WriteButton = styled(Link)<{ $tone: ListPanelTone }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: ${({ $tone }) => ($tone === "journal" || $tone === "finance" ? "auto" : "7.75rem")};
+  gap: ${spacing.space8};
+  min-width: ${({ $tone }) =>
+    $tone === "journal" || $tone === "finance" || $tone === "archive" ? "auto" : "7.75rem"};
   min-height: ${({ $tone }) =>
-    $tone === "journal" || $tone === "finance" ? "2.6875rem" : "2.75rem"};
+    $tone === "journal" || $tone === "finance" || $tone === "archive" ? "2.6875rem" : "2.75rem"};
   padding: ${({ $tone }) =>
-    $tone === "journal" || $tone === "finance"
+    $tone === "journal" || $tone === "finance" || $tone === "archive"
       ? `0.8125rem ${spacing.space20}`
       : `0.75rem ${spacing.space20}`};
-  border: 0;
+  border: ${({ $tone }) => ($tone === "archive" ? `1px solid ${colors.point}` : "0")};
   border-radius: ${({ $tone }) =>
-    $tone === "journal" || $tone === "finance" ? radii.radius15 : "0"};
+    $tone === "journal" || $tone === "finance" || $tone === "archive" ? radii.radius15 : "0"};
   background: ${({ $tone }) =>
-    $tone === "journal" || $tone === "finance" ? colors.point : "#e4e4e4"};
+    $tone === "archive"
+      ? colors.white
+      : $tone === "journal" || $tone === "finance"
+        ? colors.point
+        : "#e4e4e4"};
   color: ${({ $tone }) =>
-    $tone === "journal" || $tone === "finance" ? colors.white : colors.text};
+    $tone === "archive"
+      ? colors.point
+      : $tone === "journal" || $tone === "finance"
+        ? colors.white
+        : colors.text};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -256,19 +291,34 @@ const WriteButton = styled(Link)<{ $tone: ListPanelTone }>`
   white-space: nowrap;
   cursor: pointer;
 
+  svg {
+    flex: 0 0 auto;
+  }
+
   &:hover {
     background: ${({ $tone }) =>
-      $tone === "journal" || $tone === "finance" ? "#76bd49" : "#d9d9d9"};
+      $tone === "archive"
+        ? "#eef9e6"
+        : $tone === "journal" || $tone === "finance"
+          ? "#76bd49"
+          : "#d9d9d9"};
   }
 
   @media (min-width: 120rem) {
-    min-width: ${({ $tone }) => ($tone === "journal" || $tone === "finance" ? "auto" : "9.375rem")};
-    min-height: ${({ $tone }) => ($tone === "journal" || $tone === "finance" ? "4rem" : "4.25rem")};
+    min-width: ${({ $tone }) =>
+      $tone === "journal" || $tone === "finance" || $tone === "archive" ? "auto" : "9.375rem"};
+    min-height: ${({ $tone }) =>
+      $tone === "journal" || $tone === "finance" || $tone === "archive" ? "4rem" : "4.25rem"};
     padding: ${({ $tone }) =>
-      $tone === "journal" || $tone === "finance"
+      $tone === "journal" || $tone === "finance" || $tone === "archive"
         ? `${spacing.space20} 1.875rem`
         : `0.75rem ${spacing.space20}`};
     font-size: ${typography.fontSize20};
+
+    svg {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
   }
 `;
 
@@ -285,7 +335,8 @@ const Table = styled.table`
 const Th = styled.th<{ $width720?: string; $width1080?: string; $tone: ListPanelTone }>`
   width: ${({ $width720 }) => $width720 ?? "auto"};
   padding: 0.625rem ${spacing.space12};
-  border-bottom: 1px solid ${({ $tone }) => ($tone === "finance" ? colors.muted : "#6d6d6d")};
+  border-bottom: 1px solid
+    ${({ $tone }) => ($tone === "finance" || $tone === "archive" ? colors.muted : "#6d6d6d")};
   font-size: ${typography.fontSize16};
   font-weight: 700;
   text-align: center;
@@ -299,7 +350,8 @@ const Th = styled.th<{ $width720?: string; $width1080?: string; $tone: ListPanel
 `;
 
 const Tr = styled.tr<{ $tone: ListPanelTone }>`
-  border-bottom: 1px solid ${({ $tone }) => ($tone === "finance" ? colors.muted : "#6d6d6d")};
+  border-bottom: 1px solid
+    ${({ $tone }) => ($tone === "finance" || $tone === "archive" ? colors.muted : "#6d6d6d")};
 `;
 
 const Td = styled.td<{ $width720?: string; $width1080?: string }>`

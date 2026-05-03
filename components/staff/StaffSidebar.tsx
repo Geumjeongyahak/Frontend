@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styled from "styled-components";
 import { colors, layout, typography } from "@/styles/tokens";
-
-const SIDEBAR_STORAGE_KEY = "staff-sidebar-open-sections";
 
 const staffSections = [
   {
@@ -24,12 +22,12 @@ const staffSections = [
   {
     title: "자료실",
     items: [
-      { label: "교칙", href: "/docs/rules" },
-      { label: "연락망", href: "/docs/contact" },
-      { label: "교학 회의록", href: "/docs/meeting" },
-      { label: "인수인계서", href: "/docs/handover" },
-      { label: "시험 문제 자료", href: "/docs/exam" },
-      { label: "서류 양식", href: "/docs/forms" },
+      { label: "교칙", href: "/staff/archive/rules" },
+      { label: "연락망", href: "/staff/archive/contact" },
+      { label: "교학 회의록", href: "/staff/archive/meeting" },
+      { label: "인수인계서", href: "/staff/archive/handover" },
+      { label: "시험 문제 자료", href: "/staff/archive/exam" },
+      { label: "서류 양식", href: "/staff/archive/forms" },
     ],
   },
   {
@@ -41,29 +39,6 @@ const staffSections = [
     items: [{ label: "월별 일정", href: "/calendar" }],
   },
 ];
-
-function getClosedSections() {
-  return Object.fromEntries(staffSections.map((section) => [section.title, false]));
-}
-
-function getStoredOpenSections() {
-  const storedValue = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
-  if (!storedValue) return getClosedSections();
-
-  try {
-    const parsedValue = JSON.parse(storedValue) as Record<string, boolean>;
-
-    return {
-      ...getClosedSections(),
-      ...Object.fromEntries(
-        staffSections.map((section) => [section.title, Boolean(parsedValue[section.title])]),
-      ),
-    };
-  } catch {
-    window.localStorage.removeItem(SIDEBAR_STORAGE_KEY);
-    return getClosedSections();
-  }
-}
 
 function isCurrentStaffPath(pathname: string, href: string) {
   if (href === "/staff/class") {
@@ -83,21 +58,29 @@ function getCurrentSectionTitle(pathname: string) {
   )?.title;
 }
 
-export default function StaffSidebar() {
+function getOpenSectionsForTitle(title?: string) {
+  return Object.fromEntries(
+    staffSections.map((section) => [section.title, Boolean(title && section.title === title)]),
+  );
+}
+
+function getOpenSectionsForPath(pathname: string) {
+  return getOpenSectionsForTitle(getCurrentSectionTitle(pathname));
+}
+
+type StaffSidebarProps = {
+  mode?: "accordion" | "expanded";
+};
+
+export default function StaffSidebar({ mode = "accordion" }: StaffSidebarProps) {
   const pathname = usePathname();
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>(getClosedSections);
-
-  useEffect(() => {
-    const timerId = window.setTimeout(() => {
-      const currentSectionTitle = getCurrentSectionTitle(pathname);
-      setOpenSections({
-        ...getStoredOpenSections(),
-        ...(currentSectionTitle ? { [currentSectionTitle]: true } : {}),
-      });
-    }, 0);
-
-    return () => window.clearTimeout(timerId);
-  }, [pathname]);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
+    getOpenSectionsForPath(pathname),
+  );
+  const [overridePathname, setOverridePathname] = useState<string | null>(null);
+  const isExpandedMode = mode === "expanded";
+  const routeOpenSections = getOpenSectionsForPath(pathname);
+  const visibleOpenSections = overridePathname === pathname ? openSections : routeOpenSections;
 
   const isCurrent = (href: string) => {
     return isCurrentStaffPath(pathname, href);
@@ -105,23 +88,22 @@ export default function StaffSidebar() {
 
   const toggleSection = (title: string) => {
     setOpenSections((current) => {
+      const sourceOpenSections = overridePathname === pathname ? current : routeOpenSections;
       const nextOpenSections = {
-        ...current,
-        [title]: !current[title],
+        ...sourceOpenSections,
+        [title]: !sourceOpenSections[title],
       };
-
-      window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(nextOpenSections));
 
       return nextOpenSections;
     });
+    setOverridePathname(pathname);
   };
 
   const keepOnlySectionOpen = (title: string) => {
-    const nextOpenSections = Object.fromEntries(
-      staffSections.map((section) => [section.title, section.title === title]),
-    );
+    const nextOpenSections = getOpenSectionsForTitle(title);
 
-    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(nextOpenSections));
+    setOpenSections(nextOpenSections);
+    setOverridePathname(pathname);
   };
 
   return (
@@ -129,22 +111,26 @@ export default function StaffSidebar() {
       <SidebarHeader>교원</SidebarHeader>
       <SidebarContent>
         {staffSections.map((section, sectionIndex) => {
-          const isOpen = openSections[section.title] ?? false;
+          const isOpen = isExpandedMode || (visibleOpenSections[section.title] ?? false);
           const sectionId = `staff-sidebar-section-${sectionIndex}`;
 
           return (
             <SectionBlock key={section.title}>
-              <SectionButton
-                type="button"
-                onClick={() => toggleSection(section.title)}
-                aria-expanded={isOpen}
-                aria-controls={sectionId}
-              >
-                <span>{section.title}</span>
-                <Chevron aria-hidden="true" $isOpen={isOpen}>
-                  ▾
-                </Chevron>
-              </SectionButton>
+              {isExpandedMode ? (
+                <SectionLabel>{section.title}</SectionLabel>
+              ) : (
+                <SectionButton
+                  type="button"
+                  onClick={() => toggleSection(section.title)}
+                  aria-expanded={isOpen}
+                  aria-controls={sectionId}
+                >
+                  <span>{section.title}</span>
+                  <Chevron aria-hidden="true" $isOpen={isOpen}>
+                    ▾
+                  </Chevron>
+                </SectionButton>
+              )}
               <SectionList id={sectionId} $isOpen={isOpen}>
                 {section.items.map((item) => {
                   const current = isCurrent(item.href);
@@ -241,6 +227,19 @@ const SectionButton = styled.button`
   &:hover {
     color: ${colors.text};
   }
+
+  @media (min-width: 120rem) {
+    padding: 0 2.5rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const SectionLabel = styled.p`
+  padding: 0 1.625rem;
+  color: ${colors.point};
+  font-size: ${typography.fontSize14};
+  font-weight: 700;
+  line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
     padding: 0 2.5rem;
