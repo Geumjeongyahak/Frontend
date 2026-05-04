@@ -1,0 +1,145 @@
+export type StaffCalendarEventType = "exchange" | "absence" | "meeting" | "class" | "notice";
+
+export type StaffCalendarEvent = {
+  id: number;
+  date: string;
+  title: string;
+  type: StaffCalendarEventType;
+  time: string;
+  teacher: string;
+  location: string;
+  description: string;
+};
+
+export const staffCalendarEvents: StaffCalendarEvent[] = [
+  {
+    id: 1,
+    date: "2026-05-02",
+    title: "수업 교환",
+    type: "exchange",
+    time: "14:00 - 15:30",
+    teacher: "홍길동",
+    location: "개나리반",
+    description: "개나리반 1교시 수업을 민들레반 보강 수업과 교환합니다.",
+  },
+  {
+    id: 2,
+    date: "2026-05-02",
+    title: "수업 교환",
+    type: "exchange",
+    time: "16:00 - 17:30",
+    teacher: "최양진",
+    location: "장미반",
+    description: "장미반 수학 수업 교환 신청이 승인되었습니다.",
+  },
+  {
+    id: 3,
+    date: "2026-05-02",
+    title: "수업 결강",
+    type: "absence",
+    time: "18:00 - 19:00",
+    teacher: "김민수",
+    location: "해바라기반",
+    description: "담당 교사 개인 사정으로 해바라기반 수업이 결강됩니다.",
+  },
+  {
+    id: 4,
+    date: "2026-05-02",
+    title: "야간 자율학습 점검",
+    type: "notice",
+    time: "19:00 - 19:30",
+    teacher: "운영팀",
+    location: "본관 2층",
+    description: "야간 자율학습 출석과 교실 상태를 점검합니다.",
+  },
+  {
+    id: 5,
+    date: "2026-05-07",
+    title: "수업 결강",
+    type: "absence",
+    time: "15:00 - 16:30",
+    teacher: "박서연",
+    location: "민들레반",
+    description: "민들레반 문해 수업 결강 신청이 등록되었습니다.",
+  },
+  {
+    id: 6,
+    date: "2026-05-07",
+    title: "보강 일정 확인",
+    type: "notice",
+    time: "17:00 - 17:20",
+    teacher: "교무팀",
+    location: "교무실",
+    description: "결강 보강 가능 일정을 담당 교사와 확인합니다.",
+  },
+  {
+    id: 7,
+    date: "2026-05-13",
+    title: "교실 기자재 점검",
+    type: "notice",
+    time: "18:30 - 19:00",
+    teacher: "시설팀",
+    location: "전체 교실",
+    description: "수업 전 빔프로젝터와 노트북 연결 상태를 점검합니다.",
+  },
+  {
+    id: 8,
+    date: "2026-05-15",
+    title: "수업 교환",
+    type: "exchange",
+    time: "14:00 - 15:30",
+    teacher: "정하늘",
+    location: "해바라기반",
+    description: "해바라기반 영어 수업 교환 신청이 승인되었습니다.",
+  },
+  {
+    id: 9,
+    date: "2026-05-15",
+    title: "수업 결강",
+    type: "absence",
+    time: "16:00 - 17:30",
+    teacher: "이수진",
+    location: "장미반",
+    description: "장미반 국어 수업 결강 신청이 접수되었습니다.",
+  },
+  {
+    id: 10,
+    date: "2026-05-15",
+    title: "교원 회의",
+    type: "meeting",
+    time: "19:00 - 20:00",
+    teacher: "교무팀",
+    location: "회의실",
+    description: "5월 운영 현황과 6월 학사 일정을 공유합니다.",
+  },
+  {
+    id: 11,
+    date: "2026-06-03",
+    title: "6월 교원 회의",
+    type: "meeting",
+    time: "19:00 - 20:00",
+    teacher: "교무팀",
+    location: "회의실",
+    description: "6월 수업 운영 및 행사 준비 사항을 논의합니다.",
+  },
+  {
+    id: 12,
+    date: "2026-06-12",
+    title: "수업 교환",
+    type: "exchange",
+    time: "16:00 - 17:30",
+    teacher: "최양진",
+    location: "주말 스마트폰반",
+    description: "스마트폰 활용반 수업 교환 일정입니다.",
+  },
+  {
+    id: 13,
+    date: "2026-04-24",
+    title: "학급별 출결부 마감",
+    type: "notice",
+    time: "18:00",
+    teacher: "교무팀",
+    location: "온라인 제출",
+    description: "4월 학급별 출결부 제출 마감일입니다.",
+  },
+];

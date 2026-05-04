@@ -36,7 +36,7 @@ const staffSections = [
   },
   {
     title: "학사일정",
-    items: [{ label: "월별 일정", href: "/calendar" }],
+    items: [{ label: "월별 일정", href: "/staff/calendar" }],
   },
 ];
 
