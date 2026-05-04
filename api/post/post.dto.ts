@@ -50,13 +50,13 @@ export interface PostSummaryResponseDto {
   authorName?: string;
   isPinned?: boolean;
   viewCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface PostDetailResponseDto extends PostSummaryResponseDto {
   contentHtml?: string;
   allowComment?: boolean;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export interface PostListResponseDto {
