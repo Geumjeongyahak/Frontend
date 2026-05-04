@@ -21,6 +21,7 @@ import {
   ToolbarRight,
 } from "@/components/board/BoardDocument.styles";
 import { queryKeys } from "@/lib/queryKeys";
+import { getBoardMockPostById } from "@/mocks/boardPosts";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type BoardDetailPageClientProps = {
@@ -47,18 +48,21 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
     retry: false,
   });
 
-  const metaLabel = data?.channelName ?? "교무기획부";
-  const date = formatUtcToKstShortDate(data?.createdAt ?? data?.updatedAt);
-  const title = data?.title ?? "제목";
-  const author = data?.authorName ?? "홍길동";
-  const content = toPlainText(data?.contentHtml);
-  const stateMessage = !hasChannelId
-    ? "게시글 채널 정보가 없어 상세 내용을 불러오지 못했습니다."
-    : isLoading
-      ? "게시글을 불러오는 중입니다."
-      : isError
-        ? "게시글을 불러오지 못했습니다."
-        : "";
+  const fallbackPost = getBoardMockPostById(postId);
+  const visiblePost = data ?? fallbackPost;
+  const metaLabel = visiblePost?.channelName ?? "교무기획부";
+  const date = formatUtcToKstShortDate(visiblePost?.createdAt ?? visiblePost?.updatedAt);
+  const title = visiblePost?.title ?? "제목";
+  const author = visiblePost?.authorName ?? "홍길동";
+  const content = toPlainText(visiblePost?.contentHtml);
+  const stateMessage =
+    !visiblePost && !hasChannelId
+      ? "게시글 채널 정보가 없어 상세 내용을 불러오지 못했습니다."
+      : isLoading
+        ? "게시글을 불러오는 중입니다."
+        : isError && !visiblePost
+          ? "게시글을 불러오지 못했습니다."
+          : "";
 
   return (
     <BoardShell>

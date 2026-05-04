@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
+import type { PostSummaryResponseDto } from "@/api/post/post.dto";
 import { getPosts } from "@/api/post/post.api";
 import BoardDropdown from "@/components/board/BoardDropdown";
 import BoardShell from "@/components/board/BoardShell";
@@ -13,6 +14,7 @@ import {
 } from "@/components/board/boardOptions";
 import ListPanel, { type ListPanelRow } from "@/components/staff/ListPanel";
 import { queryKeys } from "@/lib/queryKeys";
+import { getBoardMockPosts } from "@/mocks/boardPosts";
 import { layout, spacing } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
@@ -22,6 +24,31 @@ type OpenDropdown = "type" | "scope" | null;
 type BoardListPageClientProps = {
   initialPage: number;
 };
+
+function isNoticePost(post: PostSummaryResponseDto) {
+  return Boolean(post.isPinned) || post.postType === "NOTICE";
+}
+
+function getPostTime(post: PostSummaryResponseDto) {
+  const dateValue = post.createdAt ?? post.updatedAt;
+  if (!dateValue) return 0;
+
+  const time = new Date(dateValue).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+function sortBoardPosts(posts: PostSummaryResponseDto[]) {
+  return [...posts].sort((a, b) => {
+    const aIsNotice = isNoticePost(a);
+    const bIsNotice = isNoticePost(b);
+
+    if (aIsNotice !== bIsNotice) {
+      return aIsNotice ? -1 : 1;
+    }
+
+    return getPostTime(a) - getPostTime(b);
+  });
+}
 
 export default function BoardListPageClient({ initialPage }: BoardListPageClientProps) {
   const [boardType, setBoardType] = useState<BoardType>("all");
@@ -43,17 +70,20 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
     retry: false,
   });
 
-  const posts = data?.content ?? [];
-  const totalPages = Math.max(1, data?.totalPages ?? 1);
+  const posts = data?.content?.length ? data.content : getBoardMockPosts({ boardType, boardScope });
+  const sortedPosts = sortBoardPosts(posts);
+  const totalPages = Math.max(1, data?.totalPages ?? Math.ceil(posts.length / POSTS_PER_PAGE));
 
-  const rows: ListPanelRow[] = posts.map((post, index) => {
-    const isNotice = Boolean(post.isPinned) || post.postType === "NOTICE";
+  const generalPosts = sortedPosts.filter((post) => !isNoticePost(post));
+
+  const rows: ListPanelRow[] = sortedPosts.map((post, index) => {
+    const isNotice = isNoticePost(post);
+    const generalPostNumber =
+      (currentPage - 1) * POSTS_PER_PAGE + generalPosts.findIndex((item) => item === post) + 1;
 
     return {
       id: post.id ?? index + 1,
-      no: isNotice
-        ? "공지"
-        : String((currentPage - 1) * POSTS_PER_PAGE + index + 1).padStart(2, "0"),
+      no: isNotice ? "공지" : String(generalPostNumber).padStart(2, "0"),
       className: post.channelName ?? "-",
       title: post.title ?? "제목 없음",
       author: post.authorName ?? "-",
@@ -69,7 +99,7 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
   const emptyMessage = isLoading
     ? "게시글을 불러오는 중입니다."
     : isError
-      ? "게시글을 불러오지 못했습니다."
+      ? "임시 게시글을 표시하고 있습니다."
       : "게시글이 없습니다.";
 
   return (
