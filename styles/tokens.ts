@@ -2,9 +2,14 @@ export const colors = {
   white: "#FFFFFF",
   background: "#F8F8F8",
   point: "#88CD5A",
+  pointSoft: "#EEF9E6",
+  noticeSoft: "#FDE4E2",
   border: "#D3D3D3",
+  borderStrong: "#B4B4B4",
   muted: "#C0C0C0",
+  placeholder: "#949494",
   text: "#222222",
+  notice: "#DA3A30",
 };
 
 export const spacing = {

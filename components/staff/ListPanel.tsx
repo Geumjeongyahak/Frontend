@@ -12,6 +12,7 @@ export type ListPanelRow = {
   date: string;
   status: string;
   detailHref: string;
+  isNotice?: boolean;
 };
 
 type ListPanelTone = "default" | "journal" | "finance" | "archive";
@@ -29,9 +30,11 @@ type ListPanelProps = {
   emptyMessage?: string;
   headerTone?: ListPanelTone;
   showClassColumn?: boolean;
+  classHeader?: string;
   showStatusColumn?: boolean;
   statusHeader?: string;
   writeIcon?: ReactNode;
+  filterSlot?: ReactNode;
 };
 
 type QueryValue = string | number | boolean;
@@ -65,9 +68,11 @@ export default function ListPanel({
   emptyMessage = "목록이 없습니다.",
   headerTone = "default",
   showClassColumn = true,
+  classHeader = "반",
   showStatusColumn = true,
   statusHeader = "신청 현황",
   writeIcon,
+  filterSlot,
 }: ListPanelProps) {
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
@@ -84,6 +89,8 @@ export default function ListPanel({
         </WriteButton>
       </HeaderRow>
 
+      {filterSlot ? <FilterSlot>{filterSlot}</FilterSlot> : null}
+
       <TableSection>
         <Table>
           <thead>
@@ -93,7 +100,7 @@ export default function ListPanel({
               </Th>
               {showClassColumn ? (
                 <Th $width720="7.125rem" $width1080="10.75rem" $tone={headerTone}>
-                  반
+                  {classHeader}
                 </Th>
               ) : null}
               <Th $tone={headerTone}>제목</Th>
@@ -115,7 +122,7 @@ export default function ListPanel({
             {rows.length > 0 ? (
               rows.map((row) => (
                 <Tr key={row.id} $tone={headerTone}>
-                  <Td $width720="3.75rem" $width1080="5.5rem">
+                  <Td $width720="3.75rem" $width1080="5.5rem" $isNotice={row.isNotice}>
                     {row.no}
                   </Td>
                   {showClassColumn ? (
@@ -326,6 +333,14 @@ const TableSection = styled.section`
   width: 100%;
 `;
 
+const FilterSlot = styled.div`
+  margin-bottom: 1.25rem;
+
+  @media (min-width: 120rem) {
+    margin-bottom: 1.875rem;
+  }
+`;
+
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
@@ -354,10 +369,12 @@ const Tr = styled.tr<{ $tone: ListPanelTone }>`
     ${({ $tone }) => ($tone === "finance" || $tone === "archive" ? colors.muted : "#6d6d6d")};
 `;
 
-const Td = styled.td<{ $width720?: string; $width1080?: string }>`
+const Td = styled.td<{ $width720?: string; $width1080?: string; $isNotice?: boolean }>`
   width: ${({ $width720 }) => $width720 ?? "auto"};
   padding: 0.65625rem ${spacing.space12};
+  color: ${({ $isNotice }) => ($isNotice ? colors.notice : colors.text)};
   font-size: ${typography.fontSize14};
+  font-weight: ${({ $isNotice }) => ($isNotice ? 700 : 400)};
   text-align: center;
   white-space: nowrap;
 
