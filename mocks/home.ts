@@ -19,22 +19,19 @@ export const headerMenus: HeaderDropdownMenu[] = [
   },
   {
     label: "교원",
-    href: "/staff",
+    href: "/staff/class",
     items: [
       { label: "수업 관리", href: "/staff/class" },
       { label: "재무 관리", href: "/staff/finance" },
       { label: "자료실", href: "/staff/archive/rules" },
-      { label: "게시판", href: "/staff/board" },
+      { label: "게시판", href: "/board" },
       { label: "학사일정", href: "/staff/calendar" },
     ],
   },
   {
     label: "신규 등록",
     href: "/register",
-    items: [
-      { label: "교사 신청", href: "/register/teacher" },
-      { label: "학생 등록", href: "/register/student" },
-    ],
+    items: [{ label: "교사 신청", href: "/register/teacher" }],
   },
 ];
 
