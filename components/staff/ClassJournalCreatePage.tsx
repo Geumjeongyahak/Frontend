@@ -1,6 +1,11 @@
 "use client";
 
+import { useState, type FormEvent } from "react";
 import styled from "styled-components";
+import {
+  sendClassNoteInfoToGoogleSheet,
+  type SendClassNoteInfoToGoogleSheetPayload,
+} from "@/lib/sendClassNoteInfoToGoogleSheet";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const teacherFields = [
@@ -15,7 +20,82 @@ const teacherFields = [
 const lessonPeriods = [1, 2, 3] as const;
 const attendanceColumns = Array.from({ length: 10 }, (_, index) => index);
 
+function getDayLabel(dateValue: string) {
+  if (!dateValue) return "";
+
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
+}
+
+function formatPhone(value: string) {
+  const numbers = value.replace(/\D/g, "");
+
+  if (numbers.length < 4) return numbers;
+  if (numbers.length < 8) {
+    return numbers.replace(/(\d{3})(\d+)/, "$1-$2");
+  }
+
+  return numbers.replace(/(\d{3})(\d{4})(\d+)/, "$1-$2-$3");
+}
+
 export default function ClassJournalCreatePage() {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (isSubmitting) return;
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    const activityDate = String(formData.get("activityDate") ?? "").trim();
+
+    const payload: SendClassNoteInfoToGoogleSheetPayload = {
+      name: String(formData.get("writer") ?? "").trim(),
+      birth: String(formData.get("birthPrefix") ?? "").trim(),
+      phone: String(formData.get("phone") ?? "").trim(),
+      volunteerNote: String(formData.get("className") ?? "").trim(),
+      agree: formData.get("privacyConsent") ? "동의" : "미동의",
+      date: activityDate,
+      time: String(formData.get("activityTime") ?? "").trim(),
+      day: getDayLabel(activityDate),
+      period1: String(formData.get("lesson1") ?? "").trim(),
+      period2: String(formData.get("lesson2") ?? "").trim(),
+      period3: String(formData.get("lesson3") ?? "").trim(),
+    };
+
+    if (!payload.date) {
+      window.alert("활동 일자를 입력해 주세요.");
+      return;
+    }
+
+    if (!payload.name) {
+      window.alert("성명을 입력해 주세요.");
+      return;
+    }
+
+    if (!payload.agree || payload.agree === "미동의") {
+      window.alert("개인정보 제공 동의가 필요합니다.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      await sendClassNoteInfoToGoogleSheet(payload);
+      window.alert("수업 일지가 구글 시트에 저장되었습니다.");
+      form.reset();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "수업 일지 전송에 실패했습니다.";
+      window.alert(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <PageSection>
       <HeaderRow>
@@ -25,18 +105,30 @@ export default function ClassJournalCreatePage() {
             <ConsentCheckbox type="checkbox" name="privacyConsent" form="class-journal-form" />
             <span>정보 제공 동의</span>
           </ConsentLabel>
-          <SubmitButton type="submit" form="class-journal-form">
-            수업 일지 제출하기
+          <SubmitButton type="submit" form="class-journal-form" disabled={isSubmitting}>
+            {isSubmitting ? "제출 중..." : "수업 일지 제출하기"}
           </SubmitButton>
         </HeaderActions>
       </HeaderRow>
 
-      <Form id="class-journal-form">
+      <Form id="class-journal-form" onSubmit={handleSubmit}>
         <InfoGrid>
           {teacherFields.map((field) => (
             <InfoField key={field.id}>
               <FieldLabel htmlFor={field.id}>{field.label}</FieldLabel>
-              <FieldInput id={field.id} name={field.id} placeholder={field.placeholder} />
+              <FieldInput
+                id={field.id}
+                name={field.id}
+                type={field.id === "activityDate" ? "date" : "text"}
+                placeholder={field.placeholder}
+                onChange={
+                  field.id === "phone"
+                    ? (e) => {
+                        e.target.value = formatPhone(e.target.value);
+                      }
+                    : undefined
+                }
+              />
             </InfoField>
           ))}
         </InfoGrid>
