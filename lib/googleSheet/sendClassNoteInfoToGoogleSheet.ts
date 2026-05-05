@@ -34,7 +34,7 @@ export async function sendClassNoteInfoToGoogleSheet(
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error("응답이 JSON이 아님");
+    throw new Error("응답이 JSON이 아닙니다");
   }
 
   if (!data.success) {

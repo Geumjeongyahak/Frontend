@@ -3,9 +3,10 @@
 import { useState, type FormEvent } from "react";
 import styled from "styled-components";
 import {
-  sendClassNoteInfoToGoogleSheet,
-  type SendClassNoteInfoToGoogleSheetPayload,
-} from "@/lib/sendClassNoteInfoToGoogleSheet";
+  buildSendClassNotePayloadFromFormData,
+  formatPhone,
+} from "@/lib/googleSheet/classJournalSheetPayload";
+import { sendClassNoteInfoToGoogleSheet } from "@/lib/googleSheet/sendClassNoteInfoToGoogleSheet";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const teacherFields = [
@@ -20,26 +21,6 @@ const teacherFields = [
 const lessonPeriods = [1, 2, 3] as const;
 const attendanceColumns = Array.from({ length: 10 }, (_, index) => index);
 
-function getDayLabel(dateValue: string) {
-  if (!dateValue) return "";
-
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return "";
-
-  return ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
-}
-
-function formatPhone(value: string) {
-  const numbers = value.replace(/\D/g, "");
-
-  if (numbers.length < 4) return numbers;
-  if (numbers.length < 8) {
-    return numbers.replace(/(\d{3})(\d+)/, "$1-$2");
-  }
-
-  return numbers.replace(/(\d{3})(\d{4})(\d+)/, "$1-$2-$3");
-}
-
 export default function ClassJournalCreatePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -50,22 +31,7 @@ export default function ClassJournalCreatePage() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-
-    const activityDate = String(formData.get("activityDate") ?? "").trim();
-
-    const payload: SendClassNoteInfoToGoogleSheetPayload = {
-      name: String(formData.get("writer") ?? "").trim(),
-      birth: String(formData.get("birthPrefix") ?? "").trim(),
-      phone: String(formData.get("phone") ?? "").trim(),
-      volunteerNote: String(formData.get("className") ?? "").trim(),
-      agree: formData.get("privacyConsent") ? "동의" : "미동의",
-      date: activityDate,
-      time: String(formData.get("activityTime") ?? "").trim(),
-      day: getDayLabel(activityDate),
-      period1: String(formData.get("lesson1") ?? "").trim(),
-      period2: String(formData.get("lesson2") ?? "").trim(),
-      period3: String(formData.get("lesson3") ?? "").trim(),
-    };
+    const payload = buildSendClassNotePayloadFromFormData(formData);
 
     if (!payload.date) {
       window.alert("활동 일자를 입력해 주세요.");
