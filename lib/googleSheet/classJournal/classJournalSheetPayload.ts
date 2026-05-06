@@ -1,4 +1,4 @@
-import type { SendClassNoteInfoToGoogleSheetPayload } from "@/lib/googleSheet/sendClassNoteInfoToGoogleSheet";
+import type { SendClassJournalToGoogleSheetPayload } from "@/lib/googleSheet/classJournal/sendClassJournalToGoogleSheet";
 
 export function getDayLabel(dateValue: string) {
   if (!dateValue) return "";
@@ -22,7 +22,7 @@ export function formatPhone(value: string) {
 
 export function buildSendClassNotePayloadFromFormData(
   formData: FormData,
-): SendClassNoteInfoToGoogleSheetPayload {
+): SendClassJournalToGoogleSheetPayload {
   const activityDate = String(formData.get("activityDate") ?? "").trim();
 
   return {
