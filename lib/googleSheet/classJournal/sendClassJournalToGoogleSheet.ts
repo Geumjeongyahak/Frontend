@@ -1,4 +1,4 @@
-export type SendClassNoteInfoToGoogleSheetPayload = {
+export type SendClassJournalToGoogleSheetPayload = {
   name: string;
   birth: string;
   phone: string;
@@ -15,9 +15,7 @@ export type SendClassNoteInfoToGoogleSheetPayload = {
 const GOOGLE_APPS_SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbxAQTwUuRT6X7Hysjhxnx1rp_Env0P-0xPIVuoUXjJtP-EZruBJOEEqDxXbRVpJkxpxFg/exec";
 
-export async function sendClassNoteInfoToGoogleSheet(
-  payload: SendClassNoteInfoToGoogleSheetPayload,
-) {
+export async function sendClassJournalToGoogleSheet(payload: SendClassJournalToGoogleSheetPayload) {
   const res = await fetch(GOOGLE_APPS_SCRIPT_URL, {
     method: "POST",
     redirect: "follow",

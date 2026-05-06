@@ -5,8 +5,9 @@ import styled from "styled-components";
 import {
   buildSendClassNotePayloadFromFormData,
   formatPhone,
-} from "@/lib/googleSheet/classJournalSheetPayload";
-import { sendClassNoteInfoToGoogleSheet } from "@/lib/googleSheet/sendClassNoteInfoToGoogleSheet";
+} from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
+import { sendClassAttendanceToGoogleSheet } from "@/lib/googleSheet/classAttendance/sendClassAttendanceToGoogleSheet";
+import { sendClassJournalToGoogleSheet } from "@/lib/googleSheet/classJournal/sendClassJournalToGoogleSheet";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const teacherFields = [
@@ -32,6 +33,19 @@ export default function ClassJournalCreatePage() {
     const form = event.currentTarget;
     const formData = new FormData(form);
     const payload = buildSendClassNotePayloadFromFormData(formData);
+    const className = String(formData.get("className") || "").trim();
+
+    const attendances = Array.from({ length: 10 }, (_, index) => {
+      const name = String(formData.get(`studentName${index + 1}`) || "").trim();
+      const status = String(formData.get(`attendanceStatus${index + 1}`) || "").trim();
+
+      if (!name) return null;
+
+      return {
+        name,
+        status: status || "출석",
+      };
+    }).filter((attendance): attendance is { name: string; status: string } => attendance !== null);
 
     if (!payload.date) {
       window.alert("활동 일자를 입력해 주세요.");
@@ -51,8 +65,17 @@ export default function ClassJournalCreatePage() {
     setIsSubmitting(true);
 
     try {
-      await sendClassNoteInfoToGoogleSheet(payload);
-      window.alert("수업 일지가 구글 시트에 저장되었습니다.");
+      await sendClassJournalToGoogleSheet(payload);
+
+      if (attendances.length > 0) {
+        await sendClassAttendanceToGoogleSheet({
+          date: payload.date,
+          className,
+          attendances,
+        });
+      }
+
+      window.alert("수업 일지와 출석부가 구글 시트에 저장되었습니다.");
       form.reset();
     } catch (err) {
       const message = err instanceof Error ? err.message : "수업 일지 전송에 실패했습니다.";
