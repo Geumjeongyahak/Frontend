@@ -1,25 +1,70 @@
+"use client";
+
 import Link from "next/link";
 import { IconDownload } from "@tabler/icons-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import {
+  deletePurchaseRequest,
+  getPurchaseRequestDetail,
+} from "@/api/request/request.api";
+import type { PurchaseRequestStatus } from "@/api/request/request.dto";
 import StaffSidebar from "@/components/staff/StaffSidebar";
-import type { FinanceRequest } from "@/mocks/staffFinance";
+import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type FinanceRequestDetailPageProps = {
-  request: FinanceRequest;
+  requestId: number;
 };
 
-const receiptFiles = ["자료.pdf", "자료.pdf", "자료.pdf", "자료.pdf"];
+const statusLabels: Record<PurchaseRequestStatus, string> = {
+  PENDING: "대기 중",
+  APPROVED: "승인 완료",
+  PURCHASED: "구매 완료",
+  CONFIRMED: "결재 확인",
+  REJECTED: "반려",
+};
 
-export default function FinanceRequestDetailPage({ request }: FinanceRequestDetailPageProps) {
-  const detailItems = [
-    {
-      id: request.id,
-      name: request.title,
-      reason: request.detail,
-      receipts: receiptFiles,
+function getStatusLabel(status?: PurchaseRequestStatus) {
+  return status ? (statusLabels[status] ?? status) : "-";
+}
+
+export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDetailPageProps) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { data: request, isLoading, isError } = useQuery({
+    queryKey: queryKeys.requests.purchaseDetail(requestId),
+    queryFn: () => getPurchaseRequestDetail({ requestId }),
+    retry: false,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deletePurchaseRequest({ requestId }),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: queryKeys.requests.purchaseDetail(requestId) });
+      queryClient.removeQueries({ queryKey: queryKeys.requests.purchaseList() });
+      router.replace("/staff/finance");
     },
-  ];
+  });
+
+  const detailItems =
+    request?.items?.length
+      ? request.items.map((item, index) => ({
+          id: item.id ?? index,
+          name: item.name ?? "-",
+          reason: item.reason ?? request.content ?? "-",
+          price: item.actualPrice ?? item.expectedPrice,
+        }))
+      : [
+          {
+            id: request?.id ?? 0,
+            name: request?.title ?? "-",
+            reason: request?.content ?? "-",
+            price: request?.totalPrice,
+          },
+        ];
 
   return (
     <Main>
@@ -28,67 +73,95 @@ export default function FinanceRequestDetailPage({ request }: FinanceRequestDeta
 
         <Content>
           <Actions>
-            <ActionButton type="button" $variant="danger">
-              삭제
+            <ActionButton
+              type="button"
+              $variant="danger"
+              disabled={deleteMutation.isPending || isLoading || !request}
+              onClick={() => deleteMutation.mutate()}
+            >
+              {deleteMutation.isPending ? "삭제 중" : "삭제"}
             </ActionButton>
-            <ActionButton type="button">수정</ActionButton>
+            <ActionButton type="button" disabled title="백엔드 수정 API가 아직 없습니다.">
+              수정
+            </ActionButton>
             <ListButton href="/staff/finance">목록</ListButton>
           </Actions>
 
-          <ContentColumn>
-            <DateBar>{request.paymentDate}</DateBar>
+          {isLoading ? <StateMessage>결제 신청 정보를 불러오는 중입니다.</StateMessage> : null}
+          {isError ? (
+            <StateMessage role="alert">결제 신청 정보를 불러오지 못했습니다.</StateMessage>
+          ) : null}
+          {deleteMutation.isError ? (
+            <StateMessage role="alert">결제 신청 삭제에 실패했습니다.</StateMessage>
+          ) : null}
 
-            <Section>
-              <Label>제목</Label>
-              <Field>{request.title}</Field>
-            </Section>
+          {request ? (
+            <ContentColumn>
+              <DateBar>{formatUtcToKstShortDate(request.createdAt)}</DateBar>
 
-            <Section>
-              <SectionTitle>신청자 정보</SectionTitle>
-              <InfoRow>
-                <InlineLabel>반 이름</InlineLabel>
-                <InlineField>{request.className}</InlineField>
-                <InlineLabel>결제 일자</InlineLabel>
-                <InlineField>{request.paymentDate}</InlineField>
-                <InlineLabel>신청자</InlineLabel>
-                <InlineField>{request.author}</InlineField>
-              </InfoRow>
-            </Section>
+              <Section>
+                <Label>제목</Label>
+                <Field>{request.title ?? "-"}</Field>
+              </Section>
 
-            <Section>
-              <SectionTitle>상세 품목</SectionTitle>
-              <DetailItemList>
-                {detailItems.map((item, index) => (
-                  <DetailItemRow key={item.id}>
-                    <DetailLabel>품목 {index + 1}</DetailLabel>
-                    <DetailField>{item.name}</DetailField>
-                    <DetailLabel>결제 사유</DetailLabel>
-                    <ReasonField>{item.reason}</ReasonField>
-                    <DetailLabel>영수증</DetailLabel>
-                    <ReceiptList>
-                      {item.receipts.map((receipt, receiptIndex) => (
-                        <ReceiptLink
-                          key={`${item.id}-${receiptIndex}`}
-                          href="#"
-                          aria-label={`${receipt} 다운로드`}
-                        >
-                          <span>{receipt}</span>
-                          <ReceiptIcon aria-hidden="true">
-                            <IconDownload size={16} stroke={2.25} />
-                          </ReceiptIcon>
-                        </ReceiptLink>
-                      ))}
-                    </ReceiptList>
-                  </DetailItemRow>
-                ))}
-              </DetailItemList>
-            </Section>
+              <Section>
+                <SectionTitle>신청자 정보</SectionTitle>
+                <InfoRow>
+                  <InlineLabel>반 이름</InlineLabel>
+                  <InlineField>{request.classroomName ?? "-"}</InlineField>
+                  <InlineLabel>결제 일자</InlineLabel>
+                  <InlineField>{formatUtcToKstShortDate(request.createdAt)}</InlineField>
+                  <InlineLabel>신청자</InlineLabel>
+                  <InlineField>{request.requestedByName ?? "-"}</InlineField>
+                </InfoRow>
+              </Section>
 
-            <Section>
-              <SectionTitle>신청 현황</SectionTitle>
-              <StatusField>{request.status}</StatusField>
-            </Section>
-          </ContentColumn>
+              <Section>
+                <SectionTitle>상세 품목</SectionTitle>
+                <DetailItemList>
+                  {detailItems.map((item, index) => (
+                    <DetailItemRow key={`${item.id}-${index}`}>
+                      <DetailLabel>품목 {index + 1}</DetailLabel>
+                      <DetailField>{item.name}</DetailField>
+                      <DetailLabel>결제 사유</DetailLabel>
+                      <ReasonField>{item.reason}</ReasonField>
+                      <DetailLabel>금액</DetailLabel>
+                      <DetailField>
+                        {typeof item.price === "number" ? `${item.price.toLocaleString()}원` : "-"}
+                      </DetailField>
+                    </DetailItemRow>
+                  ))}
+                </DetailItemList>
+              </Section>
+
+              <Section>
+                <SectionTitle>영수증</SectionTitle>
+                <ReceiptList>
+                  {request.receipts?.length ? (
+                    request.receipts.map((receipt) => (
+                      <ReceiptLink
+                        key={receipt.id ?? receipt.fileId}
+                        href={receipt.fileUrl ?? "#"}
+                        aria-label={`${receipt.fileId ?? "영수증"} 다운로드`}
+                      >
+                        <span>{receipt.fileId ?? "영수증"}</span>
+                        <ReceiptIcon aria-hidden="true">
+                          <IconDownload size={16} stroke={2.25} />
+                        </ReceiptIcon>
+                      </ReceiptLink>
+                    ))
+                  ) : (
+                    <EmptyText>등록된 영수증이 없습니다.</EmptyText>
+                  )}
+                </ReceiptList>
+              </Section>
+
+              <Section>
+                <SectionTitle>신청 현황</SectionTitle>
+                <StatusField>{getStatusLabel(request.status)}</StatusField>
+              </Section>
+            </ContentColumn>
+          ) : null}
         </Content>
       </Stage>
     </Main>
@@ -196,6 +269,12 @@ const BaseAction = styled.button<{ $variant?: "default" | "danger" }>`
   line-height: ${typography.lineHeight130};
   text-decoration: none;
   cursor: pointer;
+
+  &:disabled {
+    background-color: #d4d4d4;
+    color: #7b7b7b;
+    cursor: not-allowed;
+  }
 
   @media (min-width: 120rem) {
     min-width: 5.9375rem;
@@ -376,6 +455,21 @@ const ReceiptList = styled.div`
   @media (min-width: 120rem) {
     padding: ${spacing.space20};
   }
+`;
+
+const StateMessage = styled.p`
+  margin: 0 0 ${spacing.space20};
+  color: ${colors.muted};
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight150};
+`;
+
+const EmptyText = styled.span`
+  color: ${colors.muted};
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight150};
 `;
 
 const ReceiptLink = styled(Link)`

@@ -1,30 +1,64 @@
+"use client";
+
 import styled from "styled-components";
+import { useQuery } from "@tanstack/react-query";
+import { getPurchaseRequests } from "@/api/request/request.api";
+import type { PurchaseRequestStatus } from "@/api/request/request.dto";
 import ListPanel from "@/components/staff/ListPanel";
 import StaffSidebar from "@/components/staff/StaffSidebar";
-import { FINANCE_REQUESTS_PER_PAGE, type FinanceRequest } from "@/mocks/staffFinance";
+import { FINANCE_REQUESTS_PER_PAGE } from "@/mocks/staffFinance";
+import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout } from "@/styles/tokens";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type FinanceRequestListPageProps = {
   currentPage: number;
-  requests: FinanceRequest[];
-  totalPages: number;
 };
 
-export default function FinanceRequestListPage({
-  currentPage,
-  requests,
-  totalPages,
-}: FinanceRequestListPageProps) {
-  const rows = requests.map((request, index) => ({
-    id: request.id,
-    no: String((currentPage - 1) * FINANCE_REQUESTS_PER_PAGE + index + 1).padStart(2, "0"),
-    className: request.className,
-    title: request.title,
-    author: request.author,
-    date: request.paymentDate,
-    status: request.status,
+const statusLabels: Record<PurchaseRequestStatus, string> = {
+  PENDING: "대기 중",
+  APPROVED: "승인 완료",
+  PURCHASED: "구매 완료",
+  CONFIRMED: "결재 확인",
+  REJECTED: "반려",
+};
+
+function getStatusLabel(status?: PurchaseRequestStatus) {
+  return status ? (statusLabels[status] ?? status) : "-";
+}
+
+export default function FinanceRequestListPage({ currentPage }: FinanceRequestListPageProps) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: queryKeys.requests.purchaseList(),
+    queryFn: () => getPurchaseRequests(),
+    retry: false,
+  });
+
+  const requests = data ?? [];
+  const totalPages = Math.max(1, Math.ceil(requests.length / FINANCE_REQUESTS_PER_PAGE));
+  const safeCurrentPage =
+    Number.isInteger(currentPage) && currentPage >= 1 && currentPage <= totalPages
+      ? currentPage
+      : 1;
+  const startIndex = (safeCurrentPage - 1) * FINANCE_REQUESTS_PER_PAGE;
+  const visibleRequests = requests.slice(startIndex, startIndex + FINANCE_REQUESTS_PER_PAGE);
+
+  const rows = visibleRequests.map((request, index) => ({
+    id: request.id ?? index,
+    no: String((safeCurrentPage - 1) * FINANCE_REQUESTS_PER_PAGE + index + 1).padStart(2, "0"),
+    className: request.classroomName ?? "-",
+    title: request.title ?? "제목 없음",
+    author: request.requestedByName ?? "-",
+    date: formatUtcToKstShortDate(request.createdAt),
+    status: getStatusLabel(request.status),
     detailHref: `/staff/finance/${request.id}`,
   }));
+
+  const emptyMessage = isLoading
+    ? "결제 신청 내역을 불러오는 중입니다."
+    : isError
+      ? "결제 신청 내역을 불러오지 못했습니다."
+      : "결제 신청 내역이 없습니다.";
 
   return (
     <Main>
@@ -38,10 +72,10 @@ export default function FinanceRequestListPage({
             writeHref="/staff/finance/new"
             listPath="/staff/finance"
             rows={rows}
-            currentPage={currentPage}
+            currentPage={safeCurrentPage}
             totalPages={totalPages}
             showMineOnlyToggle={false}
-            emptyMessage="결제 신청 내역이 없습니다."
+            emptyMessage={emptyMessage}
             headerTone="finance"
           />
         </Content>

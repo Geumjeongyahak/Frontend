@@ -2,10 +2,17 @@ export type LessonExchangeRequestStatus =
   | "PENDING"
   | "APPROVED"
   | "REJECTED"
+  | "COMPLETED"
+  | "EXPIRED"
   | "CANCELLED"
   | string;
 
-export type LessonExchangeProposalStatus = "PENDING" | "ACCEPTED" | "WITHDRAWN" | string;
+export type LessonExchangeProposalStatus =
+  | "ACTIVE"
+  | "ACCEPTED"
+  | "WITHDRAWN"
+  | "CLOSED"
+  | string;
 
 export interface LessonExchangePathParamsDto {
   requestId: number;
@@ -71,9 +78,9 @@ export interface LessonExchangeRequestDetailDto {
 export type LessonExchangeRequestListResponseDto = LessonExchangeRequestDetailDto[];
 
 export interface LessonExchangeProposalRequestDto {
-  lessonDate: string;
-  startPeriod: number;
-  endPeriod: number;
+  lessonDate?: string;
+  startPeriod?: number;
+  endPeriod?: number;
   content: string;
 }
 

@@ -9,13 +9,12 @@ import { API_BASE_URL, REFRESHED_ACCESS_TOKEN, VALID_ACCESS_TOKEN } from "./auth
 export const CHANNEL_RESPONSE = {
   id: 1,
   name: "Notice",
-  slug: "notice",
   description: "General notices",
-  channelType: "ALL",
-  classroomId: null,
-  departmentId: null,
-  customRefId: null,
-  writerPolicy: "ADMIN_MANAGER_ONLY",
+  channelType: "NOTICE",
+  bindingType: "STANDALONE",
+  refId: null,
+  accessLevel: "READ_ONLY",
+  allowGuestRead: false,
   isDefault: true,
   isActive: true,
   lastPostedAt: "2026-04-10T19:30:00",
@@ -46,7 +45,7 @@ export const channelHandlers: RequestHandler[] = [
 
     const body = (await request.json()) as CreateChannelRequestDto;
 
-    if (!body.name || !body.slug || !body.channelType) {
+    if (!body.name || !body.accessLevel) {
       return HttpResponse.json({ message: "Invalid channel payload" }, { status: 400 });
     }
 
@@ -54,13 +53,9 @@ export const channelHandlers: RequestHandler[] = [
       ...CHANNEL_RESPONSE,
       id: 2,
       name: body.name,
-      slug: body.slug,
       description: body.description,
-      channelType: body.channelType,
-      classroomId: body.classroomId ?? null,
-      departmentId: body.departmentId ?? null,
-      customRefId: body.customRefId ?? null,
-      writerPolicy: body.writerPolicy,
+      accessLevel: body.accessLevel,
+      allowGuestRead: body.allowGuestRead,
       isDefault: body.isDefault,
       isActive: body.isActive,
     });
@@ -94,27 +89,5 @@ export const channelHandlers: RequestHandler[] = [
     }
 
     return new HttpResponse(null, { status: 204 });
-  }),
-  http.patch(`${API_BASE_URL}/api/v1/channels/:id/show`, ({ request, params }) => {
-    if (!hasValidAuthorization(request)) {
-      return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    return HttpResponse.json({
-      ...CHANNEL_RESPONSE,
-      id: Number(params.id),
-      isActive: true,
-    });
-  }),
-  http.patch(`${API_BASE_URL}/api/v1/channels/:id/hide`, ({ request, params }) => {
-    if (!hasValidAuthorization(request)) {
-      return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
-    return HttpResponse.json({
-      ...CHANNEL_RESPONSE,
-      id: Number(params.id),
-      isActive: false,
-    });
   }),
 ];

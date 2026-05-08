@@ -1,18 +1,21 @@
 export type UserRole = string;
 
-export interface RoleResponseDto {
+export interface PermissionResponseDto {
   name?: string;
-  level?: string | number;
-  code?: number;
+  code?: string;
 }
 
 export interface UserResponseDto {
   id?: number;
-  username?: string;
   name?: string;
+  nickname?: string;
   email?: string;
   phoneNumber?: string;
-  roles?: RoleResponseDto[];
+  role?: UserRole;
+  departmentId?: number | null;
+  permissions?: PermissionResponseDto[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type UserListItemDto = UserResponseDto;
@@ -41,46 +44,39 @@ export interface UserListQueryParamsDto {
 }
 
 export interface CreateUserRequestDto {
-  username: string;
+  email: string;
+  nickname: string;
   password: string;
   name: string;
-  email?: string;
   phoneNumber?: string;
   role?: UserRole;
+  departmentId?: number | null;
 }
 
 export interface UpdateUserRequestDto {
   name?: string;
+  nickname?: string;
   phoneNumber?: string;
   email?: string;
   password?: string;
   role?: UserRole;
+  departmentId?: number | null;
 }
 
 export interface UpdateSelfRequestDto {
   name?: string;
+  nickname?: string;
   phoneNumber?: string;
   email?: string;
   password?: string;
 }
 
-export interface AddSubRoleRequestDto {
-  subRole?: string;
-}
-
-export interface RemoveSubRoleRequestDto {
-  subRole?: string;
-}
-
-export interface JoinDepartmentRequestDto {
-  departmentId: number;
+export interface UserPermissionRequestDto {
+  permissionCode: string;
 }
 
 export interface UserPathParamsDto {
   userId: number;
 }
 
-export interface LeaveDepartmentPathParamsDto {
-  userId: number;
-  departmentId: number;
-}
+export type RoleResponseDto = PermissionResponseDto;

@@ -1,14 +1,10 @@
 import authClient from "../client/authClient";
 import type {
-  AddSubRoleRequestDto,
   CreateUserRequestDto,
-  DepartmentListResponseDto,
-  JoinDepartmentRequestDto,
-  LeaveDepartmentPathParamsDto,
-  RemoveSubRoleRequestDto,
-  RoleResponseDto,
+  PermissionResponseDto,
   UpdateSelfRequestDto,
   UpdateUserRequestDto,
+  UserPermissionRequestDto,
   UserListQueryParamsDto,
   UserListResponseDto,
   UserPathParamsDto,
@@ -62,61 +58,35 @@ export async function updateCurrentUser(body: UpdateSelfRequestDto) {
 }
 
 // 특정 사용자의 역할 목록을 조회하는 요청
-export async function getUserRoles(pathParams: UserPathParamsDto) {
-  const response = await authClient.get<RoleResponseDto[]>(
-    `/api/v1/users/${pathParams.userId}/roles`,
+export async function getUserPermissions(pathParams: UserPathParamsDto) {
+  const response = await authClient.get<PermissionResponseDto[]>(
+    `/api/v1/users/${pathParams.userId}/permissions`,
   );
   return response.data;
 }
 
-// 특정 사용자에게 서브 역할을 추가하는 요청
-export async function addUserSubRole(pathParams: UserPathParamsDto, body: AddSubRoleRequestDto) {
-  const response = await authClient.post<RoleResponseDto[]>(
-    `/api/v1/users/${pathParams.userId}/roles`,
+// 특정 사용자에게 직접 권한을 추가하는 요청
+export async function addUserPermission(
+  pathParams: UserPathParamsDto,
+  body: UserPermissionRequestDto,
+) {
+  const response = await authClient.post<PermissionResponseDto[]>(
+    `/api/v1/users/${pathParams.userId}/permissions`,
     body,
   );
   return response.data;
 }
 
-// 특정 사용자에게서 서브 역할을 제거하는 요청
-export async function removeUserSubRole(
+// 특정 사용자에게서 직접 권한을 제거하는 요청
+export async function removeUserPermission(
   pathParams: UserPathParamsDto,
-  body: RemoveSubRoleRequestDto,
+  body: UserPermissionRequestDto,
 ) {
-  const response = await authClient.delete<RoleResponseDto[]>(
-    `/api/v1/users/${pathParams.userId}/roles`,
+  const response = await authClient.delete<PermissionResponseDto[]>(
+    `/api/v1/users/${pathParams.userId}/permissions`,
     {
       data: body,
     },
   );
   return response.data;
-}
-
-// 특정 사용자의 부서 목록을 조회하는 요청
-export async function getUserDepartments(pathParams: UserPathParamsDto) {
-  const response = await authClient.get<DepartmentListResponseDto>(
-    `/api/v1/users/${pathParams.userId}/departments`,
-  );
-  return response.data;
-}
-
-// 현재 로그인한 사용자의 부서 목록을 조회하는 요청
-export async function getMyDepartments() {
-  const response = await authClient.get<DepartmentListResponseDto>("/api/v1/users/me/departments");
-  return response.data;
-}
-
-// 특정 사용자를 부서에 소속시키는 요청
-export async function joinUserDepartment(
-  pathParams: UserPathParamsDto,
-  body: JoinDepartmentRequestDto,
-) {
-  await authClient.post(`/api/v1/users/${pathParams.userId}/departments`, body);
-}
-
-// 특정 사용자를 부서에서 제외하는 요청
-export async function leaveUserDepartment(pathParams: LeaveDepartmentPathParamsDto) {
-  await authClient.delete(
-    `/api/v1/users/${pathParams.userId}/departments/${pathParams.departmentId}`,
-  );
 }

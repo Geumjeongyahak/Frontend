@@ -2,17 +2,19 @@ import authClient from "../client/authClient";
 import type {
   AbsenceRequestResponseDto,
   ApproveLessonExchangeRequestDto,
-  ApproveSubjectExchangeRequestDto,
   CreateAbsenceRequestDto,
   CreateLessonExchangeRequestDto,
   CreatePurchaseRequestDto,
-  CreateSubjectExchangeRequestDto,
   LessonExchangeRequestResponseDto,
   PurchaseRequestResponseDto,
+  PurchaseRequestSummaryResponseDto,
+  PurchaseRequestStatusQueryParamsDto,
   RejectRequestDto,
+  ReportPurchaseRequestDto,
   RequestPathParamsDto,
+  RequestReconfirmationResponseDto,
+  ReviewPurchaseRequestDto,
   RequestStatusQueryParamsDto,
-  SubjectExchangeRequestResponseDto,
 } from "./request.dto";
 
 // 결석 요청 목록을 조회하는 요청
@@ -66,18 +68,35 @@ export async function deleteAbsenceRequest(pathParams: RequestPathParamsDto) {
 }
 
 // 구매 요청 목록을 조회하는 요청
-export async function getPurchaseRequests(query?: RequestStatusQueryParamsDto) {
-  const response = await authClient.get<PurchaseRequestResponseDto[]>("/api/v1/purchase-requests", {
-    params: query,
-  });
+export async function getPurchaseRequests(query?: PurchaseRequestStatusQueryParamsDto) {
+  const response = await authClient.get<PurchaseRequestSummaryResponseDto[]>(
+    "/api/v1/purchase-requests",
+    {
+      params: query,
+    },
+  );
   return response.data;
 }
 
 // 구매 요청을 생성하는 요청
 export async function createPurchaseRequest(body: CreatePurchaseRequestDto) {
+  const requestBody: CreatePurchaseRequestDto = {
+    title: body.title,
+    content: body.content,
+    classroomId: body.classroomId,
+    ...(typeof body.advancePaymentRequestedAmount === "number"
+      ? { advancePaymentRequestedAmount: body.advancePaymentRequestedAmount }
+      : {}),
+    items: body.items.map((item) => ({
+      name: item.name,
+      ...(item.reason ? { reason: item.reason } : {}),
+      ...(typeof item.expectedPrice === "number" ? { expectedPrice: item.expectedPrice } : {}),
+    })),
+  };
+
   const response = await authClient.post<PurchaseRequestResponseDto>(
     "/api/v1/purchase-requests",
-    body,
+    requestBody,
   );
   return response.data;
 }
@@ -91,11 +110,20 @@ export async function getPurchaseRequestDetail(pathParams: RequestPathParamsDto)
 }
 
 // 특정 구매 요청을 승인하는 요청
-export async function approvePurchaseRequest(pathParams: RequestPathParamsDto) {
+export async function approvePurchaseRequest(
+  pathParams: RequestPathParamsDto,
+  body: ReviewPurchaseRequestDto,
+) {
   const response = await authClient.patch<PurchaseRequestResponseDto>(
-    `/api/v1/purchase-requests/${pathParams.requestId}/approve`,
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/approve`,
+    body,
   );
   return response.data;
+}
+
+// 특정 구매 요청을 삭제하는 요청
+export async function deletePurchaseRequest(pathParams: RequestPathParamsDto) {
+  await authClient.delete(`/api/v1/purchase-requests/${pathParams.requestId}`);
 }
 
 // 특정 구매 요청을 반려하는 요청
@@ -104,8 +132,84 @@ export async function rejectPurchaseRequest(
   body: RejectRequestDto,
 ) {
   const response = await authClient.patch<PurchaseRequestResponseDto>(
-    `/api/v1/purchase-requests/${pathParams.requestId}/reject`,
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/reject`,
     body,
+  );
+  return response.data;
+}
+
+// 관리자 기준 구매 요청 목록을 조회하는 요청
+export async function getAllPurchaseRequests(query?: PurchaseRequestStatusQueryParamsDto) {
+  const response = await authClient.get<PurchaseRequestSummaryResponseDto[]>(
+    "/api/v1/admin/purchase-requests",
+    {
+      params: query,
+    },
+  );
+  return response.data;
+}
+
+// 관리자 기준 구매 요청 상세를 조회하는 요청
+export async function getAdminPurchaseRequestDetail(pathParams: RequestPathParamsDto) {
+  const response = await authClient.get<PurchaseRequestResponseDto>(
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}`,
+  );
+  return response.data;
+}
+
+// 관리자 기준 구매 요청을 삭제하는 요청
+export async function deleteAdminPurchaseRequest(pathParams: RequestPathParamsDto) {
+  await authClient.delete(`/api/v1/admin/purchase-requests/${pathParams.requestId}`);
+}
+
+// 관리자 기준 구매 요청을 승인하는 요청
+export async function approveAdminPurchaseRequest(
+  pathParams: RequestPathParamsDto,
+  body: ReviewPurchaseRequestDto,
+) {
+  const response = await authClient.patch<PurchaseRequestResponseDto>(
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/approve`,
+    body,
+  );
+  return response.data;
+}
+
+// 관리자 기준 구매 요청을 반려하는 요청
+export async function rejectAdminPurchaseRequest(
+  pathParams: RequestPathParamsDto,
+  body: RejectRequestDto,
+) {
+  const response = await authClient.patch<PurchaseRequestResponseDto>(
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/reject`,
+    body,
+  );
+  return response.data;
+}
+
+// 관리자 기준 구매 완료 요청을 결재 확인하는 요청
+export async function confirmPurchase(pathParams: RequestPathParamsDto) {
+  const response = await authClient.patch<PurchaseRequestResponseDto>(
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/confirm`,
+  );
+  return response.data;
+}
+
+// 구매 완료 보고를 제출하는 요청
+export async function reportPurchase(
+  pathParams: RequestPathParamsDto,
+  body: ReportPurchaseRequestDto,
+) {
+  const response = await authClient.post<PurchaseRequestResponseDto>(
+    `/api/v1/purchase-requests/${pathParams.requestId}/report`,
+    body,
+  );
+  return response.data;
+}
+
+// 구매 요청 재확인을 요청하는 요청
+export async function requestReconfirmation(pathParams: RequestPathParamsDto) {
+  const response = await authClient.post<RequestReconfirmationResponseDto>(
+    `/api/v1/purchase-requests/${pathParams.requestId}/reconfirmation`,
   );
   return response.data;
 }
@@ -157,58 +261,6 @@ export async function rejectLessonExchangeRequest(
 ) {
   const response = await authClient.patch<LessonExchangeRequestResponseDto>(
     `/api/v1/lesson-exchange-requests/${pathParams.requestId}/reject`,
-    body,
-  );
-  return response.data;
-}
-
-// 과목 교환 요청 목록을 조회하는 요청
-export async function getSubjectExchangeRequests(query?: RequestStatusQueryParamsDto) {
-  const response = await authClient.get<SubjectExchangeRequestResponseDto[]>(
-    "/api/v1/subject-exchange-requests",
-    {
-      params: query,
-    },
-  );
-  return response.data;
-}
-
-// 과목 교환 요청을 생성하는 요청
-export async function createSubjectExchangeRequest(body: CreateSubjectExchangeRequestDto) {
-  const response = await authClient.post<SubjectExchangeRequestResponseDto>(
-    "/api/v1/subject-exchange-requests",
-    body,
-  );
-  return response.data;
-}
-
-// 특정 과목 교환 요청 상세를 조회하는 요청
-export async function getSubjectExchangeRequestDetail(pathParams: RequestPathParamsDto) {
-  const response = await authClient.get<SubjectExchangeRequestResponseDto>(
-    `/api/v1/subject-exchange-requests/${pathParams.requestId}`,
-  );
-  return response.data;
-}
-
-// 특정 과목 교환 요청을 승인하는 요청
-export async function approveSubjectExchangeRequest(
-  pathParams: RequestPathParamsDto,
-  body: ApproveSubjectExchangeRequestDto,
-) {
-  const response = await authClient.patch<SubjectExchangeRequestResponseDto>(
-    `/api/v1/subject-exchange-requests/${pathParams.requestId}/approve`,
-    body,
-  );
-  return response.data;
-}
-
-// 특정 과목 교환 요청을 반려하는 요청
-export async function rejectSubjectExchangeRequest(
-  pathParams: RequestPathParamsDto,
-  body: RejectRequestDto,
-) {
-  const response = await authClient.patch<SubjectExchangeRequestResponseDto>(
-    `/api/v1/subject-exchange-requests/${pathParams.requestId}/reject`,
     body,
   );
   return response.data;

@@ -6,11 +6,13 @@ export const USER_LIST_RESPONSE = {
   content: [
     {
       id: 1,
-      username: "teacher-1",
       name: "Teacher One",
+      nickname: "teacher-1",
       email: "teacher1@example.com",
       phoneNumber: "010-2222-3333",
-      roles: [{ name: "TEACHER", level: 1, code: 101 }],
+      role: "VOLUNTEER",
+      departmentId: 1,
+      permissions: [{ name: "게시판 관리", code: "post:manage:*" }],
     },
   ],
   page: 0,
@@ -45,8 +47,12 @@ export const userHandlers: RequestHandler[] = [
     const unauthorizedResponse = unauthorizedWhenNeeded(request);
     if (unauthorizedResponse) return unauthorizedResponse;
 
-    const body = (await request.json()) as { username?: string; name?: string; email?: string };
-    if (!body.username || !body.name) {
+    const body = (await request.json()) as {
+      email?: string;
+      nickname?: string;
+      name?: string;
+    };
+    if (!body.email || !body.nickname || !body.name) {
       return HttpResponse.json({ message: "Invalid user payload" }, { status: 400 });
     }
 
@@ -78,51 +84,28 @@ export const userHandlers: RequestHandler[] = [
   http.delete(`${API_BASE_URL}/api/v1/users/:userId`, ({ request }) => {
     return unauthorizedWhenNeeded(request) ?? new HttpResponse(null, { status: 204 });
   }),
-  http.get(`${API_BASE_URL}/api/v1/users/:userId/roles`, ({ request }) => {
-    return unauthorizedWhenNeeded(request) ?? HttpResponse.json(USER_DETAIL_RESPONSE.roles);
+  http.get(`${API_BASE_URL}/api/v1/users/:userId/permissions`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? HttpResponse.json(USER_DETAIL_RESPONSE.permissions);
   }),
-  http.post(`${API_BASE_URL}/api/v1/users/:userId/roles`, async ({ request }) => {
+  http.post(`${API_BASE_URL}/api/v1/users/:userId/permissions`, async ({ request }) => {
     const unauthorizedResponse = unauthorizedWhenNeeded(request);
     if (unauthorizedResponse) return unauthorizedResponse;
 
-    const body = (await request.json()) as { subRole?: string };
+    const body = (await request.json()) as { permissionCode?: string };
     return HttpResponse.json([
-      ...(USER_DETAIL_RESPONSE.roles ?? []),
-      { name: body.subRole ?? "ASSISTANT", level: 2, code: 202 },
+      ...(USER_DETAIL_RESPONSE.permissions ?? []),
+      { name: "추가 권한", code: body.permissionCode ?? "post:write:*" },
     ]);
   }),
-  http.delete(`${API_BASE_URL}/api/v1/users/:userId/roles`, async ({ request }) => {
+  http.delete(`${API_BASE_URL}/api/v1/users/:userId/permissions`, async ({ request }) => {
     const unauthorizedResponse = unauthorizedWhenNeeded(request);
     if (unauthorizedResponse) return unauthorizedResponse;
 
-    const body = (await request.json()) as { subRole?: string };
+    const body = (await request.json()) as { permissionCode?: string };
     return HttpResponse.json(
-      (USER_DETAIL_RESPONSE.roles ?? []).filter((role) => role.name !== body.subRole),
+      (USER_DETAIL_RESPONSE.permissions ?? []).filter(
+        (permission) => permission.code !== body.permissionCode,
+      ),
     );
   }),
-  http.get(`${API_BASE_URL}/api/v1/users/:userId/departments`, ({ request }) => {
-    return (
-      unauthorizedWhenNeeded(request) ??
-      HttpResponse.json({
-        departments: [{ id: 1, name: "Education", description: "Education team" }],
-      })
-    );
-  }),
-  http.get(`${API_BASE_URL}/api/v1/users/me/departments`, ({ request }) => {
-    return (
-      unauthorizedWhenNeeded(request) ??
-      HttpResponse.json({
-        departments: [{ id: 1, name: "Education", description: "Education team" }],
-      })
-    );
-  }),
-  http.post(`${API_BASE_URL}/api/v1/users/:userId/departments`, ({ request }) => {
-    return unauthorizedWhenNeeded(request) ?? new HttpResponse(null, { status: 204 });
-  }),
-  http.delete(
-    `${API_BASE_URL}/api/v1/users/:userId/departments/:departmentId`,
-    ({ request }) => {
-      return unauthorizedWhenNeeded(request) ?? new HttpResponse(null, { status: 204 });
-    },
-  ),
 ];

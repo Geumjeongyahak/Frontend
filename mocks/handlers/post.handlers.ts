@@ -8,7 +8,7 @@ export const POST_SUMMARY_RESPONSE = {
   id: 1,
   channelId: 1,
   channelName: "Notice",
-  channelType: "ALL",
+  channelType: "NOTICE",
   title: "April notice",
   postType: "NOTICE",
   status: "PUBLISHED",
@@ -96,7 +96,7 @@ export const postHandlers: RequestHandler[] = [
 
     const body = (await request.json()) as CreatePostRequestDto;
 
-    if (!body.title || !body.contentHtml || !body.postType) {
+    if (!body.title || !body.contentHtml) {
       return HttpResponse.json({ message: "Invalid post payload" }, { status: 400 });
     }
 

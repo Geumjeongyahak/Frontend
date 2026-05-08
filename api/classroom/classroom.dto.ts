@@ -1,4 +1,4 @@
-export type ClassroomType = string;
+export type ClassroomType = "WEEKDAY" | "WEEKEND" | string;
 
 export interface ClassroomListQueryParamsDto {
   name?: string;

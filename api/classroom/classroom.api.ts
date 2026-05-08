@@ -35,7 +35,7 @@ export async function updateClassroom(
   pathParams: ClassroomPathParamsDto,
   body: UpdateClassroomRequestDto,
 ) {
-  const response = await authClient.put<ClassroomDetailResponseDto>(
+  const response = await authClient.patch<ClassroomDetailResponseDto>(
     `/api/v1/classrooms/${pathParams.id}`,
     body,
   );

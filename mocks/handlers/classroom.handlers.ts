@@ -61,7 +61,7 @@ export const classroomHandlers: RequestHandler[] = [
       id: Number(params.id),
     });
   }),
-  http.put(`${API_BASE_URL}/api/v1/classrooms/:id`, async ({ request, params }) => {
+  http.patch(`${API_BASE_URL}/api/v1/classrooms/:id`, async ({ request, params }) => {
     if (!hasValidAuthorization(request)) {
       return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
     }

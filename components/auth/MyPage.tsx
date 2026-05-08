@@ -12,7 +12,7 @@ export default function MyPage() {
   const { status, user, signOut } = useAuthSession();
 
   const displayName = user?.name ?? "회원";
-  const identifier = user?.username ?? user?.email ?? "확인 가능한 계정 정보가 없습니다.";
+  const identifier = user?.nickname ?? user?.email ?? "확인 가능한 계정 정보가 없습니다.";
 
   async function handleLogout() {
     await signOut();
@@ -63,7 +63,7 @@ export default function MyPage() {
                   <ProfileValue>{displayName}</ProfileValue>
                 </ProfileItem>
                 <ProfileItem>
-                  <ProfileLabel>아이디</ProfileLabel>
+                  <ProfileLabel>닉네임</ProfileLabel>
                   <ProfileValue>{identifier}</ProfileValue>
                 </ProfileItem>
                 <ProfileItem>

@@ -8,7 +8,7 @@ import { CHANNEL_LIST_RESPONSE, CHANNEL_RESPONSE } from "../../mocks/handlers/ch
 import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
-import { createChannel, getChannel, getChannels, hideChannel } from "./channel.api";
+import { createChannel, getChannel, getChannels, updateChannel } from "./channel.api";
 
 describe("channel.api", () => {
   it("returns channels with authorization header and query params", async () => {
@@ -25,11 +25,11 @@ describe("channel.api", () => {
       }),
     );
 
-    const response = await getChannels({ channelType: "ALL", isActive: true });
+    const response = await getChannels({ channelType: "NOTICE", isActive: true });
 
     expect(response).toEqual(CHANNEL_LIST_RESPONSE);
     expect(observedAuthorizationHeader).toBe(`Bearer ${VALID_ACCESS_TOKEN}`);
-    expect(observedQueryString).toContain("channelType=ALL");
+    expect(observedQueryString).toContain("channelType=NOTICE");
     expect(observedQueryString).toContain("isActive=true");
   });
 
@@ -47,9 +47,7 @@ describe("channel.api", () => {
 
     const body = {
       name: "Board",
-      slug: "board",
-      channelType: "ALL",
-      writerPolicy: "ADMIN_MANAGER_ONLY",
+      accessLevel: "READ_WRITE",
     };
 
     const response = await createChannel(body);
@@ -58,11 +56,11 @@ describe("channel.api", () => {
     expect(observedBody).toEqual(body);
   });
 
-  it("uses detail and visibility endpoints", async () => {
+  it("uses detail and update endpoints", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     await expect(getChannel({ id: 1 })).resolves.toMatchObject({ id: 1 });
-    await expect(hideChannel({ id: 1 })).resolves.toMatchObject({
+    await expect(updateChannel({ id: 1 }, { isActive: false })).resolves.toMatchObject({
       id: 1,
       isActive: false,
     });

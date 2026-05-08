@@ -1,9 +1,142 @@
+"use client";
+
+import { FormEvent, useMemo, useState } from "react";
 import { IconFilePlus } from "@tabler/icons-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { getClassrooms } from "@/api/classroom/classroom.api";
+import { createPurchaseRequest } from "@/api/request/request.api";
+import type { CreatePurchaseRequestDto } from "@/api/request/request.dto";
 import StaffSidebar from "@/components/staff/StaffSidebar";
+import { useAuthSession } from "@/hooks/useAuthSession";
+import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
+type FinanceItemForm = {
+  id: number;
+  name: string;
+  reason: string;
+  expectedPrice: string;
+  receiptFileName: string;
+};
+
+const initialItem: FinanceItemForm = {
+  id: 1,
+  name: "",
+  reason: "",
+  expectedPrice: "",
+  receiptFileName: "",
+};
+
 export default function FinanceRequestCreatePage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { user, status: authStatus } = useAuthSession();
+  const [title, setTitle] = useState("");
+  const [classroomId, setClassroomId] = useState("");
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [items, setItems] = useState<FinanceItemForm[]>([initialItem]);
+
+  const { data: classroomData } = useQuery({
+    queryKey: ["classrooms", "finance-request-create"],
+    queryFn: () => getClassrooms({ page: 0, size: 100 }),
+    retry: false,
+  });
+
+  const classrooms = useMemo(() => classroomData?.content ?? [], [classroomData]);
+
+  const mutation = useMutation({
+    mutationFn: (body: CreatePurchaseRequestDto) => createPurchaseRequest(body),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: queryKeys.requests.purchaseList() });
+      router.push("/staff/finance");
+    },
+  });
+
+  const normalizedItems = items
+    .map((item) => ({
+      name: item.name.trim(),
+      reason: item.reason.trim() || undefined,
+      expectedPrice: item.expectedPrice.trim().length > 0 ? Number(item.expectedPrice) : undefined,
+    }))
+    .filter((item) => item.name.length > 0);
+
+  const totalExpectedPrice = normalizedItems.reduce(
+    (sum, item) => sum + (typeof item.expectedPrice === "number" ? item.expectedPrice : 0),
+    0,
+  );
+
+  const canSubmit =
+    title.trim().length > 0 &&
+    classroomId.trim().length > 0 &&
+    Number.isInteger(Number(classroomId)) &&
+    paymentDate.trim().length > 0 &&
+    authStatus === "authenticated" &&
+    normalizedItems.length > 0 &&
+    !normalizedItems.some((item) => Number.isNaN(item.expectedPrice)) &&
+    totalExpectedPrice > 0 &&
+    !mutation.isPending;
+
+  const applicantName =
+    authStatus === "authenticated"
+      ? (user?.name ?? user?.nickname ?? user?.email ?? "이름 정보 없음")
+      : authStatus === "loading"
+        ? "사용자 확인 중"
+        : "로그인 필요";
+
+  function updateItem(itemId: number, patch: Partial<FinanceItemForm>) {
+    setItems((current) =>
+      current.map((item) => (item.id === itemId ? { ...item, ...patch } : item)),
+    );
+  }
+
+  function addItem() {
+    setItems((current) => [
+      ...current,
+      {
+        ...initialItem,
+        id: Math.max(...current.map((item) => item.id)) + 1,
+      },
+    ]);
+  }
+
+  function removeItem(itemId: number) {
+    setItems((current) => {
+      if (current.length <= 1) {
+        return [{ ...initialItem, id: current[0]?.id ?? 1 }];
+      }
+      return current.filter((item) => item.id !== itemId);
+    });
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!canSubmit) {
+      return;
+    }
+
+    const itemContent = normalizedItems
+      .map((item, index) => {
+        const reason = item.reason ? ` - ${item.reason}` : "";
+        const price =
+          typeof item.expectedPrice === "number"
+            ? ` (${item.expectedPrice.toLocaleString()}원)`
+            : "";
+        return `${index + 1}. ${item.name}${reason}${price}`;
+      })
+      .join("\n");
+
+    mutation.mutate({
+      title: title.trim(),
+      content: `결제 일자: ${paymentDate}\n신청자: ${applicantName}\n\n${itemContent}`,
+      classroomId: Number(classroomId),
+      advancePaymentRequestedAmount: totalExpectedPrice,
+      items: normalizedItems,
+    });
+  }
+
   return (
     <Main>
       <Stage>
@@ -12,51 +145,131 @@ export default function FinanceRequestCreatePage() {
         <Content>
           <HeaderRow>
             <Title>결제 신청서 작성하기</Title>
-            <SubmitButton type="submit" form="finance-request-form">
-              결제 신청서 제출하기
+            <SubmitButton type="submit" form="finance-request-form" disabled={!canSubmit}>
+              {mutation.isPending ? "제출 중" : "결제 신청서 제출하기"}
             </SubmitButton>
           </HeaderRow>
 
-          <Form id="finance-request-form">
+          <Form id="finance-request-form" onSubmit={handleSubmit}>
             <Section>
               <Label htmlFor="title">제목</Label>
-              <Input id="title" name="title" placeholder="제목" />
+              <Input
+                id="title"
+                name="title"
+                placeholder="제목"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                required
+              />
             </Section>
 
             <Section>
               <SectionTitle>신청자 정보</SectionTitle>
               <InfoRow>
-                <FieldLabel htmlFor="className">반 이름</FieldLabel>
-                <InlineInput id="className" name="className" placeholder="개나리반" />
+                <FieldLabel htmlFor="classroomId">반 이름</FieldLabel>
+                <InlineSelect
+                  id="classroomId"
+                  name="classroomId"
+                  value={classroomId}
+                  onChange={(event) => setClassroomId(event.target.value)}
+                  required
+                >
+                  <option value="">반 선택</option>
+                  {classrooms.map((classroom) => (
+                    <option key={classroom.id} value={classroom.id}>
+                      {classroom.name}
+                    </option>
+                  ))}
+                </InlineSelect>
                 <FieldLabel htmlFor="paymentDate">결제 일자</FieldLabel>
-                <InlineInput id="paymentDate" name="paymentDate" placeholder="00.00.00" />
+                <InlineInput
+                  id="paymentDate"
+                  name="paymentDate"
+                  type="date"
+                  value={paymentDate}
+                  onChange={(event) => setPaymentDate(event.target.value)}
+                  required
+                />
                 <FieldLabel htmlFor="applicant">신청자</FieldLabel>
-                <InlineInput id="applicant" name="applicant" placeholder="홍길동" />
+                <InlineInput id="applicant" name="applicant" value={applicantName} readOnly />
               </InfoRow>
             </Section>
 
             <Section>
               <SectionTitle>상세 품목</SectionTitle>
-              <ItemBlock>
-                <ItemFieldRow>
-                  <ItemLabel htmlFor="itemName">품목</ItemLabel>
-                  <ItemInput id="itemName" name="itemName" placeholder="품목" />
-                </ItemFieldRow>
-                <ItemFieldRow>
-                  <ItemLabel htmlFor="paymentReason">결제 사유</ItemLabel>
-                  <ItemInput id="paymentReason" name="paymentReason" placeholder="품목" />
-                </ItemFieldRow>
-                <ItemLabel as="span">영수증</ItemLabel>
-                <UploadControl>
-                  <UploadInput id="receiptFile" name="receiptFile" type="file" />
-                  <UploadBox htmlFor="receiptFile">
-                    <IconFilePlus size={24} stroke={1.8} aria-hidden="true" />
-                    <span>파일 추가하기</span>
-                  </UploadBox>
-                </UploadControl>
-              </ItemBlock>
+              <ItemList>
+                {items.map((item, index) => (
+                  <ItemBlock key={item.id}>
+                    <ItemFieldRow>
+                      <ItemLabel htmlFor={`itemName-${item.id}`}>품목 {index + 1}</ItemLabel>
+                      <ItemInput
+                        id={`itemName-${item.id}`}
+                        name={`itemName-${item.id}`}
+                        placeholder="품목"
+                        value={item.name}
+                        onChange={(event) => updateItem(item.id, { name: event.target.value })}
+                        required={index === 0}
+                      />
+                    </ItemFieldRow>
+                    <ItemFieldRow>
+                      <ItemLabel htmlFor={`paymentReason-${item.id}`}>결제 사유</ItemLabel>
+                      <ItemInput
+                        id={`paymentReason-${item.id}`}
+                        name={`paymentReason-${item.id}`}
+                        placeholder="결제 사유"
+                        value={item.reason}
+                        onChange={(event) => updateItem(item.id, { reason: event.target.value })}
+                      />
+                    </ItemFieldRow>
+                    <ItemFieldRow>
+                      <ItemLabel htmlFor={`expectedPrice-${item.id}`}>예상 금액</ItemLabel>
+                      <ItemInput
+                        id={`expectedPrice-${item.id}`}
+                        name={`expectedPrice-${item.id}`}
+                        type="number"
+                        min="0"
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={item.expectedPrice}
+                        onChange={(event) =>
+                          updateItem(item.id, { expectedPrice: event.target.value })
+                        }
+                      />
+                    </ItemFieldRow>
+                    <ItemLabel as="span">영수증</ItemLabel>
+                    <UploadControl>
+                      <UploadInput
+                        id={`receiptFile-${item.id}`}
+                        name={`receiptFile-${item.id}`}
+                        type="file"
+                        onChange={(event) =>
+                          updateItem(item.id, {
+                            receiptFileName: event.target.files?.[0]?.name ?? "",
+                          })
+                        }
+                      />
+                      <UploadBox htmlFor={`receiptFile-${item.id}`}>
+                        <IconFilePlus size={24} stroke={1.8} aria-hidden="true" />
+                        <span>{item.receiptFileName || "파일 추가하기"}</span>
+                      </UploadBox>
+                    </UploadControl>
+                    {items.length > 1 ? (
+                      <ItemActionRow>
+                        <DeleteItemButton type="button" onClick={() => removeItem(item.id)}>
+                          품목 삭제
+                        </DeleteItemButton>
+                      </ItemActionRow>
+                    ) : null}
+                  </ItemBlock>
+                ))}
+              </ItemList>
 
-              <AddItemButton type="button">품목 추가하기</AddItemButton>
+              <AddItemButton type="button" onClick={addItem}>
+                품목 추가하기
+              </AddItemButton>
+              {mutation.isError ? (
+                <StatusMessage role="alert">결제 신청서 제출에 실패했습니다.</StatusMessage>
+              ) : null}
             </Section>
           </Form>
         </Content>
@@ -150,6 +363,11 @@ const SubmitButton = styled.button`
   white-space: nowrap;
   cursor: pointer;
 
+  &:disabled {
+    background-color: #b7b7b7;
+    cursor: not-allowed;
+  }
+
   @media (min-width: 120rem) {
     min-height: 4rem;
     padding: ${spacing.space20} 1.875rem;
@@ -234,7 +452,7 @@ const Input = styled.input`
 
 const InfoRow = styled.div`
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: ${spacing.space12};
 
@@ -268,11 +486,26 @@ const InlineInput = styled.input`
   }
 `;
 
+const InlineSelect = styled.select`
+  ${inputBase}
+  padding: 0.8125rem ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    padding: ${spacing.space20};
+  }
+`;
+
+const ItemList = styled.div`
+  display: flex;
+  flex-direction: column;
+`;
+
 const ItemBlock = styled.div`
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: ${spacing.space12};
-  padding-bottom: ${spacing.space20};
+  padding: ${spacing.space20} 0 ${spacing.space20};
   border-bottom: 1px solid #bcbcbc;
 
   @media (min-width: 120rem) {
@@ -345,6 +578,13 @@ const UploadBox = styled.label`
   line-height: ${typography.lineHeight130};
   cursor: pointer;
 
+  span {
+    max-width: 8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   @media (min-width: 120rem) {
     min-width: 8.375rem;
     min-height: 6.25rem;
@@ -357,6 +597,14 @@ const UploadBox = styled.label`
       height: 2rem;
     }
   }
+`;
+
+const StatusMessage = styled.p`
+  margin: 0;
+  color: #da3a30;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight150};
 `;
 
 const AddItemButton = styled.button`
@@ -373,6 +621,33 @@ const AddItemButton = styled.button`
   cursor: pointer;
 
   @media (min-width: 120rem) {
+    min-height: 3.125rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ItemActionRow = styled.div`
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: ${spacing.space12};
+  display: flex;
+  justify-content: flex-end;
+
+  @media (min-width: 120rem) {
+    bottom: ${spacing.space20};
+  }
+`;
+
+const DeleteItemButton = styled(AddItemButton)`
+  width: 9rem;
+  min-height: 2.125rem;
+  border-color: #e45a52;
+  background-color: #fde4e2;
+  color: #da3a30;
+
+  @media (min-width: 120rem) {
+    width: 12rem;
     min-height: 3.125rem;
     font-size: ${typography.fontSize20};
   }

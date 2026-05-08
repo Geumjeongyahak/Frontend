@@ -4,6 +4,7 @@ import type {
   CommentPathParamsDto,
   CommentResponseDto,
   CreateCommentRequestDto,
+  UpdateCommentRequestDto,
 } from "./comment.dto";
 
 // 특정 게시글의 댓글 목록을 조회하는 요청
@@ -21,6 +22,18 @@ export async function createComment(
 ) {
   const response = await authClient.post<CommentResponseDto>(
     `/api/v1/channels/${pathParams.channelId}/posts/${pathParams.postId}/comments`,
+    body,
+  );
+  return response.data;
+}
+
+// 특정 게시글의 특정 댓글을 수정하는 요청
+export async function updateComment(
+  pathParams: CommentPathParamsDto,
+  body: UpdateCommentRequestDto,
+) {
+  const response = await authClient.put<CommentResponseDto>(
+    `/api/v1/channels/${pathParams.channelId}/posts/${pathParams.postId}/comments/${pathParams.commentId}`,
     body,
   );
   return response.data;

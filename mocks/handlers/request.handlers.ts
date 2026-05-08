@@ -14,14 +14,18 @@ export const ABSENCE_REQUEST_RESPONSE = {
 
 export const PURCHASE_REQUEST_RESPONSE = {
   id: 2,
-  subjectId: 21,
-  subjectName: "English",
+  classroomId: 21,
+  classroomName: "한글반",
   requestedById: 5,
   requestedByName: "Teacher One",
   title: "Workbook",
   content: "Need new workbook copies",
-  price: 30000,
+  totalPrice: 30000,
+  advancePaymentRequestedAmount: 30000,
+  advancePaymentApprovedAmount: 30000,
   status: "PENDING",
+  items: [{ id: 1, name: "Workbook", expectedPrice: 30000 }],
+  receipts: [],
 };
 
 export const LESSON_EXCHANGE_REQUEST_RESPONSE = {
@@ -119,10 +123,10 @@ export const requestHandlers: RequestHandler[] = [
     if (unauthorizedResponse) return unauthorizedResponse;
 
     const body = (await request.json()) as {
-      subjectId?: number;
+      classroomId?: number;
       title?: string;
       content?: string;
-      price?: number;
+      items?: unknown[];
     };
     return HttpResponse.json({ ...PURCHASE_REQUEST_RESPONSE, ...body, id: 20 });
   }),
@@ -132,18 +136,53 @@ export const requestHandlers: RequestHandler[] = [
       HttpResponse.json({ ...PURCHASE_REQUEST_RESPONSE, id: Number(params.requestId) })
     );
   }),
-  http.patch(`${API_BASE_URL}/api/v1/purchase-requests/:requestId/approve`, ({ request, params }) => {
+  http.delete(`${API_BASE_URL}/api/v1/purchase-requests/:requestId`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? new HttpResponse(null, { status: 204 });
+  }),
+  http.post(`${API_BASE_URL}/api/v1/purchase-requests/:requestId/report`, async ({ request, params }) => {
+    const unauthorizedResponse = unauthorizedWhenNeeded(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      ...PURCHASE_REQUEST_RESPONSE,
+      id: Number(params.requestId),
+      ...body,
+      status: "PURCHASED",
+    });
+  }),
+  http.post(`${API_BASE_URL}/api/v1/purchase-requests/:requestId/reconfirmation`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? HttpResponse.json({ message: "재확인을 요청했습니다." });
+  }),
+  http.get(`${API_BASE_URL}/api/v1/admin/purchase-requests`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? HttpResponse.json([PURCHASE_REQUEST_RESPONSE]);
+  }),
+  http.get(`${API_BASE_URL}/api/v1/admin/purchase-requests/:requestId`, ({ request, params }) => {
     return (
       unauthorizedWhenNeeded(request) ??
-      HttpResponse.json({
+      HttpResponse.json({ ...PURCHASE_REQUEST_RESPONSE, id: Number(params.requestId) })
+    );
+  }),
+  http.delete(`${API_BASE_URL}/api/v1/admin/purchase-requests/:requestId`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? new HttpResponse(null, { status: 204 });
+  }),
+  http.patch(
+    `${API_BASE_URL}/api/v1/admin/purchase-requests/:requestId/approve`,
+    async ({ request, params }) => {
+      const unauthorizedResponse = unauthorizedWhenNeeded(request);
+      if (unauthorizedResponse) return unauthorizedResponse;
+
+      const body = (await request.json()) as { note?: string };
+      return HttpResponse.json({
         ...PURCHASE_REQUEST_RESPONSE,
         id: Number(params.requestId),
         status: "APPROVED",
-      })
-    );
-  }),
+        note: body.note ?? "",
+      });
+    },
+  ),
   http.patch(
-    `${API_BASE_URL}/api/v1/purchase-requests/:requestId/reject`,
+    `${API_BASE_URL}/api/v1/admin/purchase-requests/:requestId/reject`,
     async ({ request, params }) => {
       const unauthorizedResponse = unauthorizedWhenNeeded(request);
       if (unauthorizedResponse) return unauthorizedResponse;
@@ -157,6 +196,16 @@ export const requestHandlers: RequestHandler[] = [
       });
     },
   ),
+  http.patch(`${API_BASE_URL}/api/v1/admin/purchase-requests/:requestId/confirm`, ({ request, params }) => {
+    return (
+      unauthorizedWhenNeeded(request) ??
+      HttpResponse.json({
+        ...PURCHASE_REQUEST_RESPONSE,
+        id: Number(params.requestId),
+        status: "CONFIRMED",
+      })
+    );
+  }),
   http.get(`${API_BASE_URL}/api/v1/lesson-exchange-requests`, ({ request }) => {
     return unauthorizedWhenNeeded(request) ?? HttpResponse.json([LESSON_EXCHANGE_REQUEST_RESPONSE]);
   }),
