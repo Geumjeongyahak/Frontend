@@ -1,8 +1,9 @@
 export interface SignupRequestDto {
-  username: string;
   password: string;
+  nickname: string;
   name: string;
-  email?: string;
+  email: string;
+  profileImageUrl?: string;
   phoneNumber?: string;
 }
 

@@ -1,13 +1,12 @@
 import type { ChannelType } from "../channel/channel.dto";
 
 export type PostType = "NOTICE" | "GENERAL" | "EVENT" | string;
-export type PostStatus = "PUBLISHED" | "DRAFT" | string;
+export type PostStatus = "PUBLISHED" | "DRAFT" | "ARCHIVED" | string;
 
 export interface PostListQueryParamsDto {
   author?: string;
   title?: string;
   content?: string;
-  postType?: PostType;
   status?: PostStatus;
   channelId?: number;
   channelType?: ChannelType;
@@ -23,19 +22,50 @@ export type ChannelPostListQueryParamsDto = Omit<PostListQueryParamsDto, "channe
 export interface CreatePostRequestDto {
   title: string;
   contentHtml: string;
-  postType: PostType;
   status?: PostStatus;
   isPinned?: boolean;
   allowComment?: boolean;
+  thumbnailUrl?: string;
 }
 
 export interface UpdatePostRequestDto {
   title?: string;
   contentHtml?: string;
-  postType?: PostType;
   status?: PostStatus;
-  isPinned?: boolean;
   allowComment?: boolean;
+  thumbnailUrl?: string;
+}
+
+export interface PublishPostRequestDto {
+  title: string;
+  contentHtml: string;
+  allowComment?: boolean;
+  thumbnailUrl?: string;
+}
+
+export interface SaveDraftRequestDto {
+  title?: string;
+  contentHtml?: string;
+  allowComment?: boolean;
+  thumbnailUrl?: string;
+}
+
+export interface PinPostRequestDto {
+  isPinned: boolean;
+}
+
+export interface AttachPostFileRequestDto {
+  fileId: string;
+  sortOrder?: number;
+}
+
+export interface PostAttachmentInfoDto {
+  fileId?: string;
+  originalName?: string;
+  contentType?: string;
+  fileSize?: number;
+  url?: string;
+  sortOrder?: number;
 }
 
 export interface PostSummaryResponseDto {
@@ -44,12 +74,14 @@ export interface PostSummaryResponseDto {
   channelName?: string;
   channelType?: ChannelType;
   title?: string;
+  // Legacy mock/UI field. The backend now exposes post status and channelType instead.
   postType?: PostType;
   status?: PostStatus;
   authorId?: number;
   authorName?: string;
   isPinned?: boolean;
   viewCount?: number;
+  thumbnailUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -57,6 +89,8 @@ export interface PostSummaryResponseDto {
 export interface PostDetailResponseDto extends PostSummaryResponseDto {
   contentHtml?: string;
   allowComment?: boolean;
+  expiresAt?: string | null;
+  attachments?: PostAttachmentInfoDto[];
 }
 
 export interface PostListResponseDto {

@@ -26,7 +26,7 @@ type BoardListPageClientProps = {
 };
 
 function isNoticePost(post: PostSummaryResponseDto) {
-  return Boolean(post.isPinned) || post.postType === "NOTICE";
+  return Boolean(post.isPinned) || post.channelType === "NOTICE" || post.postType === "NOTICE";
 }
 
 function getPostTime(post: PostSummaryResponseDto) {

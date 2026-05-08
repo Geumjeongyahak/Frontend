@@ -34,7 +34,7 @@ describe("post.api", () => {
   it("returns channel posts from the nested route", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
-    const response = await getChannelPosts({ channelId: 3 }, { postType: "NOTICE" });
+    const response = await getChannelPosts({ channelId: 3 }, { status: "PUBLISHED" });
 
     expect(response.content?.[0]).toMatchObject({ channelId: 3 });
   });
@@ -59,7 +59,6 @@ describe("post.api", () => {
     const createBody = {
       title: "New post",
       contentHtml: "<p>Body</p>",
-      postType: "NOTICE",
       isPinned: true,
     };
     const updateBody = { title: "Updated" };

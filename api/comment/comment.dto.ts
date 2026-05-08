@@ -5,6 +5,10 @@ export interface CreateCommentRequestDto {
   parentCommentId?: number;
 }
 
+export interface UpdateCommentRequestDto {
+  content: string;
+}
+
 export interface CommentResponseDto {
   id?: number;
   postId?: number;

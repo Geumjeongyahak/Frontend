@@ -26,8 +26,8 @@ export const DEFAULT_LOGIN_REQUEST: LoginRequestDto = {
 };
 
 export const DEFAULT_SIGNUP_REQUEST: SignupRequestDto = {
-  username: "new-user",
   password: "signup-password",
+  nickname: "new-user",
   name: "New User",
   email: "new-user@example.com",
   phoneNumber: "010-0000-0000",
@@ -57,7 +57,7 @@ export const authHandlers = [
   http.post(`${API_BASE_URL}/api/v1/auth/signup`, async ({ request }) => {
     const body = (await request.json()) as SignupRequestDto;
 
-    if (!body.username || !body.password || !body.name) {
+    if (!body.email || !body.nickname || !body.password || !body.name) {
       return HttpResponse.json({ message: "Invalid signup payload" }, { status: 400 });
     }
 

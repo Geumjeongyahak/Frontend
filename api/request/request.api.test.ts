@@ -1,6 +1,6 @@
 /**
- * Tests representative request API functions across absence, purchase, lesson
- * exchange, and subject exchange flows.
+ * Tests representative request API functions across absence, purchase, and
+ * lesson exchange flows.
  */
 import "../../test/setup";
 
@@ -11,13 +11,12 @@ import { API_BASE_URL, VALID_ACCESS_TOKEN } from "../../mocks/handlers/auth.hand
 import {
   ABSENCE_REQUEST_RESPONSE,
   LESSON_EXCHANGE_REQUEST_RESPONSE,
-  SUBJECT_EXCHANGE_REQUEST_RESPONSE,
 } from "../../mocks/handlers/request.handlers";
 import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
 import {
-  approveSubjectExchangeRequest,
+  approvePurchaseRequest,
   createLessonExchangeRequest,
   getAbsenceRequests,
 } from "./request.api";
@@ -55,7 +54,7 @@ describe("request.api", () => {
         return HttpResponse.json({
           ...LESSON_EXCHANGE_REQUEST_RESPONSE,
           id: 30,
-          lessonId: 22,
+          lessonDate: "2026-06-10",
           title: "Emergency swap",
           content: "Need a replacement",
         });
@@ -63,20 +62,22 @@ describe("request.api", () => {
     );
 
     const response = await createLessonExchangeRequest({
-      lessonId: 22,
+      lessonDate: "2026-06-10",
       title: "Emergency swap",
       content: "Need a replacement",
+      expiresAt: "2026-06-07T22:00:00",
     });
 
     expect(response.id).toBe(30);
     expect(observedBody).toEqual({
-      lessonId: 22,
+      lessonDate: "2026-06-10",
       title: "Emergency swap",
       content: "Need a replacement",
+      expiresAt: "2026-06-07T22:00:00",
     });
   });
 
-  it("approves a subject exchange request through the expected endpoint", async () => {
+  it("approves a purchase request through the admin endpoint", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     let observedPathname = "";
@@ -84,41 +85,37 @@ describe("request.api", () => {
 
     server.use(
       http.patch(
-        `${API_BASE_URL}/api/v1/subject-exchange-requests/4/approve`,
+        `${API_BASE_URL}/api/v1/admin/purchase-requests/4/approve`,
         async ({ request }) => {
           observedPathname = new URL(request.url).pathname;
           observedBody = await request.json();
           return HttpResponse.json({
-            ...SUBJECT_EXCHANGE_REQUEST_RESPONSE,
             id: 4,
             status: "APPROVED",
-            approvalByName: "User 77",
+            note: "승인합니다.",
           });
         },
       ),
     );
 
-    const response = await approveSubjectExchangeRequest(
-      { requestId: 4 },
-      { exchangeWithUserId: 77 },
-    );
+    const response = await approvePurchaseRequest({ requestId: 4 }, { note: "승인합니다." });
 
     expect(response.status).toBe("APPROVED");
-    expect(observedPathname).toBe("/api/v1/subject-exchange-requests/4/approve");
-    expect(observedBody).toEqual({ exchangeWithUserId: 77 });
+    expect(observedPathname).toBe("/api/v1/admin/purchase-requests/4/approve");
+    expect(observedBody).toEqual({ note: "승인합니다." });
   });
 
-  it("throws when a subject exchange approval fails", async () => {
+  it("throws when purchase approval fails", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     server.use(
-      http.patch(`${API_BASE_URL}/api/v1/subject-exchange-requests/999/approve`, () => {
+      http.patch(`${API_BASE_URL}/api/v1/admin/purchase-requests/999/approve`, () => {
         return HttpResponse.json({ message: "Request not found" }, { status: 404 });
       }),
     );
 
     await expect(
-      approveSubjectExchangeRequest({ requestId: 999 }, { exchangeWithUserId: 77 }),
+      approvePurchaseRequest({ requestId: 999 }, { note: "승인합니다." }),
     ).rejects.toMatchObject({
       response: { status: 404 },
     });

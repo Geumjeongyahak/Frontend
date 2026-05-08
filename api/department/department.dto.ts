@@ -4,19 +4,23 @@ export interface DepartmentResponseDto {
   description?: string;
 }
 
-export interface RoleResponseDto {
+export interface PermissionResponseDto {
   name?: string;
-  level?: string | number;
-  code?: number;
+  code?: string;
+}
+
+export interface DepartmentPermissionRequestDto {
+  permissionCode?: string;
 }
 
 export interface DepartmentUserSummaryDto {
   id?: number;
-  username?: string;
   name?: string;
+  nickname?: string;
   email?: string;
   phoneNumber?: string;
-  roles?: RoleResponseDto[];
+  role?: string;
+  departmentId?: number | null;
 }
 
 export interface DepartmentListResponseDto {
@@ -24,8 +28,10 @@ export interface DepartmentListResponseDto {
 }
 
 export interface DepartmentDetailResponseDto extends DepartmentResponseDto {
-  assignedRole?: RoleResponseDto;
+  permissions?: PermissionResponseDto[];
   users?: DepartmentUserSummaryDto[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type DepartmentListItemDto = DepartmentResponseDto;
@@ -33,12 +39,16 @@ export type DepartmentListItemDto = DepartmentResponseDto;
 export interface CreateDepartmentRequestDto {
   name: string;
   description: string;
+  permissions?: DepartmentPermissionRequestDto[];
 }
 
 export interface UpdateDepartmentRequestDto {
   name?: string;
   description?: string;
+  permissions?: DepartmentPermissionRequestDto[];
 }
+
+export type RoleResponseDto = PermissionResponseDto;
 
 export interface DepartmentPathParamsDto {
   id: number;

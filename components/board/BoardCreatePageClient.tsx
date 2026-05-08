@@ -63,7 +63,6 @@ export default function BoardCreatePageClient() {
         {
           title: title.trim(),
           contentHtml: toContentHtml(content.trim()),
-          postType: "GENERAL",
           status: "PUBLISHED",
           allowComment: true,
         },

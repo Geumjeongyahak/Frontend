@@ -45,19 +45,3 @@ export async function updateChannel(
 export async function deleteChannel(pathParams: ChannelPathParamsDto) {
   await authClient.delete(`/api/v1/channels/${pathParams.id}`);
 }
-
-// 숨김 상태의 특정 채널을 다시 표시하는 요청
-export async function showChannel(pathParams: ChannelPathParamsDto) {
-  const response = await authClient.patch<ChannelResponseDto>(
-    `/api/v1/channels/${pathParams.id}/show`,
-  );
-  return response.data;
-}
-
-// 특정 채널을 숨김 처리하는 요청
-export async function hideChannel(pathParams: ChannelPathParamsDto) {
-  const response = await authClient.patch<ChannelResponseDto>(
-    `/api/v1/channels/${pathParams.id}/hide`,
-  );
-  return response.data;
-}

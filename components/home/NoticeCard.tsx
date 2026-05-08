@@ -12,7 +12,7 @@ export default function NoticeCard() {
     queryKey: queryKeys.posts.noticeTop12(),
     queryFn: () =>
       getPosts({
-        postType: "NOTICE",
+        channelType: "NOTICE",
         page: 0,
         size: 12,
       }),

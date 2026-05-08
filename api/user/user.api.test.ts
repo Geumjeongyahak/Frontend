@@ -1,6 +1,6 @@
 /**
  * Tests representative user API functions: getUsers, updateCurrentUser,
- * removeUserSubRole, and joinUserDepartment.
+ * and removeUserPermission.
  */
 import "../../test/setup";
 
@@ -14,8 +14,7 @@ import { setAccessToken } from "../client/tokenStorage";
 
 import {
   getUsers,
-  joinUserDepartment,
-  removeUserSubRole,
+  removeUserPermission,
   updateCurrentUser,
 } from "./user.api";
 
@@ -69,35 +68,38 @@ describe("user.api", () => {
     });
   });
 
-  it("sends DELETE body data when removing a user sub role", async () => {
+  it("sends DELETE body data when removing a user permission", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     let observedBody: unknown;
 
     server.use(
-      http.delete(`${API_BASE_URL}/api/v1/users/1/roles`, async ({ request }) => {
+      http.delete(`${API_BASE_URL}/api/v1/users/1/permissions`, async ({ request }) => {
         observedBody = await request.json();
         return HttpResponse.json([]);
       }),
     );
 
-    const response = await removeUserSubRole({ userId: 1 }, { subRole: "ASSISTANT" });
+    const response = await removeUserPermission(
+      { userId: 1 },
+      { permissionCode: "post:manage:*" },
+    );
 
     expect(response).toEqual([]);
-    expect(observedBody).toEqual({ subRole: "ASSISTANT" });
+    expect(observedBody).toEqual({ permissionCode: "post:manage:*" });
   });
 
-  it("throws when joining a department fails", async () => {
+  it("throws when removing a permission fails", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     server.use(
-      http.post(`${API_BASE_URL}/api/v1/users/1/departments`, () => {
+      http.delete(`${API_BASE_URL}/api/v1/users/1/permissions`, () => {
         return HttpResponse.json({ message: "Forbidden" }, { status: 403 });
       }),
     );
 
     await expect(
-      joinUserDepartment({ userId: 1 }, { departmentId: 10 }),
+      removeUserPermission({ userId: 1 }, { permissionCode: "post:manage:*" }),
     ).rejects.toMatchObject({
       response: { status: 403 },
     });

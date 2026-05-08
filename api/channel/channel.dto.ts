@@ -1,15 +1,12 @@
-export type ChannelType = "ALL" | "CLASSROOM" | "DEPARTMENT" | "CUSTOM" | string;
+export type ChannelType = "NOTICE" | "CLASSROOM" | "DEPARTMENT" | "CUSTOM" | string;
 
-export type ChannelWriterPolicy =
-  | "ALL_AUTHENTICATED"
-  | "ADMIN_MANAGER_ONLY"
-  | "CLASSROOM_MANAGER_TEACHER_ONLY"
-  | "DEPARTMENT_MEMBER_OR_ADMIN"
-  | string;
+export type ChannelBindingType = "STANDALONE" | "DOMAIN_LINKED" | string;
+export type ChannelAccessLevel = "CLOSED" | "READ_ONLY" | "READ_COMMENT" | "READ_WRITE" | string;
 
 export interface ChannelListQueryParamsDto {
   name?: string;
   channelType?: ChannelType;
+  bindingType?: ChannelBindingType;
   isActive?: boolean;
   isDefault?: boolean;
   classroomId?: number;
@@ -19,42 +16,31 @@ export interface ChannelListQueryParamsDto {
 
 export interface CreateChannelRequestDto {
   name: string;
-  slug: string;
   description?: string;
-  channelType: ChannelType;
-  classroomId?: number;
-  departmentId?: number;
-  customRefId?: number;
-  writerPolicy?: ChannelWriterPolicy;
+  accessLevel: ChannelAccessLevel;
+  allowGuestRead?: boolean;
   isDefault?: boolean;
   isActive?: boolean;
-  sortOrder?: number;
 }
 
 export interface UpdateChannelRequestDto {
   name?: string;
-  slug?: string;
   description?: string;
-  channelType?: ChannelType;
-  classroomId?: number;
-  departmentId?: number;
-  customRefId?: number;
-  writerPolicy?: ChannelWriterPolicy;
+  accessLevel?: ChannelAccessLevel;
+  allowGuestRead?: boolean;
   isDefault?: boolean;
   isActive?: boolean;
-  sortOrder?: number;
 }
 
 export interface ChannelResponseDto {
   id?: number;
   name?: string;
-  slug?: string;
   description?: string;
   channelType?: ChannelType;
-  classroomId?: number | null;
-  departmentId?: number | null;
-  customRefId?: number | null;
-  writerPolicy?: ChannelWriterPolicy;
+  bindingType?: ChannelBindingType;
+  refId?: number | null;
+  accessLevel?: ChannelAccessLevel;
+  allowGuestRead?: boolean;
   isDefault?: boolean;
   isActive?: boolean;
   lastPostedAt?: string | null;

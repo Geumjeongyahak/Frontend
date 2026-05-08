@@ -16,17 +16,17 @@ import AuthShell from "@/components/auth/AuthShell";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
 
 type RegisterFormState = {
-  username: string;
   password: string;
   name: string;
+  nickname: string;
   email: string;
   phoneNumber: string;
 };
 
 const initialState: RegisterFormState = {
-  username: "",
   password: "",
   name: "",
+  nickname: "",
   email: "",
   phoneNumber: "",
 };
@@ -38,7 +38,10 @@ export default function RegisterForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit =
-    form.username.trim().length > 0 && form.password.length >= 6 && form.name.trim().length > 0;
+    form.email.trim().length > 0 &&
+    form.password.length >= 8 &&
+    form.name.trim().length > 0 &&
+    form.nickname.trim().length > 0;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -52,10 +55,10 @@ export default function RegisterForm() {
 
     try {
       await signup({
-        username: form.username.trim(),
         password: form.password,
+        nickname: form.nickname.trim(),
         name: form.name.trim(),
-        email: form.email.trim() || undefined,
+        email: form.email.trim(),
         phoneNumber: form.phoneNumber.trim() || undefined,
       });
       setStatusMessage("회원가입이 완료되었습니다. 잠시 후 메인으로 이동합니다.");
@@ -72,16 +75,16 @@ export default function RegisterForm() {
       <Form onSubmit={handleSubmit} aria-label="회원가입 폼">
         <FieldGroup>
           <Field>
-            <Label htmlFor="register-username">아이디</Label>
+            <Label htmlFor="register-email">이메일</Label>
             <Input
-              id="register-username"
-              name="username"
-              type="text"
-              autoComplete="username"
-              placeholder="사용할 아이디"
-              value={form.username}
+              id="register-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              placeholder="이메일"
+              value={form.email}
               onChange={(event) =>
-                setForm((current) => ({ ...current, username: event.target.value }))
+                setForm((current) => ({ ...current, email: event.target.value }))
               }
               required
             />
@@ -94,13 +97,13 @@ export default function RegisterForm() {
               name="password"
               type="password"
               autoComplete="new-password"
-              placeholder="6자 이상 입력"
+              placeholder="8자 이상 입력"
               value={form.password}
               onChange={(event) =>
                 setForm((current) => ({ ...current, password: event.target.value }))
               }
               required
-              minLength={6}
+              minLength={8}
             />
           </Field>
 
@@ -119,17 +122,18 @@ export default function RegisterForm() {
           </Field>
 
           <Field>
-            <Label htmlFor="register-email">이메일</Label>
+            <Label htmlFor="register-nickname">닉네임</Label>
             <Input
-              id="register-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              placeholder="선택 입력"
-              value={form.email}
+              id="register-nickname"
+              name="nickname"
+              type="text"
+              autoComplete="nickname"
+              placeholder="닉네임"
+              value={form.nickname}
               onChange={(event) =>
-                setForm((current) => ({ ...current, email: event.target.value }))
+                setForm((current) => ({ ...current, nickname: event.target.value }))
               }
+              required
             />
           </Field>
 
