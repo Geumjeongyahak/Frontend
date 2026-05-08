@@ -136,6 +136,9 @@ export const requestHandlers: RequestHandler[] = [
       HttpResponse.json({ ...PURCHASE_REQUEST_RESPONSE, id: Number(params.requestId) })
     );
   }),
+  http.delete(`${API_BASE_URL}/api/v1/purchase-requests/:requestId`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? new HttpResponse(null, { status: 204 });
+  }),
   http.post(`${API_BASE_URL}/api/v1/purchase-requests/:requestId/report`, async ({ request, params }) => {
     const unauthorizedResponse = unauthorizedWhenNeeded(request);
     if (unauthorizedResponse) return unauthorizedResponse;
@@ -159,6 +162,9 @@ export const requestHandlers: RequestHandler[] = [
       unauthorizedWhenNeeded(request) ??
       HttpResponse.json({ ...PURCHASE_REQUEST_RESPONSE, id: Number(params.requestId) })
     );
+  }),
+  http.delete(`${API_BASE_URL}/api/v1/admin/purchase-requests/:requestId`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? new HttpResponse(null, { status: 204 });
   }),
   http.patch(
     `${API_BASE_URL}/api/v1/admin/purchase-requests/:requestId/approve`,

@@ -14,5 +14,7 @@ export const queryKeys = {
     lessonExchangeDetail: (requestId: number) => ["lesson-exchange-request", requestId] as const,
     absenceList: () => ["absence-requests"] as const,
     absenceDetail: (requestId: number) => ["absence-request", requestId] as const,
+    purchaseList: () => ["purchase-requests"] as const,
+    purchaseDetail: (requestId: number) => ["purchase-request", requestId] as const,
   },
 };

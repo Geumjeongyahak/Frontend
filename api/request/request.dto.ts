@@ -10,6 +10,10 @@ export interface RequestStatusQueryParamsDto {
   status?: RequestStatus;
 }
 
+export interface PurchaseRequestStatusQueryParamsDto {
+  status?: PurchaseRequestStatus;
+}
+
 export interface RequestPathParamsDto {
   requestId: number;
 }

@@ -8,6 +8,7 @@ import type {
   LessonExchangeRequestResponseDto,
   PurchaseRequestResponseDto,
   PurchaseRequestSummaryResponseDto,
+  PurchaseRequestStatusQueryParamsDto,
   RejectRequestDto,
   ReportPurchaseRequestDto,
   RequestPathParamsDto,
@@ -67,7 +68,7 @@ export async function deleteAbsenceRequest(pathParams: RequestPathParamsDto) {
 }
 
 // 구매 요청 목록을 조회하는 요청
-export async function getPurchaseRequests(query?: RequestStatusQueryParamsDto) {
+export async function getPurchaseRequests(query?: PurchaseRequestStatusQueryParamsDto) {
   const response = await authClient.get<PurchaseRequestSummaryResponseDto[]>(
     "/api/v1/purchase-requests",
     {
@@ -79,9 +80,23 @@ export async function getPurchaseRequests(query?: RequestStatusQueryParamsDto) {
 
 // 구매 요청을 생성하는 요청
 export async function createPurchaseRequest(body: CreatePurchaseRequestDto) {
+  const requestBody: CreatePurchaseRequestDto = {
+    title: body.title,
+    content: body.content,
+    classroomId: body.classroomId,
+    ...(typeof body.advancePaymentRequestedAmount === "number"
+      ? { advancePaymentRequestedAmount: body.advancePaymentRequestedAmount }
+      : {}),
+    items: body.items.map((item) => ({
+      name: item.name,
+      ...(item.reason ? { reason: item.reason } : {}),
+      ...(typeof item.expectedPrice === "number" ? { expectedPrice: item.expectedPrice } : {}),
+    })),
+  };
+
   const response = await authClient.post<PurchaseRequestResponseDto>(
     "/api/v1/purchase-requests",
-    body,
+    requestBody,
   );
   return response.data;
 }
@@ -106,6 +121,11 @@ export async function approvePurchaseRequest(
   return response.data;
 }
 
+// 특정 구매 요청을 삭제하는 요청
+export async function deletePurchaseRequest(pathParams: RequestPathParamsDto) {
+  await authClient.delete(`/api/v1/purchase-requests/${pathParams.requestId}`);
+}
+
 // 특정 구매 요청을 반려하는 요청
 export async function rejectPurchaseRequest(
   pathParams: RequestPathParamsDto,
@@ -119,7 +139,7 @@ export async function rejectPurchaseRequest(
 }
 
 // 관리자 기준 구매 요청 목록을 조회하는 요청
-export async function getAllPurchaseRequests(query?: RequestStatusQueryParamsDto) {
+export async function getAllPurchaseRequests(query?: PurchaseRequestStatusQueryParamsDto) {
   const response = await authClient.get<PurchaseRequestSummaryResponseDto[]>(
     "/api/v1/admin/purchase-requests",
     {
@@ -135,6 +155,11 @@ export async function getAdminPurchaseRequestDetail(pathParams: RequestPathParam
     `/api/v1/admin/purchase-requests/${pathParams.requestId}`,
   );
   return response.data;
+}
+
+// 관리자 기준 구매 요청을 삭제하는 요청
+export async function deleteAdminPurchaseRequest(pathParams: RequestPathParamsDto) {
+  await authClient.delete(`/api/v1/admin/purchase-requests/${pathParams.requestId}`);
 }
 
 // 관리자 기준 구매 요청을 승인하는 요청
