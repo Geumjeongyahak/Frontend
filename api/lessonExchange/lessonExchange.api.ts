@@ -9,7 +9,7 @@ import type {
   LessonExchangeProposalPathParamsDto,
   LessonExchangeProposalRequestDto,
   LessonExchangeRequestDetailDto,
-  LessonExchangeRequestListResponseDto,
+  LessonExchangeListResponseDto,
   RejectLessonExchangeRequestDto,
   UpdateLessonExchangeProposalRequestDto,
   UpdateLessonExchangeRequestDto,
@@ -17,7 +17,7 @@ import type {
 
 // 수업 교환 요청 목록을 조회하는 요청
 export async function getLessonExchangeRequests(query?: LessonExchangeListQueryParamsDto) {
-  const response = await authClient.get<LessonExchangeRequestListResponseDto>(
+  const response = await authClient.get<LessonExchangeListResponseDto>(
     "/api/v1/lesson-exchange-requests",
     {
       params: query,
@@ -120,7 +120,9 @@ export async function updateLessonExchangeProposal(
 }
 
 // 특정 수업 교환 요청의 특정 제안을 철회하는 요청
-export async function withdrawLessonExchangeProposal(pathParams: LessonExchangeProposalPathParamsDto) {
+export async function withdrawLessonExchangeProposal(
+  pathParams: LessonExchangeProposalPathParamsDto,
+) {
   const response = await authClient.patch<LessonExchangeProposalDto>(
     `/api/v1/lesson-exchange-requests/${pathParams.requestId}/proposals/${pathParams.proposalId}/withdraw`,
   );
@@ -128,7 +130,9 @@ export async function withdrawLessonExchangeProposal(pathParams: LessonExchangeP
 }
 
 // 특정 수업 교환 요청의 특정 제안을 수락하는 요청
-export async function acceptLessonExchangeProposal(pathParams: LessonExchangeProposalPathParamsDto) {
+export async function acceptLessonExchangeProposal(
+  pathParams: LessonExchangeProposalPathParamsDto,
+) {
   const response = await authClient.patch<LessonExchangeProposalDto>(
     `/api/v1/lesson-exchange-requests/${pathParams.requestId}/proposals/${pathParams.proposalId}/accept`,
   );
