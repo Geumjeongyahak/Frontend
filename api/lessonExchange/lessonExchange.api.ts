@@ -9,7 +9,7 @@ import type {
   LessonExchangeProposalPathParamsDto,
   LessonExchangeProposalRequestDto,
   LessonExchangeRequestDetailDto,
-  LessonExchangeListResponseDto,
+  LessonExchangeRequestListResponseDto,
   RejectLessonExchangeRequestDto,
   UpdateLessonExchangeProposalRequestDto,
   UpdateLessonExchangeRequestDto,
@@ -17,7 +17,7 @@ import type {
 
 // 수업 교환 요청 목록을 조회하는 요청
 export async function getLessonExchangeRequests(query?: LessonExchangeListQueryParamsDto) {
-  const response = await authClient.get<LessonExchangeListResponseDto>(
+  const response = await authClient.get<LessonExchangeRequestListResponseDto>(
     "/api/v1/lesson-exchange-requests",
     {
       params: query,
