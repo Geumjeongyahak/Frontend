@@ -4,6 +4,7 @@ import Link from "next/link";
 import styled from "styled-components";
 import type { LessonExchangeProposalDto } from "@/api/lessonExchange/lessonExchange.dto";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { FieldInput, FieldTextarea } from "@/components/common/FormField";
 import { Button } from "@/components/common/VariantButton";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
@@ -122,7 +123,7 @@ export function ExchangePostView({
         <PostSection>
           <Label>제목</Label>
           {isEditingRequest ? (
-            <RequestEditInput
+            <FieldInput
               aria-label="제목"
               value={editTitle}
               onChange={(e) => setEditTitle(e.target.value)}
@@ -148,7 +149,7 @@ export function ExchangePostView({
             <ApplicantFullWidthField>
               <ApplicantBoxLabel>수업 일자</ApplicantBoxLabel>
               {isEditingRequest ? (
-                <RequestEditInput
+                <FieldInput
                   aria-label="수업 일자"
                   type="date"
                   value={editLessonDate}
@@ -162,7 +163,7 @@ export function ExchangePostView({
             <ApplicantReasonField>
               <ApplicantBoxLabel>교환 신청 사유</ApplicantBoxLabel>
               {isEditingRequest ? (
-                <RequestEditTextarea
+                <FieldTextarea
                   aria-label="교환 신청 사유"
                   rows={6}
                   value={editContent}
@@ -177,7 +178,7 @@ export function ExchangePostView({
           <Label>만료일</Label>
           <ExpiresRow>
             {isEditingRequest ? (
-              <RequestEditInput
+              <FieldInput
                 aria-label="만료일 시각"
                 type="datetime-local"
                 value={editExpiresAt}
@@ -206,26 +207,30 @@ export function ExchangePostView({
         </ProposalHeader>
 
         <ProposalForm id="exchange-proposal-form" onSubmit={onSubmitProposal}>
-          <ProposalInput
+          <FieldInput
+            $tone="proposal"
             aria-label="반 이름"
             placeholder="반 이름"
             value={proposalClassroomNameDraft}
             onChange={(e) => setProposalClassroomNameDraft(e.target.value)}
           />
-          <ProposalInput
+          <FieldInput
+            $tone="proposal"
             aria-label="수업 일자"
             placeholder="수업 일자"
             type="date"
             value={proposalLessonDate}
             onChange={(e) => setProposalLessonDate(e.target.value)}
           />
-          <ProposalInput
+          <FieldInput
+            $tone="proposal"
             aria-label="작성자"
             placeholder="작성자"
             value={proposalWriterDraft}
             onChange={(e) => setProposalWriterDraft(e.target.value)}
           />
-          <ProposalTextarea
+          <ProposalFormTextarea
+            $tone="proposal"
             placeholder="내용"
             rows={6}
             value={proposalContent}
@@ -304,45 +309,8 @@ const TopButtonRow = styled.div`
   }
 `;
 
-const RequestEditInput = styled.input`
-  width: 100%;
-  min-width: 0;
-  min-height: 2.6875rem;
-  padding: 0.8125rem ${spacing.space12};
-  border: 0;
-  background: #f7f7f7;
-  color: #000000;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  outline: none;
-
-  @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20};
-    font-size: ${typography.fontSize20};
-  }
-`;
-
-const RequestEditTextarea = styled.textarea`
-  width: 100%;
-  min-width: 0;
-  min-height: 6.875rem;
-  padding: 0.8125rem ${spacing.space12};
-  border: 0;
-  background: #f7f7f7;
-  color: #000000;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  resize: vertical;
-  outline: none;
-
-  @media (min-width: 120rem) {
-    min-height: 9.6875rem;
-    padding: ${spacing.space20};
-    font-size: ${typography.fontSize20};
-  }
+const ProposalFormTextarea = styled(FieldTextarea)`
+  grid-column: 1 / -1;
 `;
 
 const ContentColumn = styled.article`
@@ -609,52 +577,6 @@ const ProposalForm = styled.form`
 
   @media (max-width: ${layout.breakpointMobile}) {
     grid-template-columns: 1fr;
-  }
-`;
-
-const ProposalInput = styled.input`
-  min-height: 2.6875rem;
-  padding: 0.8125rem ${spacing.space12};
-  border: 0;
-  background: #eef9e6;
-  color: #000000;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  outline: none;
-
-  &::placeholder {
-    color: #9c9c9c;
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20};
-    font-size: ${typography.fontSize20};
-  }
-`;
-
-const ProposalTextarea = styled.textarea`
-  grid-column: 1 / -1;
-  min-height: 6.75rem;
-  padding: 0.8125rem ${spacing.space12};
-  border: 0;
-  background: #eef9e6;
-  color: #000000;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  resize: none;
-  outline: none;
-
-  &::placeholder {
-    color: #9c9c9c;
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 10.0625rem;
-    padding: ${spacing.space20};
-    font-size: ${typography.fontSize20};
   }
 `;
 
