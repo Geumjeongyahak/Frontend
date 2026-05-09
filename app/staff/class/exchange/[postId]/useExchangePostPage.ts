@@ -199,7 +199,6 @@ export function useExchangePostPage() {
     isValidPostId,
 
     request: requestQuery.data,
-    requestLoading: requestQuery.isLoading,
     requestError: requestQuery.isError,
 
     proposals: proposalsQuery.data ?? [],
@@ -216,7 +215,6 @@ export function useExchangePostPage() {
     proposalContent,
 
     isUpdating: updateRequestMutation.isPending,
-    isCancelling: cancelRequestMutation.isPending,
     isCreatingProposal: createProposalMutation.isPending,
 
     setEditTitle,
