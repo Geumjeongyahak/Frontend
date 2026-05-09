@@ -2,10 +2,18 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormEvent, useState } from "react";
 import styled from "styled-components";
-import type { LessonExchangeRequestStatus } from "@/api/lessonExchange/lessonExchange.dto";
-import { getLessonExchangeRequestDetail } from "@/api/lessonExchange/lessonExchange.api";
+import type {
+  LessonExchangeProposalRequestDto,
+  LessonExchangeRequestStatus,
+} from "@/api/lessonExchange/lessonExchange.dto";
+import {
+  createLessonExchangeProposal,
+  getLessonExchangeRequestDetail,
+  getLessonExchangeProposals,
+} from "@/api/lessonExchange/lessonExchange.api";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
@@ -20,25 +28,6 @@ function normalizeRequestStatusTone(
   return "PENDING";
 }
 
-const proposals = [
-  {
-    id: 1,
-    className: "개나리반",
-    lessonDate: "00.00.00",
-    writer: "최양진",
-    content: "내용내용내용내용내용내용내용내용내용내용내용내용내용내용",
-    createdAt: "00.00.00",
-  },
-  {
-    id: 2,
-    className: "개나리반",
-    lessonDate: "00.00.00",
-    writer: "최양진",
-    content: "내용내용내용내용내용내용내용내용내용내용내용내용내용내용",
-    createdAt: "00.00.00",
-  },
-];
-
 export default function ExchangePostPage() {
   const params = useParams<{ postId: string }>();
   const { status: authStatus } = useAuthSession();
@@ -46,12 +35,59 @@ export default function ExchangePostPage() {
   const postId = Number(params.postId);
   const isValidPostId = Number.isInteger(postId) && postId > 0;
 
+  const queryClient = useQueryClient();
+
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.requests.lessonExchangeDetail(postId),
     queryFn: () => getLessonExchangeRequestDetail({ requestId: postId }),
     enabled: isAuthenticated && isValidPostId,
     retry: false,
   });
+
+  const { data: proposalList = [], isLoading: proposalsLoading } = useQuery({
+    queryKey: queryKeys.requests.lessonExchangeProposals(postId),
+    queryFn: () => getLessonExchangeProposals({ requestId: postId }),
+    enabled: isAuthenticated && isValidPostId,
+    retry: false,
+  });
+
+  const [proposalClassroomNameDraft, setProposalClassroomNameDraft] = useState("");
+  const [proposalLessonDate, setProposalLessonDate] = useState("");
+  const [proposalWriterDraft, setProposalWriterDraft] = useState("");
+  const [proposalContent, setProposalContent] = useState("");
+
+  const createProposalMutation = useMutation({
+    mutationFn: (body: LessonExchangeProposalRequestDto) =>
+      createLessonExchangeProposal({ requestId: postId }, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.lessonExchangeProposals(postId),
+      });
+      setProposalContent("");
+      setProposalLessonDate("");
+      setProposalClassroomNameDraft("");
+      setProposalWriterDraft("");
+      window.alert("교환 제안이 등록되었습니다.");
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error ? error.message : "교환 제안 등록에 실패했습니다.";
+      window.alert(message);
+    },
+  });
+
+  const handleProposalSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const content = proposalContent.trim();
+    if (!content) {
+      window.alert("내용을 입력해 주세요.");
+      return;
+    }
+    createProposalMutation.mutate({
+      lessonDate: proposalLessonDate.trim() || undefined,
+      content,
+    });
+  };
 
   const detailTitle = isLoading
     ? "불러오는 중..."
@@ -74,9 +110,8 @@ export default function ExchangePostPage() {
   return (
     <PageWrapper>
       <TopButtonRow>
-        <ActionButton type="button">삭제</ActionButton>
+        <DeleteActionButton type="button">삭제</DeleteActionButton>
         <ActionButton type="button">수정</ActionButton>
-        <LinkButton href="/staff/class/exchange">목록</LinkButton>
       </TopButtonRow>
 
       <ContentColumn>
@@ -124,42 +159,73 @@ export default function ExchangePostPage() {
 
         <ProposalHeader>
           <ProposalTitle>교환 제안서</ProposalTitle>
-          <ProposalSubmitButton type="button">작성 완료</ProposalSubmitButton>
+          <ProposalSubmitButton type="submit" form="exchange-proposal-form" disabled={createProposalMutation.isPending}>
+            {createProposalMutation.isPending ? "등록 중…" : "작성 완료"}
+          </ProposalSubmitButton>
         </ProposalHeader>
 
-        <ProposalForm>
-          <ProposalInput placeholder="반 이름" />
-          <ProposalInput placeholder="수업 일자" />
-          <ProposalInput placeholder="작성자" />
-          <ProposalTextarea placeholder="내용" />
+        <ProposalForm id="exchange-proposal-form" onSubmit={handleProposalSubmit}>
+          <ProposalInput
+            aria-label="반 이름"
+            placeholder="반 이름"
+            value={proposalClassroomNameDraft}
+            onChange={(e) => setProposalClassroomNameDraft(e.target.value)}
+          />
+          <ProposalInput
+            aria-label="수업 일자"
+            placeholder="수업 일자"
+            type="date"
+            value={proposalLessonDate}
+            onChange={(e) => setProposalLessonDate(e.target.value)}
+          />
+          <ProposalInput
+            aria-label="작성자"
+            placeholder="작성자"
+            value={proposalWriterDraft}
+            onChange={(e) => setProposalWriterDraft(e.target.value)}
+          />
+          <ProposalTextarea
+            placeholder="내용"
+            rows={6}
+            value={proposalContent}
+            onChange={(e) => setProposalContent(e.target.value)}
+          />
         </ProposalForm>
 
         <ProposalList>
-          {proposals.map((proposal) => (
-            <ProposalCard key={proposal.id}>
-              <ProposalMetaRow>
-                <ProposalMetaCell>
-                  <MetaLabel>반 이름</MetaLabel>
-                  <MetaValue>{proposal.className}</MetaValue>
-                </ProposalMetaCell>
-                <ProposalMetaCell>
-                  <MetaLabel>수업 일자</MetaLabel>
-                  <MetaValue>{proposal.lessonDate}</MetaValue>
-                </ProposalMetaCell>
-                <ProposalMetaCell>
-                  <MetaLabel>작성자</MetaLabel>
-                  <MetaValue>{proposal.writer}</MetaValue>
-                </ProposalMetaCell>
-              </ProposalMetaRow>
-              <ProposalContent>{proposal.content}</ProposalContent>
-              <ProposalFooter>
-                <ProposalDate>{proposal.createdAt}</ProposalDate>
-                <AcceptLink href={acceptedHref}>
-                  제안 수락하기
-                </AcceptLink>
-              </ProposalFooter>
-            </ProposalCard>
-          ))}
+          {proposalsLoading ? (
+            <ProposalPlaceholder>제안 목록을 불러오는 중…</ProposalPlaceholder>
+          ) : proposalList.length === 0 ? (
+            <ProposalPlaceholder>등록된 교환 제안이 없습니다.</ProposalPlaceholder>
+          ) : (
+            proposalList.map((proposal, index) => (
+              <ProposalCard key={proposal.id ?? index}>
+                <ProposalMetaRow>
+                  <ProposalMetaCell>
+                    <MetaLabel>반 이름</MetaLabel>
+                    <MetaValue>{proposal.classroomName ?? "—"}</MetaValue>
+                  </ProposalMetaCell>
+                  <ProposalMetaCell>
+                    <MetaLabel>수업 일자</MetaLabel>
+                    <MetaValue>
+                      {formatUtcToKstShortDate(proposal.lessonDate) || "—"}
+                    </MetaValue>
+                  </ProposalMetaCell>
+                  <ProposalMetaCell>
+                    <MetaLabel>작성자</MetaLabel>
+                    <MetaValue>{proposal.proposedByName ?? "—"}</MetaValue>
+                  </ProposalMetaCell>
+                </ProposalMetaRow>
+                <ProposalContent>{proposal.content ?? "—"}</ProposalContent>
+                <ProposalFooter>
+                  <ProposalDate>
+                    {formatUtcToKstShortDate(proposal.createdAt) || "—"}
+                  </ProposalDate>
+                  <AcceptLink href={acceptedHref}>제안 수락하기</AcceptLink>
+                </ProposalFooter>
+              </ProposalCard>
+            ))
+          )}
         </ProposalList>
       </ContentColumn>
     </PageWrapper>
@@ -225,22 +291,24 @@ const ActionButton = styled.button`
   }
 `;
 
-const LinkButton = styled(Link)`
+const DeleteActionButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 3.9375rem;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  background: #e4e4e4;
-  color: #000000;
+  border: 0;
+  border-radius: ${radii.radius12};
+  background-color: #fde4e2;
+  color: #da3a30;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
-  text-decoration: none;
+  cursor: pointer;
 
   &:hover {
-    background: #d9d9d9;
+    filter: brightness(0.96);
   }
 
   @media (min-width: 120rem) {
@@ -497,8 +565,13 @@ const ProposalSubmitButton = styled.button`
   cursor: pointer;
   border-radius: ${radii.radius12};
 
-  &:hover {
+  &:hover:not(:disabled) {
     background-color: #d9d9d9;
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
   }
 
   @media (min-width: 120rem) {
@@ -573,6 +646,18 @@ const ProposalList = styled.div`
   display: flex;
   flex-direction: column;
   gap: ${spacing.space20};
+`;
+
+const ProposalPlaceholder = styled.p`
+  margin: 0;
+  padding: ${spacing.space20} 0;
+  color: #878787;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const ProposalCard = styled.article`

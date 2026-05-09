@@ -12,6 +12,8 @@ export const queryKeys = {
   requests: {
     lessonExchangeList: () => ["lesson-exchange-requests"] as const,
     lessonExchangeDetail: (requestId: number) => ["lesson-exchange-request", requestId] as const,
+    lessonExchangeProposals: (requestId: number) =>
+      ["lesson-exchange-request-proposals", requestId] as const,
     absenceList: () => ["absence-requests"] as const,
     absenceDetail: (requestId: number) => ["absence-request", requestId] as const,
     purchaseList: () => ["purchase-requests"] as const,

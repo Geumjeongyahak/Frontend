@@ -112,7 +112,6 @@ export interface LessonExchangeProposalDto {
   withdrawnAt?: string;
   closedAt?: string;
   createdAt?: string;
-  updatedAt?: string;
 }
 
 export type LessonExchangeProposalListResponseDto = LessonExchangeProposalDto[];
