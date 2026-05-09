@@ -4,12 +4,21 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
-import { getLessonExchangeRequestDetail } from "@/api/request/request.api";
-import { colors, layout, spacing, typography } from "@/styles/tokens";
+import type { LessonExchangeRequestStatus } from "@/api/lessonExchange/lessonExchange.dto";
+import { getLessonExchangeRequestDetail } from "@/api/lessonExchange/lessonExchange.api";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
+
+function normalizeRequestStatusTone(
+  status: LessonExchangeRequestStatus | undefined,
+): "PENDING" | "APPROVED" | "REJECTED" {
+  if (status === "APPROVED") return "APPROVED";
+  if (status === "REJECTED") return "REJECTED";
+  return "PENDING";
+}
 
 const proposals = [
   {
@@ -49,11 +58,16 @@ export default function ExchangePostPage() {
     : isError
       ? "수업 교환 신청을 불러오지 못했습니다."
       : data?.title ?? "제목";
-  const detailWriter = data?.requestedByName ?? "홍길동";
+  const detailWriter = data?.requestedByName ?? "";
+  const detailClassName = data?.classroomName ?? "";
   const detailLessonDate = formatUtcToKstShortDate(data?.lessonDate);
-  const detailContent = isError ? "교환 신청 사유를 불러오지 못했습니다." : data?.content ?? "교환 신청 사유";
+  const detailContent = isError ? "교환 신청 사유를 불러오지 못했습니다." : data?.content ?? "";
+  const detailStatusTone = isError
+    ? ("PENDING" as const)
+    : normalizeRequestStatusTone(data?.status);
   const detailStatus = isError ? "확인 불가" : formatRequestStatus(data?.status);
   const detailCreatedDate = formatUtcToKstShortDate(data?.createdAt);
+  const detailExpiresDate = formatUtcToKstShortDate(data?.expiresAt);
 
   const acceptedHref = `/staff/class/exchange/${postId}/accepted`;
 
@@ -72,31 +86,45 @@ export default function ExchangePostPage() {
           <Label>제목</Label>
           <ValueBox $weight="semibold">{detailTitle}</ValueBox>
 
-          <Label>신청자 정보</Label>
-          <InfoRow>
-            <FieldLabel>반 이름</FieldLabel>
-            <FieldValue>개나리반</FieldValue>
-            <FieldLabel>수업 일자</FieldLabel>
-            <FieldValue>{detailLessonDate}</FieldValue>
-            <FieldLabel>작성자</FieldLabel>
-            <FieldValue>{detailWriter}</FieldValue>
-          </InfoRow>
+          <ApplicantSection>
+            <Label>신청자 정보</Label>
 
-          <Label>교환 신청 사유</Label>
-          <TextBox>{detailContent}</TextBox>
+            <ApplicantBoxRow>
+              <ApplicantField>
+                <ApplicantBoxLabel>작성자</ApplicantBoxLabel>
+                <ApplicantFieldValue>{detailWriter || "—"}</ApplicantFieldValue>
+              </ApplicantField>
+              <ApplicantField>
+                <ApplicantBoxLabel>반 이름</ApplicantBoxLabel>
+                <ApplicantFieldValue>{detailClassName || "—"}</ApplicantFieldValue>
+              </ApplicantField>
+            </ApplicantBoxRow>
+
+            <ApplicantFullWidthField>
+              <ApplicantBoxLabel>수업 일자</ApplicantBoxLabel>
+              <ApplicantFieldValueWide>{detailLessonDate || "—"}</ApplicantFieldValueWide>
+            </ApplicantFullWidthField>
+
+            <ApplicantFullWidthField>
+              <ApplicantBoxLabel>교환 신청 사유</ApplicantBoxLabel>
+              <ApplicantReasonText>{detailContent || "—"}</ApplicantReasonText>
+            </ApplicantFullWidthField>
+          </ApplicantSection>
 
           <Label>만료일</Label>
-          <DateBox>00.00.00</DateBox>
+          <ExpiresRow>
+            <DateBox>{detailExpiresDate || "—"}</DateBox>
+          </ExpiresRow>
 
           <Label>신청 현황</Label>
-          <StatusBox>{detailStatus}</StatusBox>
+          <StatusBadge $tone={detailStatusTone}>{detailStatus}</StatusBadge>
         </PostSection>
 
         <Divider />
 
         <ProposalHeader>
           <ProposalTitle>교환 제안서</ProposalTitle>
-          <SecondaryButton type="button">작성 완료</SecondaryButton>
+          <ProposalSubmitButton type="button">작성 완료</ProposalSubmitButton>
         </ProposalHeader>
 
         <ProposalForm>
@@ -110,18 +138,18 @@ export default function ExchangePostPage() {
           {proposals.map((proposal) => (
             <ProposalCard key={proposal.id}>
               <ProposalMetaRow>
-                <ProposalMeta>
+                <ProposalMetaCell>
                   <MetaLabel>반 이름</MetaLabel>
-                  <span>{proposal.className}</span>
-                </ProposalMeta>
-                <ProposalMeta>
-                  <MetaLabel>수업일자</MetaLabel>
-                  <span>{proposal.lessonDate}</span>
-                </ProposalMeta>
-                <ProposalMeta>
+                  <MetaValue>{proposal.className}</MetaValue>
+                </ProposalMetaCell>
+                <ProposalMetaCell>
+                  <MetaLabel>수업 일자</MetaLabel>
+                  <MetaValue>{proposal.lessonDate}</MetaValue>
+                </ProposalMetaCell>
+                <ProposalMetaCell>
                   <MetaLabel>작성자</MetaLabel>
-                  <span>{proposal.writer}</span>
-                </ProposalMeta>
+                  <MetaValue>{proposal.writer}</MetaValue>
+                </ProposalMetaCell>
               </ProposalMetaRow>
               <ProposalContent>{proposal.content}</ProposalContent>
               <ProposalFooter>
@@ -177,15 +205,16 @@ const ActionButton = styled.button`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
   border: 0;
-  background: #e4e4e4;
-  color: #000000;
+  background-color: #88cd5a;
+  color: #ffffff;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
   cursor: pointer;
+  border-radius: ${radii.radius12};
 
   &:hover {
-    background: #d9d9d9;
+    background-color: #d9d9d9;
   }
 
   @media (min-width: 120rem) {
@@ -290,10 +319,19 @@ const ValueBox = styled.div<{ $weight?: "regular" | "semibold" }>`
   }
 `;
 
-const InfoRow = styled.div`
+const ApplicantSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+`;
+
+const ApplicantBoxRow = styled.div`
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: ${spacing.space12};
 
   @media (min-width: 120rem) {
@@ -305,26 +343,49 @@ const InfoRow = styled.div`
   }
 `;
 
-const FieldLabel = styled.span`
+const ApplicantFullWidthField = styled.div`
+  display: grid;
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: 1.875rem;
+  }
+`;
+
+const ApplicantField = styled.div`
+  display: grid;
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: 1.875rem;
+  }
+`;
+
+const ApplicantBoxLabel = styled.span`
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
-  white-space: nowrap;
 
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize20};
   }
 `;
 
-const FieldValue = styled(ValueBox)`
+const ApplicantFieldValue = styled(ValueBox)`
   min-width: 0;
 `;
 
-const TextBox = styled(ValueBox)`
+const ApplicantFieldValueWide = styled(ValueBox)`
+  width: 100%;
+  min-width: 0;
+`;
+
+const ApplicantReasonText = styled(ValueBox)`
   align-items: flex-start;
   min-height: 6.875rem;
   padding-top: 0.75rem;
+  word-break: break-word;
 
   @media (min-width: 120rem) {
     min-height: 9.6875rem;
@@ -332,20 +393,65 @@ const TextBox = styled(ValueBox)`
   }
 `;
 
-const DateBox = styled(ValueBox)`
-  width: 7.75rem;
+const StatusBadge = styled.span<{ $tone: "PENDING" | "APPROVED" | "REJECTED" }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 3.5rem;
+  padding: ${({ $tone }) =>
+    $tone === "PENDING" ? "0.5rem 1.125rem" : "0.375rem 0.875rem"};
+  border-radius: 999px;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+
+  color: ${({ $tone }) => {
+    switch ($tone) {
+      case "APPROVED":
+        return "#3DA75C";
+      case "REJECTED":
+        return "#DA3A30";
+      case "PENDING":
+      default:
+        return "#E5AD34";
+    }
+  }};
+
+  background: ${({ $tone }) => {
+    switch ($tone) {
+      case "APPROVED":
+        return "#DCF4EA";
+      case "REJECTED":
+        return "#FDEBE9";
+      case "PENDING":
+      default:
+        return "#FFF6DB";
+    }
+  }};
 
   @media (min-width: 120rem) {
-    width: 11.625rem;
+    min-width: 4.5rem;
+    padding: ${({ $tone }) =>
+      $tone === "PENDING" ? "0.625rem 1.375rem" : "0.5rem 1.125rem"};
+    font-size: ${typography.fontSize20};
   }
 `;
 
-const StatusBox = styled(ValueBox)`
-  width: fit-content;
-  padding-inline: ${spacing.space20};
+const ExpiresRow = styled.div`
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+`;
+
+const DateBox = styled(ValueBox)`
+  width: 7.75rem;
+  flex-shrink: 0;
+  justify-content: center;
+  text-align: center;
 
   @media (min-width: 120rem) {
-    padding-inline: 1.875rem;
+    width: 11.625rem;
   }
 `;
 
@@ -375,23 +481,30 @@ const ProposalTitle = styled.h2`
   }
 `;
 
-const SecondaryButton = styled.button`
+const ProposalSubmitButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-width: 3.9375rem;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
   border: 0;
-  background: #a0a0a0;
-  color: #000000;
+  background-color: #88cd5a;
+  color: #ffffff;
   font-size: ${typography.fontSize14};
-  font-weight: 600;
+  font-weight: 500;
   line-height: ${typography.lineHeight130};
   cursor: pointer;
+  border-radius: ${radii.radius12};
+
+  &:hover {
+    background-color: #d9d9d9;
+  }
 
   @media (min-width: 120rem) {
+    min-width: 5.9375rem;
     min-height: 4rem;
-    padding: ${spacing.space20};
+    padding: ${spacing.space20} 1.875rem;
     font-size: ${typography.fontSize20};
   }
 `;
@@ -413,11 +526,11 @@ const ProposalForm = styled.form`
 const ProposalInput = styled.input`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  border: 1px solid #000000;
-  background: #e9e9e9;
+  border: 0;
+  background: #eef9e6;
   color: #000000;
   font-size: ${typography.fontSize14};
-  font-weight: 600;
+  font-weight: 500;
   line-height: ${typography.lineHeight130};
   outline: none;
 
@@ -436,11 +549,11 @@ const ProposalTextarea = styled.textarea`
   grid-column: 1 / -1;
   min-height: 6.75rem;
   padding: 0.8125rem ${spacing.space12};
-  border: 1px solid #000000;
-  background: #e9e9e9;
+  border: 0;
+  background: #eef9e6;
   color: #000000;
   font-size: ${typography.fontSize14};
-  font-weight: 600;
+  font-weight: 500;
   line-height: ${typography.lineHeight130};
   resize: none;
   outline: none;
@@ -479,6 +592,7 @@ const ProposalMetaRow = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: ${spacing.space12};
+  width: 100%;
 
   @media (min-width: 120rem) {
     gap: ${spacing.space20};
@@ -489,35 +603,54 @@ const ProposalMetaRow = styled.div`
   }
 `;
 
-const ProposalMeta = styled.div`
+const ProposalMetaCell = styled.div`
   display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   gap: ${spacing.space8};
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  background: #e8e8e8;
-  color: #000000;
-  font-size: ${typography.fontSize14};
-  font-weight: 400;
-  line-height: ${typography.lineHeight130};
+  background: #f8f8f8;
 
   @media (min-width: 120rem) {
     min-height: 4rem;
     gap: 0.625rem;
     padding: ${spacing.space20};
-    font-size: ${typography.fontSize20};
   }
 `;
 
 const MetaLabel = styled.span`
+  display: inline;
+  flex-shrink: 0;
   color: #878787;
-  font-weight: 600;
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const MetaValue = styled.span`
+  display: inline;
+  min-width: 0;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+  word-break: break-word;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const ProposalContent = styled.div`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  background: #e8e8e8;
+  background: #f8f8f8;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 400;
@@ -543,7 +676,7 @@ const ProposalFooter = styled.div`
 `;
 
 const ProposalDate = styled.span`
-  color: ${colors.muted};
+  color: #c0c0c0;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -557,11 +690,13 @@ const AcceptLink = styled(Link)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  border: 0;
-  background: #9d9d9d;
-  color: #000000;
+  border: 1px solid #88cd5a;
+  border-radius: ${radii.radius12};
+  background: ${colors.white};
+  color: #88cd5a;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
