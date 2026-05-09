@@ -1,24 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormEvent, useState } from "react";
 import styled from "styled-components";
 import type {
   LessonExchangeProposalRequestDto,
   LessonExchangeRequestStatus,
+  UpdateLessonExchangeRequestDto,
 } from "@/api/lessonExchange/lessonExchange.dto";
 import {
+  cancelLessonExchangeRequest,
   createLessonExchangeProposal,
   getLessonExchangeRequestDetail,
   getLessonExchangeProposals,
+  updateLessonExchangeRequest,
 } from "@/api/lessonExchange/lessonExchange.api";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
-import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
+import {
+  formatUtcToKstDatetimeLocalInput,
+  formatUtcToKstShortDate,
+  formatUtcToKstShortDateTime,
+} from "@/utils/formatUtcToKstShortDate";
+import { normalizeLessonExchangeExpiresAtForApi } from "@/utils/kstShortDate";
 
 function normalizeRequestStatusTone(
   status: LessonExchangeRequestStatus | undefined,
@@ -28,8 +36,21 @@ function normalizeRequestStatusTone(
   return "PENDING";
 }
 
+function toIsoDateOnly(value?: string): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const d = new Date(trimmed);
+  if (Number.isNaN(d.getTime())) return trimmed.length >= 10 ? trimmed.slice(0, 10) : "";
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export default function ExchangePostPage() {
   const params = useParams<{ postId: string }>();
+  const router = useRouter();
   const { status: authStatus } = useAuthSession();
   const isAuthenticated = authStatus === "authenticated";
   const postId = Number(params.postId);
@@ -44,17 +65,28 @@ export default function ExchangePostPage() {
     retry: false,
   });
 
-  const { data: proposalList = [], isLoading: proposalsLoading } = useQuery({
+  const {
+    data: proposalList = [],
+    isLoading: proposalsLoading,
+    isError: proposalsIsError,
+  } = useQuery({
     queryKey: queryKeys.requests.lessonExchangeProposals(postId),
     queryFn: () => getLessonExchangeProposals({ requestId: postId }),
     enabled: isAuthenticated && isValidPostId,
     retry: false,
+    select: (payload) => (Array.isArray(payload) ? payload : []),
   });
 
   const [proposalClassroomNameDraft, setProposalClassroomNameDraft] = useState("");
   const [proposalLessonDate, setProposalLessonDate] = useState("");
   const [proposalWriterDraft, setProposalWriterDraft] = useState("");
   const [proposalContent, setProposalContent] = useState("");
+
+  const [isEditingRequest, setIsEditingRequest] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editLessonDate, setEditLessonDate] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editExpiresAt, setEditExpiresAt] = useState("");
 
   const createProposalMutation = useMutation({
     mutationFn: (body: LessonExchangeProposalRequestDto) =>
@@ -89,6 +121,97 @@ export default function ExchangePostPage() {
     });
   };
 
+  const cancelRequestMutation = useMutation({
+    mutationFn: () => cancelLessonExchangeRequest({ requestId: postId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.lessonExchangeList(),
+      });
+      await queryClient.removeQueries({
+        queryKey: queryKeys.requests.lessonExchangeDetail(postId),
+      });
+      await queryClient.removeQueries({
+        queryKey: queryKeys.requests.lessonExchangeProposals(postId),
+      });
+      window.alert("수업 교환 신청이 취소되었습니다.");
+      router.push("/staff/class/exchange");
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error ? error.message : "수업 교환 신청 취소에 실패했습니다.";
+      window.alert(message);
+    },
+  });
+
+  const handleDeleteClick = () => {
+    if (!isValidPostId) return;
+    if (!window.confirm("수업 교환 신청을 취소할까요?")) return;
+    cancelRequestMutation.mutate();
+  };
+
+  const updateRequestMutation = useMutation({
+    mutationFn: (body: UpdateLessonExchangeRequestDto) =>
+      updateLessonExchangeRequest({ requestId: postId }, body),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.lessonExchangeDetail(postId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.lessonExchangeList(),
+      });
+      setIsEditingRequest(false);
+      window.alert("수업 교환 신청이 수정되었습니다.");
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error ? error.message : "수업 교환 신청 수정에 실패했습니다.";
+      window.alert(message);
+    },
+  });
+
+  const handleStartEdit = () => {
+    if (!data || isError) {
+      window.alert("신청 정보를 불러온 뒤 수정할 수 있습니다.");
+      return;
+    }
+    setEditTitle(data.title ?? "");
+    setEditLessonDate(toIsoDateOnly(data.lessonDate));
+    setEditContent(data.content ?? "");
+    setEditExpiresAt(formatUtcToKstDatetimeLocalInput(data.expiresAt));
+    setIsEditingRequest(true);
+  };
+
+  const handleCancelEdit = () => {
+    if (updateRequestMutation.isPending) return;
+    setIsEditingRequest(false);
+  };
+
+  const handleSaveEdit = () => {
+    const title = editTitle.trim();
+    const content = editContent.trim();
+    if (!title) {
+      window.alert("제목을 입력해 주세요.");
+      return;
+    }
+    if (!content) {
+      window.alert("교환 신청 사유를 입력해 주세요.");
+      return;
+    }
+
+    const expiresAt = normalizeLessonExchangeExpiresAtForApi(editExpiresAt);
+    if (!expiresAt) {
+      window.alert("만료일 시각을 입력해 주세요.");
+      return;
+    }
+
+    updateRequestMutation.mutate({
+      title,
+      content,
+      lessonDate: editLessonDate.trim() || undefined,
+      expiresAt,
+    });
+  };
+
   const detailTitle = isLoading
     ? "불러오는 중..."
     : isError
@@ -103,15 +226,57 @@ export default function ExchangePostPage() {
     : normalizeRequestStatusTone(data?.status);
   const detailStatus = isError ? "확인 불가" : formatRequestStatus(data?.status);
   const detailCreatedDate = formatUtcToKstShortDate(data?.createdAt);
-  const detailExpiresDate = formatUtcToKstShortDate(data?.expiresAt);
+  const detailExpiresAtDisplay = formatUtcToKstShortDateTime(data?.expiresAt);
 
   const acceptedHref = `/staff/class/exchange/${postId}/accepted`;
 
   return (
     <PageWrapper>
       <TopButtonRow>
-        <DeleteActionButton type="button">삭제</DeleteActionButton>
-        <ActionButton type="button">수정</ActionButton>
+        <DeleteActionButton
+          type="button"
+          disabled={
+            !isAuthenticated ||
+            !isValidPostId ||
+            cancelRequestMutation.isPending ||
+            updateRequestMutation.isPending
+          }
+          onClick={handleDeleteClick}
+        >
+          {cancelRequestMutation.isPending ? "취소 중…" : "삭제"}
+        </DeleteActionButton>
+        {isEditingRequest ? (
+          <>
+            <CancelEditButton
+              type="button"
+              onClick={handleCancelEdit}
+              disabled={updateRequestMutation.isPending}
+            >
+              취소
+            </CancelEditButton>
+            <ActionButton
+              type="button"
+              onClick={handleSaveEdit}
+              disabled={updateRequestMutation.isPending}
+            >
+              {updateRequestMutation.isPending ? "저장 중…" : "저장"}
+            </ActionButton>
+          </>
+        ) : (
+          <ActionButton
+            type="button"
+            onClick={handleStartEdit}
+            disabled={
+              !isAuthenticated ||
+              !isValidPostId ||
+              isLoading ||
+              isError ||
+              cancelRequestMutation.isPending
+            }
+          >
+            수정
+          </ActionButton>
+        )}
       </TopButtonRow>
 
       <ContentColumn>
@@ -119,7 +284,15 @@ export default function ExchangePostPage() {
 
         <PostSection>
           <Label>제목</Label>
-          <ValueBox $weight="semibold">{detailTitle}</ValueBox>
+          {isEditingRequest ? (
+            <RequestEditInput
+              aria-label="제목"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+            />
+          ) : (
+            <ValueBox $weight="semibold">{detailTitle}</ValueBox>
+          )}
 
           <ApplicantSection>
             <Label>신청자 정보</Label>
@@ -137,18 +310,45 @@ export default function ExchangePostPage() {
 
             <ApplicantFullWidthField>
               <ApplicantBoxLabel>수업 일자</ApplicantBoxLabel>
-              <ApplicantFieldValueWide>{detailLessonDate || "—"}</ApplicantFieldValueWide>
+              {isEditingRequest ? (
+                <RequestEditInput
+                  aria-label="수업 일자"
+                  type="date"
+                  value={editLessonDate}
+                  onChange={(e) => setEditLessonDate(e.target.value)}
+                />
+              ) : (
+                <ApplicantFieldValueWide>{detailLessonDate || "—"}</ApplicantFieldValueWide>
+              )}
             </ApplicantFullWidthField>
 
             <ApplicantFullWidthField>
               <ApplicantBoxLabel>교환 신청 사유</ApplicantBoxLabel>
-              <ApplicantReasonText>{detailContent || "—"}</ApplicantReasonText>
+              {isEditingRequest ? (
+                <RequestEditTextarea
+                  aria-label="교환 신청 사유"
+                  rows={6}
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                />
+              ) : (
+                <ApplicantReasonText>{detailContent || "—"}</ApplicantReasonText>
+              )}
             </ApplicantFullWidthField>
           </ApplicantSection>
 
           <Label>만료일</Label>
           <ExpiresRow>
-            <DateBox>{detailExpiresDate || "—"}</DateBox>
+            {isEditingRequest ? (
+              <RequestEditInput
+                aria-label="만료일 시각"
+                type="datetime-local"
+                value={editExpiresAt}
+                onChange={(e) => setEditExpiresAt(e.target.value)}
+              />
+            ) : (
+              <DateBox>{detailExpiresAtDisplay || "—"}</DateBox>
+            )}
           </ExpiresRow>
 
           <Label>신청 현황</Label>
@@ -195,6 +395,10 @@ export default function ExchangePostPage() {
         <ProposalList>
           {proposalsLoading ? (
             <ProposalPlaceholder>제안 목록을 불러오는 중…</ProposalPlaceholder>
+          ) : proposalsIsError ? (
+            <ProposalPlaceholder role="alert">
+              교환 제안 목록을 불러오지 못했습니다.
+            </ProposalPlaceholder>
           ) : proposalList.length === 0 ? (
             <ProposalPlaceholder>등록된 교환 제안이 없습니다.</ProposalPlaceholder>
           ) : (
@@ -279,8 +483,13 @@ const ActionButton = styled.button`
   cursor: pointer;
   border-radius: ${radii.radius12};
 
-  &:hover {
+  &:hover:not(:disabled) {
     background-color: #d9d9d9;
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
   }
 
   @media (min-width: 120rem) {
@@ -307,14 +516,93 @@ const DeleteActionButton = styled.button`
   line-height: ${typography.lineHeight130};
   cursor: pointer;
 
-  &:hover {
+  &:hover:not(:disabled) {
     filter: brightness(0.96);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
   }
 
   @media (min-width: 120rem) {
     min-width: 5.9375rem;
     min-height: 4rem;
     padding: ${spacing.space20} 1.875rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const CancelEditButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.9375rem;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space20};
+  border: 0;
+  border-radius: ${radii.radius12};
+  background-color: #e4e4e4;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background-color: #d9d9d9;
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  @media (min-width: 120rem) {
+    min-width: 5.9375rem;
+    min-height: 4rem;
+    padding: ${spacing.space20} 1.875rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const RequestEditInput = styled.input`
+  width: 100%;
+  min-width: 0;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  border: 0;
+  background: #f7f7f7;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  outline: none;
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const RequestEditTextarea = styled.textarea`
+  width: 100%;
+  min-width: 0;
+  min-height: 6.875rem;
+  padding: 0.8125rem ${spacing.space12};
+  border: 0;
+  background: #f7f7f7;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  resize: vertical;
+  outline: none;
+
+  @media (min-width: 120rem) {
+    min-height: 9.6875rem;
+    padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
   }
 `;
