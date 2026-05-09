@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { getLessonExchangeRequests } from "@/api/request/request.api";
+import { getLessonExchangeRequests } from "@/api/lessonExchange/lessonExchange.api";
 import ListPanel, { type ListPanelRow } from "@/components/staff/ListPanel";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
@@ -57,7 +57,7 @@ export default function ExchangeListPageClient() {
     .map((item, index) => ({
       id: item.id ?? startIndex + index + 1,
       no: String(startIndex + index + 1).padStart(2, "0"),
-      className: "-",
+      className: item.classroomName ?? "-",
       title: item.title ?? "제목 없음",
       author: item.requestedByName ?? "-",
       date: formatUtcToKstShortDate(item.createdAt ?? item.lessonDate),

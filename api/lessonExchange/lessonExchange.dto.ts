@@ -7,12 +7,7 @@ export type LessonExchangeRequestStatus =
   | "CANCELLED"
   | string;
 
-export type LessonExchangeProposalStatus =
-  | "ACTIVE"
-  | "ACCEPTED"
-  | "WITHDRAWN"
-  | "CLOSED"
-  | string;
+export type LessonExchangeProposalStatus = "ACTIVE" | "ACCEPTED" | "WITHDRAWN" | "CLOSED" | string;
 
 export interface LessonExchangePathParamsDto {
   requestId: number;
@@ -24,6 +19,7 @@ export interface LessonExchangeProposalPathParamsDto extends LessonExchangePathP
 
 export interface LessonExchangeListQueryParamsDto {
   status?: LessonExchangeRequestStatus;
+  mine: boolean;
 }
 
 export interface CreateLessonExchangeRequestDto {
@@ -72,7 +68,15 @@ export interface LessonExchangeRequestDetailDto {
   completedAt?: string;
   cancelledAt?: string;
   createdAt?: string;
-  updatedAt?: string;
+}
+
+export interface LessonExchangeListResponseDto {
+  id: number;
+  classroomName: string;
+  requestedName: string;
+  title: string;
+  status: LessonExchangeRequestStatus;
+  createdAt: string;
 }
 
 export type LessonExchangeRequestListResponseDto = LessonExchangeRequestDetailDto[];
@@ -108,7 +112,6 @@ export interface LessonExchangeProposalDto {
   withdrawnAt?: string;
   closedAt?: string;
   createdAt?: string;
-  updatedAt?: string;
 }
 
 export type LessonExchangeProposalListResponseDto = LessonExchangeProposalDto[];

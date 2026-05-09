@@ -62,18 +62,16 @@ describe("request.api", () => {
     );
 
     const response = await createLessonExchangeRequest({
-      lessonDate: "2026-06-10",
+      lessonId: 31,
       title: "Emergency swap",
       content: "Need a replacement",
-      expiresAt: "2026-06-07T22:00:00",
     });
 
     expect(response.id).toBe(30);
     expect(observedBody).toEqual({
-      lessonDate: "2026-06-10",
+      lessonId: 31,
       title: "Emergency swap",
       content: "Need a replacement",
-      expiresAt: "2026-06-07T22:00:00",
     });
   });
 

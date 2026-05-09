@@ -77,7 +77,12 @@ export default function Page() {
       window.alert("만료일을 달력에서 선택해 주세요.");
       return;
     }
-    if (!Number.isFinite(startPeriod) || !Number.isFinite(endPeriod) || startPeriod < 1 || endPeriod < 1) {
+    if (
+      !Number.isFinite(startPeriod) ||
+      !Number.isFinite(endPeriod) ||
+      startPeriod < 1 ||
+      endPeriod < 1
+    ) {
       window.alert("수업 교시를 올바른 숫자로 입력해 주세요.");
       return;
     }
@@ -96,7 +101,11 @@ export default function Page() {
     <PageWrapper>
       <HeaderRow>
         <Title>교환 신청서 작성하기</Title>
-        <SubmitButton type="submit" form="exchange-form" disabled={createLessonExchangeMutation.isPending}>
+        <SubmitButton
+          type="submit"
+          form="exchange-form"
+          disabled={createLessonExchangeMutation.isPending}
+        >
           {createLessonExchangeMutation.isPending ? "작성 중..." : "작성 완료"}
         </SubmitButton>
       </HeaderRow>
@@ -127,7 +136,11 @@ export default function Page() {
                   aria-label="수업 교시 시작"
                 />
                 <PeriodTilde aria-hidden>~</PeriodTilde>
-                <LessonPeriodInput name="lessonPeriodTo" defaultValue="2" aria-label="수업 교시 끝" />
+                <LessonPeriodInput
+                  name="lessonPeriodTo"
+                  defaultValue="2"
+                  aria-label="수업 교시 끝"
+                />
               </LessonPeriodInputs>
             </InfoPairRow>
           </InfoStack>
@@ -198,7 +211,6 @@ const HeaderRow = styled.div`
 
 const Title = styled.h1`
   margin: 0;
-  color: #000000;
   font-size: ${typography.fontSize20};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -264,7 +276,6 @@ const Section = styled.section`
 
 const Label = styled.label`
   margin: 0;
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -278,9 +289,7 @@ const Input = styled.input`
   width: 100%;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  border: 0;
   background: ${colors.background};
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -306,7 +315,9 @@ const InfoStack = styled.div`
 const InfoPairRow = styled.div<{ $wideFirst?: boolean }>`
   display: grid;
   grid-template-columns: ${({ $wideFirst }) =>
-    $wideFirst ? `auto minmax(0, 2.25fr) auto minmax(0, 1fr)` : `auto minmax(0, 1fr) auto minmax(0, 1fr)`};
+    $wideFirst
+      ? `auto minmax(0, 2.25fr) auto minmax(0, 1fr)`
+      : `auto minmax(0, 1fr) auto minmax(0, 1fr)`};
   align-items: center;
   gap: ${spacing.space12};
 
@@ -332,7 +343,6 @@ const LessonPeriodInputs = styled.div`
 
 const PeriodTilde = styled.span`
   flex-shrink: 0;
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -343,7 +353,6 @@ const PeriodTilde = styled.span`
 `;
 
 const FieldLabel = styled.label`
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -355,16 +364,12 @@ const FieldLabel = styled.label`
 `;
 
 const InlineInput = styled.input`
-  min-width: 0;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  border: 0;
   background: ${colors.background};
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 400;
   line-height: ${typography.lineHeight130};
-  outline: none;
 
   &:disabled {
     background: #b5b5b5;
@@ -389,9 +394,7 @@ const TextArea = styled.textarea`
   width: 100%;
   min-height: 6.875rem;
   padding: 0.75rem ${spacing.space12};
-  border: 0;
   background: ${colors.background};
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -423,9 +426,7 @@ const DateRow = styled.div`
 
 const DateInput = styled.input`
   width: 4.375rem;
-  border: 0;
   background: transparent;
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};

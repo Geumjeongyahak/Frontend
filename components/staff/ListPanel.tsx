@@ -11,6 +11,7 @@ export type ListPanelRow = {
   author: string;
   date: string;
   status: string;
+  statusType?: "PENDING" | "APPROVED" | "REJECTED";
   detailHref: string;
   isNotice?: boolean;
 };
@@ -141,7 +142,7 @@ export default function ListPanel({
                   </Td>
                   {showStatusColumn ? (
                     <Td $width720="5rem" $width1080="7.375rem">
-                      {row.status}
+                      <StatusBadge $status={row.statusType}>{row.status}</StatusBadge>
                     </Td>
                   ) : null}
                 </Tr>
@@ -514,5 +515,34 @@ const PageNumber = styled(Link)<{ $isActive?: boolean }>`
 
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize24};
+  }
+`;
+
+const StatusBadge = styled.span<{ $status?: "PENDING" | "APPROVED" | "REJECTED" }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+
+  color: ${({ $status }) => {
+    switch ($status) {
+      case "APPROVED":
+        return "#3DA75C";
+      case "REJECTED":
+        return "#DA3A30";
+      case "PENDING":
+      default:
+        return "#E5AD34";
+    }
+  }};
+
+  @media (min-width: 120rem) {
+    min-width: 4.5rem;
+    padding: 0.375rem 0.875rem;
+    font-size: ${typography.fontSize20};
   }
 `;
