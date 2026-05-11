@@ -30,6 +30,7 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
         onCancelEdit={page.cancelEdit}
         onSaveEdit={page.saveEdit}
         onStartEdit={page.startEdit}
+        onBackToList={page.backToList}
       />
 
       <ContentColumn>

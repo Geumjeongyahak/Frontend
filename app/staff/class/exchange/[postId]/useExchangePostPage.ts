@@ -193,6 +193,10 @@ export function useExchangePostPage() {
     cancelRequestMutation.mutate();
   };
 
+  const backToList = () => {
+    router.push("/staff/class/exchange");
+  };
+
   return {
     postId,
     isAuthenticated,
@@ -230,5 +234,7 @@ export function useExchangePostPage() {
     saveEdit,
     submitProposal,
     deleteRequest,
+
+    backToList,
   };
 }
