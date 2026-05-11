@@ -132,7 +132,7 @@ export function useExchangePostPage() {
     setEditTitle(request.title ?? "");
     setEditLessonDate(toIsoDateOnly(request.lessonDate));
     setEditContent(request.content ?? "");
-    setEditExpiresAt(formatUtcToKstDatetimeLocalInput(request.expiresAt));
+    setEditExpiresAt(toIsoDateOnly(request.expiresAt));
     setIsEditing(true);
   };
 

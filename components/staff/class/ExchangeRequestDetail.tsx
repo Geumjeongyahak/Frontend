@@ -65,7 +65,7 @@ export function ExchangePostDetail({ page }: ExchangeRequestDetailProps) {
           <ApplicantNextRowField>
             <ApplicantBoxLabel>교환 신청 사유</ApplicantBoxLabel>
             {page.isEditing ? (
-              <EditTextarea
+              <EditInput
                 value={page.editContent}
                 onChange={(e) => page.setEditContent(e.target.value)}
               />
@@ -78,7 +78,7 @@ export function ExchangePostDetail({ page }: ExchangeRequestDetailProps) {
             <ApplicantBoxLabel>만료일</ApplicantBoxLabel>
 
             {page.isEditing ? (
-              <EditInput
+              <ExpiresEditInput
                 type="date"
                 value={page.editExpiresAt}
                 onChange={(e) => page.setEditExpiresAt(e.target.value)}
@@ -300,22 +300,10 @@ const EditInput = styled.input`
   }
 `;
 
-const EditTextarea = styled.textarea`
-  width: 100%;
-  min-height: 10rem;
-  padding: 0.8125rem ${spacing.space12};
-
-  border: 1px solid #c0c0c0;
-  background: #ffffff;
-  outline: none;
-  resize: vertical;
-
-  font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight130};
+const ExpiresEditInput = styled(EditInput)`
+  width: 9rem;
 
   @media (min-width: 120rem) {
-    min-height: 14rem;
-    padding: ${spacing.space20};
-    font-size: ${typography.fontSize20};
+    width: 11.625rem;
   }
 `;
