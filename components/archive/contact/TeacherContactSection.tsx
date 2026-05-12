@@ -16,8 +16,8 @@ import {
   RemoveRowButton,
   SectionLabel,
   TeacherEditList,
-} from "@/components/archive/ContactPage.styles";
-import type { TeacherContact } from "@/components/archive/ContactPage.types";
+} from "@/components/archive/contact/ContactPage.styles";
+import type { TeacherContact } from "@/components/archive/contact/ContactPage.types";
 
 type TeacherContactSectionProps = {
   initialContacts: TeacherContact[];
@@ -59,10 +59,7 @@ export default function TeacherContactSection({ initialContacts }: TeacherContac
   };
 
   const addDraftContact = () => {
-    setDraftContacts((currentContacts) => [
-      ...currentContacts,
-      createTeacherContact(Date.now()),
-    ]);
+    setDraftContacts((currentContacts) => [...currentContacts, createTeacherContact(Date.now())]);
   };
 
   const completeEditing = () => {

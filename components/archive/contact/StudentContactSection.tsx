@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getStudents } from "@/api/student/student.api";
+import type { StudentListResponseDto } from "@/api/student/student.dto";
 import {
   AddRowButton,
   ClassHeaderButton,
@@ -23,11 +26,11 @@ import {
   StudentEditList,
   StudentGrid,
   ToggleIcon,
-} from "@/components/archive/ContactPage.styles";
-import type { StudentClass, StudentContact } from "@/components/archive/ContactPage.types";
+} from "@/components/archive/contact/ContactPage.styles";
+import type { StudentClass, StudentContact } from "@/components/archive/contact/ContactPage.types";
 
 type StudentContactSectionProps = {
-  initialClasses: StudentClass[];
+  initialClasses?: StudentClass[];
 };
 
 const createStudentContact = (id: number): StudentContact => ({
@@ -36,7 +39,40 @@ const createStudentContact = (id: number): StudentContact => ({
   phone: "",
 });
 
-export default function StudentContactSection({ initialClasses }: StudentContactSectionProps) {
+function mapStudentsToClasses(students: StudentListResponseDto): StudentClass[] {
+  const grouped = new Map<string, StudentClass>();
+
+  students.forEach((student) => {
+    const classId = String(student.classroomId ?? student.classroomName ?? "unknown");
+    const className = student.classroomName ?? "미지정";
+
+    if (!grouped.has(classId)) {
+      grouped.set(classId, {
+        id: classId,
+        name: className,
+        isOpen: grouped.size === 0,
+        students: [],
+      });
+    }
+
+    grouped.get(classId)?.students.push({
+      id: student.id ?? Date.now(),
+      name: student.name ?? "",
+      phone: student.phoneNumber ?? "",
+    });
+  });
+
+  return Array.from(grouped.values());
+}
+
+export default function StudentContactSection({ initialClasses = [] }: StudentContactSectionProps) {
+  const { data: students = [] } = useQuery({
+    queryKey: ["students"],
+    queryFn: () => getStudents(),
+  });
+
+  const apiClasses = useMemo(() => mapStudentsToClasses(students), [students]);
+
   const [classes, setClasses] = useState<StudentClass[]>(initialClasses);
   const [draftClasses, setDraftClasses] = useState<StudentClass[]>(initialClasses);
   const [openClassIds, setOpenClassIds] = useState<Set<string>>(
@@ -44,6 +80,17 @@ export default function StudentContactSection({ initialClasses }: StudentContact
   );
   const [selectedClassId, setSelectedClassId] = useState(initialClasses[0]?.id ?? "");
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (apiClasses.length === 0) return;
+
+    setClasses(apiClasses);
+    setDraftClasses(apiClasses);
+    setOpenClassIds(
+      new Set(apiClasses.filter((studentClass) => studentClass.isOpen).map(({ id }) => id)),
+    );
+    setSelectedClassId(apiClasses[0]?.id ?? "");
+  }, [apiClasses]);
 
   const toggleClass = (classId: string) => {
     setOpenClassIds((currentIds) => {
