@@ -15,8 +15,12 @@ interface ExchangeRequestPageProps {
 
 export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
   const canDelete = page.isAuthenticated && page.isValidPostId;
-  const canEdit = page.isAuthenticated && page.isValidPostId && !page.requestError;
+  const isLocked =
+    page.request?.status === "APPROVED" ||
+    page.request?.status === "COMPLETED" ||
+    page.request?.status === "REJECTED";
 
+  const canEdit = page.isAuthenticated && page.isValidPostId && !page.requestError && !isLocked;
   const acceptedHref = `/staff/class/exchange/${page.postId}/accepted`;
 
   return (
@@ -35,61 +39,64 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
 
       <ContentColumn>
         <ExchangePostDetail page={page} />
+        {!page.isEditing && (
+          <>
+            <Divider />
 
-        <Divider />
+            <ProposalHeader>
+              <ProposalTitle>교환 제안서</ProposalTitle>
 
-        <ProposalHeader>
-          <ProposalTitle>교환 제안서</ProposalTitle>
+              <Button
+                type="submit"
+                form="exchange-proposal-form"
+                $variant="edit"
+                disabled={page.isCreatingProposal}
+              >
+                작성 완료
+              </Button>
+            </ProposalHeader>
 
-          <Button
-            type="submit"
-            form="exchange-proposal-form"
-            $variant="edit"
-            disabled={page.isCreatingProposal}
-          >
-            작성 완료
-          </Button>
-        </ProposalHeader>
+            <ProposalForm id="exchange-proposal-form" onSubmit={page.submitProposal}>
+              <FieldInput
+                $tone="proposal"
+                aria-label="반 이름"
+                placeholder="반 이름"
+                type="text"
+                value={page.user?.role ?? ""} //TODO: dto 반이름
+                readOnly
+              />
+              <FieldInput
+                $tone="proposal"
+                aria-label="작성자"
+                placeholder="작성자"
+                type="text"
+                value={page.user?.name ?? ""}
+                readOnly
+              />
+              <FieldInput
+                $tone="proposal"
+                aria-label="수업 일자"
+                placeholder="수업 일자"
+                type="text"
+                {...page.proposalForm.register("lessonDate")}
+              />
 
-        <ProposalForm id="exchange-proposal-form" onSubmit={page.submitProposal}>
-          <FieldInput
-            $tone="proposal"
-            aria-label="반 이름"
-            placeholder="반 이름"
-            type="text"
-            value={page.user?.role ?? ""} //TODO: dto 반이름
-            readOnly
-          />
-          <FieldInput
-            $tone="proposal"
-            aria-label="작성자"
-            placeholder="작성자"
-            type="text"
-            value={page.user?.name ?? ""}
-            readOnly
-          />
-          <FieldInput
-            $tone="proposal"
-            aria-label="수업 일자"
-            placeholder="수업 일자"
-            type="text"
-            {...page.proposalForm.register("lessonDate")}
-          />
+              <ProposalFormTextarea
+                $tone="proposal"
+                placeholder="내용"
+                rows={6}
+                {...page.proposalForm.register("content")}
+              />
+            </ProposalForm>
 
-          <ProposalFormTextarea
-            $tone="proposal"
-            placeholder="내용"
-            rows={6}
-            {...page.proposalForm.register("content")}
-          />
-        </ProposalForm>
-
-        <ExchangeProposalList
-          acceptedHref={acceptedHref}
-          proposals={page.proposals}
-          proposalsLoading={page.proposalsLoading}
-          proposalsError={page.proposalsError}
-        />
+            <ExchangeProposalList
+              acceptedHref={acceptedHref}
+              proposals={page.proposals}
+              proposalsLoading={page.proposalsLoading}
+              proposalsError={page.proposalsError}
+            />
+          </>
+        )}
       </ContentColumn>
     </PageWrapper>
   );
