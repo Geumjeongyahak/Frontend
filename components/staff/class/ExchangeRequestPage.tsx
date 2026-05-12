@@ -49,19 +49,33 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
         <ProposalForm id="exchange-proposal-form" onSubmit={page.submitProposal}>
           <FieldInput
             $tone="proposal"
+            aria-label="반 이름"
+            placeholder="반 이름"
+            type="text"
+            value={page.request?.classroomName ?? ""}
+            readOnly
+          />
+          <FieldInput
+            $tone="proposal"
+            aria-label="작성자"
+            placeholder="작성자"
+            type="text"
+            value={page.request?.requestedByName ?? ""}
+            readOnly
+          />
+          <FieldInput
+            $tone="proposal"
             aria-label="수업 일자"
             placeholder="수업 일자"
-            type="date"
-            value={page.proposalLessonDate}
-            onChange={(e) => page.setProposalLessonDate(e.target.value)}
+            type="text"
+            {...page.proposalForm.register("lessonDate")}
           />
 
           <ProposalFormTextarea
             $tone="proposal"
             placeholder="내용"
             rows={6}
-            value={page.proposalContent}
-            onChange={(e) => page.setProposalContent(e.target.value)}
+            {...page.proposalForm.register("content")}
           />
         </ProposalForm>
 
@@ -129,14 +143,19 @@ const ProposalTitle = styled.h2`
 
 const ProposalForm = styled.form`
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: ${spacing.space12};
 
   @media (min-width: 120rem) {
     gap: ${spacing.space20};
   }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const ProposalFormTextarea = styled(FieldTextarea)`
   grid-column: 1 / -1;
+  background: #ffffff;
 `;

@@ -37,38 +37,47 @@ export function ExchangePostDetail({ page }: ExchangeRequestDetailProps) {
         <Label>제목</Label>
 
         {page.isEditing ? (
-          <EditInput value={page.editTitle} onChange={(e) => page.setEditTitle(e.target.value)} />
+          <EditInput {...page.editForm.register("title")} />
         ) : (
           <ApplicantFieldValue>{request?.title || "—"}</ApplicantFieldValue>
         )}
+
         <ApplicantSection>
           <Label>신청자 정보</Label>
+
           <ApplicantBoxRow>
             <ApplicantField>
               <ApplicantBoxLabel>작성자</ApplicantBoxLabel>
+
               <ApplicantFieldValue>{request?.requestedByName || "—"}</ApplicantFieldValue>
             </ApplicantField>
+
             <ApplicantField>
               <ApplicantBoxLabel>반 이름</ApplicantBoxLabel>
+
               <ApplicantFieldValue>{request?.classroomName || "—"}</ApplicantFieldValue>
             </ApplicantField>
+
             <ApplicantField>
               <ApplicantBoxLabel>수업 일자</ApplicantBoxLabel>
-              <ApplicantFieldValue>
-                {formatUtcToKstShortDate(request?.lessonDate) || "—"}
-              </ApplicantFieldValue>
+
+              {page.isEditing ? (
+                <EditInput type="date" {...page.editForm.register("lessonDate")} />
+              ) : (
+                <ApplicantFieldValue>
+                  {formatUtcToKstShortDate(request?.lessonDate) || "—"}
+                </ApplicantFieldValue>
+              )}
             </ApplicantField>
           </ApplicantBoxRow>
 
-          <ApplicantFullWidthField></ApplicantFullWidthField>
+          <ApplicantFullWidthField />
 
           <ApplicantNextRowField>
             <ApplicantBoxLabel>교환 신청 사유</ApplicantBoxLabel>
+
             {page.isEditing ? (
-              <EditInput
-                value={page.editContent}
-                onChange={(e) => page.setEditContent(e.target.value)}
-              />
+              <EditInput {...page.editForm.register("content")} />
             ) : (
               <ApplicantFieldValue>{request?.content || "—"}</ApplicantFieldValue>
             )}
@@ -78,11 +87,7 @@ export function ExchangePostDetail({ page }: ExchangeRequestDetailProps) {
             <ApplicantBoxLabel>만료일</ApplicantBoxLabel>
 
             {page.isEditing ? (
-              <ExpiresEditInput
-                type="date"
-                value={page.editExpiresAt}
-                onChange={(e) => page.setEditExpiresAt(e.target.value)}
-              />
+              <ExpiresEditInput type="date" {...page.editForm.register("expiresAt")} />
             ) : (
               <ExpiresDateBox>{formatUtcToKstShortDate(request?.expiresAt)}</ExpiresDateBox>
             )}

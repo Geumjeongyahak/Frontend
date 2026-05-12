@@ -9,8 +9,7 @@ const BaseFieldStyle = `
   width: 100%;
   min-width: 0;
   padding: 0.8125rem ${spacing.space12};
-  border: 0;
-  color: #000000;
+  border: 1px solid #c0c0c0;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -25,7 +24,7 @@ const BaseFieldStyle = `
 export const FieldInput = styled.input<{ $tone?: FieldTone }>`
   ${BaseFieldStyle}
   min-height: 2.6875rem;
-  background: ${({ $tone }) => ($tone === "proposal" ? "#eef9e6" : "#f7f7f7")};
+  background: ${({ $tone }) => ($tone === "proposal" ? "#ffffff" : "#f7f7f7")};
 
   ${({ $tone }) =>
     $tone === "proposal"
@@ -45,7 +44,7 @@ export const FieldTextarea = styled.textarea<{ $tone?: FieldTone }>`
   ${BaseFieldStyle}
   min-height: 6.875rem;
   resize: ${({ $tone }) => ($tone === "proposal" ? "none" : "vertical")};
-  background: ${({ $tone }) => ($tone === "proposal" ? "#eef9e6" : "#f7f7f7")};
+  background: ${({ $tone }) => ($tone === "proposal" ? "#ffffff" : "#f7f7f7")};
 
   ${({ $tone }) =>
     $tone === "proposal"

@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   LessonExchangeProposalRequestDto,
@@ -16,7 +17,6 @@ import {
 } from "@/api/lessonExchange/lessonExchange.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
-import { formatUtcToKstDatetimeLocalInput } from "@/utils/formatUtcToKstShortDate";
 import { normalizeLessonExchangeExpiresAtForApi } from "@/utils/kstShortDate";
 
 function toIsoDateOnly(value?: string): string {
@@ -29,6 +29,18 @@ function toIsoDateOnly(value?: string): string {
   return date.toISOString().slice(0, 10);
 }
 
+interface ProposalFormValues {
+  lessonDate: string;
+  content: string;
+}
+
+interface EditFormValues {
+  title: string;
+  lessonDate: string;
+  content: string;
+  expiresAt: string;
+}
+
 export function useExchangePostPage() {
   const params = useParams<{ postId: string }>();
   const router = useRouter();
@@ -39,6 +51,22 @@ export function useExchangePostPage() {
 
   const postId = Number(params.postId);
   const isValidPostId = Number.isInteger(postId) && postId > 0;
+
+  const editForm = useForm<EditFormValues>({
+    defaultValues: {
+      title: "",
+      lessonDate: "",
+      content: "",
+      expiresAt: "",
+    },
+  });
+
+  const proposalForm = useForm<ProposalFormValues>({
+    defaultValues: {
+      lessonDate: "",
+      content: "",
+    },
+  });
 
   const requestQuery = useQuery({
     queryKey: queryKeys.requests.lessonExchangeDetail(postId),
@@ -55,14 +83,7 @@ export function useExchangePostPage() {
     select: (payload) => (Array.isArray(payload) ? payload : []),
   });
 
-  const [proposalLessonDate, setProposalLessonDate] = useState("");
-  const [proposalContent, setProposalContent] = useState("");
-
   const [isEditing, setIsEditing] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editLessonDate, setEditLessonDate] = useState("");
-  const [editContent, setEditContent] = useState("");
-  const [editExpiresAt, setEditExpiresAt] = useState("");
 
   const createProposalMutation = useMutation({
     mutationFn: (body: LessonExchangeProposalRequestDto) =>
@@ -72,8 +93,8 @@ export function useExchangePostPage() {
         queryKey: queryKeys.requests.lessonExchangeProposals(postId),
       });
 
-      setProposalLessonDate("");
-      setProposalContent("");
+      proposalForm.reset();
+
       window.alert("교환 제안이 등록되었습니다.");
     },
     onError: (error) => {
@@ -129,10 +150,13 @@ export function useExchangePostPage() {
       return;
     }
 
-    setEditTitle(request.title ?? "");
-    setEditLessonDate(toIsoDateOnly(request.lessonDate));
-    setEditContent(request.content ?? "");
-    setEditExpiresAt(toIsoDateOnly(request.expiresAt));
+    editForm.reset({
+      title: request.title ?? "",
+      lessonDate: toIsoDateOnly(request.lessonDate),
+      content: request.content ?? "",
+      expiresAt: toIsoDateOnly(request.expiresAt),
+    });
+
     setIsEditing(true);
   };
 
@@ -142,10 +166,10 @@ export function useExchangePostPage() {
     }
   };
 
-  const saveEdit = () => {
-    const title = editTitle.trim();
-    const content = editContent.trim();
-    const expiresAt = normalizeLessonExchangeExpiresAtForApi(editExpiresAt);
+  const saveEdit = editForm.handleSubmit((data) => {
+    const title = data.title.trim();
+    const content = data.content.trim();
+    const expiresAt = normalizeLessonExchangeExpiresAtForApi(data.expiresAt);
 
     if (!title) {
       window.alert("제목을 입력해 주세요.");
@@ -165,15 +189,13 @@ export function useExchangePostPage() {
     updateRequestMutation.mutate({
       title,
       content,
-      lessonDate: editLessonDate.trim() || undefined,
+      lessonDate: data.lessonDate.trim() || undefined,
       expiresAt,
     });
-  };
+  });
 
-  const submitProposal = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const content = proposalContent.trim();
+  const submitProposal = proposalForm.handleSubmit((data) => {
+    const content = data.content.trim();
 
     if (!content) {
       window.alert("내용을 입력해 주세요.");
@@ -181,10 +203,10 @@ export function useExchangePostPage() {
     }
 
     createProposalMutation.mutate({
-      lessonDate: proposalLessonDate.trim() || undefined,
+      lessonDate: data.lessonDate.trim() || undefined,
       content,
     });
-  };
+  });
 
   const deleteRequest = () => {
     if (!isValidPostId) return;
@@ -210,31 +232,17 @@ export function useExchangePostPage() {
     proposalsError: proposalsQuery.isError,
 
     isEditing,
-    editTitle,
-    editLessonDate,
-    editContent,
-    editExpiresAt,
-
-    proposalLessonDate,
-    proposalContent,
+    editForm,
+    proposalForm,
 
     isUpdating: updateRequestMutation.isPending,
     isCreatingProposal: createProposalMutation.isPending,
-
-    setEditTitle,
-    setEditLessonDate,
-    setEditContent,
-    setEditExpiresAt,
-
-    setProposalLessonDate,
-    setProposalContent,
 
     startEdit,
     cancelEdit,
     saveEdit,
     submitProposal,
     deleteRequest,
-
     backToList,
   };
 }
