@@ -61,7 +61,10 @@ export default function ExchangeListPageClient() {
       title: item.title ?? "제목 없음",
       author: item.requestedByName ?? "-",
       date: formatUtcToKstShortDate(item.createdAt ?? item.lessonDate),
+
       status: formatRequestStatus(item.status),
+      statusType: item.status as "PENDING" | "APPROVED" | "REJECTED",
+
       detailHref: `/staff/class/exchange/${item.id ?? ""}`,
     }));
 

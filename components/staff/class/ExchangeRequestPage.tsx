@@ -41,7 +41,12 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
         <ProposalHeader>
           <ProposalTitle>교환 제안서</ProposalTitle>
 
-          <Button type="submit" form="exchange-proposal-form" disabled={page.isCreatingProposal}>
+          <Button
+            type="submit"
+            form="exchange-proposal-form"
+            $variant="edit"
+            disabled={page.isCreatingProposal}
+          >
             작성 완료
           </Button>
         </ProposalHeader>
