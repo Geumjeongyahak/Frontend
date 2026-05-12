@@ -1,16 +1,20 @@
 export type StudentStatus = "ENROLLED" | "ON_LEAVE" | "COMPLETED";
 
+export interface StudentPathParamsDto {
+  studentId: number;
+}
+
 export interface StudentListQueryParamsDto {
   name?: string;
   status?: StudentStatus;
-  page?: number;
-  size?: number;
+  classroomId?: number;
 }
 
 export interface CreateStudentRequestDto {
   name: string;
   phoneNumber?: string;
   description?: string;
+  classroomId: number;
 }
 
 export interface UpdateStudentRequestDto {
@@ -18,6 +22,7 @@ export interface UpdateStudentRequestDto {
   phoneNumber?: string;
   description?: string;
   status?: StudentStatus;
+  classroomId?: number;
 }
 
 export interface StudentResponseDto {
@@ -25,19 +30,11 @@ export interface StudentResponseDto {
   name?: string;
   phoneNumber?: string;
   description?: string;
+  classroomId?: number;
+  classroomName?: string;
   status?: StudentStatus | string;
 }
 
 export type StudentListItemDto = StudentResponseDto;
 
-export interface StudentListResponseDto {
-  content?: StudentListItemDto[];
-  page?: number;
-  size?: number;
-  totalElements?: number;
-  totalPages?: number;
-}
-
-export interface StudentPathParamsDto {
-  studentId: number;
-}
+export type StudentListResponseDto = StudentListItemDto[];

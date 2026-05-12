@@ -9,9 +9,9 @@ import type {
 } from "./student.dto";
 
 // 학생 목록을 조회하는 요청
-export async function getStudents(query?: StudentListQueryParamsDto) {
+export async function getStudents(queryParams?: StudentListQueryParamsDto) {
   const response = await authClient.get<StudentListResponseDto>("/api/v1/students", {
-    params: query,
+    params: queryParams,
   });
   return response.data;
 }
