@@ -57,7 +57,7 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
             aria-label="반 이름"
             placeholder="반 이름"
             type="text"
-            value={page.request?.classroomName ?? ""}
+            value={page.user?.role ?? ""} //TODO: dto 반이름
             readOnly
           />
           <FieldInput
@@ -65,7 +65,7 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
             aria-label="작성자"
             placeholder="작성자"
             type="text"
-            value={page.request?.requestedByName ?? ""}
+            value={page.user?.name ?? ""}
             readOnly
           />
           <FieldInput

@@ -46,7 +46,7 @@ export function useExchangePostPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { status: authStatus } = useAuthSession();
+  const { status: authStatus, user } = useAuthSession();
   const isAuthenticated = authStatus === "authenticated";
 
   const postId = Number(params.postId);
@@ -223,6 +223,8 @@ export function useExchangePostPage() {
     postId,
     isAuthenticated,
     isValidPostId,
+
+    user,
 
     request: requestQuery.data,
     requestError: requestQuery.isError,
