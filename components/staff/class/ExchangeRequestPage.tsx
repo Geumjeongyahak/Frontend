@@ -15,8 +15,12 @@ interface ExchangeRequestPageProps {
 
 export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
   const canDelete = page.isAuthenticated && page.isValidPostId;
-  const canEdit = page.isAuthenticated && page.isValidPostId && !page.requestError;
+  const isLocked =
+    page.request?.status === "APPROVED" ||
+    page.request?.status === "COMPLETED" ||
+    page.request?.status === "REJECTED";
 
+  const canEdit = page.isAuthenticated && page.isValidPostId && !page.requestError && !isLocked;
   const acceptedHref = `/staff/class/exchange/${page.postId}/accepted`;
 
   return (
@@ -30,46 +34,69 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
         onCancelEdit={page.cancelEdit}
         onSaveEdit={page.saveEdit}
         onStartEdit={page.startEdit}
+        onBackToList={page.backToList}
       />
 
       <ContentColumn>
         <ExchangePostDetail page={page} />
+        {!page.isEditing && (
+          <>
+            <Divider />
 
-        <Divider />
+            <ProposalHeader>
+              <ProposalTitle>교환 제안서</ProposalTitle>
 
-        <ProposalHeader>
-          <ProposalTitle>교환 제안서</ProposalTitle>
+              <Button
+                type="submit"
+                form="exchange-proposal-form"
+                $variant="edit"
+                disabled={page.isCreatingProposal}
+              >
+                작성 완료
+              </Button>
+            </ProposalHeader>
 
-          <Button type="submit" form="exchange-proposal-form" disabled={page.isCreatingProposal}>
-            작성 완료
-          </Button>
-        </ProposalHeader>
+            <ProposalForm id="exchange-proposal-form" onSubmit={page.submitProposal}>
+              <FieldInput
+                $tone="proposal"
+                aria-label="반 이름"
+                placeholder="반 이름"
+                type="text"
+                value={page.user?.role ?? ""} //TODO: dto 반이름
+                readOnly
+              />
+              <FieldInput
+                $tone="proposal"
+                aria-label="작성자"
+                placeholder="작성자"
+                type="text"
+                value={page.user?.name ?? ""}
+                readOnly
+              />
+              <FieldInput
+                $tone="proposal"
+                aria-label="수업 일자"
+                placeholder="수업 일자"
+                type="text"
+                {...page.proposalForm.register("lessonDate")}
+              />
 
-        <ProposalForm id="exchange-proposal-form" onSubmit={page.submitProposal}>
-          <FieldInput
-            $tone="proposal"
-            aria-label="수업 일자"
-            placeholder="수업 일자"
-            type="date"
-            value={page.proposalLessonDate}
-            onChange={(e) => page.setProposalLessonDate(e.target.value)}
-          />
+              <ProposalFormTextarea
+                $tone="proposal"
+                placeholder="내용"
+                rows={6}
+                {...page.proposalForm.register("content")}
+              />
+            </ProposalForm>
 
-          <ProposalFormTextarea
-            $tone="proposal"
-            placeholder="내용"
-            rows={6}
-            value={page.proposalContent}
-            onChange={(e) => page.setProposalContent(e.target.value)}
-          />
-        </ProposalForm>
-
-        <ExchangeProposalList
-          acceptedHref={acceptedHref}
-          proposals={page.proposals}
-          proposalsLoading={page.proposalsLoading}
-          proposalsError={page.proposalsError}
-        />
+            <ExchangeProposalList
+              acceptedHref={acceptedHref}
+              proposals={page.proposals}
+              proposalsLoading={page.proposalsLoading}
+              proposalsError={page.proposalsError}
+            />
+          </>
+        )}
       </ContentColumn>
     </PageWrapper>
   );
@@ -128,14 +155,19 @@ const ProposalTitle = styled.h2`
 
 const ProposalForm = styled.form`
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: ${spacing.space12};
 
   @media (min-width: 120rem) {
     gap: ${spacing.space20};
   }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    grid-template-columns: 1fr;
+  }
 `;
 
 const ProposalFormTextarea = styled(FieldTextarea)`
   grid-column: 1 / -1;
+  background: #ffffff;
 `;

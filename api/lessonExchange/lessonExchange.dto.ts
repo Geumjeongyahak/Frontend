@@ -26,8 +26,6 @@ export interface CreateLessonExchangeRequestDto {
   lessonDate: string;
   title: string;
   content: string;
-  startPeriod?: number;
-  endPeriod?: number;
   expiresAt: string;
 }
 
@@ -35,8 +33,6 @@ export interface UpdateLessonExchangeRequestDto {
   lessonDate?: string;
   title?: string;
   content?: string;
-  startPeriod?: number;
-  endPeriod?: number;
   expiresAt?: string;
 }
 
@@ -59,8 +55,6 @@ export interface LessonExchangeRequestDetailDto {
   content?: string;
   status?: LessonExchangeRequestStatus;
   scope?: string;
-  startPeriod?: number;
-  endPeriod?: number;
   expiresAt?: string;
   processedAt?: string;
   processedByName?: string;
@@ -83,15 +77,11 @@ export type LessonExchangeRequestListResponseDto = LessonExchangeRequestDetailDt
 
 export interface LessonExchangeProposalRequestDto {
   lessonDate?: string;
-  startPeriod?: number;
-  endPeriod?: number;
   content: string;
 }
 
 export interface UpdateLessonExchangeProposalRequestDto {
   lessonDate?: string;
-  startPeriod?: number;
-  endPeriod?: number;
   content?: string;
 }
 
@@ -104,8 +94,6 @@ export interface LessonExchangeProposalDto {
   proposalType?: string;
   proposalScope?: string;
   lessonDate?: string;
-  startPeriod?: number;
-  endPeriod?: number;
   content?: string;
   status?: LessonExchangeProposalStatus;
   acceptedAt?: string;

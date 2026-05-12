@@ -14,10 +14,16 @@ import {
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export default function Page() {
-  const kstToday = getKstTodayShortDate();
-  const [expireDateText, setExpireDateText] = useState(kstToday);
-  const dateInputRef = useRef<HTMLInputElement>(null);
+  //const kstToday = getKstTodayShortDate();
+
+  const [lessonDateText, setLessonDateText] = useState("");
+  const [expireDateText, setExpireDateText] = useState("");
+
+  const lessonDateInputRef = useRef<HTMLInputElement>(null);
+  const expireDateInputRef = useRef<HTMLInputElement>(null);
+
   const router = useRouter();
+
   const createLessonExchangeMutation = useMutation({
     mutationFn: createLessonExchangeRequest,
     onSuccess: () => {
@@ -29,8 +35,8 @@ export default function Page() {
     },
   });
 
-  const handleOpenDatePicker = () => {
-    const dateInput = dateInputRef.current;
+  const handleOpenDatePicker = (ref: React.RefObject<HTMLInputElement | null>) => {
+    const dateInput = ref.current;
     if (!dateInput) return;
 
     if (typeof dateInput.showPicker === "function") {
@@ -41,12 +47,15 @@ export default function Page() {
     dateInput.click();
   };
 
-  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDateChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    setter: React.Dispatch<React.SetStateAction<string>>,
+  ) => {
     const value = event.target.value;
     if (!value) return;
 
     const [year, month, day] = value.split("-");
-    setExpireDateText(`${year.slice(-2)}.${month}.${day}`);
+    setter(`${year.slice(-2)}.${month}.${day}`);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -77,22 +86,11 @@ export default function Page() {
       window.alert("만료일을 달력에서 선택해 주세요.");
       return;
     }
-    if (
-      !Number.isFinite(startPeriod) ||
-      !Number.isFinite(endPeriod) ||
-      startPeriod < 1 ||
-      endPeriod < 1
-    ) {
-      window.alert("수업 교시를 올바른 숫자로 입력해 주세요.");
-      return;
-    }
 
     createLessonExchangeMutation.mutate({
       lessonDate,
       title,
       content,
-      startPeriod,
-      endPeriod,
       expiresAt,
     });
   };
@@ -113,42 +111,49 @@ export default function Page() {
       <Form id="exchange-form" onSubmit={handleSubmit}>
         <Section>
           <Label htmlFor="title">제목</Label>
-          <Input id="title" name="title" defaultValue="제목" />
+          <Input id="title" name="title" placeholder="제목" />
         </Section>
 
         <Section>
           <Label as="h2">신청자 정보</Label>
           <InfoStack>
-            <InfoPairRow $wideFirst>
-              <FieldLabel htmlFor="className">반 이름</FieldLabel>
-              <InlineInput id="className" name="className" defaultValue="개나리반" />
-              <FieldLabel htmlFor="writer">작성자</FieldLabel>
-              <InlineInput id="writer" name="writer" defaultValue="홍길동" disabled />
-            </InfoPairRow>
             <InfoPairRow>
+              <FieldLabel htmlFor="className">반 이름</FieldLabel>
+              <InlineInput id="className" name="className" placeholder="반 이름" />
+              <FieldLabel htmlFor="writer">작성자</FieldLabel>
+              <InlineInput id="writer" name="writer" placeholder="홍길동" />
               <FieldLabel htmlFor="lessonDate">수업 일자</FieldLabel>
-              <InlineInput id="lessonDate" name="lessonDate" defaultValue={kstToday} />
-              <FieldLabel id="lessonPeriod-label">수업 교시</FieldLabel>
-              <LessonPeriodInputs role="group" aria-labelledby="lessonPeriod-label">
-                <LessonPeriodInput
-                  name="lessonPeriodFrom"
-                  defaultValue="1"
-                  aria-label="수업 교시 시작"
+              <DateRow>
+                <DateInput
+                  id="lessonDate"
+                  name="lessonDate"
+                  placeholder="00.00.00"
+                  value={lessonDateText}
+                  readOnly
+                  onClick={() => handleOpenDatePicker(lessonDateInputRef)}
                 />
-                <PeriodTilde aria-hidden>~</PeriodTilde>
-                <LessonPeriodInput
-                  name="lessonPeriodTo"
-                  defaultValue="2"
-                  aria-label="수업 교시 끝"
+                <HiddenNativeDateInput
+                  ref={lessonDateInputRef}
+                  type="date"
+                  onChange={(e) => handleDateChange(e, setLessonDateText)}
+                  aria-hidden="true"
+                  tabIndex={-1}
                 />
-              </LessonPeriodInputs>
+                <CalendarButton
+                  type="button"
+                  aria-label="수업 일자 달력 열기"
+                  onClick={() => handleOpenDatePicker(lessonDateInputRef)}
+                >
+                  <IconCalendarMonth size={16} stroke={2} color={colors.white} />
+                </CalendarButton>
+              </DateRow>
             </InfoPairRow>
           </InfoStack>
         </Section>
 
         <Section>
           <Label htmlFor="reason">교환 신청 사유</Label>
-          <TextArea id="reason" name="reason" defaultValue="교환 신청 사유" />
+          <InlineInput id="reason" name="reason" placeholder="교환 신청 사유" />
         </Section>
 
         <Section>
@@ -157,18 +162,23 @@ export default function Page() {
             <DateInput
               id="expireDate"
               name="expireDate"
+              placeholder="00.00.00"
               value={expireDateText}
               readOnly
-              onClick={handleOpenDatePicker}
+              onClick={() => handleOpenDatePicker(expireDateInputRef)}
             />
             <HiddenNativeDateInput
-              ref={dateInputRef}
+              ref={expireDateInputRef}
               type="date"
-              onChange={handleDateChange}
+              onChange={(e) => handleDateChange(e, setExpireDateText)}
               aria-hidden="true"
               tabIndex={-1}
             />
-            <CalendarButton type="button" aria-label="달력 열기" onClick={handleOpenDatePicker}>
+            <CalendarButton
+              type="button"
+              aria-label="만료일 달력 열기"
+              onClick={() => handleOpenDatePicker(expireDateInputRef)}
+            >
               <IconCalendarMonth size={16} stroke={2} color={colors.white} />
             </CalendarButton>
           </DateRow>
@@ -211,8 +221,8 @@ const HeaderRow = styled.div`
 
 const Title = styled.h1`
   margin: 0;
-  font-size: ${typography.fontSize20};
-  font-weight: 600;
+  font-size: ${typography.fontSize24};
+  font-weight: 500;
   line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
@@ -267,7 +277,7 @@ const Form = styled.form`
 const Section = styled.section`
   display: flex;
   flex-direction: column;
-  gap: ${spacing.space12};
+  gap: ${spacing.space16};
 
   @media (min-width: 120rem) {
     gap: 1.875rem;
@@ -275,7 +285,6 @@ const Section = styled.section`
 `;
 
 const Label = styled.label`
-  margin: 0;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -289,11 +298,15 @@ const Input = styled.input`
   width: 100%;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  background: ${colors.background};
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
+  border: 1px solid #c0c0c0;
   outline: none;
+
+  &::placeholder {
+    color: #c0c0c0;
+  }
 
   @media (min-width: 120rem) {
     min-height: 4rem;
@@ -312,12 +325,13 @@ const InfoStack = styled.div`
   }
 `;
 
-const InfoPairRow = styled.div<{ $wideFirst?: boolean }>`
+const InfoPairRow = styled.div`
   display: grid;
-  grid-template-columns: ${({ $wideFirst }) =>
-    $wideFirst
-      ? `auto minmax(0, 2.25fr) auto minmax(0, 1fr)`
-      : `auto minmax(0, 1fr) auto minmax(0, 1fr)`};
+  grid-template-columns:
+    auto minmax(0, 1fr)
+    auto minmax(0, 1fr)
+    auto auto;
+
   align-items: center;
   gap: ${spacing.space12};
 
@@ -330,31 +344,9 @@ const InfoPairRow = styled.div<{ $wideFirst?: boolean }>`
   }
 `;
 
-const LessonPeriodInputs = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${spacing.space8};
-  min-width: 0;
-
-  @media (min-width: 120rem) {
-    gap: ${spacing.space12};
-  }
-`;
-
-const PeriodTilde = styled.span`
-  flex-shrink: 0;
-  font-size: ${typography.fontSize14};
-  font-weight: 600;
-  line-height: ${typography.lineHeight130};
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
-`;
-
 const FieldLabel = styled.label`
   font-size: ${typography.fontSize14};
-  font-weight: 600;
+  font-weight: 500;
   line-height: ${typography.lineHeight130};
   white-space: nowrap;
 
@@ -366,10 +358,15 @@ const FieldLabel = styled.label`
 const InlineInput = styled.input`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  background: ${colors.background};
   font-size: ${typography.fontSize14};
   font-weight: 400;
   line-height: ${typography.lineHeight130};
+  border: 1px solid #c0c0c0;
+  outline: none;
+
+  &::placeholder {
+    color: #c0c0c0;
+  }
 
   &:disabled {
     background: #b5b5b5;
@@ -384,38 +381,22 @@ const InlineInput = styled.input`
   }
 `;
 
-const LessonPeriodInput = styled(InlineInput)`
-  flex: 1 1 0;
-  min-width: 2.5rem;
-  text-align: center;
-`;
-
-const TextArea = styled.textarea`
-  width: 100%;
-  min-height: 6.875rem;
-  padding: 0.75rem ${spacing.space12};
-  background: ${colors.background};
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  resize: none;
-  outline: none;
-
-  @media (min-width: 120rem) {
-    min-height: 9.6875rem;
-    padding: 1.125rem ${spacing.space20};
-    font-size: ${typography.fontSize20};
-  }
-`;
-
 const DateRow = styled.div`
   display: inline-flex;
   align-items: center;
+  width: 100%;
+
+  min-width: 7.75rem;
   justify-content: space-between;
   width: 7.75rem;
   min-height: 2.6875rem;
   padding: 0.4375rem ${spacing.space12};
-  background: ${colors.background};
+  border: 1px solid #c0c0c0;
+  outline: none;
+
+  &::placeholder {
+    color: #c0c0c0;
+  }
 
   @media (min-width: 120rem) {
     width: 11.625rem;

@@ -2,13 +2,9 @@
 
 import styled from "styled-components";
 import type { LessonExchangeRequestStatus } from "@/api/lessonExchange/lessonExchange.dto";
-import { FieldInput, FieldTextarea } from "@/components/common/FormField";
 import { layout, spacing, typography } from "@/styles/tokens";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
-import {
-  formatUtcToKstShortDate,
-  formatUtcToKstShortDateTime,
-} from "@/utils/formatUtcToKstShortDate";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import { useExchangePostPage } from "@/app/staff/class/exchange/[postId]/useExchangePostPage";
 
 type ExchangeStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -30,14 +26,6 @@ function normalizeRequestStatusTone(
 export function ExchangePostDetail({ page }: ExchangeRequestDetailProps) {
   const request = page.request;
 
-  const detailTitle = page.requestError
-    ? "수업 교환 신청을 불러오지 못했습니다."
-    : (request?.title ?? "");
-
-  const detailContent = page.requestError
-    ? "교환 신청 사유를 불러오지 못했습니다."
-    : (request?.content ?? "");
-
   const detailStatusTone = normalizeRequestStatusTone(request?.status);
   const detailStatus = page.requestError ? "확인 불가" : formatRequestStatus(request?.status);
 
@@ -49,13 +37,9 @@ export function ExchangePostDetail({ page }: ExchangeRequestDetailProps) {
         <Label>제목</Label>
 
         {page.isEditing ? (
-          <FieldInput
-            aria-label="제목"
-            value={page.editTitle}
-            onChange={(e) => page.setEditTitle(e.target.value)}
-          />
+          <EditInput {...page.editForm.register("title")} />
         ) : (
-          <ValueBox $weight="semibold">{detailTitle}</ValueBox>
+          <ApplicantFieldValue>{request?.title || "—"}</ApplicantFieldValue>
         )}
 
         <ApplicantSection>
@@ -64,62 +48,51 @@ export function ExchangePostDetail({ page }: ExchangeRequestDetailProps) {
           <ApplicantBoxRow>
             <ApplicantField>
               <ApplicantBoxLabel>작성자</ApplicantBoxLabel>
+
               <ApplicantFieldValue>{request?.requestedByName || "—"}</ApplicantFieldValue>
             </ApplicantField>
 
             <ApplicantField>
               <ApplicantBoxLabel>반 이름</ApplicantBoxLabel>
+
               <ApplicantFieldValue>{request?.classroomName || "—"}</ApplicantFieldValue>
+            </ApplicantField>
+
+            <ApplicantField>
+              <ApplicantBoxLabel>수업 일자</ApplicantBoxLabel>
+
+              {page.isEditing ? (
+                <EditInput type="date" {...page.editForm.register("lessonDate")} />
+              ) : (
+                <ApplicantFieldValue>
+                  {formatUtcToKstShortDate(request?.lessonDate) || "—"}
+                </ApplicantFieldValue>
+              )}
             </ApplicantField>
           </ApplicantBoxRow>
 
-          <ApplicantFullWidthField>
-            <ApplicantBoxLabel>수업 일자</ApplicantBoxLabel>
+          <ApplicantFullWidthField />
 
-            {page.isEditing ? (
-              <FieldInput
-                aria-label="수업 일자"
-                type="date"
-                value={page.editLessonDate}
-                onChange={(e) => page.setEditLessonDate(e.target.value)}
-              />
-            ) : (
-              <ApplicantFieldValueWide>
-                {formatUtcToKstShortDate(request?.lessonDate) || "—"}
-              </ApplicantFieldValueWide>
-            )}
-          </ApplicantFullWidthField>
-
-          <ApplicantReasonField>
+          <ApplicantNextRowField>
             <ApplicantBoxLabel>교환 신청 사유</ApplicantBoxLabel>
 
             {page.isEditing ? (
-              <FieldTextarea
-                aria-label="교환 신청 사유"
-                rows={6}
-                value={page.editContent}
-                onChange={(e) => page.setEditContent(e.target.value)}
-              />
+              <EditInput {...page.editForm.register("content")} />
             ) : (
-              <ApplicantReasonText>{detailContent || "—"}</ApplicantReasonText>
+              <ApplicantFieldValue>{request?.content || "—"}</ApplicantFieldValue>
             )}
-          </ApplicantReasonField>
+          </ApplicantNextRowField>
+
+          <ApplicantNextRowField>
+            <ApplicantBoxLabel>만료일</ApplicantBoxLabel>
+
+            {page.isEditing ? (
+              <ExpiresEditInput type="date" {...page.editForm.register("expiresAt")} />
+            ) : (
+              <ExpiresDateBox>{formatUtcToKstShortDate(request?.expiresAt)}</ExpiresDateBox>
+            )}
+          </ApplicantNextRowField>
         </ApplicantSection>
-
-        <Label>만료일</Label>
-
-        <ExpiresRow>
-          {page.isEditing ? (
-            <FieldInput
-              aria-label="만료일 시각"
-              type="datetime-local"
-              value={page.editExpiresAt}
-              onChange={(e) => page.setEditExpiresAt(e.target.value)}
-            />
-          ) : (
-            <DateBox>{formatUtcToKstShortDateTime(request?.expiresAt) || "—"}</DateBox>
-          )}
-        </ExpiresRow>
 
         <Label>신청 현황</Label>
 
@@ -135,7 +108,6 @@ const DateBar = styled.div`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
   border-bottom: 1px solid #a9a9a9;
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 400;
   line-height: ${typography.lineHeight130};
@@ -159,7 +131,6 @@ const PostSection = styled.section`
 
 const Label = styled.h2`
   margin: 0;
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -174,8 +145,7 @@ const ValueBox = styled.div<{ $weight?: "regular" | "semibold" }>`
   align-items: center;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  background: #f7f7f7;
-  color: #000000;
+  background: #f8f8f8;
   font-size: ${typography.fontSize14};
   font-weight: ${({ $weight }) => ($weight === "semibold" ? 600 : 400)};
   line-height: ${typography.lineHeight130};
@@ -199,7 +169,7 @@ const ApplicantSection = styled.div`
 
 const ApplicantBoxRow = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: ${spacing.space12};
 
   @media (min-width: 120rem) {
@@ -242,7 +212,7 @@ const ApplicantField = styled.div`
   }
 `;
 
-const ApplicantReasonField = styled.div`
+const ApplicantNextRowField = styled.div`
   display: grid;
   gap: ${LABEL_FIELD_GAP_MOBILE};
 
@@ -268,40 +238,15 @@ const ApplicantFieldValue = styled(ValueBox)`
   flex: 1;
 `;
 
-const ApplicantFieldValueWide = styled(ValueBox)`
-  width: 100%;
-  min-width: 0;
-  flex: 1;
-`;
-
-const ApplicantReasonText = styled(ValueBox)`
-  align-items: flex-start;
-  min-height: 6.875rem;
-  padding-top: 0.75rem;
-  word-break: break-word;
-
-  @media (min-width: 120rem) {
-    min-height: 9.6875rem;
-    padding-top: 1.125rem;
-  }
-`;
-
-const ExpiresRow = styled.div`
-  display: flex;
-  justify-content: flex-start;
-  width: 100%;
-`;
-
 const StatusBadge = styled.span<{ $tone: ExchangeStatus }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: fit-content;
   min-width: 3.5rem;
-  padding: ${({ $tone }) => ($tone === "PENDING" ? "0.5rem 1.125rem" : "0.375rem 0.875rem")};
-  border-radius: 999px;
-  font-size: ${typography.fontSize14};
-  font-weight: 600;
+  padding: ${({ $tone }) => ($tone === "PENDING" ? "0.75rem 1.125rem" : "0.375rem 0.875rem")};
+  border-radius: 8px;
+  font-size: ${typography.fontSize13};
   line-height: ${typography.lineHeight130};
 
   color: ${({ $tone }) => {
@@ -335,11 +280,33 @@ const StatusBadge = styled.span<{ $tone: ExchangeStatus }>`
   }
 `;
 
-const DateBox = styled(ValueBox)`
-  width: 7.75rem;
-  flex-shrink: 0;
-  justify-content: center;
-  text-align: center;
+const ExpiresDateBox = styled(ValueBox)`
+  display: inline-flex;
+  width: fit-content;
+  padding: 0 1.5rem 0 1rem;
+`;
+
+const EditInput = styled.input`
+  width: 100%;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+
+  border: 1px solid #c0c0c0;
+  background: #ffffff;
+  outline: none;
+
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ExpiresEditInput = styled(EditInput)`
+  width: 9rem;
 
   @media (min-width: 120rem) {
     width: 11.625rem;

@@ -13,6 +13,7 @@ interface ExchangeRequestActionBarProps {
   onCancelEdit: () => void;
   onSaveEdit: () => void;
   onStartEdit: () => void;
+  onBackToList: () => void;
 }
 
 export function ExchangeRequestActionBar({
@@ -24,6 +25,7 @@ export function ExchangeRequestActionBar({
   onCancelEdit,
   onSaveEdit,
   onStartEdit,
+  onBackToList,
 }: ExchangeRequestActionBarProps) {
   return (
     <TopButtonRow>
@@ -33,7 +35,7 @@ export function ExchangeRequestActionBar({
 
       {isEditing ? (
         <>
-          <Button type="button" $variant="neutral" onClick={onCancelEdit} disabled={isUpdating}>
+          <Button type="button" $variant="edit" onClick={onCancelEdit} disabled={isUpdating}>
             취소
           </Button>
 
@@ -42,9 +44,15 @@ export function ExchangeRequestActionBar({
           </Button>
         </>
       ) : (
-        <Button type="button" onClick={onStartEdit} disabled={!canEdit}>
-          수정
-        </Button>
+        <>
+          <Button type="button" $variant="edit" onClick={onStartEdit} disabled={!canEdit}>
+            수정
+          </Button>
+
+          <Button type="button" $variant="neutral" onClick={onBackToList}>
+            목록
+          </Button>
+        </>
       )}
     </TopButtonRow>
   );

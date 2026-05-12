@@ -3,7 +3,7 @@
 import styled from "styled-components";
 import { radii, spacing, typography } from "@/styles/tokens";
 
-export type ButtonVariant = "primary" | "danger" | "neutral";
+export type ButtonVariant = "primary" | "danger" | "neutral" | "edit";
 
 export const Button = styled.button<{ $variant?: ButtonVariant }>`
   display: inline-flex;
@@ -12,19 +12,37 @@ export const Button = styled.button<{ $variant?: ButtonVariant }>`
   min-width: 3.9375rem;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  border: 0;
   border-radius: ${radii.radius12};
+
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
+
   cursor: pointer;
+
+  border: 1px solid
+    ${({ $variant = "primary" }) => {
+      switch ($variant) {
+        case "danger":
+          return "#da3a30";
+
+        case "edit":
+          return "#88cd5a";
+
+        default:
+          return "transparent";
+      }
+    }};
 
   background-color: ${({ $variant = "primary" }) => {
     switch ($variant) {
       case "danger":
-        return "#fde4e2";
+      case "edit":
+        return "#ffffff";
+
       case "neutral":
-        return "#e4e4e4";
+        return "#88cd5a";
+
       case "primary":
       default:
         return "#88cd5a";
@@ -35,17 +53,18 @@ export const Button = styled.button<{ $variant?: ButtonVariant }>`
     switch ($variant) {
       case "danger":
         return "#da3a30";
+
+      case "edit":
+        return "#88cd5a";
+
       case "neutral":
-        return "#000000";
+        return "#ffffff";
+
       case "primary":
       default:
         return "#ffffff";
     }
   }};
-
-  &:hover:not(:disabled) {
-    filter: brightness(0.96);
-  }
 
   &:disabled {
     opacity: 0.65;
