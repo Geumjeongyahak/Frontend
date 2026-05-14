@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import ArchiveDocumentListPage from "@/components/archive/ArchiveDocumentListPage";
+import ArchiveDocumentListPage from "@/components/archive/document/ArchiveDocumentListPage";
 import {
   ARCHIVE_DOCUMENTS_PER_PAGE,
   archiveDocumentConfigs,

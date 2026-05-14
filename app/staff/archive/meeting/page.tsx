@@ -1,9 +1,6 @@
 import { redirect } from "next/navigation";
-import MeetingMinutesPage from "@/components/archive/MeetingMinutesPage";
-import {
-  MEETING_MINUTES_PER_PAGE,
-  meetingMinutes,
-} from "@/mocks/archiveMeeting";
+import MeetingMinutesPage from "@/components/archive/meeting/MeetingMinutesPage";
+import { MEETING_MINUTES_PER_PAGE, meetingMinutes } from "@/mocks/archiveMeeting";
 
 type PageProps = {
   searchParams?: Promise<{
@@ -24,8 +21,7 @@ export default async function Page({ searchParams }: PageProps) {
     1,
     Math.ceil(filteredMeetingMinutes.length / MEETING_MINUTES_PER_PAGE),
   );
-  const isInvalidPage =
-    !Number.isInteger(parsedPage) || parsedPage < 1 || parsedPage > totalPages;
+  const isInvalidPage = !Number.isInteger(parsedPage) || parsedPage < 1 || parsedPage > totalPages;
 
   if (isInvalidPage) {
     redirect("/staff/archive/meeting");

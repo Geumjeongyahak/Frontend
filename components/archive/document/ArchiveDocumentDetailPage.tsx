@@ -10,16 +10,13 @@ import {
   TextBox,
   Toolbar,
   ToolbarRight,
-} from "@/components/archive/MeetingMinuteDocument.styles";
+} from "@/components/archive/meeting/MeetingMinuteDocument.styles";
 import {
   DownloadBadge,
   FileLink,
   FileList,
-} from "@/components/archive/ArchiveDocumentPages.styles";
-import type {
-  ArchiveDocument,
-  ArchiveDocumentConfig,
-} from "@/mocks/archiveDocuments";
+} from "@/components/archive/document/ArchiveDocumentPages.styles";
+import type { ArchiveDocument, ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
 
 type ArchiveDocumentDetailPageProps = {
   config: ArchiveDocumentConfig;
