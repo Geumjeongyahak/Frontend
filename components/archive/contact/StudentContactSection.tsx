@@ -35,9 +35,7 @@ export default function StudentContactSection({ initialClasses = [] }: StudentCo
             편집 완료
           </S.CompleteEditButton>
         ) : (
-          <S.EditTextButton type="button" onClick={startEditing}>
-            편집
-          </S.EditTextButton>
+          <S.EditTextButton type="button" /*onClick={startEditing}*/>편집</S.EditTextButton>
         )}
       </S.PanelHeader>
 
