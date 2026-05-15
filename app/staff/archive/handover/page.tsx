@@ -1,10 +1,7 @@
 import { redirect } from "next/navigation";
 import ArchiveDocumentListPage from "@/components/archive/document/ArchiveDocumentListPage";
-import {
-  ARCHIVE_DOCUMENTS_PER_PAGE,
-  archiveDocumentConfigs,
-  getArchiveDocuments,
-} from "@/mocks/archiveDocuments";
+import { getChannelPosts } from "@/api/post/post.api";
+import { ARCHIVE_DOCUMENTS_PER_PAGE, archiveDocumentConfigs } from "@/mocks/archiveDocuments";
 
 type PageProps = {
   searchParams?: Promise<{
@@ -18,18 +15,42 @@ const config = archiveDocumentConfigs.handover;
 export default async function Page({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
   const parsedPage = resolvedSearchParams?.page ? Number(resolvedSearchParams.page) : 1;
-  const mineOnly = resolvedSearchParams?.mineOnly === "1";
-  const filteredDocuments = mineOnly
-    ? getArchiveDocuments("handover").filter((document) => document.author === "홍길동")
-    : getArchiveDocuments("handover");
-  const totalPages = Math.max(1, Math.ceil(filteredDocuments.length / ARCHIVE_DOCUMENTS_PER_PAGE));
-
-  if (!Number.isInteger(parsedPage) || parsedPage < 1 || parsedPage > totalPages) {
+  if (!Number.isInteger(parsedPage) || parsedPage < 1) {
     redirect(config.listPath);
   }
 
-  const startIndex = (parsedPage - 1) * ARCHIVE_DOCUMENTS_PER_PAGE;
-  const documents = filteredDocuments.slice(startIndex, startIndex + ARCHIVE_DOCUMENTS_PER_PAGE);
+  const mineOnly = resolvedSearchParams?.mineOnly === "1";
+  let response:
+    | Awaited<ReturnType<typeof getChannelPosts>>
+    | undefined;
+
+  try {
+    response = await getChannelPosts(
+      {
+        channelId: config.channelId,
+      },
+      {
+        page: parsedPage - 1,
+        size: ARCHIVE_DOCUMENTS_PER_PAGE,
+      },
+    );
+  } catch {
+    response = undefined;
+  }
+
+  const documents =
+    response?.content?.map((post) => ({
+      id: post.id ?? 0,
+      title: post.title ?? "",
+      author: post.authorName ?? "",
+      date: post.createdAt?.slice(0, 10) ?? "",
+    })) ?? [];
+
+  const totalPages = Math.max(1, response?.totalPages ?? 1);
+
+  if (parsedPage > totalPages) {
+    redirect(config.listPath);
+  }
 
   return (
     <ArchiveDocumentListPage

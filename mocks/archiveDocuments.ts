@@ -12,6 +12,7 @@ export type ArchiveDocument = {
 
 export type ArchiveDocumentConfig = {
   category: ArchiveDocumentCategory;
+  channelId: number;
   listPath: string;
   title: string;
   writeTitle: string;
@@ -26,6 +27,7 @@ export const ARCHIVE_DOCUMENTS_PER_PAGE = 9;
 export const archiveDocumentConfigs: Record<ArchiveDocumentCategory, ArchiveDocumentConfig> = {
   handover: {
     category: "handover",
+    channelId: 21, //채널 id 변경시 수정
     listPath: "/staff/archive/handover",
     title: "인수인계서",
     writeTitle: "인수인계서 작성하기",
@@ -36,6 +38,7 @@ export const archiveDocumentConfigs: Record<ArchiveDocumentCategory, ArchiveDocu
   },
   exam: {
     category: "exam",
+    channelId: 22, //채널 id 변경시 수정
     listPath: "/staff/archive/exam",
     title: "시험 문제 자료",
     writeTitle: "시험 문제 자료 작성하기",
@@ -46,6 +49,7 @@ export const archiveDocumentConfigs: Record<ArchiveDocumentCategory, ArchiveDocu
   },
   forms: {
     category: "forms",
+    channelId: 23, //채널 id 변경시 수정
     listPath: "/staff/archive/forms",
     title: "서류 양식",
     writeTitle: "서류 양식 작성하기",

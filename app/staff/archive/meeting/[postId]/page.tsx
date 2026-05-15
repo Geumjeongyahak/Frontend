@@ -1,9 +1,6 @@
 import { notFound } from "next/navigation";
-import MeetingMinuteDetailPage from "@/components/archive/MeetingMinuteDetailPage";
-import {
-  getMeetingMinuteById,
-  meetingMinutes,
-} from "@/mocks/archiveMeeting";
+import MeetingMinuteDetailPage from "@/components/archive/meeting/MeetingMinuteDetailPage";
+import { getMeetingMinuteById, meetingMinutes } from "@/mocks/archiveMeeting";
 
 type PageProps = {
   params: Promise<{
