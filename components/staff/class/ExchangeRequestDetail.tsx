@@ -7,10 +7,11 @@ import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import { useExchangePostPage } from "@/app/staff/class/exchange/[postId]/useExchangePostPage";
 
-type ExchangeStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type ExchangeStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 interface ExchangeRequestDetailProps {
   page: ReturnType<typeof useExchangePostPage>;
+  showExpiresAt?: boolean;
 }
 
 function normalizeRequestStatusTone(
@@ -23,7 +24,7 @@ function normalizeRequestStatusTone(
   return "PENDING";
 }
 
-export function ExchangePostDetail({ page }: ExchangeRequestDetailProps) {
+export function ExchangePostDetail({ page, showExpiresAt = true }: ExchangeRequestDetailProps) {
   const request = page.request;
 
   const detailStatusTone = normalizeRequestStatusTone(request?.status);
@@ -83,15 +84,17 @@ export function ExchangePostDetail({ page }: ExchangeRequestDetailProps) {
             )}
           </ApplicantNextRowField>
 
-          <ApplicantNextRowField>
-            <ApplicantBoxLabel>만료일</ApplicantBoxLabel>
+          {showExpiresAt ? (
+            <ApplicantNextRowField>
+              <ApplicantBoxLabel>만료일</ApplicantBoxLabel>
 
-            {page.isEditing ? (
-              <ExpiresEditInput type="date" {...page.editForm.register("expiresAt")} />
-            ) : (
-              <ExpiresDateBox>{formatUtcToKstShortDate(request?.expiresAt)}</ExpiresDateBox>
-            )}
-          </ApplicantNextRowField>
+              {page.isEditing ? (
+                <ExpiresEditInput type="date" {...page.editForm.register("expiresAt")} />
+              ) : (
+                <ExpiresDateBox>{formatUtcToKstShortDate(request?.expiresAt)}</ExpiresDateBox>
+              )}
+            </ApplicantNextRowField>
+          ) : null}
         </ApplicantSection>
 
         <Label>신청 현황</Label>
@@ -238,7 +241,7 @@ const ApplicantFieldValue = styled(ValueBox)`
   flex: 1;
 `;
 
-const StatusBadge = styled.span<{ $tone: ExchangeStatus }>`
+export const StatusBadge = styled.span<{ $tone: ExchangeStatus }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;

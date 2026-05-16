@@ -7,7 +7,10 @@ import { layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 interface ExchangeProposalListProps {
-  acceptedHref: string;
+  acceptedHref: string | ((proposal: LessonExchangeProposalDto) => string);
+  acceptLabel?: string;
+  showAcceptLink?: boolean;
+  showCardTopBorder?: boolean;
   proposals: LessonExchangeProposalDto[];
   proposalsLoading: boolean;
   proposalsError: boolean;
@@ -15,6 +18,9 @@ interface ExchangeProposalListProps {
 
 export function ExchangeProposalList({
   acceptedHref,
+  acceptLabel = "제안 수락하기",
+  showAcceptLink = true,
+  showCardTopBorder = true,
   proposals,
   proposalsLoading,
   proposalsError,
@@ -30,33 +36,40 @@ export function ExchangeProposalList({
       ) : proposals.length === 0 ? (
         <ProposalPlaceholder>등록된 교환 제안이 없습니다.</ProposalPlaceholder>
       ) : (
-        proposals.map((proposal, index) => (
-          <ProposalCard key={proposal.id ?? index}>
-            <ProposalMetaRow>
-              <ProposalMetaCell>
-                <MetaLabel>반 이름</MetaLabel>
-                <MetaValue>{proposal.classroomName ?? "—"}</MetaValue>
-              </ProposalMetaCell>
+        proposals.map((proposal, index) => {
+          const acceptHref =
+            typeof acceptedHref === "function" ? acceptedHref(proposal) : acceptedHref;
 
-              <ProposalMetaCell>
-                <MetaLabel>수업 일자</MetaLabel>
-                <MetaValue>{formatUtcToKstShortDate(proposal.lessonDate) || "—"}</MetaValue>
-              </ProposalMetaCell>
-
-              <ProposalMetaCell>
-                <MetaLabel>작성자</MetaLabel>
-                <MetaValue>{proposal.proposedByName ?? "—"}</MetaValue>
-              </ProposalMetaCell>
-            </ProposalMetaRow>
-
-            <ProposalContent>{proposal.content ?? "—"}</ProposalContent>
-
-            <ProposalFooter>
+          return (
+            <ProposalCard key={proposal.id ?? index} $showTopBorder={showCardTopBorder}>
               <ProposalDate>{formatUtcToKstShortDate(proposal.createdAt) || "—"}</ProposalDate>
-              <AcceptLink href={acceptedHref}>제안 수락하기</AcceptLink>
-            </ProposalFooter>
-          </ProposalCard>
-        ))
+              <ProposalMetaRow>
+                <ProposalMetaCell>
+                  <MetaLabel>반 이름</MetaLabel>
+                  <MetaValue>{proposal.classroomName ?? "—"}</MetaValue>
+                </ProposalMetaCell>
+
+                <ProposalMetaCell>
+                  <MetaLabel>작성자</MetaLabel>
+                  <MetaValue>{proposal.proposedByName ?? "—"}</MetaValue>
+                </ProposalMetaCell>
+
+                <ProposalMetaCell>
+                  <MetaLabel>수업일자</MetaLabel>
+                  <MetaValue>{formatUtcToKstShortDate(proposal.lessonDate) || "—"}</MetaValue>
+                </ProposalMetaCell>
+              </ProposalMetaRow>
+
+              <ProposalContent>{proposal.content ?? "—"}</ProposalContent>
+
+              {showAcceptLink ? (
+                <ProposalFooter>
+                  <AcceptLink href={acceptHref}>{acceptLabel}</AcceptLink>
+                </ProposalFooter>
+              ) : null}
+            </ProposalCard>
+          );
+        })
       )}
     </ProposalList>
   );
@@ -80,12 +93,12 @@ const ProposalPlaceholder = styled.p`
   }
 `;
 
-const ProposalCard = styled.article`
+const ProposalCard = styled.article<{ $showTopBorder: boolean }>`
   display: flex;
   flex-direction: column;
   gap: 0.8125rem;
   padding-top: ${spacing.space20};
-  border-top: 1px solid #a9a9a9;
+  border-top: ${({ $showTopBorder }) => ($showTopBorder ? "0.5px solid #d3d3d3" : "0")};
 
   @media (min-width: 120rem) {
     gap: ${spacing.space20};
@@ -115,7 +128,6 @@ const ProposalMetaCell = styled.div`
   gap: ${spacing.space8};
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  background: #f8f8f8;
 
   @media (min-width: 120rem) {
     min-height: 4rem;
@@ -126,7 +138,8 @@ const ProposalMetaCell = styled.div`
 
 const MetaLabel = styled.span`
   flex-shrink: 0;
-  color: #878787;
+  color: #c0c0c0;
+  font-weight: 500;
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
 
@@ -137,7 +150,6 @@ const MetaLabel = styled.span`
 
 const MetaValue = styled.span`
   min-width: 0;
-  color: #000000;
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
   word-break: break-word;
@@ -150,8 +162,6 @@ const MetaValue = styled.span`
 const ProposalContent = styled.div`
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  background: #f8f8f8;
-  color: #000000;
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
 
@@ -165,7 +175,7 @@ const ProposalContent = styled.div`
 const ProposalFooter = styled.div`
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: ${spacing.space20};
   padding-left: ${spacing.space12};
 
@@ -175,9 +185,10 @@ const ProposalFooter = styled.div`
 `;
 
 const ProposalDate = styled.span`
+  align-self: flex-end;
   color: #c0c0c0;
   font-size: ${typography.fontSize14};
-  font-weight: 600;
+  font-weight: 500;
   line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
@@ -189,19 +200,14 @@ const AcceptLink = styled(Link)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.25rem;
-  padding: 0.5625rem ${spacing.space16};
-  border-radius: ${radii.radius12};
-  background: #dcf4ea;
-  color: #3da75c;
+  color: #88cd5a;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 0.125rem;
 
   @media (min-width: 120rem) {
-    min-height: 3rem;
-    padding: 0.75rem ${spacing.space20};
     font-size: ${typography.fontSize20};
   }
 `;

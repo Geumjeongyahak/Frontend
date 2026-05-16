@@ -9,7 +9,7 @@ const BaseFieldStyle = `
   width: 100%;
   min-width: 0;
   padding: 0.8125rem ${spacing.space12};
-  border: 1px solid #c0c0c0;
+  border: 0.5px solid #c0c0c0;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
