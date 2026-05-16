@@ -73,7 +73,9 @@ export interface LessonExchangeListResponseDto {
   createdAt: string;
 }
 
-export type LessonExchangeRequestListResponseDto = LessonExchangeRequestDetailDto[];
+export interface LessonExchangeRequestListResponseDto {
+  content: LessonExchangeRequestDetailDto[];
+}
 
 export interface LessonExchangeProposalRequestDto {
   lessonDate?: string;
