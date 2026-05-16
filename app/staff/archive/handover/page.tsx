@@ -20,9 +20,7 @@ export default async function Page({ searchParams }: PageProps) {
   }
 
   const mineOnly = resolvedSearchParams?.mineOnly === "1";
-  let response:
-    | Awaited<ReturnType<typeof getChannelPosts>>
-    | undefined;
+  let response: Awaited<ReturnType<typeof getChannelPosts>> | undefined;
 
   try {
     response = await getChannelPosts(
@@ -34,7 +32,8 @@ export default async function Page({ searchParams }: PageProps) {
         size: ARCHIVE_DOCUMENTS_PER_PAGE,
       },
     );
-  } catch {
+  } catch (error) {
+    console.error("게시글 조회 실패:", error);
     response = undefined;
   }
 

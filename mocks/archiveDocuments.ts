@@ -27,7 +27,7 @@ export const ARCHIVE_DOCUMENTS_PER_PAGE = 9;
 export const archiveDocumentConfigs: Record<ArchiveDocumentCategory, ArchiveDocumentConfig> = {
   handover: {
     category: "handover",
-    channelId: 21, //채널 id 변경시 수정
+    channelId: 20, //채널 id 변경시 수정
     listPath: "/staff/archive/handover",
     title: "인수인계서",
     writeTitle: "인수인계서 작성하기",
