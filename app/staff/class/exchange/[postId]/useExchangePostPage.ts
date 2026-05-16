@@ -17,7 +17,10 @@ import {
 } from "@/api/lessonExchange/lessonExchange.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
-import { normalizeLessonExchangeExpiresAtForApi } from "@/utils/kstShortDate";
+import {
+  normalizeLessonExchangeExpiresAtForApi,
+  parseKoreanShortDateToIsoDate,
+} from "@/utils/kstShortDate";
 
 function toIsoDateOnly(value?: string): string {
   if (!value) return "";
@@ -27,6 +30,12 @@ function toIsoDateOnly(value?: string): string {
   if (Number.isNaN(date.getTime())) return value.slice(0, 10);
 
   return date.toISOString().slice(0, 10);
+}
+
+function normalizeLessonDateForApi(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  return parseKoreanShortDateToIsoDate(trimmed) ?? trimmed;
 }
 
 interface ProposalFormValues {
@@ -189,7 +198,7 @@ export function useExchangePostPage() {
     updateRequestMutation.mutate({
       title,
       content,
-      lessonDate: data.lessonDate.trim() || undefined,
+      lessonDate: normalizeLessonDateForApi(data.lessonDate),
       expiresAt,
     });
   });
@@ -203,7 +212,7 @@ export function useExchangePostPage() {
     }
 
     createProposalMutation.mutate({
-      lessonDate: data.lessonDate.trim() || undefined,
+      lessonDate: normalizeLessonDateForApi(data.lessonDate),
       content,
     });
   });

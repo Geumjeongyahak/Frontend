@@ -23,7 +23,7 @@ export async function getLessonExchangeRequests(query?: LessonExchangeListQueryP
       params: query,
     },
   );
-  return response.data;
+  return response.data.content;
 }
 
 // 수업 교환 요청을 생성하는 요청

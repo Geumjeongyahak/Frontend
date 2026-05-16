@@ -1,5 +1,6 @@
 import authClient from "../client/authClient";
 import type {
+  AbsenceRequestListResponseDto,
   AbsenceRequestResponseDto,
   ApproveLessonExchangeRequestDto,
   CreateAbsenceRequestDto,
@@ -19,10 +20,13 @@ import type {
 
 // 결석 요청 목록을 조회하는 요청
 export async function getAbsenceRequests(query?: RequestStatusQueryParamsDto) {
-  const response = await authClient.get<AbsenceRequestResponseDto[]>("/api/v1/absence-requests", {
-    params: query,
-  });
-  return response.data;
+  const response = await authClient.get<AbsenceRequestListResponseDto>(
+    "/api/v1/absence-requests",
+    {
+      params: query,
+    },
+  );
+  return response.data.content;
 }
 
 // 결석 요청을 생성하는 요청

@@ -7,10 +7,11 @@ import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import { useExchangePostPage } from "@/app/staff/class/exchange/[postId]/useExchangePostPage";
 
-type ExchangeStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type ExchangeStatus = "PENDING" | "APPROVED" | "REJECTED";
 
 interface ExchangeRequestDetailProps {
   page: ReturnType<typeof useExchangePostPage>;
+  showExpiresAt?: boolean;
 }
 
 function normalizeRequestStatusTone(
@@ -23,7 +24,7 @@ function normalizeRequestStatusTone(
   return "PENDING";
 }
 
-export function ExchangePostDetail({ page }: ExchangeRequestDetailProps) {
+export function ExchangePostDetail({ page, showExpiresAt = true }: ExchangeRequestDetailProps) {
   const request = page.request;
 
   const detailStatusTone = normalizeRequestStatusTone(request?.status);
@@ -83,15 +84,17 @@ export function ExchangePostDetail({ page }: ExchangeRequestDetailProps) {
             )}
           </ApplicantNextRowField>
 
-          <ApplicantNextRowField>
-            <ApplicantBoxLabel>만료일</ApplicantBoxLabel>
+          {showExpiresAt ? (
+            <ApplicantNextRowField>
+              <ApplicantBoxLabel>만료일</ApplicantBoxLabel>
 
-            {page.isEditing ? (
-              <ExpiresEditInput type="date" {...page.editForm.register("expiresAt")} />
-            ) : (
-              <ExpiresDateBox>{formatUtcToKstShortDate(request?.expiresAt)}</ExpiresDateBox>
-            )}
-          </ApplicantNextRowField>
+              {page.isEditing ? (
+                <ExpiresEditInput type="date" {...page.editForm.register("expiresAt")} />
+              ) : (
+                <ExpiresDateBox>{formatUtcToKstShortDate(request?.expiresAt)}</ExpiresDateBox>
+              )}
+            </ApplicantNextRowField>
+          ) : null}
         </ApplicantSection>
 
         <Label>신청 현황</Label>
@@ -238,13 +241,13 @@ const ApplicantFieldValue = styled(ValueBox)`
   flex: 1;
 `;
 
-const StatusBadge = styled.span<{ $tone: ExchangeStatus }>`
+export const StatusBadge = styled.span<{ $tone: ExchangeStatus }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: fit-content;
   min-width: 3.5rem;
-  padding: ${({ $tone }) => ($tone === "PENDING" ? "0.75rem 1.125rem" : "0.375rem 0.875rem")};
+  padding: 0.75rem 1.125rem;
   border-radius: 8px;
   font-size: ${typography.fontSize13};
   line-height: ${typography.lineHeight130};
@@ -275,7 +278,7 @@ const StatusBadge = styled.span<{ $tone: ExchangeStatus }>`
 
   @media (min-width: 120rem) {
     min-width: 4.5rem;
-    padding: ${({ $tone }) => ($tone === "PENDING" ? "0.625rem 1.375rem" : "0.5rem 1.125rem")};
+    padding: 0.625rem 1.375rem;
     font-size: ${typography.fontSize20};
   }
 `;

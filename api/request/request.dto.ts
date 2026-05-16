@@ -37,6 +37,10 @@ export interface AbsenceRequestResponseDto {
   createdAt?: string;
 }
 
+export interface AbsenceRequestListResponseDto {
+  content: AbsenceRequestResponseDto[];
+}
+
 export type AbsenceRequestListItemDto = AbsenceRequestResponseDto;
 
 export interface CreatePurchaseRequestDto {
