@@ -247,7 +247,7 @@ export const StatusBadge = styled.span<{ $tone: ExchangeStatus }>`
   justify-content: center;
   width: fit-content;
   min-width: 3.5rem;
-  padding: ${({ $tone }) => ($tone === "PENDING" ? "0.75rem 1.125rem" : "0.375rem 0.875rem")};
+  padding: 0.75rem 1.125rem;
   border-radius: 8px;
   font-size: ${typography.fontSize13};
   line-height: ${typography.lineHeight130};
@@ -278,7 +278,7 @@ export const StatusBadge = styled.span<{ $tone: ExchangeStatus }>`
 
   @media (min-width: 120rem) {
     min-width: 4.5rem;
-    padding: ${({ $tone }) => ($tone === "PENDING" ? "0.625rem 1.375rem" : "0.5rem 1.125rem")};
+    padding: 0.625rem 1.375rem;
     font-size: ${typography.fontSize20};
   }
 `;
