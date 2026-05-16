@@ -87,6 +87,7 @@ export async function createPurchaseRequest(body: CreatePurchaseRequestDto) {
     ...(typeof body.advancePaymentRequestedAmount === "number"
       ? { advancePaymentRequestedAmount: body.advancePaymentRequestedAmount }
       : {}),
+    ...(body.receiptFileIds?.length ? { receiptFileIds: body.receiptFileIds } : {}),
     items: body.items.map((item) => ({
       name: item.name,
       ...(item.reason ? { reason: item.reason } : {}),

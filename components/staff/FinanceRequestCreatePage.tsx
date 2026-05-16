@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getClassrooms } from "@/api/classroom/classroom.api";
+import { uploadPurchaseItemImage } from "@/api/file/file.api";
 import { createPurchaseRequest } from "@/api/request/request.api";
 import type { CreatePurchaseRequestDto } from "@/api/request/request.dto";
 import StaffSidebar from "@/components/staff/StaffSidebar";
@@ -128,13 +129,20 @@ export default function FinanceRequestCreatePage() {
           };
         }
 
-        const uploaded = await financeReceiptToGoogleDrive(item.receiptFile);
+        const [driveUploaded, apiUploaded] = await Promise.all([
+          financeReceiptToGoogleDrive(item.receiptFile),
+          uploadPurchaseItemImage(item.receiptFile, item.receiptFile.name),
+        ]);
 
         return {
-          receiptUrl: uploaded.url,
+          receiptFileId: apiUploaded.fileId,
+          receiptUrl: driveUploaded.url,
         };
       }),
     );
+    const receiptFileIds = uploadedItems
+      .map((item) => item.receiptFileId)
+      .filter((fileId): fileId is string => Boolean(fileId));
 
     const itemContent = normalizedItems
       .map((item, index) => {
@@ -156,6 +164,7 @@ export default function FinanceRequestCreatePage() {
       content: `결제 일자: ${paymentDate}\n신청자: ${applicantName}\n\n${itemContent}`,
       classroomId: Number(classroomId),
       advancePaymentRequestedAmount: totalExpectedPrice,
+      ...(receiptFileIds.length ? { receiptFileIds } : {}),
       items: normalizedItems,
     });
   }

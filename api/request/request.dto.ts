@@ -44,6 +44,7 @@ export interface CreatePurchaseRequestDto {
   content: string;
   classroomId: number;
   advancePaymentRequestedAmount?: number;
+  receiptFileIds?: string[];
   items: PurchaseRequestItemDto[];
 }
 
