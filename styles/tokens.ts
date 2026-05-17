@@ -53,6 +53,8 @@ export const layout = {
   maxWidth: "86rem", // 1376px
   homeMaxWidth: "76.75rem", // 1228px
   homeMaxWidthLarge: "115rem", // 1840px
+  adminMaxWidth: "76rem", // 1088px
+  adminMaxWidthLarge: "105rem", // 1680px
   headerHeight: "5rem", // 80px
   breakpointDesktop: "75rem", // 1200px
   breakpointTablet: "62rem", // 992px
