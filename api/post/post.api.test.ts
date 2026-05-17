@@ -8,7 +8,15 @@ import { POST_DETAIL_RESPONSE, POST_LIST_RESPONSE } from "../../mocks/handlers/p
 import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
-import { createPost, getChannelPosts, getPost, getPosts, updatePost } from "./post.api";
+import {
+  attachPostAttachment,
+  attachPostImage,
+  createPost,
+  getChannelPosts,
+  getPost,
+  getPosts,
+  updatePost,
+} from "./post.api";
 
 describe("post.api", () => {
   it("returns integrated posts with query params", async () => {
@@ -76,5 +84,36 @@ describe("post.api", () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     await expect(getPost({ channelId: 1, postId: 1 })).resolves.toEqual(POST_DETAIL_RESPONSE);
+  });
+
+  it("uploads post images and attachments as multipart form data", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    const uploadedFile = { fileId: "file-1", originalName: "notice.png" };
+    let observedImageContentType = "";
+    let observedAttachmentContentType = "";
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/channels/1/posts/2/images`, ({ request }) => {
+        observedImageContentType = request.headers.get("content-type") ?? "";
+        return HttpResponse.json(uploadedFile);
+      }),
+      http.post(`${API_BASE_URL}/api/v1/channels/1/posts/2/attachments`, ({ request }) => {
+        observedAttachmentContentType = request.headers.get("content-type") ?? "";
+        return HttpResponse.json(uploadedFile);
+      }),
+    );
+
+    const file = new Blob(["file-content"], { type: "image/png" });
+
+    await expect(attachPostImage({ channelId: 1, postId: 2 }, file, "notice.png")).resolves.toEqual(
+      uploadedFile,
+    );
+    await expect(
+      attachPostAttachment({ channelId: 1, postId: 2 }, file, "notice.png"),
+    ).resolves.toEqual(uploadedFile);
+
+    expect(observedImageContentType).toContain("multipart/form-data");
+    expect(observedAttachmentContentType).toContain("multipart/form-data");
   });
 });

@@ -1,9 +1,11 @@
 import authClient from "../client/authClient";
 import type {
+  AssignSubjectTeacherRequestDto,
   CreateSubjectRequestDto,
   SubjectDetailResponseDto,
   SubjectListQueryParamsDto,
   SubjectPathParamsDto,
+  UpdateSubjectScheduleRequestDto,
   UpdateSubjectRequestDto,
 } from "./subject.dto";
 
@@ -36,6 +38,30 @@ export async function updateSubject(
 ) {
   const response = await authClient.patch<SubjectDetailResponseDto>(
     `/api/v1/subjects/${pathParams.subjectId}`,
+    body,
+  );
+  return response.data;
+}
+
+// 특정 과목 담당 교사를 배정하거나 해제하는 요청
+export async function assignSubjectTeacher(
+  pathParams: SubjectPathParamsDto,
+  body: AssignSubjectTeacherRequestDto,
+) {
+  const response = await authClient.patch<SubjectDetailResponseDto>(
+    `/api/v1/subjects/${pathParams.subjectId}/teacher`,
+    body,
+  );
+  return response.data;
+}
+
+// 특정 과목 일정을 수정하는 요청
+export async function updateSubjectSchedule(
+  pathParams: SubjectPathParamsDto,
+  body: UpdateSubjectScheduleRequestDto,
+) {
+  const response = await authClient.patch<SubjectDetailResponseDto>(
+    `/api/v1/subjects/${pathParams.subjectId}/schedule`,
     body,
   );
   return response.data;

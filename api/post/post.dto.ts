@@ -64,6 +64,8 @@ export interface PostAttachmentInfoDto {
   originalName?: string;
   contentType?: string;
   fileSize?: number;
+  ext?: string;
+  downloadUrl?: string;
   url?: string;
   sortOrder?: number;
 }

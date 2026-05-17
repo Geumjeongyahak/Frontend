@@ -3,6 +3,9 @@ import publicClient from "../client/publicClient";
 import { clearTokens, setTokens } from "../client/tokenStorage";
 import type {
   AuthMessageResponseDto,
+  GoogleCallbackQueryParamsDto,
+  GoogleLoginRequestDto,
+  GoogleSignupRequestDto,
   LoginRequestDto,
   LogoutRequestDto,
   RefreshTokenRequestDto,
@@ -41,5 +44,33 @@ export async function logout(body: LogoutRequestDto) {
 export async function logoutAllDevices() {
   const response = await authClient.post<AuthMessageResponseDto>("/api/v1/auth/logout-all");
   clearTokens();
+  return response.data;
+}
+
+export async function redirectToGoogle() {
+  await publicClient.get("/api/v1/auth/google");
+}
+
+export async function handleGoogleCallback(query: GoogleCallbackQueryParamsDto) {
+  await publicClient.get("/api/v1/auth/google/callback", {
+    params: query,
+  });
+}
+
+export async function googleSignup(body: GoogleSignupRequestDto) {
+  const response = await publicClient.post<TokenResponseDto>("/api/v1/auth/google/signup", body);
+  setTokens(response.data.accessToken, response.data.refreshToken);
+  return response.data;
+}
+
+export async function googleLogin(body: GoogleLoginRequestDto) {
+  const response = await publicClient.post<TokenResponseDto>("/api/v1/auth/google/login", body);
+  setTokens(response.data.accessToken, response.data.refreshToken);
+  return response.data;
+}
+
+export async function connectLocalAccount(body: GoogleLoginRequestDto) {
+  const response = await authClient.post<TokenResponseDto>("/api/v1/auth/google/connect", body);
+  setTokens(response.data.accessToken, response.data.refreshToken);
   return response.data;
 }

@@ -19,7 +19,16 @@ import {
 } from "../../mocks/handlers/auth.handlers";
 
 import { getAccessToken, getRefreshToken, setTokens } from "../client/tokenStorage";
-import { login, logout, logoutAllDevices, refreshToken, signup } from "./auth.api";
+import {
+  connectLocalAccount,
+  googleLogin,
+  googleSignup,
+  login,
+  logout,
+  logoutAllDevices,
+  refreshToken,
+  signup,
+} from "./auth.api";
 
 describe("auth.api", () => {
   it("returns the login token DTO and stores the received tokens", async () => {
@@ -130,5 +139,58 @@ describe("auth.api", () => {
     expect(response).toEqual({ message: "Logged out from all devices" });
     expect(getAccessToken()).toBeNull();
     expect(getRefreshToken()).toBeNull();
+  });
+
+  it("returns and stores tokens for Google auth flows", async () => {
+    let observedSignupBody: unknown;
+    let observedLoginBody: unknown;
+    let observedConnectBody: unknown;
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/auth/google/signup`, async ({ request }) => {
+        observedSignupBody = await request.json();
+        return HttpResponse.json({
+          accessToken: VALID_ACCESS_TOKEN,
+          refreshToken: VALID_REFRESH_TOKEN,
+          tokenType: "Bearer",
+        });
+      }),
+      http.post(`${API_BASE_URL}/api/v1/auth/google/login`, async ({ request }) => {
+        observedLoginBody = await request.json();
+        return HttpResponse.json({
+          accessToken: REFRESHED_ACCESS_TOKEN,
+          refreshToken: REFRESHED_REFRESH_TOKEN,
+          tokenType: "Bearer",
+        });
+      }),
+      http.post(`${API_BASE_URL}/api/v1/auth/google/connect`, async ({ request }) => {
+        observedConnectBody = await request.json();
+        return HttpResponse.json({
+          accessToken: VALID_ACCESS_TOKEN,
+          refreshToken: VALID_REFRESH_TOKEN,
+          tokenType: "Bearer",
+        });
+      }),
+    );
+
+    await googleSignup({
+      tempToken: "temp-token",
+      nickname: "nickname",
+      name: "User",
+      phoneNumber: "010-0000-0000",
+    });
+    await googleLogin({ tempToken: "temp-token" });
+    await connectLocalAccount({ tempToken: "temp-token" });
+
+    expect(observedSignupBody).toEqual({
+      tempToken: "temp-token",
+      nickname: "nickname",
+      name: "User",
+      phoneNumber: "010-0000-0000",
+    });
+    expect(observedLoginBody).toEqual({ tempToken: "temp-token" });
+    expect(observedConnectBody).toEqual({ tempToken: "temp-token" });
+    expect(getAccessToken()).toBe(VALID_ACCESS_TOKEN);
+    expect(getRefreshToken()).toBe(VALID_REFRESH_TOKEN);
   });
 });
