@@ -2,8 +2,12 @@ import {
   SchoolRulesEditAction,
   SchoolRulesEditorProvider,
   SchoolRulesListPanel,
-} from "@/components/archive/SchoolRulesEditor";
-import { HeaderRow, PageSection, Title } from "@/components/archive/SchoolRulesPage.styles";
+} from "@/components/archive/schoolRules/SchoolRulesEditor";
+import {
+  HeaderRow,
+  PageSection,
+  Title,
+} from "@/components/archive/schoolRules/SchoolRulesPage.styles";
 
 const SCHOOL_RULES = [
   "제5조(학습의 의무) 학생은 학교의 교육 활동에 성실히 참여하고 수업 질서를 존중해야 한다.",

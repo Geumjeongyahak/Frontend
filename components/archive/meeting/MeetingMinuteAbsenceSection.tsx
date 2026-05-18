@@ -12,7 +12,7 @@ import {
   AbsenceTitle,
   ActionButton,
   Divider,
-} from "@/components/archive/MeetingMinuteDocument.styles";
+} from "@/components/archive/meeting/MeetingMinuteDocument.styles";
 
 type DraftAbsenceReport = {
   author: string;
@@ -65,11 +65,7 @@ export default function MeetingMinuteAbsenceSection({
     <>
       <AbsenceHeader>
         <AbsenceTitle>불참 사유서</AbsenceTitle>
-        <ActionButton
-          type="submit"
-          form="absence-report-form"
-          disabled={!canSubmit}
-        >
+        <ActionButton type="submit" form="absence-report-form" disabled={!canSubmit}>
           작성 완료
         </ActionButton>
       </AbsenceHeader>

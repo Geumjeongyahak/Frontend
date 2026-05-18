@@ -8,13 +8,13 @@ import {
   PageTitle,
   Textarea,
   Toolbar,
-} from "@/components/archive/MeetingMinuteDocument.styles";
+} from "@/components/archive/meeting/MeetingMinuteDocument.styles";
 import {
   FileLink,
   FileSelectLabel,
   FileUploadPanel,
   HiddenFileInput,
-} from "@/components/archive/ArchiveDocumentPages.styles";
+} from "@/components/archive/document/ArchiveDocumentPages.styles";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
 
 type ArchiveDocumentFormPageProps = {

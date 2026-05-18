@@ -1,23 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {
-  AddRowButton,
-  CompleteEditButton,
-  ContactCard,
-  ContactGrid,
-  ContactGroup,
-  ContactValue,
-  Divider,
-  EditTextButton,
-  EditRow,
-  EditRowInput,
-  PanelHeader,
-  RemoveRowButton,
-  SectionLabel,
-  TeacherEditList,
-} from "@/components/archive/ContactPage.styles";
-import type { TeacherContact } from "@/components/archive/ContactPage.types";
+import * as S from "@/components/archive/contact/ContactPage.styles";
+import type { TeacherContact } from "@/components/archive/contact/ContactPage.types";
 
 type TeacherContactSectionProps = {
   initialContacts: TeacherContact[];
@@ -59,10 +44,7 @@ export default function TeacherContactSection({ initialContacts }: TeacherContac
   };
 
   const addDraftContact = () => {
-    setDraftContacts((currentContacts) => [
-      ...currentContacts,
-      createTeacherContact(Date.now()),
-    ]);
+    setDraftContacts((currentContacts) => [...currentContacts, createTeacherContact(Date.now())]);
   };
 
   const completeEditing = () => {
@@ -71,72 +53,76 @@ export default function TeacherContactSection({ initialContacts }: TeacherContac
         [contact.name, contact.className, contact.phone].some((value) => value.trim()),
       ),
     );
+
     setIsEditing(false);
   };
 
   return (
-    <ContactGroup aria-labelledby="teacher-contact-title">
-      <PanelHeader>
-        <SectionLabel id="teacher-contact-title">교사 연락망</SectionLabel>
+    <S.ContactGroup aria-labelledby="teacher-contact-title">
+      <S.PanelHeader>
+        <S.SectionLabel id="teacher-contact-title">교사 연락망</S.SectionLabel>
+
         {isEditing ? (
-          <CompleteEditButton type="button" onClick={completeEditing}>
+          <S.CompleteEditButton type="button" onClick={completeEditing}>
             편집 완료
-          </CompleteEditButton>
+          </S.CompleteEditButton>
         ) : (
-          <EditTextButton type="button" onClick={startEditing}>
+          <S.EditTextButton type="button" onClick={startEditing}>
             편집
-          </EditTextButton>
+          </S.EditTextButton>
         )}
-      </PanelHeader>
+      </S.PanelHeader>
+
       {isEditing ? (
-        <TeacherEditList>
+        <S.TeacherEditList>
           {draftContacts.map((contact) => (
-            <EditRow key={contact.id} $columns={3}>
-              <EditRowInput
+            <S.EditRow key={contact.id} $columns={3}>
+              <S.EditRowInput
                 aria-label="교사 이름"
                 value={contact.name}
                 onChange={(event) => updateDraftContact(contact.id, "name", event.target.value)}
               />
-              <EditRowInput
+              <S.EditRowInput
                 aria-label="담당 반"
                 value={contact.className}
                 onChange={(event) =>
                   updateDraftContact(contact.id, "className", event.target.value)
                 }
               />
-              <EditRowInput
+              <S.EditRowInput
                 aria-label="교사 연락처"
                 value={contact.phone}
                 onChange={(event) => updateDraftContact(contact.id, "phone", event.target.value)}
               />
-              <RemoveRowButton type="button" onClick={() => removeDraftContact(contact.id)}>
+              <S.RemoveRowButton type="button" onClick={() => removeDraftContact(contact.id)}>
                 -
-              </RemoveRowButton>
-            </EditRow>
+              </S.RemoveRowButton>
+            </S.EditRow>
           ))}
-          <AddRowButton type="button" onClick={addDraftContact}>
+
+          <S.AddRowButton type="button" onClick={addDraftContact}>
             + 추가하기
-          </AddRowButton>
-        </TeacherEditList>
+          </S.AddRowButton>
+        </S.TeacherEditList>
       ) : (
-        <ContactGrid>
+        <S.ContactGrid>
           {contacts.map((contact) => (
             <TeacherContactCard key={contact.id} contact={contact} />
           ))}
-        </ContactGrid>
+        </S.ContactGrid>
       )}
-    </ContactGroup>
+    </S.ContactGroup>
   );
 }
 
 function TeacherContactCard({ contact }: { contact: TeacherContact }) {
   return (
-    <ContactCard>
+    <S.ContactCard>
       <strong>{contact.name}</strong>
-      <Divider aria-hidden="true" />
-      <ContactValue>{contact.className}</ContactValue>
-      <Divider aria-hidden="true" />
-      <ContactValue>{contact.phone}</ContactValue>
-    </ContactCard>
+      <S.Divider aria-hidden="true" />
+      <S.ContactValue>{contact.className}</S.ContactValue>
+      <S.Divider aria-hidden="true" />
+      <S.ContactValue>{contact.phone}</S.ContactValue>
+    </S.ContactCard>
   );
 }

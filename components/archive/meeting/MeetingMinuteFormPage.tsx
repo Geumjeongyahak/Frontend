@@ -1,10 +1,10 @@
-import MeetingMinuteFormFields from "@/components/archive/MeetingMinuteFormFields";
+import MeetingMinuteFormFields from "@/components/archive/meeting/MeetingMinuteFormFields";
 import {
   ActionButton,
   DocumentSection,
   PageTitle,
   Toolbar,
-} from "@/components/archive/MeetingMinuteDocument.styles";
+} from "@/components/archive/meeting/MeetingMinuteDocument.styles";
 
 export default function MeetingMinuteFormPage() {
   return (

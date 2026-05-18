@@ -1,4 +1,4 @@
-import SchoolRulesPage from "@/components/archive/SchoolRulesPage";
+import SchoolRulesPage from "@/components/archive/schoolRules/SchoolRulesPage";
 
 export default function Page() {
   return <SchoolRulesPage />;

@@ -1,7 +1,7 @@
-import StudentContactSection from "@/components/archive/StudentContactSection";
-import TeacherContactSection from "@/components/archive/TeacherContactSection";
-import { ContactPageSection, PageTitle } from "@/components/archive/ContactPage.styles";
-import type { StudentClass, TeacherContact } from "@/components/archive/ContactPage.types";
+import StudentContactSection from "@/components/archive/contact/StudentContactSection";
+import TeacherContactSection from "@/components/archive/contact/TeacherContactSection";
+import { ContactPageSection, PageTitle } from "@/components/archive/contact/ContactPage.styles";
+import type { StudentClass, TeacherContact } from "@/components/archive/contact/ContactPage.types";
 
 const teacherContacts: TeacherContact[] = Array.from({ length: 8 }, (_, index) => ({
   id: index + 1,

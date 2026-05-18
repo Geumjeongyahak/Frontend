@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import ArchiveDocumentDetailPage from "@/components/archive/ArchiveDocumentDetailPage";
+import ArchiveDocumentDetailPage from "@/components/archive/document/ArchiveDocumentDetailPage";
 import {
   archiveDocumentConfigs,
   getArchiveDocumentById,

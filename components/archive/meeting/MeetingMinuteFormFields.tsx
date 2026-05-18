@@ -8,7 +8,7 @@ import {
   TabButton,
   TabRow,
   Textarea,
-} from "@/components/archive/MeetingMinuteDocument.styles";
+} from "@/components/archive/meeting/MeetingMinuteDocument.styles";
 
 type MeetingPhase = "before" | "after";
 

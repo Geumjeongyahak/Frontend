@@ -1,5 +1,5 @@
 import type { MeetingMinute } from "@/mocks/archiveMeeting";
-import MeetingMinuteAbsenceSection from "@/components/archive/MeetingMinuteAbsenceSection";
+import MeetingMinuteAbsenceSection from "@/components/archive/meeting/MeetingMinuteAbsenceSection";
 import {
   ActionButton,
   ActionLink,
@@ -12,15 +12,13 @@ import {
   TextBox,
   Toolbar,
   ToolbarRight,
-} from "@/components/archive/MeetingMinuteDocument.styles";
+} from "@/components/archive/meeting/MeetingMinuteDocument.styles";
 
 type MeetingMinuteDetailPageProps = {
   meetingMinute: MeetingMinute;
 };
 
-export default function MeetingMinuteDetailPage({
-  meetingMinute,
-}: MeetingMinuteDetailPageProps) {
+export default function MeetingMinuteDetailPage({ meetingMinute }: MeetingMinuteDetailPageProps) {
   return (
     <DocumentSection>
       <Toolbar>

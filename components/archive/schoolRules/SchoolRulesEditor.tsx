@@ -8,7 +8,7 @@ import {
   RuleItem,
   RulesList,
   RulesPanel,
-} from "@/components/archive/SchoolRulesPage.styles";
+} from "@/components/archive/schoolRules/SchoolRulesPage.styles";
 
 type SchoolRulesEditorContextValue = {
   completeEditing: () => void;

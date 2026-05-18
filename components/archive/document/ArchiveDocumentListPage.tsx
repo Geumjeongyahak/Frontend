@@ -1,14 +1,17 @@
 import ListPanel, { type ListPanelRow } from "@/components/staff/ListPanel";
-import {
-  ARCHIVE_DOCUMENTS_PER_PAGE,
-  type ArchiveDocument,
-  type ArchiveDocumentConfig,
-} from "@/mocks/archiveDocuments";
+import { ARCHIVE_DOCUMENTS_PER_PAGE, type ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
+
+export type ArchiveDocumentListItem = {
+  id: number;
+  title: string;
+  author: string;
+  date: string;
+};
 
 type ArchiveDocumentListPageProps = {
   config: ArchiveDocumentConfig;
   currentPage: number;
-  documents: ArchiveDocument[];
+  documents: ArchiveDocumentListItem[];
   mineOnly: boolean;
   totalPages: number;
 };
