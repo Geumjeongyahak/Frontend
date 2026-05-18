@@ -1,8 +1,32 @@
 export type UserRole = string;
 
 export interface PermissionResponseDto {
+  id?: number;
+  permissionCode?: string;
+  resourceCode?: string;
+  resourceLabel?: string;
+  actionCode?: string;
+  actionLabel?: string;
+  scope?: string;
+  targetId?: number | null;
+  targetName?: string | null;
+  label?: string;
+  description?: string;
   name?: string;
   code?: string;
+}
+
+export interface PermissionDefinitionDto {
+  permissionCode?: string;
+  resourceCode?: string;
+  resourceLabel?: string;
+  actionCode?: string;
+  actionLabel?: string;
+  scope?: string;
+  globalAllowed?: boolean;
+  targetAllowed?: boolean;
+  label?: string;
+  description?: string;
 }
 
 export interface UserResponseDto {

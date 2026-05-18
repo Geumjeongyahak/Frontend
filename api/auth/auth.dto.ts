@@ -31,3 +31,18 @@ export interface TokenResponseDto {
 export interface AuthMessageResponseDto {
   message?: string;
 }
+
+export interface GoogleCallbackQueryParamsDto {
+  code: string;
+}
+
+export interface GoogleSignupRequestDto {
+  tempToken: string;
+  nickname: string;
+  name: string;
+  phoneNumber?: string;
+}
+
+export interface GoogleLoginRequestDto {
+  tempToken: string;
+}

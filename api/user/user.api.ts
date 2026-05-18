@@ -1,6 +1,7 @@
 import authClient from "../client/authClient";
 import type {
   CreateUserRequestDto,
+  PermissionDefinitionDto,
   PermissionResponseDto,
   UpdateSelfRequestDto,
   UpdateUserRequestDto,
@@ -87,6 +88,14 @@ export async function removeUserPermission(
     {
       data: body,
     },
+  );
+  return response.data;
+}
+
+// 사용자에게 부여할 수 있는 권한 선택지를 조회하는 요청
+export async function getAssignablePermissions() {
+  const response = await authClient.get<PermissionDefinitionDto[]>(
+    "/api/v1/permission-registry",
   );
   return response.data;
 }

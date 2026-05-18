@@ -12,7 +12,13 @@ import { SUBJECT_LIST_RESPONSE } from "../../mocks/handlers/subject.handlers";
 import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
-import { createSubject, getSubjects, updateSubject } from "./subject.api";
+import {
+  assignSubjectTeacher,
+  createSubject,
+  getSubjects,
+  updateSubject,
+  updateSubjectSchedule,
+} from "./subject.api";
 
 describe("subject.api", () => {
   it("returns subjects with auth header and classroom query", async () => {
@@ -58,7 +64,6 @@ describe("subject.api", () => {
       name: "English Writing",
       startAt: "2026-04-01",
       endAt: "2026-06-30",
-      times: 10,
       dayOfWeek: "MONDAY",
       startTime: "16:00",
       endTime: "17:00",
@@ -73,13 +78,40 @@ describe("subject.api", () => {
       name: "English Writing",
       startAt: "2026-04-01",
       endAt: "2026-06-30",
-      times: 10,
       dayOfWeek: "MONDAY",
       startTime: "16:00",
       endTime: "17:00",
       period: 2,
       description: "Writing practice",
     });
+  });
+
+  it("updates subject teacher and schedule through dedicated Swagger routes", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedTeacherBody: unknown;
+    let observedScheduleBody: unknown;
+
+    server.use(
+      http.patch(`${API_BASE_URL}/api/v1/subjects/1/teacher`, async ({ request }) => {
+        observedTeacherBody = await request.json();
+        return HttpResponse.json({ ...SUBJECT_LIST_RESPONSE[0], teacherId: 5 });
+      }),
+      http.patch(`${API_BASE_URL}/api/v1/subjects/1/schedule`, async ({ request }) => {
+        observedScheduleBody = await request.json();
+        return HttpResponse.json({ ...SUBJECT_LIST_RESPONSE[0], period: 2 });
+      }),
+    );
+
+    await expect(assignSubjectTeacher({ subjectId: 1 }, { teacherId: 5 })).resolves.toMatchObject({
+      teacherId: 5,
+    });
+    await expect(
+      updateSubjectSchedule({ subjectId: 1 }, { dayOfWeek: "TUESDAY", period: 2 }),
+    ).resolves.toMatchObject({ period: 2 });
+
+    expect(observedTeacherBody).toEqual({ teacherId: 5 });
+    expect(observedScheduleBody).toEqual({ dayOfWeek: "TUESDAY", period: 2 });
   });
 
   it("throws when updating a missing subject fails", async () => {

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import styled from "styled-components";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { colors, layout, typography } from "@/styles/tokens";
 
 const staffSections = [
@@ -40,6 +41,13 @@ const staffSections = [
   },
 ];
 
+const adminSection = {
+  title: "관리자",
+  items: [{ label: "대시보드", href: "/admin/login" }],
+};
+
+type StaffSection = (typeof staffSections)[number];
+
 function isCurrentStaffPath(pathname: string, href: string) {
   if (href === "/staff/class") {
     return (
@@ -52,20 +60,20 @@ function isCurrentStaffPath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function getCurrentSectionTitle(pathname: string) {
-  return staffSections.find((section) =>
+function getCurrentSectionTitle(pathname: string, sections: StaffSection[]) {
+  return sections.find((section) =>
     section.items.some((item) => isCurrentStaffPath(pathname, item.href)),
   )?.title;
 }
 
-function getOpenSectionsForTitle(title?: string) {
+function getOpenSectionsForTitle(sections: StaffSection[], title?: string) {
   return Object.fromEntries(
-    staffSections.map((section) => [section.title, Boolean(title && section.title === title)]),
+    sections.map((section) => [section.title, Boolean(title && section.title === title)]),
   );
 }
 
-function getOpenSectionsForPath(pathname: string) {
-  return getOpenSectionsForTitle(getCurrentSectionTitle(pathname));
+function getOpenSectionsForPath(pathname: string, sections: StaffSection[]) {
+  return getOpenSectionsForTitle(sections, getCurrentSectionTitle(pathname, sections));
 }
 
 type StaffSidebarProps = {
@@ -74,12 +82,17 @@ type StaffSidebarProps = {
 
 export default function StaffSidebar({ mode = "accordion" }: StaffSidebarProps) {
   const pathname = usePathname();
+  const { status, user } = useAuthSession();
+  const visibleSections =
+    status === "authenticated" && user?.role === "ADMIN"
+      ? [...staffSections, adminSection]
+      : staffSections;
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
-    getOpenSectionsForPath(pathname),
+    getOpenSectionsForPath(pathname, staffSections),
   );
   const [overridePathname, setOverridePathname] = useState<string | null>(null);
   const isExpandedMode = mode === "expanded";
-  const routeOpenSections = getOpenSectionsForPath(pathname);
+  const routeOpenSections = getOpenSectionsForPath(pathname, visibleSections);
   const visibleOpenSections = overridePathname === pathname ? openSections : routeOpenSections;
 
   const isCurrent = (href: string) => {
@@ -100,7 +113,7 @@ export default function StaffSidebar({ mode = "accordion" }: StaffSidebarProps) 
   };
 
   const keepOnlySectionOpen = (title: string) => {
-    const nextOpenSections = getOpenSectionsForTitle(title);
+    const nextOpenSections = getOpenSectionsForTitle(visibleSections, title);
 
     setOpenSections(nextOpenSections);
     setOverridePathname(pathname);
@@ -110,7 +123,7 @@ export default function StaffSidebar({ mode = "accordion" }: StaffSidebarProps) 
     <Sidebar>
       <SidebarHeader>교원</SidebarHeader>
       <SidebarContent>
-        {staffSections.map((section, sectionIndex) => {
+        {visibleSections.map((section, sectionIndex) => {
           const isOpen = isExpandedMode || (visibleOpenSections[section.title] ?? false);
           const sectionId = `staff-sidebar-section-${sectionIndex}`;
 

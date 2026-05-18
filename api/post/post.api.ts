@@ -1,9 +1,9 @@
 import authClient from "../client/authClient";
+import type { FileUploadResponseDto } from "../file/file.dto";
 import type {
+  CreatePostRequestDto,
   ChannelPathParamsDto,
   ChannelPostListQueryParamsDto,
-  AttachPostFileRequestDto,
-  CreatePostRequestDto,
   PostListQueryParamsDto,
   PostDetailResponseDto,
   PostListResponseDto,
@@ -13,6 +13,18 @@ import type {
   SaveDraftRequestDto,
   UpdatePostRequestDto,
 } from "./post.dto";
+
+function createMultipartFormData(file: Blob, filename?: string) {
+  const formData = new FormData();
+
+  if (filename) {
+    formData.append("file", file, filename);
+  } else {
+    formData.append("file", file);
+  }
+
+  return formData;
+}
 
 // 전체 게시글 목록을 통합 조회하는 요청
 export async function getPosts(query?: PostListQueryParamsDto) {
@@ -115,11 +127,17 @@ export async function pinPost(pathParams: PostPathParamsDto, body: PinPostReques
 // 특정 게시글에 본문 이미지를 연결하는 요청
 export async function attachPostImage(
   pathParams: PostPathParamsDto,
-  body: AttachPostFileRequestDto,
+  file: Blob,
+  filename?: string,
 ) {
-  const response = await authClient.post<PostDetailResponseDto>(
+  const response = await authClient.post<FileUploadResponseDto>(
     `/api/v1/channels/${pathParams.channelId}/posts/${pathParams.postId}/images`,
-    body,
+    createMultipartFormData(file, filename),
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
   );
   return response.data;
 }
@@ -127,11 +145,17 @@ export async function attachPostImage(
 // 특정 게시글에 첨부파일을 연결하는 요청
 export async function attachPostAttachment(
   pathParams: PostPathParamsDto,
-  body: AttachPostFileRequestDto,
+  file: Blob,
+  filename?: string,
 ) {
-  const response = await authClient.post<PostDetailResponseDto>(
+  const response = await authClient.post<FileUploadResponseDto>(
     `/api/v1/channels/${pathParams.channelId}/posts/${pathParams.postId}/attachments`,
-    body,
+    createMultipartFormData(file, filename),
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
   );
   return response.data;
 }

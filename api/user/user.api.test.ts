@@ -13,6 +13,7 @@ import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
 import {
+  getAssignablePermissions,
   getUsers,
   removeUserPermission,
   updateCurrentUser,
@@ -103,5 +104,28 @@ describe("user.api", () => {
     ).rejects.toMatchObject({
       response: { status: 403 },
     });
+  });
+
+  it("returns assignable permission definitions", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/permission-registry`, () => {
+        return HttpResponse.json([
+          {
+            permissionCode: "post:manage:*",
+            resourceCode: "post",
+            actionCode: "manage",
+            globalAllowed: true,
+            targetAllowed: false,
+            label: "게시글 관리",
+          },
+        ]);
+      }),
+    );
+
+    await expect(getAssignablePermissions()).resolves.toEqual([
+      expect.objectContaining({ permissionCode: "post:manage:*" }),
+    ]);
   });
 });

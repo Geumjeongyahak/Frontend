@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import styled from "styled-components";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { headerMenus } from "@/mocks/home";
@@ -41,9 +41,14 @@ const HEADER_BACKDROP_TRANSITION_OPACITY = "0.5s ease";
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { status, signOut } = useAuthSession();
   const isAuthenticated = status === "authenticated";
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
 
   async function handleLogout() {
     await signOut();
