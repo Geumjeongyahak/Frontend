@@ -183,6 +183,7 @@ const emptyPostEdit: PostEditState = {
   title: "",
   status: "PUBLISHED",
   allowComment: true,
+  isPinned: false,
   thumbnailUrl: "",
   contentHtml: "",
 };
@@ -279,6 +280,7 @@ function mapPostToEditState(post?: {
   title?: string;
   status?: PostStatus;
   allowComment?: boolean;
+  isPinned?: boolean;
   thumbnailUrl?: string | null;
   contentHtml?: string;
 }) {
@@ -290,6 +292,7 @@ function mapPostToEditState(post?: {
     title: post.title ?? "",
     status: post.status ?? "PUBLISHED",
     allowComment: post.allowComment ?? true,
+    isPinned: post.isPinned ?? false,
     thumbnailUrl: post.thumbnailUrl ?? "",
     contentHtml: post.contentHtml ?? "",
   };
@@ -319,6 +322,7 @@ export default function AdminDashboardPage() {
   const [departmentForm, setDepartmentForm] = useState<DepartmentFormState>(emptyDepartmentForm);
   const [classroomForm, setClassroomForm] = useState<ClassroomFormState>(emptyClassroomForm);
   const [postEdit, setPostEdit] = useState<PostEditState>(emptyPostEdit);
+  const [isPostEditing, setIsPostEditing] = useState(false);
   const [postCreate, setPostCreate] = useState<PostCreateState>(emptyPostCreate);
   const [purchaseCreate, setPurchaseCreate] = useState<PurchaseCreateState>(emptyPurchaseCreate);
   const [permissionForm, setPermissionForm] = useState<PermissionFormState>(emptyPermissionForm);
@@ -397,11 +401,7 @@ export default function AdminDashboardPage() {
     queryKey: selectedPost
       ? queryKeys.admin.postDetail(selectedPost.channelId, selectedPost.postId)
       : ["admin", "posts", "detail", "none"],
-    queryFn: async () => {
-      const post = await getPost(selectedPost ?? { channelId: 0, postId: 0 });
-      setPostEdit(mapPostToEditState(post));
-      return post;
-    },
+    queryFn: () => getPost(selectedPost ?? { channelId: 0, postId: 0 }),
     enabled: isAdmin && selectedPost !== null,
   });
   const departmentDetailQuery = useQuery({
@@ -521,8 +521,19 @@ export default function AdminDashboardPage() {
     if (!item.id || !item.channelId) {
       return;
     }
+
     setSelectedPost({ channelId: item.channelId, postId: item.id });
-    setPostEdit(mapPostToEditState(item));
+    setIsPostEditing(false);
+
+    if (selectedPost?.channelId !== item.channelId || selectedPost.postId !== item.id) {
+      setPostEdit(mapPostToEditState(item));
+    }
+  }
+
+  function closePostDetail() {
+    setSelectedPost(null);
+    setIsPostEditing(false);
+    setPostEdit(emptyPostEdit);
   }
 
   function selectDepartment(item: (typeof departments)[number]) {
@@ -669,18 +680,33 @@ export default function AdminDashboardPage() {
   });
 
   const updatePostMutation = useMutation({
-    mutationFn: () =>
-      updatePost(selectedPost ?? { channelId: 0, postId: 0 }, {
+    mutationFn: async () => {
+      const pathParams = selectedPost ?? { channelId: 0, postId: 0 };
+      const updatedPost = await updatePost(pathParams, {
         title: postEdit.title,
         status: postEdit.status,
         allowComment: postEdit.allowComment,
         thumbnailUrl: postEdit.thumbnailUrl || undefined,
         contentHtml: postEdit.contentHtml,
-      }),
-    onSuccess: () => {
+      });
+      const currentPinned = postDetailQuery.data?.isPinned ?? false;
+
+      if (postEdit.isPinned !== currentPinned) {
+        return pinPost(pathParams, { isPinned: postEdit.isPinned });
+      }
+
+      return updatedPost;
+    },
+    onSuccess: (updatedPost) => {
       notifySuccess("게시글을 수정했습니다.");
+      setPostEdit(mapPostToEditState(updatedPost));
+      setIsPostEditing(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) });
       if (selectedPost) {
+        queryClient.setQueryData(
+          queryKeys.admin.postDetail(selectedPost.channelId, selectedPost.postId),
+          updatedPost,
+        );
         queryClient.invalidateQueries({
           queryKey: queryKeys.admin.postDetail(selectedPost.channelId, selectedPost.postId),
         });
@@ -693,6 +719,8 @@ export default function AdminDashboardPage() {
     onSuccess: () => {
       notifySuccess("게시글을 삭제했습니다.");
       setSelectedPost(null);
+      setIsPostEditing(false);
+      setPostEdit(emptyPostEdit);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) });
     },
     onError: (error) => notifyError(getErrorMessage(error, "게시글 삭제에 실패했습니다.")),
@@ -995,6 +1023,7 @@ export default function AdminDashboardPage() {
               postTitleSearch={postTitleSearch}
               postCreate={postCreate}
               postEdit={postEdit}
+              isPostEditing={isPostEditing}
               postsQuery={postsQuery}
               postDetailQuery={postDetailQuery}
               createPostMutation={createPostMutation}
@@ -1004,7 +1033,9 @@ export default function AdminDashboardPage() {
               setPostTitleSearch={setPostTitleSearch}
               setPostCreate={setPostCreate}
               setPostEdit={setPostEdit}
+              setIsPostEditing={setIsPostEditing}
               selectPost={selectPost}
+              closePostDetail={closePostDetail}
             />
           ) : null}
           {activeMenu === "departments" ? (

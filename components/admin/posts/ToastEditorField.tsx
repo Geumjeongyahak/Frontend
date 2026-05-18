@@ -19,6 +19,9 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
   const editorRef = useRef<ToastEditorInstance | null>(null);
   const onChangeRef = useRef(onChange);
   const initialValueRef = useRef(initialValue);
+  const editorValueRef = useRef(initialValue);
+
+  initialValueRef.current = initialValue;
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -50,7 +53,6 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
           ["image", "link"],
         ],
 
-        // HTML을 initialValue에 바로 넣지 않음
         initialValue: "",
 
         hooks: {
@@ -75,16 +77,18 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
               return;
             }
 
-            onChangeRef.current(currentEditor.getHTML());
+            const nextValue = currentEditor.getHTML();
+
+            editorValueRef.current = nextValue;
+            onChangeRef.current(nextValue);
           },
         },
       }) as ToastEditorInstance;
 
       editorRef.current = editor;
 
-      if (initialValueRef.current) {
-        editor.setHTML(initialValueRef.current, false);
-      }
+      editorValueRef.current = initialValueRef.current;
+      editor.setHTML(initialValueRef.current, false);
     }
 
     mountEditor();
@@ -95,6 +99,17 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
       editorRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+
+    if (!editor || initialValue === editorValueRef.current) {
+      return;
+    }
+
+    editorValueRef.current = initialValue;
+    editor.setHTML(initialValue, false);
+  }, [initialValue]);
 
   return <div ref={rootRef} />;
 }
