@@ -31,6 +31,25 @@ function getStatusLabel(status?: PurchaseRequestStatus) {
   return status ? (statusLabels[status] ?? status) : "-";
 }
 
+function getReceiptName(receipt: {
+  fileName?: string;
+  originalName?: string;
+  ext?: string;
+  fileId?: string;
+}) {
+  if (receipt.fileName) {
+    return receipt.fileName;
+  }
+
+  if (!receipt.originalName) {
+    return receipt.fileId ?? "영수증";
+  }
+
+  return receipt.ext && !receipt.originalName.endsWith(`.${receipt.ext}`)
+    ? `${receipt.originalName}.${receipt.ext}`
+    : receipt.originalName;
+}
+
 export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDetailPageProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -138,18 +157,26 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                 <SectionTitle>영수증</SectionTitle>
                 <ReceiptList>
                   {request.receipts?.length ? (
-                    request.receipts.map((receipt) => (
-                      <ReceiptLink
-                        key={receipt.id ?? receipt.fileId}
-                        href={receipt.fileUrl ?? "#"}
-                        aria-label={`${receipt.fileId ?? "영수증"} 다운로드`}
-                      >
-                        <span>{receipt.fileId ?? "영수증"}</span>
-                        <ReceiptIcon aria-hidden="true">
-                          <IconDownload size={16} stroke={2.25} />
-                        </ReceiptIcon>
-                      </ReceiptLink>
-                    ))
+                    request.receipts.map((receipt) => {
+                      const receiptName = getReceiptName(receipt);
+                      const receiptUrl = receipt.fileUrl ?? receipt.url ?? "#";
+
+                      return (
+                        <ReceiptRow key={receipt.id ?? receipt.fileId ?? receiptName}>
+                          <ReceiptName>{receiptName}</ReceiptName>
+                          <ReceiptDownloadButton
+                            href={receiptUrl}
+                            download={receiptName}
+                            aria-label={`${receiptName} 다운로드`}
+                          >
+                            <span>다운로드</span>
+                            <ReceiptIcon aria-hidden="true">
+                              <IconDownload size={16} stroke={2.25} />
+                            </ReceiptIcon>
+                          </ReceiptDownloadButton>
+                        </ReceiptRow>
+                      );
+                    })
                   ) : (
                     <EmptyText>등록된 영수증이 없습니다.</EmptyText>
                   )}
@@ -472,28 +499,41 @@ const EmptyText = styled.span`
   line-height: ${typography.lineHeight150};
 `;
 
-const ReceiptLink = styled(Link)`
+const ReceiptRow = styled.div`
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 1.5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: ${spacing.space8};
   min-width: 0;
+`;
+
+const ReceiptName = styled.span`
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
   text-decoration: underline;
   text-underline-offset: 0.125rem;
-
-  span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 
   @media (min-width: 120rem) {
-    grid-template-columns: minmax(0, 1fr) 2.25rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ReceiptDownloadButton = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: ${spacing.space8};
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  text-decoration: none;
+
+  @media (min-width: 120rem) {
     font-size: ${typography.fontSize20};
   }
 `;

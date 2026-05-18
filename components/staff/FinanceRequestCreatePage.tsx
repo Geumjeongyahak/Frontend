@@ -6,11 +6,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getClassrooms } from "@/api/classroom/classroom.api";
+import { uploadPurchaseItemImage } from "@/api/file/file.api";
 import { createPurchaseRequest } from "@/api/request/request.api";
 import type { CreatePurchaseRequestDto } from "@/api/request/request.dto";
 import StaffSidebar from "@/components/staff/StaffSidebar";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
+import { financeReceiptToGoogleDrive } from "@/lib/googleDrive/financeReceiptToGoogleDrive";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 type FinanceItemForm = {
@@ -19,6 +21,7 @@ type FinanceItemForm = {
   reason: string;
   expectedPrice: string;
   receiptFileName: string;
+  receiptFile: File | null;
 };
 
 const initialItem: FinanceItemForm = {
@@ -27,6 +30,7 @@ const initialItem: FinanceItemForm = {
   reason: "",
   expectedPrice: "",
   receiptFileName: "",
+  receiptFile: null,
 };
 
 export default function FinanceRequestCreatePage() {
@@ -110,12 +114,35 @@ export default function FinanceRequestCreatePage() {
     });
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!canSubmit) {
       return;
     }
+
+    const uploadedItems = await Promise.all(
+      items.map(async (item) => {
+        if (!item.receiptFile) {
+          return {
+            receiptUrl: "",
+          };
+        }
+
+        const [driveUploaded, apiUploaded] = await Promise.all([
+          financeReceiptToGoogleDrive(item.receiptFile),
+          uploadPurchaseItemImage(item.receiptFile, item.receiptFile.name),
+        ]);
+
+        return {
+          receiptFileId: apiUploaded.fileId,
+          receiptUrl: driveUploaded.url,
+        };
+      }),
+    );
+    const receiptFileIds = uploadedItems
+      .map((item) => item.receiptFileId)
+      .filter((fileId): fileId is string => Boolean(fileId));
 
     const itemContent = normalizedItems
       .map((item, index) => {
@@ -124,7 +151,11 @@ export default function FinanceRequestCreatePage() {
           typeof item.expectedPrice === "number"
             ? ` (${item.expectedPrice.toLocaleString()}원)`
             : "";
-        return `${index + 1}. ${item.name}${reason}${price}`;
+        const receiptUrl = uploadedItems[index]?.receiptUrl
+          ? `\n   영수증: ${uploadedItems[index].receiptUrl}`
+          : "";
+
+        return `${index + 1}. ${item.name}${reason}${price}${receiptUrl}`;
       })
       .join("\n");
 
@@ -133,6 +164,7 @@ export default function FinanceRequestCreatePage() {
       content: `결제 일자: ${paymentDate}\n신청자: ${applicantName}\n\n${itemContent}`,
       classroomId: Number(classroomId),
       advancePaymentRequestedAmount: totalExpectedPrice,
+      ...(receiptFileIds.length ? { receiptFileIds } : {}),
       items: normalizedItems,
     });
   }
@@ -242,11 +274,14 @@ export default function FinanceRequestCreatePage() {
                         id={`receiptFile-${item.id}`}
                         name={`receiptFile-${item.id}`}
                         type="file"
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] ?? null;
+
                           updateItem(item.id, {
-                            receiptFileName: event.target.files?.[0]?.name ?? "",
-                          })
-                        }
+                            receiptFile: file,
+                            receiptFileName: file?.name ?? "",
+                          });
+                        }}
                       />
                       <UploadBox htmlFor={`receiptFile-${item.id}`}>
                         <IconFilePlus size={24} stroke={1.8} aria-hidden="true" />

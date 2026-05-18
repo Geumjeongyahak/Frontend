@@ -48,6 +48,7 @@ export interface CreatePurchaseRequestDto {
   content: string;
   classroomId: number;
   advancePaymentRequestedAmount?: number;
+  receiptFileIds?: string[];
   items: PurchaseRequestItemDto[];
 }
 
@@ -87,7 +88,11 @@ export interface PurchaseRequestItemResponseDto {
 export interface PurchaseRequestReceiptResponseDto {
   id?: number;
   fileId?: string;
+  fileName?: string;
+  originalName?: string;
+  ext?: string;
   fileUrl?: string;
+  url?: string;
 }
 
 export interface PurchaseRequestSummaryResponseDto {
