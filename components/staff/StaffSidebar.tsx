@@ -33,7 +33,7 @@ const staffSections = [
   },
   {
     title: "게시판",
-    items: [{ label: "게시판", href: "/board" }],
+    items: [{ label: "게시판", href: "/staff/board" }],
   },
   {
     title: "학사일정",

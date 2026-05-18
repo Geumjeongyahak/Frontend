@@ -1,9 +1,11 @@
 "use client";
 
 import { IconDownload } from "@tabler/icons-react";
-import { useQuery } from "@tanstack/react-query";
-import { getPost } from "@/api/post/post.api";
-import BoardShell from "@/components/board/BoardShell";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { deletePost, getPost } from "@/api/post/post.api";
+import ToastViewerField from "@/components/admin/posts/ToastViewerField";
+import BoardShell from "@/components/staff/board/BoardShell";
 import {
   ActionButton,
   ActionLink,
@@ -16,12 +18,12 @@ import {
   Label,
   MetaBar,
   StateMessage,
-  TextBox,
   Toolbar,
   ToolbarRight,
-} from "@/components/board/BoardDocument.styles";
+  ViewerBox,
+} from "@/components/staff/board/BoardDocument.styles";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
-import { getBoardMockPostById } from "@/mocks/boardPosts";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type BoardDetailPageClientProps = {
@@ -29,16 +31,9 @@ type BoardDetailPageClientProps = {
   channelId?: number;
 };
 
-function toPlainText(contentHtml?: string) {
-  if (!contentHtml) return "내용";
-
-  return contentHtml
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .trim();
-}
-
 export default function BoardDetailPageClient({ postId, channelId }: BoardDetailPageClientProps) {
+  const router = useRouter();
+  const { user } = useAuthSession();
   const hasChannelId = typeof channelId === "number" && Number.isFinite(channelId);
 
   const { data, isLoading, isError } = useQuery({
@@ -48,13 +43,31 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
     retry: false,
   });
 
-  const fallbackPost = getBoardMockPostById(postId);
-  const visiblePost = data ?? fallbackPost;
+  const visiblePost = data;
   const metaLabel = visiblePost?.channelName ?? "교무기획부";
   const date = formatUtcToKstShortDate(visiblePost?.createdAt ?? visiblePost?.updatedAt);
   const title = visiblePost?.title ?? "제목";
   const author = visiblePost?.authorName ?? "홍길동";
-  const content = toPlainText(visiblePost?.contentHtml);
+  const content = visiblePost?.contentHtml?.trim() || "내용";
+  const editHref =
+    hasChannelId && visiblePost?.id
+      ? `/staff/board/new?postId=${visiblePost.id}&channelId=${channelId}`
+      : "/staff/board/new";
+  const canManagePost =
+    user?.role === "ADMIN" ||
+    (typeof user?.id === "number" && visiblePost?.authorId === user.id) ||
+    Boolean(
+      visiblePost?.authorName &&
+        (visiblePost.authorName === user?.name ||
+          visiblePost.authorName === user?.nickname ||
+          visiblePost.authorName === user?.email),
+    );
+  const deletePostMutation = useMutation({
+    mutationFn: () => deletePost({ channelId: channelId ?? 0, postId }),
+    onSuccess: () => {
+      router.push("/staff/board");
+    },
+  });
   const stateMessage =
     !visiblePost && !hasChannelId
       ? "게시글 채널 정보가 없어 상세 내용을 불러오지 못했습니다."
@@ -62,22 +75,31 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
         ? "게시글을 불러오는 중입니다."
         : isError && !visiblePost
           ? "게시글을 불러오지 못했습니다."
+          : deletePostMutation.isError
+            ? "게시글 삭제에 실패했습니다."
           : "";
 
   return (
     <BoardShell>
       <DocumentSection>
         <Toolbar>
-          <ActionLink href="/board" $variant="muted">
+          <ActionLink href="/staff/board" $variant="muted">
             목록
           </ActionLink>
 
-          <ToolbarRight>
-            <ActionButton type="button" $variant="danger">
-              삭제
-            </ActionButton>
-            <ActionLink href="/board/new">수정</ActionLink>
-          </ToolbarRight>
+          {canManagePost ? (
+            <ToolbarRight>
+              <ActionButton
+                type="button"
+                $variant="danger"
+                disabled={!hasChannelId || deletePostMutation.isPending}
+                onClick={() => deletePostMutation.mutate()}
+              >
+                삭제
+              </ActionButton>
+              <ActionLink href={editHref}>수정</ActionLink>
+            </ToolbarRight>
+          ) : null}
         </Toolbar>
 
         {stateMessage ? <StateMessage>{stateMessage}</StateMessage> : null}
@@ -95,7 +117,9 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
           <FieldBox>{author}</FieldBox>
 
           <Label>내용</Label>
-          <TextBox>{content}</TextBox>
+          <ViewerBox>
+            <ToastViewerField value={content} />
+          </ViewerBox>
 
           <Label>자료</Label>
           <FileList>

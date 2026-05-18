@@ -1,4 +1,4 @@
-import BoardListPageClient from "@/components/board/BoardListPageClient";
+import BoardListPageClient from "@/components/staff/board/BoardListPageClient";
 
 type PageProps = {
   searchParams?: Promise<{

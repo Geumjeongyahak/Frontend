@@ -1,8 +1,15 @@
 export const queryKeys = {
   posts: {
     noticeTop12: () => ["posts", "notice", "top12"] as const,
-    boardList: (page: number, channelType: string, boardScope: string) =>
-      ["posts", "board", { page, channelType, boardScope }] as const,
+    boardList: (filters: {
+      page: number;
+      channelType: string;
+      boardScope: string;
+      searchKeyword?: string;
+      mineOnly?: boolean;
+      author?: string;
+      refreshNonce?: number;
+    }) => ["posts", "board", filters] as const,
     boardDetail: (channelId: number, postId: number) =>
       ["posts", "board", "detail", { channelId, postId }] as const,
   },

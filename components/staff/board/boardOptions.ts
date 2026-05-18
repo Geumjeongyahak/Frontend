@@ -1,5 +1,6 @@
 export const BOARD_TYPE_OPTIONS = [
   { label: "전체", value: "all" },
+  { label: "공지사항", value: "NOTICE" },
   { label: "반별", value: "CLASSROOM" },
   { label: "부서별", value: "DEPARTMENT" },
 ] as const;
@@ -56,33 +57,4 @@ export function getBoardScopeOptions(boardType: BoardType | BoardWriteType) {
 
 export function getBoardWriteScopeOptions(boardType: BoardWriteType) {
   return boardType === "CLASSROOM" ? CLASSROOM_WRITE_SCOPE_OPTIONS : DEPARTMENT_WRITE_SCOPE_OPTIONS;
-}
-
-const classroomChannelIds: Record<string, number> = {
-  all: 100,
-  "cherry-blossom": 101,
-  forsythia: 102,
-  dandelion: 103,
-  rose: 104,
-  sunflower: 105,
-  chrysanthemum: 106,
-  seed: 107,
-  sprout: 108,
-  tree: 109,
-  fruit: 110,
-  smartphone: 111,
-};
-
-const departmentChannelIds: Record<string, number> = {
-  all: 200,
-  "academic-planning": 201,
-  "education-research": 202,
-  "student-safety": 203,
-  "general-affairs": 204,
-};
-
-export function getBoardChannelId(boardType: BoardWriteType, boardScope: string) {
-  return boardType === "CLASSROOM"
-    ? (classroomChannelIds[boardScope] ?? classroomChannelIds.all)
-    : (departmentChannelIds[boardScope] ?? departmentChannelIds.all);
 }

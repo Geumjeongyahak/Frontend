@@ -201,6 +201,59 @@ export const BoardSelectRow = styled.div`
   }
 `;
 
+export const ViewerBox = styled.div`
+  min-height: 6.875rem;
+  background-color: ${colors.background};
+  padding: 0.2rem ${spacing.space12};
+
+  .toastui-editor-contents {
+    font-size: ${typography.fontSize14};
+    line-height: ${typography.lineHeight150};
+    color: ${colors.text};
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 9.6875rem;
+    padding: 0.4rem ${spacing.space20};
+
+    .toastui-editor-contents {
+      font-size: ${typography.fontSize20};
+    }
+  }
+`;
+
+export const OptionRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space20};
+  flex-wrap: wrap;
+`;
+
+export const CheckboxLabel = styled.label`
+  display: inline-flex;
+  align-items: center;
+  gap: ${spacing.space8};
+  color: ${colors.text};
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+  cursor: pointer;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+export const CheckboxInput = styled.input`
+  width: 1rem;
+  height: 1rem;
+  accent-color: ${colors.point};
+
+  @media (min-width: 120rem) {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+`;
+
 export const Input = styled.input`
   width: 100%;
   min-height: 2.6875rem;

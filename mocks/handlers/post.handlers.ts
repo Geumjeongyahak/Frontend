@@ -1,7 +1,6 @@
 import { HttpResponse, http, type RequestHandler } from "msw";
 
 import type { CreatePostRequestDto, UpdatePostRequestDto } from "../../api/post/post.dto";
-import { boardMockPosts, getBoardMockPostById, getBoardMockPosts } from "../boardPosts";
 import { API_BASE_URL, REFRESHED_ACCESS_TOKEN, VALID_ACCESS_TOKEN } from "./auth.handlers";
 
 export const POST_SUMMARY_RESPONSE = {
@@ -27,10 +26,10 @@ export const POST_DETAIL_RESPONSE = {
 };
 
 export const POST_LIST_RESPONSE = {
-  content: boardMockPosts,
+  content: [],
   page: 0,
-  size: boardMockPosts.length,
-  totalElements: boardMockPosts.length,
+  size: 0,
+  totalElements: 0,
   totalPages: 1,
 };
 
@@ -48,44 +47,22 @@ export const postHandlers: RequestHandler[] = [
       return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const url = new URL(request.url);
-    const channelType = url.searchParams.get("channelType") ?? "all";
-
-    const content = getBoardMockPosts({
-      boardType: channelType,
-      boardScope: "all",
-    });
-
     return HttpResponse.json({
       ...POST_LIST_RESPONSE,
-      content,
-      totalElements: content.length,
+      content: [],
+      totalElements: 0,
       totalPages: 1,
     });
   }),
-  http.get(`${API_BASE_URL}/api/v1/channels/:channelId/posts`, ({ request, params }) => {
+  http.get(`${API_BASE_URL}/api/v1/channels/:channelId/posts`, ({ request }) => {
     if (!hasValidAuthorization(request)) {
       return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const channelId = Number(params.channelId);
-    const matchedPosts = boardMockPosts
-      .filter((post) => post.channelId === channelId)
-      .map((post) => ({ ...post, channelId }));
-    const content =
-      matchedPosts.length > 0
-        ? matchedPosts
-        : [
-            {
-              ...POST_SUMMARY_RESPONSE,
-              channelId,
-            },
-          ];
-
     return HttpResponse.json({
       ...POST_LIST_RESPONSE,
-      content,
-      totalElements: content.length,
+      content: [],
+      totalElements: 0,
       totalPages: 1,
     });
   }),
@@ -119,11 +96,8 @@ export const postHandlers: RequestHandler[] = [
       return HttpResponse.json(POST_DETAIL_RESPONSE);
     }
 
-    const mockPost = getBoardMockPostById(postId);
-
     return HttpResponse.json({
       ...POST_DETAIL_RESPONSE,
-      ...mockPost,
       channelId,
       id: postId,
     });
