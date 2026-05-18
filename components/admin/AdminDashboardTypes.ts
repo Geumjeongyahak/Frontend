@@ -39,6 +39,7 @@ export type PostEditState = {
   title: string;
   status: PostStatus;
   allowComment: boolean;
+  isPinned: boolean;
   thumbnailUrl: string;
   contentHtml: string;
 };

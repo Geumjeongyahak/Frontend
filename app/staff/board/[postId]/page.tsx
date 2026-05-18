@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import BoardDetailPageClient from "@/components/board/BoardDetailPageClient";
+import BoardDetailPageClient from "@/components/staff/board/BoardDetailPageClient";
 
 type PageProps = {
   params: Promise<{

@@ -24,5 +24,19 @@ declare module "@toast-ui/editor" {
     constructor(options: EditorOptions);
     destroy(): void;
     getHTML(): string;
+    setHTML(html: string, cursorToEnd?: boolean): void;
+  }
+}
+
+declare module "@toast-ui/editor/dist/toastui-editor-viewer" {
+  type ViewerOptions = {
+    el: HTMLElement;
+    initialValue?: string;
+  };
+
+  export default class Viewer {
+    constructor(options: ViewerOptions);
+    destroy(): void;
+    setMarkdown(markdown: string): void;
   }
 }

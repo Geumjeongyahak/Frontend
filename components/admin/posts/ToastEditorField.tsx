@@ -19,6 +19,11 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
   const editorRef = useRef<ToastEditorInstance | null>(null);
   const onChangeRef = useRef(onChange);
   const initialValueRef = useRef(initialValue);
+  const editorValueRef = useRef(initialValue);
+  const isMountedRef = useRef(false);
+  const isApplyingValueRef = useRef(false);
+
+  initialValueRef.current = initialValue;
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -26,6 +31,7 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
 
   useEffect(() => {
     let mounted = true;
+    isMountedRef.current = true;
 
     async function mountEditor() {
       const { default: Editor } = await import("@toast-ui/editor");
@@ -50,8 +56,7 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
           ["image", "link"],
         ],
 
-        // HTML을 initialValue에 바로 넣지 않음
-        initialValue: "",
+        initialValue: initialValueRef.current,
 
         hooks: {
           addImageBlobHook: async (
@@ -71,30 +76,54 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
           change: () => {
             const currentEditor = editorRef.current;
 
-            if (!currentEditor) {
+            if (!currentEditor || !isMountedRef.current || isApplyingValueRef.current) {
               return;
             }
 
-            onChangeRef.current(currentEditor.getHTML());
+            const nextValue = currentEditor.getHTML();
+
+            editorValueRef.current = nextValue;
+            onChangeRef.current(nextValue);
           },
         },
       }) as ToastEditorInstance;
 
       editorRef.current = editor;
-
-      if (initialValueRef.current) {
-        editor.setHTML(initialValueRef.current, false);
-      }
+      editorValueRef.current = initialValueRef.current;
     }
 
     mountEditor();
 
     return () => {
       mounted = false;
-      editorRef.current?.destroy();
+      isMountedRef.current = false;
+      const editor = editorRef.current;
       editorRef.current = null;
+      try {
+        editor?.destroy();
+      } catch {
+        // Toast UI can schedule DOM updates while React is unmounting the editor.
+      }
     };
   }, []);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+
+    if (!editor || !isMountedRef.current || initialValue === editorValueRef.current) {
+      return;
+    }
+
+    isApplyingValueRef.current = true;
+    editorValueRef.current = initialValue;
+    try {
+      editor.setHTML(initialValue, false);
+    } finally {
+      queueMicrotask(() => {
+        isApplyingValueRef.current = false;
+      });
+    }
+  }, [initialValue]);
 
   return <div ref={rootRef} />;
 }

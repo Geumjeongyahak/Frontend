@@ -24,7 +24,7 @@ export const headerMenus: HeaderDropdownMenu[] = [
       { label: "수업 관리", href: "/staff/class" },
       { label: "재무 관리", href: "/staff/finance" },
       { label: "자료실", href: "/staff/archive/rules" },
-      { label: "게시판", href: "/board" },
+      { label: "게시판", href: "/staff/board" },
       { label: "학사일정", href: "/staff/calendar" },
     ],
   },

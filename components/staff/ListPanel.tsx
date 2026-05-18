@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { IconPinFilled } from "@tabler/icons-react";
 import type { ReactNode } from "react";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export type ListPanelRow = {
@@ -14,6 +15,7 @@ export type ListPanelRow = {
   statusType?: "PENDING" | "APPROVED" | "REJECTED";
   detailHref: string;
   isNotice?: boolean;
+  isPinned?: boolean;
 };
 
 type ListPanelTone = "default" | "journal" | "finance" | "archive";
@@ -36,6 +38,11 @@ type ListPanelProps = {
   statusHeader?: string;
   writeIcon?: ReactNode;
   filterSlot?: ReactNode;
+  searchSlot?: ReactNode;
+  toggleLabel?: string;
+  toggleAriaLabel?: string;
+  onMineOnlyToggle?: () => void;
+  stableTableRows?: number;
 };
 
 type QueryValue = string | number | boolean;
@@ -74,11 +81,17 @@ export default function ListPanel({
   statusHeader = "신청 현황",
   writeIcon,
   filterSlot,
+  searchSlot,
+  toggleLabel = "내가 작성한 신청서만 보기",
+  toggleAriaLabel = "내 신청서만 보기",
+  onMineOnlyToggle,
+  stableTableRows,
 }: ListPanelProps) {
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
   const toggleHref = buildHref(listPath, { mineOnly: mineOnly ? undefined : 1 });
   const baseQuery = showMineOnlyToggle && mineOnly ? { mineOnly: 1 } : {};
+  const columnCount = 2 + Number(showClassColumn) + 2 + Number(showStatusColumn);
 
   return (
     <Container>
@@ -92,7 +105,7 @@ export default function ListPanel({
 
       {filterSlot ? <FilterSlot>{filterSlot}</FilterSlot> : null}
 
-      <TableSection>
+      <TableSection $stableRows={stableTableRows}>
         <Table>
           <thead>
             <tr>
@@ -132,7 +145,14 @@ export default function ListPanel({
                     </Td>
                   ) : null}
                   <TitleTd>
-                    <TitleLink href={row.detailHref}>{row.title}</TitleLink>
+                    <TitleLink href={row.detailHref}>
+                      <TitleContent>
+                        {row.isPinned ? (
+                          <PinIcon aria-label="고정 게시물" size={16} stroke={2.25} />
+                        ) : null}
+                        <TitleText>{row.title}</TitleText>
+                      </TitleContent>
+                    </TitleLink>
                   </TitleTd>
                   <Td $width720="5rem" $width1080="7.375rem">
                     {row.author}
@@ -149,7 +169,7 @@ export default function ListPanel({
               ))
             ) : (
               <Tr $tone={headerTone}>
-                <EmptyTd colSpan={2 + Number(showClassColumn) + 2 + Number(showStatusColumn)}>
+                <EmptyTd colSpan={columnCount}>
                   {emptyMessage}
                 </EmptyTd>
               </Tr>
@@ -158,18 +178,30 @@ export default function ListPanel({
         </Table>
       </TableSection>
 
-      <BottomRow $hasToggle={showMineOnlyToggle}>
+      <BottomRow $hasToggle={showMineOnlyToggle} $hasSearch={Boolean(searchSlot)}>
         {showMineOnlyToggle ? (
           <ToggleArea>
-            <ToggleLabel>내가 작성한 신청서만 보기</ToggleLabel>
-            <ToggleButtonLink
-              href={toggleHref}
-              aria-label="내 신청서만 보기"
-              aria-pressed={mineOnly}
-              $active={mineOnly}
-            >
-              <ToggleThumb $active={mineOnly} />
-            </ToggleButtonLink>
+            <ToggleLabel>{toggleLabel}</ToggleLabel>
+            {onMineOnlyToggle ? (
+              <ToggleButton
+                type="button"
+                aria-label={toggleAriaLabel}
+                aria-pressed={mineOnly}
+                $active={mineOnly}
+                onClick={onMineOnlyToggle}
+              >
+                <ToggleThumb $active={mineOnly} />
+              </ToggleButton>
+            ) : (
+              <ToggleButtonLink
+                href={toggleHref}
+                aria-label={toggleAriaLabel}
+                aria-pressed={mineOnly}
+                $active={mineOnly}
+              >
+                <ToggleThumb $active={mineOnly} />
+              </ToggleButtonLink>
+            )}
           </ToggleArea>
         ) : null}
 
@@ -212,6 +244,8 @@ export default function ListPanel({
             ▶
           </PageArrow>
         </Pagination>
+
+        {searchSlot ? <SearchSlot>{searchSlot}</SearchSlot> : null}
       </BottomRow>
     </Container>
   );
@@ -330,8 +364,15 @@ const WriteButton = styled(Link)<{ $tone: ListPanelTone }>`
   }
 `;
 
-const TableSection = styled.section`
+const TableSection = styled.section<{ $stableRows?: number }>`
   width: 100%;
+  min-height: ${({ $stableRows }) =>
+    $stableRows ? `calc(2.5rem + ${$stableRows} * 2.375rem)` : "0"};
+
+  @media (min-width: 120rem) {
+    min-height: ${({ $stableRows }) =>
+      $stableRows ? `calc(3.75rem + ${$stableRows} * 3.625rem)` : "0"};
+  }
 `;
 
 const FilterSlot = styled.div`
@@ -408,7 +449,26 @@ const TitleLink = styled(Link)`
   }
 `;
 
-const BottomRow = styled.div<{ $hasToggle: boolean }>`
+const TitleContent = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: ${spacing.space8};
+  max-width: 100%;
+`;
+
+const TitleText = styled.span`
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const PinIcon = styled(IconPinFilled)`
+  flex: 0 0 auto;
+  color: ${colors.point};
+`;
+
+const BottomRow = styled.div<{ $hasToggle: boolean; $hasSearch: boolean }>`
   position: relative;
   display: flex;
   align-items: center;
@@ -450,7 +510,7 @@ const ToggleLabel = styled.span`
   }
 `;
 
-const ToggleButtonLink = styled(Link)<{ $active: boolean }>`
+const toggleButtonStyle = css<{ $active: boolean }>`
   position: relative;
   display: inline-block;
   width: 48px;
@@ -458,11 +518,21 @@ const ToggleButtonLink = styled(Link)<{ $active: boolean }>`
   border: none;
   border-radius: 999px;
   background: ${({ $active }) => ($active ? "#bbc4ff" : "#d9d9d9")};
+  cursor: pointer;
 
   @media (min-width: 120rem) {
     width: 4.5rem;
     height: 2.375rem;
   }
+`;
+
+const ToggleButtonLink = styled(Link)<{ $active: boolean }>`
+  ${toggleButtonStyle}
+`;
+
+const ToggleButton = styled.button<{ $active: boolean }>`
+  ${toggleButtonStyle}
+  padding: 0;
 `;
 
 const ToggleThumb = styled.span<{ $active: boolean }>`
@@ -479,6 +549,18 @@ const ToggleThumb = styled.span<{ $active: boolean }>`
     left: ${({ $active }) => ($active ? "2.25rem" : "0.125rem")};
     width: 2.125rem;
     height: 2.125rem;
+  }
+`;
+
+const SearchSlot = styled.div`
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    position: static;
+    width: 100%;
   }
 `;
 

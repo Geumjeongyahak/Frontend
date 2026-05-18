@@ -4,6 +4,7 @@ import Header from "@/components/layout/Header";
 import StyledComponentsRegistry from "@/lib/styled-components-registry";
 import "react-toastify/dist/ReactToastify.css";
 import "@toast-ui/editor/dist/toastui-editor.css";
+import "@toast-ui/editor/dist/toastui-editor-viewer.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
