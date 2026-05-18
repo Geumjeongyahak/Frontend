@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import QueryProvider from "@/components/providers/QueryProvider";
 import Header from "@/components/layout/Header";
 import StyledComponentsRegistry from "@/lib/styled-components-registry";
+import "react-toastify/dist/ReactToastify.css";
+import "@toast-ui/editor/dist/toastui-editor.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

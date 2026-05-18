@@ -19,4 +19,24 @@ export const queryKeys = {
     purchaseList: () => ["purchase-requests"] as const,
     purchaseDetail: (requestId: number) => ["purchase-request", requestId] as const,
   },
+  admin: {
+    users: (page = 0, size = 20) => ["admin", "users", { page, size }] as const,
+    userDetail: (userId: number) => ["admin", "users", "detail", userId] as const,
+    userPermissions: (userId: number) => ["admin", "users", "permissions", userId] as const,
+    permissionRegistry: () => ["admin", "permission-registry"] as const,
+    channels: () => ["admin", "channels"] as const,
+    channelDetail: (channelId: number) => ["admin", "channels", "detail", channelId] as const,
+    posts: (page = 0, size = 20) => ["admin", "posts", { page, size }] as const,
+    postDetail: (channelId: number, postId: number) =>
+      ["admin", "posts", "detail", { channelId, postId }] as const,
+    departments: () => ["admin", "departments"] as const,
+    departmentDetail: (departmentId: number) =>
+      ["admin", "departments", "detail", departmentId] as const,
+    classrooms: () => ["admin", "classrooms"] as const,
+    classroomDetail: (classroomId: number) =>
+      ["admin", "classrooms", "detail", classroomId] as const,
+    purchaseRequests: (status?: string) => ["admin", "purchase-requests", { status }] as const,
+    purchaseRequestDetail: (requestId: number) =>
+      ["admin", "purchase-requests", "detail", requestId] as const,
+  },
 };
