@@ -54,15 +54,15 @@ export const postHandlers: RequestHandler[] = [
       totalPages: 1,
     });
   }),
-  http.get(`${API_BASE_URL}/api/v1/channels/:channelId/posts`, ({ request }) => {
+  http.get(`${API_BASE_URL}/api/v1/channels/:channelId/posts`, ({ request, params }) => {
     if (!hasValidAuthorization(request)) {
       return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     return HttpResponse.json({
       ...POST_LIST_RESPONSE,
-      content: [],
-      totalElements: 0,
+      content: [{ ...POST_SUMMARY_RESPONSE, channelId: Number(params.channelId) }],
+      totalElements: 1,
       totalPages: 1,
     });
   }),

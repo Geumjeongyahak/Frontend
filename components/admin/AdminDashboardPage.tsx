@@ -699,7 +699,6 @@ export default function AdminDashboardPage() {
     },
     onSuccess: (updatedPost) => {
       notifySuccess("게시글을 수정했습니다.");
-      setPostEdit(mapPostToEditState(updatedPost));
       setIsPostEditing(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) });
       if (selectedPost) {

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { IconPaperclip } from "@tabler/icons-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
@@ -48,6 +48,7 @@ export default function BoardCreatePageClient({
   editChannelId,
 }: BoardCreatePageClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuthSession();
   const isEditMode = typeof editPostId === "number" && typeof editChannelId === "number";
   const [boardType, setBoardType] = useState<BoardWriteType | undefined>(undefined);
@@ -192,7 +193,18 @@ export default function BoardCreatePageClient({
         },
       );
     },
-    onSuccess: () => {
+    onSuccess: async (post) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["posts"] }),
+        queryClient.invalidateQueries({ queryKey: ["staff", "board", "notices"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) }),
+        typeof post.channelId === "number" && typeof post.id === "number"
+          ? queryClient.invalidateQueries({
+              queryKey: queryKeys.posts.boardDetail(post.channelId, post.id),
+            })
+          : Promise.resolve(),
+      ]);
+
       router.push("/staff/board");
     },
   });

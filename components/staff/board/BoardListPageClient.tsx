@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { IconSearch } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
@@ -22,9 +23,11 @@ import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
-const POSTS_PER_PAGE = 8;
+const POSTS_PER_PAGE = 7;
 const FETCH_SIZE = 100;
 const NOTICE_LIMIT = 2;
+const NOTICE_POSTS_PER_PAGE = POSTS_PER_PAGE + NOTICE_LIMIT;
+const BOARD_STABLE_TABLE_ROWS = NOTICE_POSTS_PER_PAGE;
 type OpenDropdown = "type" | "scope" | null;
 
 type BoardListPageClientProps = {
@@ -68,6 +71,7 @@ function sortBoardPosts(posts: PostSummaryResponseDto[], pinnedChannelId?: numbe
 }
 
 export default function BoardListPageClient({ initialPage }: BoardListPageClientProps) {
+  const router = useRouter();
   const { user } = useAuthSession();
   const [boardType, setBoardType] = useState<BoardType>("all");
   const [boardScope, setBoardScope] = useState("all");
@@ -77,9 +81,18 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
   const [searchKeyword, setSearchKeyword] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
 
-  const currentPage = Number.isInteger(initialPage) && initialPage >= 1 ? initialPage : 1;
+  const requestedPage = Number.isInteger(initialPage) && initialPage >= 1 ? initialPage : 1;
   const isScopeDisabled = boardType === "all" || boardType === "NOTICE";
   const currentAuthor = user?.name ?? user?.nickname ?? user?.email;
+  const resetToFirstPage = () => {
+    if (requestedPage > 1) {
+      router.replace("/staff/board", { scroll: false });
+    }
+  };
+  const clearSearch = () => {
+    setSearchInput("");
+    setSearchKeyword("");
+  };
 
   const channelsQuery = useQuery({
     queryKey: ["staff", "board", "channels"],
@@ -154,7 +167,7 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.posts.boardList({
-      page: currentPage,
+      page: requestedPage,
       channelType: boardType,
       boardScope,
       searchKeyword,
@@ -195,15 +208,19 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
   const basePosts = boardType === "NOTICE" ? posts : posts.filter((post) => !isNoticePost(post));
   const filteredPosts = basePosts.filter((post) => !noticeIds.has(post.id));
   const sortedGeneralPosts = sortBoardPosts(filteredPosts, selectedChannelId);
-  const pagedGeneralPosts =
-    boardType === "NOTICE"
-      ? sortedGeneralPosts
-      : sortedGeneralPosts.slice((currentPage - 1) * POSTS_PER_PAGE, currentPage * POSTS_PER_PAGE);
-  const sortedPosts = [...sortBoardPosts(noticePosts), ...pagedGeneralPosts];
   const totalPages =
     boardType === "NOTICE"
-      ? Math.max(1, data?.totalPages ?? 1)
+      ? Math.max(1, Math.ceil(sortedGeneralPosts.length / NOTICE_POSTS_PER_PAGE))
       : Math.max(1, Math.ceil(sortedGeneralPosts.length / POSTS_PER_PAGE));
+  const currentPage = requestedPage > totalPages ? 1 : requestedPage;
+  const pagedGeneralPosts =
+    boardType === "NOTICE"
+      ? sortedGeneralPosts.slice(
+          (currentPage - 1) * NOTICE_POSTS_PER_PAGE,
+          currentPage * NOTICE_POSTS_PER_PAGE,
+        )
+      : sortedGeneralPosts.slice((currentPage - 1) * POSTS_PER_PAGE, currentPage * POSTS_PER_PAGE);
+  const sortedPosts = [...sortBoardPosts(noticePosts), ...pagedGeneralPosts];
 
   const generalPosts = sortedPosts.filter((post) => !isNoticePost(post));
   const numericTotal = sortedGeneralPosts.length;
@@ -211,9 +228,10 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
   const rows: ListPanelRow[] = sortedPosts.map((post, index) => {
     const isNotice = isNoticePost(post);
     const generalIndex = generalPosts.findIndex((item) => item === post);
+    const postsPerPage = boardType === "NOTICE" ? NOTICE_POSTS_PER_PAGE : POSTS_PER_PAGE;
     const generalPostNumber = Math.max(
       1,
-      numericTotal - ((currentPage - 1) * POSTS_PER_PAGE + generalIndex),
+      numericTotal - ((currentPage - 1) * postsPerPage + generalIndex),
     );
 
     return {
@@ -248,8 +266,9 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
         writeHref="/staff/board/new"
         listPath="/staff/board"
         rows={rows}
-        currentPage={Math.min(currentPage, totalPages)}
+        currentPage={currentPage}
         totalPages={totalPages}
+        stableTableRows={BOARD_STABLE_TABLE_ROWS}
         mineOnly={mineOnly}
         showMineOnlyToggle
         toggleLabel="내가 작성한 글만 보기"
@@ -268,6 +287,8 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
               isOpen={openDropdown === "type"}
               onToggle={() => setOpenDropdown((current) => (current === "type" ? null : "type"))}
               onSelect={(nextValue) => {
+                resetToFirstPage();
+                clearSearch();
                 setBoardType(nextValue);
                 setBoardScope("all");
                 setOpenDropdown(null);
@@ -288,6 +309,8 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
                 )
               }
               onSelect={(nextValue) => {
+                resetToFirstPage();
+                clearSearch();
                 setBoardScope(nextValue);
                 setOpenDropdown(null);
                 setRefreshNonce((current) => current + 1);
@@ -301,6 +324,7 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
             role="search"
             onSubmit={(event) => {
               event.preventDefault();
+              resetToFirstPage();
               setSearchKeyword(searchInput);
               setRefreshNonce((current) => current + 1);
             }}

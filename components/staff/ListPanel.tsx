@@ -42,6 +42,7 @@ type ListPanelProps = {
   toggleLabel?: string;
   toggleAriaLabel?: string;
   onMineOnlyToggle?: () => void;
+  stableTableRows?: number;
 };
 
 type QueryValue = string | number | boolean;
@@ -84,11 +85,13 @@ export default function ListPanel({
   toggleLabel = "내가 작성한 신청서만 보기",
   toggleAriaLabel = "내 신청서만 보기",
   onMineOnlyToggle,
+  stableTableRows,
 }: ListPanelProps) {
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
   const toggleHref = buildHref(listPath, { mineOnly: mineOnly ? undefined : 1 });
   const baseQuery = showMineOnlyToggle && mineOnly ? { mineOnly: 1 } : {};
+  const columnCount = 2 + Number(showClassColumn) + 2 + Number(showStatusColumn);
 
   return (
     <Container>
@@ -102,7 +105,7 @@ export default function ListPanel({
 
       {filterSlot ? <FilterSlot>{filterSlot}</FilterSlot> : null}
 
-      <TableSection>
+      <TableSection $stableRows={stableTableRows}>
         <Table>
           <thead>
             <tr>
@@ -166,7 +169,7 @@ export default function ListPanel({
               ))
             ) : (
               <Tr $tone={headerTone}>
-                <EmptyTd colSpan={2 + Number(showClassColumn) + 2 + Number(showStatusColumn)}>
+                <EmptyTd colSpan={columnCount}>
                   {emptyMessage}
                 </EmptyTd>
               </Tr>
@@ -361,8 +364,15 @@ const WriteButton = styled(Link)<{ $tone: ListPanelTone }>`
   }
 `;
 
-const TableSection = styled.section`
+const TableSection = styled.section<{ $stableRows?: number }>`
   width: 100%;
+  min-height: ${({ $stableRows }) =>
+    $stableRows ? `calc(2.5rem + ${$stableRows} * 2.375rem)` : "0"};
+
+  @media (min-width: 120rem) {
+    min-height: ${({ $stableRows }) =>
+      $stableRows ? `calc(3.75rem + ${$stableRows} * 3.625rem)` : "0"};
+  }
 `;
 
 const FilterSlot = styled.div`
