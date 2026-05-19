@@ -77,11 +77,10 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
               />
               <FieldInput
                 $tone="proposal"
-                aria-label="하루 일정 ID"
-                placeholder="하루 일정 ID"
-                type="number"
-                min="1"
-                {...page.proposalForm.register("dailyScheduleId")}
+                aria-label="수업 일자"
+                placeholder="00.00.00"
+                type="text"
+                {...page.proposalForm.register("lessonDate")}
               />
 
               <ProposalFormTextarea

@@ -10,7 +10,10 @@ import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPane
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
-import { formatRequestStatus } from "@/utils/formatRequestStatus";
+import {
+  formatRequestStatus,
+  normalizeRequestStatusTone,
+} from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const ITEMS_PER_PAGE = 9;
@@ -66,7 +69,7 @@ export default function AbsenceListPageClient() {
     author: item.requestedByName ?? "-",
     date: formatUtcToKstShortDate(item.createdAt ?? item.lessonDate),
     status: formatRequestStatus(item.status),
-    statusType: item.status as "PENDING" | "APPROVED" | "REJECTED",
+    statusType: normalizeRequestStatusTone(item.status),
     detailHref: `/staff/class-management/absence-request/${item.id ?? ""}`,
   }));
 

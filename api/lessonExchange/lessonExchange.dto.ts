@@ -86,12 +86,12 @@ export interface LessonExchangeRequestListResponseDto {
 }
 
 export interface LessonExchangeProposalRequestDto {
-  dailyScheduleId: number;
+  lessonDate?: string;
   content: string;
 }
 
 export interface UpdateLessonExchangeProposalRequestDto {
-  dailyScheduleId?: number;
+  lessonDate?: string;
   content?: string;
 }
 
