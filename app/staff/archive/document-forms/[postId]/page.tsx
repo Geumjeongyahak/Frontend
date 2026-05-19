@@ -1,32 +1,33 @@
 import { notFound } from "next/navigation";
 import ArchiveDocumentDetailPage from "@/components/staff/archive/archive-document-section/ArchiveDocumentDetailPage";
-import {
-  archiveDocumentConfigs,
-  getArchiveDocumentById,
-  getArchiveDocuments,
-} from "@/mocks/archiveDocuments";
+import { archiveDocumentConfigs } from "@/mocks/archiveDocuments";
 
 type PageProps = {
   params: Promise<{
     postId: string;
   }>;
+  searchParams?: Promise<{
+    channelId?: string;
+  }>;
 };
 
-const config = archiveDocumentConfigs.forms;
-
-export function generateStaticParams() {
-  return getArchiveDocuments("forms").map((document) => ({
-    postId: String(document.id),
-  }));
-}
-
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
   const { postId } = await params;
-  const document = getArchiveDocumentById("forms", Number(postId));
+  const resolvedSearchParams = await searchParams;
+  const parsedPostId = Number(postId);
+  const parsedChannelId = resolvedSearchParams?.channelId
+    ? Number(resolvedSearchParams.channelId)
+    : undefined;
 
-  if (!document) {
+  if (!Number.isInteger(parsedPostId) || parsedPostId < 1) {
     notFound();
   }
 
-  return <ArchiveDocumentDetailPage config={config} document={document} />;
+  return (
+    <ArchiveDocumentDetailPage
+      config={archiveDocumentConfigs.forms}
+      postId={parsedPostId}
+      channelId={Number.isInteger(parsedChannelId) ? parsedChannelId : undefined}
+    />
+  );
 }
