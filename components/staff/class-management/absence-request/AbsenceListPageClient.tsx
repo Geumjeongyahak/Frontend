@@ -66,6 +66,7 @@ export default function AbsenceListPageClient() {
     author: item.requestedByName ?? "-",
     date: formatUtcToKstShortDate(item.createdAt ?? item.lessonDate),
     status: formatRequestStatus(item.status),
+    statusType: item.status as "PENDING" | "APPROVED" | "REJECTED",
     detailHref: `/staff/class-management/absence-request/${item.id ?? ""}`,
   }));
 

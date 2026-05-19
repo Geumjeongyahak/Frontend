@@ -9,12 +9,20 @@ import {
   getAbsenceRequestDetail,
   updateAbsenceRequest,
 } from "@/api/request/request.api";
+import type { RequestStatus } from "@/api/request/request.dto";
 import { Button } from "@/components/common/VariantButton";
+import { StatusBadge, type ExchangeStatus } from "@/components/staff/class-management/exchange-request/ExchangeRequestDetail";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
+
+function normalizeStatusTone(status?: RequestStatus): ExchangeStatus {
+  if (status === "APPROVED") return "APPROVED";
+  if (status === "REJECTED") return "REJECTED";
+  return "PENDING";
+}
 
 export default function AbsencePostPage() {
   const params = useParams<{ postId: string }>();
@@ -66,6 +74,7 @@ export default function AbsencePostPage() {
   const detailStatus = isError ? "확인 불가" : formatRequestStatus(data?.status);
   const detailTitle = isLoading ? "불러오는 중..." : data?.title ?? "-";
   const isPendingRequest = data?.status === "PENDING";
+  const detailStatusTone = normalizeStatusTone(data?.status);
 
   const handleDelete = async () => {
     if (!isValidPostId || !isPendingRequest || deleteAbsenceMutation.isPending) return;
@@ -165,7 +174,7 @@ export default function AbsencePostPage() {
           )}
 
           <Label>신청 현황</Label>
-          <StatusBox>{detailStatus}</StatusBox>
+          <StatusBadge $tone={detailStatusTone}>{detailStatus}</StatusBadge>
         </PostSection>
       </ContentColumn>
     </PageWrapper>
@@ -310,15 +319,6 @@ const TextBox = styled(ValueBox)`
   @media (min-width: 120rem) {
     min-height: 9.6875rem;
     padding-top: 1.1875rem;
-  }
-`;
-
-const StatusBox = styled(ValueBox)`
-  width: fit-content;
-  padding-inline: ${spacing.space20};
-
-  @media (min-width: 120rem) {
-    padding-inline: 1.875rem;
   }
 `;
 
