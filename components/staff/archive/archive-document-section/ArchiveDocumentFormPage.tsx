@@ -4,6 +4,7 @@ import { useState } from "react";
 import { IconPaperclip } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import {
   attachPostAttachment,
@@ -15,20 +16,17 @@ import { resolveArchiveChannel } from "@/components/staff/archive/archive-docume
 import {
   ActionButton,
   DocumentSection,
-  FileSelectLabel,
-  FileUploadPanel,
   Form,
   HiddenFileInput,
-  Input,
   Label,
   PageTitle,
   StateMessage,
-  Textarea,
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 type ArchiveDocumentFormPageProps = {
   config: ArchiveDocumentConfig;
@@ -159,7 +157,7 @@ export default function ArchiveDocumentFormPage({
         <Label as="label" htmlFor={`${config.category}-title`}>
           제목
         </Label>
-        <Input
+        <ArchiveInput
           id={`${config.category}-title`}
           name="title"
           placeholder="제목"
@@ -170,7 +168,7 @@ export default function ArchiveDocumentFormPage({
         <Label as="label" htmlFor={`${config.category}-author`}>
           작성자
         </Label>
-        <Input
+        <ArchiveInput
           id={`${config.category}-author`}
           name="author"
           placeholder="홍길동"
@@ -181,7 +179,7 @@ export default function ArchiveDocumentFormPage({
         <Label as="label" htmlFor={`${config.category}-description`}>
           설명
         </Label>
-        <Textarea
+        <ArchiveTextarea
           id={`${config.category}-description`}
           name="description"
           placeholder="설명"
@@ -230,3 +228,125 @@ export default function ArchiveDocumentFormPage({
     </DocumentSection>
   );
 }
+
+const ArchiveInput = styled.input`
+  width: 100%;
+  min-height: 2.6875rem;
+  border: 1px solid ${colors.muted};
+  background-color: ${colors.white};
+  padding: 0.8125rem ${spacing.space12};
+  color: ${colors.text};
+  font: inherit;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+
+  &::placeholder {
+    color: ${colors.placeholder};
+  }
+
+  &:read-only {
+    color: ${colors.placeholder};
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ArchiveTextarea = styled.textarea`
+  width: 100%;
+  min-height: 2.6875rem;
+  resize: vertical;
+  border: 1px solid ${colors.muted};
+  background-color: ${colors.white};
+  padding: 0.8125rem ${spacing.space12};
+  color: ${colors.text};
+  font: inherit;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+
+  &::placeholder {
+    color: ${colors.placeholder};
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const FileUploadPanel = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: ${spacing.space20};
+  width: 100%;
+  min-height: 6.875rem;
+  border: 1px solid ${colors.muted};
+  background-color: ${colors.white};
+  padding: ${spacing.space20};
+
+  > span {
+    color: ${colors.text};
+    font-size: ${typography.fontSize14};
+    font-weight: 500;
+    line-height: ${typography.lineHeight130};
+    text-decoration: underline;
+    text-underline-position: from-font;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 9.6875rem;
+    gap: 1.875rem;
+
+    > span {
+      font-size: ${typography.fontSize20};
+    }
+  }
+`;
+
+const FileSelectLabel = styled.label`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${spacing.space4};
+  min-height: 1.9375rem;
+  border: 1px solid ${colors.point};
+  border-radius: ${radii.radius15};
+  background-color: ${colors.pointSoft};
+  padding: 0.5rem 0.625rem;
+  color: ${colors.point};
+  font-size: ${typography.fontSize13};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  cursor: pointer;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  &:hover {
+    background-color: #e5f5db;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 2.75rem;
+    padding: 0.625rem 0.9375rem;
+    font-size: ${typography.fontSize20};
+
+    svg {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    width: 100%;
+  }
+`;

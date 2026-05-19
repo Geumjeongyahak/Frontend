@@ -2,13 +2,14 @@
 
 import { IconDownload } from "@tabler/icons-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import styled, { css } from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { deletePost, getPost } from "@/api/post/post.api";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/ArchiveDocumentListPage";
 import {
-  ActionButton,
   ActionLink,
   ContentStack,
   DocumentSection,
@@ -26,6 +27,7 @@ import {
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
+import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type ArchiveDocumentDetailPageProps = {
@@ -106,15 +108,17 @@ export default function ArchiveDocumentDetailPage({
 
         {canManagePost ? (
           <ToolbarRight>
-            <ActionButton
+            <ArchiveActionButton
               type="button"
-              $variant="danger"
+              $tone="danger"
               disabled={!hasChannelId || deletePostMutation.isPending}
               onClick={() => deletePostMutation.mutate()}
             >
               삭제
-            </ActionButton>
-            <ActionLink href={editHref}>수정</ActionLink>
+            </ArchiveActionButton>
+            <ArchiveActionLink href={editHref} $tone="edit">
+              수정
+            </ArchiveActionLink>
           </ToolbarRight>
         ) : null}
       </Toolbar>
@@ -164,3 +168,46 @@ export default function ArchiveDocumentDetailPage({
     </DocumentSection>
   );
 }
+
+const archiveActionStyle = css<{ $tone: "danger" | "edit" }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.9375rem;
+  min-height: 2.6875rem;
+  border: 1px solid ${({ $tone }) => ($tone === "danger" ? colors.notice : colors.point)};
+  border-radius: ${radii.radius15};
+  background-color: ${colors.white};
+  padding: 0.8125rem ${spacing.space20};
+  color: ${({ $tone }) => ($tone === "danger" ? colors.notice : colors.point)};
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background-color: ${({ $tone }) => ($tone === "danger" ? colors.noticeSoft : colors.pointSoft)};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  @media (min-width: 120rem) {
+    min-width: 5.9375rem;
+    min-height: 4rem;
+    padding: ${spacing.space20} 1.875rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ArchiveActionButton = styled.button<{ $tone: "danger" | "edit" }>`
+  ${archiveActionStyle}
+`;
+
+const ArchiveActionLink = styled(Link)<{ $tone: "danger" | "edit" }>`
+  ${archiveActionStyle}
+`;
