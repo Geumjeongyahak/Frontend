@@ -5,7 +5,7 @@ export type AbsenceReport = {
   opinion: string;
 };
 
-export type MeetingMinute = {
+export type MeetingRecord = {
   id: number;
   title: string;
   author: string;
@@ -17,9 +17,9 @@ export type MeetingMinute = {
   absenceReports: AbsenceReport[];
 };
 
-export const MEETING_MINUTES_PER_PAGE = 9;
+export const MEETING_RECORDS_PER_PAGE = 9;
 
-const meetingTemplates: Omit<MeetingMinute, "id">[] = [
+const meetingTemplates: Omit<MeetingRecord, "id">[] = [
   {
     title: "26.04.05 교학 회의록 입니다",
     author: "홍길동",
@@ -72,7 +72,7 @@ const meetingTemplates: Omit<MeetingMinute, "id">[] = [
   },
 ];
 
-export const meetingMinutes: MeetingMinute[] = Array.from({ length: 45 }, (_, index) => {
+export const meetingRecords: MeetingRecord[] = Array.from({ length: 45 }, (_, index) => {
   const template = meetingTemplates[index % meetingTemplates.length];
   const id = index + 1;
 
@@ -85,6 +85,6 @@ export const meetingMinutes: MeetingMinute[] = Array.from({ length: 45 }, (_, in
   };
 });
 
-export function getMeetingMinuteById(id: number) {
-  return meetingMinutes.find((minute) => minute.id === id);
+export function getMeetingRecordById(id: number) {
+  return meetingRecords.find((minute) => minute.id === id);
 }

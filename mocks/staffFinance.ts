@@ -22,24 +22,24 @@ export const staffSections: StaffSection[] = [
   {
     title: "수업 관리",
     items: [
-      { label: "수업 일지", href: "/staff/classes/journal" },
-      { label: "수업 교환 신청", href: "/staff/classes/exchange" },
-      { label: "수업 결강 신청", href: "/staff/classes/absence" },
+      { label: "수업 일지", href: "/staff/class-management" },
+      { label: "수업 교환 신청", href: "/staff/class-management/exchange-request" },
+      { label: "수업 결강 신청", href: "/staff/class-management/absence-request" },
     ],
   },
   {
     title: "재무 관리",
-    items: [{ label: "결제 신청", href: "/staff/finance" }],
+    items: [{ label: "결제 신청", href: "/staff/finance-management" }],
   },
   {
     title: "자료실",
     items: [
-      { label: "교칙", href: "/staff/resources/rules" },
-      { label: "연락망", href: "/staff/resources/contacts" },
-      { label: "교학 회의록", href: "/staff/resources/meeting-minutes" },
-      { label: "인수인계서", href: "/staff/resources/handover" },
-      { label: "시험 문제 자료", href: "/staff/resources/exams" },
-      { label: "서류 양식", href: "/staff/resources/forms" },
+      { label: "교칙", href: "/staff/archive/school-rules" },
+      { label: "연락망", href: "/staff/archive/phone-book" },
+      { label: "교학 회의록", href: "/staff/archive/meeting-records" },
+      { label: "인수인계서", href: "/staff/archive/handover-documents" },
+      { label: "시험 문제 자료", href: "/staff/archive/exam-materials" },
+      { label: "서류 양식", href: "/staff/archive/document-forms" },
     ],
   },
   {

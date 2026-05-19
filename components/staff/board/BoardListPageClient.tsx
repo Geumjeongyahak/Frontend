@@ -17,7 +17,7 @@ import {
   type BoardType,
   getBoardScopeOptions,
 } from "@/components/staff/board/boardOptions";
-import ListPanel, { type ListPanelRow } from "@/components/staff/ListPanel";
+import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";

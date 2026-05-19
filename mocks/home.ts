@@ -1,7 +1,7 @@
 import type {
   EventPhoto,
   HeaderDropdownMenu,
-  MeetingMinute,
+  MeetingRecord,
   Notice,
   WeeklyScheduleDay,
 } from "@/types/home";
@@ -19,11 +19,11 @@ export const headerMenus: HeaderDropdownMenu[] = [
   },
   {
     label: "교원",
-    href: "/staff/class",
+    href: "/staff/class-management",
     items: [
-      { label: "수업 관리", href: "/staff/class" },
-      { label: "재무 관리", href: "/staff/finance" },
-      { label: "자료실", href: "/staff/archive/rules" },
+      { label: "수업 관리", href: "/staff/class-management" },
+      { label: "재무 관리", href: "/staff/finance-management" },
+      { label: "자료실", href: "/staff/archive/school-rules" },
       { label: "게시판", href: "/staff/board" },
       { label: "학사일정", href: "/staff/calendar" },
     ],
@@ -48,7 +48,7 @@ export const notices: Notice[] = [
   { id: 10, title: "행사 사진 게시 일정 안내", date: "2026.03.05" },
 ];
 
-export const meetingMinutes: MeetingMinute[] = [
+export const meetingRecords: MeetingRecord[] = [
   { id: 1, title: "2026년 3월 교직원 회의록", date: "2026.03.27" },
   { id: 2, title: "2026년 3월 교육과정 협의회 회의록", date: "2026.03.21" },
   { id: 3, title: "2026년 3월 행사 준비 회의록", date: "2026.03.16" },

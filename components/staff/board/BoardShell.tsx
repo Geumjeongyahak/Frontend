@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import styled from "styled-components";
-import StaffSidebar from "@/components/staff/StaffSidebar";
+import StaffSidebar from "@/components/staff/common/StaffSidebar";
 import { colors, layout } from "@/styles/tokens";
 
 type BoardShellProps = {

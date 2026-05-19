@@ -28,7 +28,7 @@ export const archiveDocumentConfigs: Record<ArchiveDocumentCategory, ArchiveDocu
   handover: {
     category: "handover",
     channelId: 20, //채널 id 변경시 수정
-    listPath: "/staff/archive/handover",
+    listPath: "/staff/archive/handover-documents",
     title: "인수인계서",
     writeTitle: "인수인계서 작성하기",
     writeLabel: "인수인계서 작성하기",
@@ -39,7 +39,7 @@ export const archiveDocumentConfigs: Record<ArchiveDocumentCategory, ArchiveDocu
   exam: {
     category: "exam",
     channelId: 22, //채널 id 변경시 수정
-    listPath: "/staff/archive/exam",
+    listPath: "/staff/archive/exam-materials",
     title: "시험 문제 자료",
     writeTitle: "시험 문제 자료 작성하기",
     writeLabel: "시험 문제 자료 작성하기",
@@ -50,7 +50,7 @@ export const archiveDocumentConfigs: Record<ArchiveDocumentCategory, ArchiveDocu
   forms: {
     category: "forms",
     channelId: 23, //채널 id 변경시 수정
-    listPath: "/staff/archive/forms",
+    listPath: "/staff/archive/document-forms",
     title: "서류 양식",
     writeTitle: "서류 양식 작성하기",
     writeLabel: "서류 양식 작성하기",

@@ -2,23 +2,23 @@ import styled from "styled-components";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
 import { colors, layout } from "@/styles/tokens";
 
-export default function ArchiveLayout({ children }: { children: React.ReactNode }) {
+export default function ClassLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ArchiveShell>
-      <ArchiveStage>
+    <ClassShell>
+      <ClassStage>
         <StaffSidebar />
-        <ArchiveContent>{children}</ArchiveContent>
-      </ArchiveStage>
-    </ArchiveShell>
+        <ClassContent>{children}</ClassContent>
+      </ClassStage>
+    </ClassShell>
   );
 }
 
-const ArchiveShell = styled.div`
+const ClassShell = styled.div`
   min-height: calc(100vh - ${layout.headerHeight});
   background-color: ${colors.white};
 `;
 
-const ArchiveStage = styled.div`
+const ClassStage = styled.div`
   display: flex;
   width: 100%;
   max-width: 80rem;
@@ -36,7 +36,7 @@ const ArchiveStage = styled.div`
   }
 `;
 
-const ArchiveContent = styled.main`
+const ClassContent = styled.main`
   flex: 1;
   min-width: 0;
 `;
