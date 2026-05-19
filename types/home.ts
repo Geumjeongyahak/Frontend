@@ -4,7 +4,7 @@ export type Notice = {
   date: string;
 };
 
-export type MeetingMinute = {
+export type MeetingRecord = {
   id: number;
   title: string;
   date: string;
