@@ -11,6 +11,8 @@ interface ExchangeProposalListProps {
   acceptLabel?: string;
   showAcceptLink?: boolean;
   showCardTopBorder?: boolean;
+  isAccepting?: boolean;
+  onAcceptProposal?: (proposal: LessonExchangeProposalDto) => void;
   proposals: LessonExchangeProposalDto[];
   proposalsLoading: boolean;
   proposalsError: boolean;
@@ -21,6 +23,8 @@ export function ExchangeProposalList({
   acceptLabel = "제안 수락하기",
   showAcceptLink = true,
   showCardTopBorder = true,
+  isAccepting = false,
+  onAcceptProposal,
   proposals,
   proposalsLoading,
   proposalsError,
@@ -39,6 +43,8 @@ export function ExchangeProposalList({
         proposals.map((proposal, index) => {
           const acceptHref =
             typeof acceptedHref === "function" ? acceptedHref(proposal) : acceptedHref;
+          const canShowAccept =
+            showAcceptLink && (proposal.status === "ACTIVE" || proposal.status == null);
 
           return (
             <ProposalCard key={proposal.id ?? index} $showTopBorder={showCardTopBorder}>
@@ -62,9 +68,19 @@ export function ExchangeProposalList({
 
               <ProposalContent>{proposal.content ?? "—"}</ProposalContent>
 
-              {showAcceptLink ? (
+              {canShowAccept ? (
                 <ProposalFooter>
-                  <AcceptLink href={acceptHref}>{acceptLabel}</AcceptLink>
+                  {onAcceptProposal ? (
+                    <AcceptButton
+                      type="button"
+                      disabled={isAccepting}
+                      onClick={() => onAcceptProposal(proposal)}
+                    >
+                      {acceptLabel}
+                    </AcceptButton>
+                  ) : (
+                    <AcceptLink href={acceptHref}>{acceptLabel}</AcceptLink>
+                  )}
                 </ProposalFooter>
               ) : null}
             </ProposalCard>
@@ -196,7 +212,7 @@ const ProposalDate = styled.span`
   }
 `;
 
-const AcceptLink = styled(Link)`
+const acceptActionStyle = `
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -209,5 +225,22 @@ const AcceptLink = styled(Link)`
 
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize20};
+  }
+`;
+
+const AcceptLink = styled(Link)`
+  ${acceptActionStyle}
+`;
+
+const AcceptButton = styled.button`
+  ${acceptActionStyle}
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;

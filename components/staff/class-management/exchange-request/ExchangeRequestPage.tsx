@@ -23,7 +23,10 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
   const canEdit = page.isAuthenticated && page.isValidPostId && !page.requestError && !isLocked;
   const acceptedHref = `/staff/class-management/exchange-request/${page.postId}/accepted`;
   const canAcceptProposal =
-    page.isAuthenticated && page.user?.id != null && page.user.id === page.request?.requestedById;
+    page.isAuthenticated &&
+    page.user?.id != null &&
+    page.user.id === page.request?.requestedById &&
+    page.request?.status === "APPROVED";
 
   return (
     <PageWrapper>
@@ -96,6 +99,10 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
                 proposal.id ? `${acceptedHref}?proposalId=${proposal.id}` : acceptedHref
               }
               showAcceptLink={canAcceptProposal}
+              isAccepting={page.isAcceptingProposal}
+              onAcceptProposal={(proposal) => {
+                if (proposal.id) page.acceptProposal(proposal.id);
+              }}
               proposals={page.proposals}
               proposalsLoading={page.proposalsLoading}
               proposalsError={page.proposalsError}
