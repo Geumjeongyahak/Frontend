@@ -26,7 +26,7 @@ export interface LessonExchangeListQueryParamsDto {
 }
 
 export interface CreateLessonExchangeRequestDto {
-  dailyScheduleId: number;
+  lessonDate: string;
   title: string;
   content: string;
   expiresAt: string;
