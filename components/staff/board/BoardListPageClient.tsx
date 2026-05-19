@@ -42,6 +42,10 @@ function isPinnedPost(post: PostSummaryResponseDto) {
   return Boolean(post.isPinned);
 }
 
+function isArchivePost(post: PostSummaryResponseDto) {
+  return post.channelType === "CUSTOM";
+}
+
 function getPostTime(post: PostSummaryResponseDto) {
   const dateValue = post.createdAt ?? post.updatedAt;
   if (!dateValue) return 0;
@@ -187,7 +191,7 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
     retry: false,
   });
 
-  const rawPosts = data?.content ?? [];
+  const rawPosts = (data?.content ?? []).filter((post) => !isArchivePost(post));
   const posts = rawPosts.filter((post) => {
     if (!mineOnly) return true;
     if (typeof user?.id === "number" && post.authorId === user.id) return true;
