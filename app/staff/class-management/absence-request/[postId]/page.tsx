@@ -1,23 +1,40 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import styled from "styled-components";
-import { deleteAbsenceRequest, getAbsenceRequestDetail } from "@/api/request/request.api";
-import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import {
+  deleteAbsenceRequest,
+  getAbsenceRequestDetail,
+  updateAbsenceRequest,
+} from "@/api/request/request.api";
+import type { RequestStatus } from "@/api/request/request.dto";
+import { Button } from "@/components/common/VariantButton";
+import { StatusBadge, type ExchangeStatus } from "@/components/staff/class-management/exchange-request/ExchangeRequestDetail";
+import { colors, layout, spacing, typography } from "@/styles/tokens";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
+function normalizeStatusTone(status?: RequestStatus): ExchangeStatus {
+  if (status === "APPROVED") return "APPROVED";
+  if (status === "REJECTED") return "REJECTED";
+  return "PENDING";
+}
+
 export default function AbsencePostPage() {
   const params = useParams<{ postId: string }>();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { status: authStatus } = useAuthSession();
   const isAuthenticated = authStatus === "authenticated";
   const postId = Number(params.postId);
   const isValidPostId = Number.isInteger(postId) && postId > 0;
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editReason, setEditReason] = useState("");
   const deleteAbsenceMutation = useMutation({
     mutationFn: deleteAbsenceRequest,
     onSuccess: () => {
@@ -26,6 +43,19 @@ export default function AbsencePostPage() {
     },
     onError: () => {
       window.alert("결강 신청서 삭제에 실패했습니다.");
+    },
+  });
+  const updateAbsenceMutation = useMutation({
+    mutationFn: (body: { title: string; reason: string }) =>
+      updateAbsenceRequest({ requestId: postId }, body),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.requests.absenceDetail(postId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.requests.absenceList() });
+      setIsEditing(false);
+      window.alert("결강 신청서가 수정되었습니다.");
+    },
+    onError: () => {
+      window.alert("결강 신청서 수정에 실패했습니다.");
     },
   });
 
@@ -38,25 +68,78 @@ export default function AbsencePostPage() {
 
   const detailCreatedDate = formatUtcToKstShortDate(data?.createdAt);
   const detailLessonDate = formatUtcToKstShortDate(data?.lessonDate);
+  const detailClassroomName = data?.classroomName ?? "-";
   const detailWriter = data?.requestedByName ?? "-";
   const detailReason = isError ? "결강 신청 사유를 불러오지 못했습니다." : data?.reason ?? "결강 신청 사유";
   const detailStatus = isError ? "확인 불가" : formatRequestStatus(data?.status);
-  const detailTitle = isLoading ? "불러오는 중..." : "-";
+  const detailTitle = isLoading ? "불러오는 중..." : data?.title ?? "-";
+  const isPendingRequest = data?.status === "PENDING";
+  const detailStatusTone = normalizeStatusTone(data?.status);
 
   const handleDelete = async () => {
-    if (!isValidPostId || deleteAbsenceMutation.isPending) return;
+    if (!isValidPostId || !isPendingRequest || deleteAbsenceMutation.isPending) return;
     if (!window.confirm("결강 신청서를 삭제하시겠습니까?")) return;
     deleteAbsenceMutation.mutate({ requestId: postId });
+  };
+
+  const handleStartEdit = () => {
+    if (!isPendingRequest) return;
+    setEditTitle(data?.title ?? "");
+    setEditReason(data?.reason ?? "");
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    if (!updateAbsenceMutation.isPending) {
+      setIsEditing(false);
+    }
+  };
+
+  const handleSaveEdit = () => {
+    const title = editTitle.trim();
+    const reason = editReason.trim();
+
+    if (!title || !reason) {
+      window.alert("제목과 결강 신청 사유를 입력해 주세요.");
+      return;
+    }
+
+    updateAbsenceMutation.mutate({ title, reason });
   };
 
   return (
     <PageWrapper>
       <TopButtonRow>
-        <ToolbarDangerButton type="button" onClick={handleDelete} disabled={deleteAbsenceMutation.isPending}>
+        <Button
+          type="button"
+          $variant="danger"
+          onClick={handleDelete}
+          disabled={!isPendingRequest || deleteAbsenceMutation.isPending}
+        >
           {deleteAbsenceMutation.isPending ? "삭제 중..." : "삭제"}
-        </ToolbarDangerButton>
-        <ToolbarPrimaryButton type="button">수정</ToolbarPrimaryButton>
-        <ToolbarListLink href="/staff/class-management/absence-request">목록</ToolbarListLink>
+        </Button>
+        {isEditing ? (
+          <>
+            <Button
+              type="button"
+              $variant="edit"
+              onClick={handleCancelEdit}
+              disabled={updateAbsenceMutation.isPending}
+            >
+              취소
+            </Button>
+            <Button type="button" onClick={handleSaveEdit} disabled={updateAbsenceMutation.isPending}>
+              {updateAbsenceMutation.isPending ? "저장 중..." : "저장"}
+            </Button>
+          </>
+        ) : (
+          <Button type="button" $variant="edit" onClick={handleStartEdit} disabled={!isPendingRequest}>
+            수정
+          </Button>
+        )}
+        <Button type="button" $variant="neutral" onClick={() => router.push("/staff/class-management/absence-request")}>
+          목록
+        </Button>
       </TopButtonRow>
 
       <ContentColumn>
@@ -64,12 +147,16 @@ export default function AbsencePostPage() {
 
         <PostSection>
           <Label>제목</Label>
-          <ValueBox>{detailTitle}</ValueBox>
+          {isEditing ? (
+            <EditInput value={editTitle} onChange={(event) => setEditTitle(event.target.value)} />
+          ) : (
+            <ValueBox>{detailTitle}</ValueBox>
+          )}
 
           <Label>신청자 정보</Label>
           <InfoRow>
             <FieldLabel>반 이름</FieldLabel>
-            <FieldValue>-</FieldValue>
+            <FieldValue>{detailClassroomName}</FieldValue>
             <FieldLabel>수업 일자</FieldLabel>
             <FieldValue>{detailLessonDate}</FieldValue>
             <FieldLabel>작성자</FieldLabel>
@@ -77,10 +164,17 @@ export default function AbsencePostPage() {
           </InfoRow>
 
           <Label>결강 신청 사유</Label>
-          <TextBox>{detailReason}</TextBox>
+          {isEditing ? (
+            <EditInput
+              value={editReason}
+              onChange={(event) => setEditReason(event.target.value)}
+            />
+          ) : (
+            <TextBox>{detailReason}</TextBox>
+          )}
 
           <Label>신청 현황</Label>
-          <StatusBox>{detailStatus}</StatusBox>
+          <StatusBadge $tone={detailStatusTone}>{detailStatus}</StatusBadge>
         </PostSection>
       </ContentColumn>
     </PageWrapper>
@@ -115,65 +209,6 @@ const TopButtonRow = styled.div`
 
   @media (max-width: ${layout.breakpointMobile}) {
     flex-wrap: wrap;
-  }
-`;
-
-const toolbarButtonBase = `
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 3.9375rem;
-  min-height: 2.6875rem;
-  padding: 0.8125rem ${spacing.space20};
-  border: 0;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  white-space: nowrap;
-  cursor: pointer;
-  border-radius: ${radii.radius12};
-
-  @media (min-width: 120rem) {
-    min-width: 5.9375rem;
-    min-height: 4rem;
-    padding: ${spacing.space20} 1.875rem;
-    font-size: ${typography.fontSize20};
-  }
-`;
-
-const ToolbarDangerButton = styled.button`
-  ${toolbarButtonBase}
-  background: #fde4e2;
-  color: #da3a30;
-
-  &:hover:not(:disabled) {
-    filter: brightness(0.97);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const ToolbarPrimaryButton = styled.button`
-  ${toolbarButtonBase}
-  background: ${colors.point};
-  color: ${colors.white};
-
-  &:hover {
-    filter: brightness(0.95);
-  }
-`;
-
-const ToolbarListLink = styled(Link)`
-  ${toolbarButtonBase}
-  background: ${colors.point};
-  color: ${colors.white};
-  text-decoration: none;
-
-  &:hover {
-    filter: brightness(0.95);
   }
 `;
 
@@ -287,11 +322,19 @@ const TextBox = styled(ValueBox)`
   }
 `;
 
-const StatusBox = styled(ValueBox)`
-  width: fit-content;
-  padding-inline: ${spacing.space20};
+const EditInput = styled.input`
+  width: 100%;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  border: 1px solid #c0c0c0;
+  background: #ffffff;
+  outline: none;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
-    padding-inline: 1.875rem;
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
   }
 `;

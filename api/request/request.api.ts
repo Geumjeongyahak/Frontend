@@ -16,6 +16,7 @@ import type {
   RequestReconfirmationResponseDto,
   ReviewPurchaseRequestDto,
   RequestStatusQueryParamsDto,
+  UpdateAbsenceRequestDto,
 } from "./request.dto";
 
 // 결석 요청 목록을 조회하는 요청
@@ -26,7 +27,7 @@ export async function getAbsenceRequests(query?: RequestStatusQueryParamsDto) {
       params: query,
     },
   );
-  return response.data.content;
+  return response.data;
 }
 
 // 결석 요청을 생성하는 요청
@@ -42,6 +43,18 @@ export async function createAbsenceRequest(body: CreateAbsenceRequestDto) {
 export async function getAbsenceRequestDetail(pathParams: RequestPathParamsDto) {
   const response = await authClient.get<AbsenceRequestResponseDto>(
     `/api/v1/absence-requests/${pathParams.requestId}`,
+  );
+  return response.data;
+}
+
+// 특정 결석 요청을 수정하는 요청
+export async function updateAbsenceRequest(
+  pathParams: RequestPathParamsDto,
+  body: UpdateAbsenceRequestDto,
+) {
+  const response = await authClient.patch<AbsenceRequestResponseDto>(
+    `/api/v1/absence-requests/${pathParams.requestId}`,
+    body,
   );
   return response.data;
 }

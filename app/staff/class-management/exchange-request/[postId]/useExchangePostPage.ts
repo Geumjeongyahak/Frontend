@@ -9,6 +9,7 @@ import type {
   UpdateLessonExchangeRequestDto,
 } from "@/api/lessonExchange/lessonExchange.dto";
 import {
+  acceptLessonExchangeProposal,
   cancelLessonExchangeRequest,
   createLessonExchangeProposal,
   getLessonExchangeRequestDetail,
@@ -130,6 +131,29 @@ export function useExchangePostPage() {
     },
   });
 
+  const acceptProposalMutation = useMutation({
+    mutationFn: (proposalId: number) =>
+      acceptLessonExchangeProposal({ requestId: postId, proposalId }),
+    onSuccess: async (_, proposalId) => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.lessonExchangeDetail(postId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.lessonExchangeProposals(postId),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.lessonExchangeList(),
+      });
+
+      router.push(
+        `/staff/class-management/exchange-request/${postId}/accepted?proposalId=${proposalId}`,
+      );
+    },
+    onError: (error) => {
+      window.alert(error instanceof Error ? error.message : "교환 제안 수락에 실패했습니다.");
+    },
+  });
+
   const cancelRequestMutation = useMutation({
     mutationFn: () => cancelLessonExchangeRequest({ requestId: postId }),
     onSuccess: async () => {
@@ -205,6 +229,12 @@ export function useExchangePostPage() {
 
   const submitProposal = proposalForm.handleSubmit((data) => {
     const content = data.content.trim();
+    const lessonDate = normalizeLessonDateForApi(data.lessonDate);
+
+    if (!lessonDate) {
+      window.alert("수업 일자를 입력해 주세요.");
+      return;
+    }
 
     if (!content) {
       window.alert("내용을 입력해 주세요.");
@@ -212,7 +242,7 @@ export function useExchangePostPage() {
     }
 
     createProposalMutation.mutate({
-      lessonDate: normalizeLessonDateForApi(data.lessonDate),
+      lessonDate,
       content,
     });
   });
@@ -226,6 +256,13 @@ export function useExchangePostPage() {
 
   const backToList = () => {
     router.push("/staff/class-management/exchange-request");
+  };
+
+  const acceptProposal = (proposalId: number) => {
+    if (!Number.isInteger(proposalId) || proposalId <= 0) return;
+    if (!window.confirm("이 교환 제안을 수락할까요?")) return;
+
+    acceptProposalMutation.mutate(proposalId);
   };
 
   return {
@@ -248,11 +285,13 @@ export function useExchangePostPage() {
 
     isUpdating: updateRequestMutation.isPending,
     isCreatingProposal: createProposalMutation.isPending,
+    isAcceptingProposal: acceptProposalMutation.isPending,
 
     startEdit,
     cancelEdit,
     saveEdit,
     submitProposal,
+    acceptProposal,
     deleteRequest,
     backToList,
   };

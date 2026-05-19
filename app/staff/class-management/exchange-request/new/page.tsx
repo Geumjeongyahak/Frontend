@@ -7,15 +7,12 @@ import { useMutation } from "@tanstack/react-query";
 import styled from "styled-components";
 import { createLessonExchangeRequest } from "@/api/lessonExchange/lessonExchange.api";
 import {
-  getKstTodayShortDate,
   koreanShortDateToLocalDateTime,
   parseKoreanShortDateToIsoDate,
 } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export default function Page() {
-  //const kstToday = getKstTodayShortDate();
-
   const [lessonDateText, setLessonDateText] = useState("");
   const [expireDateText, setExpireDateText] = useState("");
 
@@ -65,21 +62,15 @@ export default function Page() {
     const formData = new FormData(event.currentTarget);
     const title = String(formData.get("title") ?? "").trim();
     const content = String(formData.get("reason") ?? "").trim();
-    const lessonDateRaw = String(formData.get("lessonDate") ?? "").trim();
-    const periodFromRaw = String(formData.get("lessonPeriodFrom") ?? "").trim();
-    const periodToRaw = String(formData.get("lessonPeriodTo") ?? "").trim();
-
-    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateRaw);
+    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateText.trim());
     const expiresAt = koreanShortDateToLocalDateTime(expireDateText.trim());
-    const startPeriod = Number.parseInt(periodFromRaw, 10);
-    const endPeriod = Number.parseInt(periodToRaw, 10);
 
     if (!title || !content) {
       window.alert("필수 입력값을 확인해주세요.");
       return;
     }
     if (!lessonDate) {
-      window.alert("수업 일자를 YY.MM.DD 형식으로 입력해 주세요.");
+      window.alert("수업 일자를 선택해 주세요.");
       return;
     }
     if (!expiresAt) {

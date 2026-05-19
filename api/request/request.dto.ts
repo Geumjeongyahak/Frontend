@@ -8,6 +8,10 @@ export type PurchaseRequestStatus =
 
 export interface RequestStatusQueryParamsDto {
   status?: RequestStatus;
+  mine?: boolean;
+  keyword?: string;
+  page?: number;
+  size?: number;
 }
 
 export interface PurchaseRequestStatusQueryParamsDto {
@@ -23,13 +27,23 @@ export interface CreateAbsenceRequestDto {
   reason: string;
 }
 
+export interface UpdateAbsenceRequestDto {
+  title: string;
+  reason: string;
+}
+
 export interface AbsenceRequestResponseDto {
   id?: number;
   lessonId?: number;
+  dailyScheduleId?: number;
   lessonDate?: string;
+  classroomId?: number;
+  classroomName?: string;
   requestedById?: number;
   requestedByName?: string;
+  title?: string;
   reason?: string;
+  expiresAt?: string;
   status?: RequestStatus;
   approvalAt?: string;
   approvalByName?: string;
@@ -39,6 +53,10 @@ export interface AbsenceRequestResponseDto {
 
 export interface AbsenceRequestListResponseDto {
   content: AbsenceRequestResponseDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }
 
 export type AbsenceRequestListItemDto = AbsenceRequestResponseDto;

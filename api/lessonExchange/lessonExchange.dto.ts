@@ -19,7 +19,10 @@ export interface LessonExchangeProposalPathParamsDto extends LessonExchangePathP
 
 export interface LessonExchangeListQueryParamsDto {
   status?: LessonExchangeRequestStatus;
-  mine: boolean;
+  mine?: boolean;
+  keyword?: string;
+  page?: number;
+  size?: number;
 }
 
 export interface CreateLessonExchangeRequestDto {
@@ -47,6 +50,7 @@ export interface ApproveLessonExchangeRequestDto {
 
 export interface LessonExchangeRequestDetailDto {
   id?: number;
+  dailyScheduleId?: number;
   classroomName?: string;
   lessonDate?: string;
   requestedById?: number;
@@ -54,7 +58,6 @@ export interface LessonExchangeRequestDetailDto {
   title?: string;
   content?: string;
   status?: LessonExchangeRequestStatus;
-  scope?: string;
   expiresAt?: string;
   processedAt?: string;
   processedByName?: string;
@@ -64,17 +67,22 @@ export interface LessonExchangeRequestDetailDto {
   createdAt?: string;
 }
 
-export interface LessonExchangeListResponseDto {
+export interface LessonExchangeRequestListItemDto {
   id: number;
+  dailyScheduleId: number;
   classroomName: string;
-  requestedName: string;
+  requestedByName: string;
   title: string;
   status: LessonExchangeRequestStatus;
   createdAt: string;
 }
 
 export interface LessonExchangeRequestListResponseDto {
-  content: LessonExchangeRequestDetailDto[];
+  content: LessonExchangeRequestListItemDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }
 
 export interface LessonExchangeProposalRequestDto {
@@ -90,6 +98,7 @@ export interface UpdateLessonExchangeProposalRequestDto {
 export interface LessonExchangeProposalDto {
   id?: number;
   requestId?: number;
+  dailyScheduleId?: number;
   classroomName?: string;
   proposedById?: number;
   proposedByName?: string;
