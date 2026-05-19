@@ -1,72 +1,77 @@
 "use client";
 
-import { useMemo } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { IconSearch } from "@tabler/icons-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import styled from "styled-components";
 import { getLessonExchangeRequests } from "@/api/lessonExchange/lessonExchange.api";
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const ITEMS_PER_PAGE = 9;
+const STABLE_TABLE_ROWS = 11;
 
 export default function ExchangeListPageClient() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const { status: authStatus, user } = useAuthSession();
+  const { status: authStatus } = useAuthSession();
+  const [searchInput, setSearchInput] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
 
   const isAuthenticated = authStatus === "authenticated";
   const rawPage = searchParams.get("page");
   const mineOnly = searchParams.get("mineOnly") === "1";
   const parsedPage = rawPage ? Number(rawPage) : 1;
+  const requestedPage = Number.isInteger(parsedPage) && parsedPage >= 1 ? parsedPage : 1;
 
   const {
-    data: exchangeRequests = [],
+    data: exchangeRequestPage,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: queryKeys.requests.lessonExchangeList(),
-    queryFn: () => getLessonExchangeRequests(),
+    queryKey: [
+      ...queryKeys.requests.lessonExchangeList(),
+      requestedPage,
+      ITEMS_PER_PAGE,
+      mineOnly,
+      searchKeyword,
+    ],
+    queryFn: () =>
+      getLessonExchangeRequests({
+        keyword: searchKeyword.trim() || undefined,
+        mine: mineOnly,
+        page: requestedPage - 1,
+        size: ITEMS_PER_PAGE,
+      }),
     enabled: isAuthenticated,
     retry: false,
   });
 
-  const currentUserName = user?.name?.trim();
+  const exchangeRequests = exchangeRequestPage?.content ?? [];
 
-  const filteredRequests = useMemo(
-    () =>
-      mineOnly
-        ? exchangeRequests.filter((request) => {
-            const requestedByName = request.requestedByName?.trim();
-            return Boolean(currentUserName) && requestedByName === currentUserName;
-          })
-        : exchangeRequests,
-    [currentUserName, exchangeRequests, mineOnly],
-  );
+  const totalPages = Math.max(1, exchangeRequestPage?.totalPages ?? 1);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / ITEMS_PER_PAGE));
-
-  const currentPage =
-    Number.isInteger(parsedPage) && parsedPage >= 1 && parsedPage <= totalPages ? parsedPage : 1;
-
+  const currentPage = requestedPage <= totalPages ? requestedPage : totalPages;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  const rows: ListPanelRow[] = filteredRequests
-    .slice(startIndex, startIndex + ITEMS_PER_PAGE)
-    .map((item, index) => ({
-      id: item.id ?? startIndex + index + 1,
-      no: String(startIndex + index + 1).padStart(2, "0"),
-      className: item.classroomName ?? "-",
-      title: item.title ?? "제목 없음",
-      author: item.requestedByName ?? "-",
-      date: formatUtcToKstShortDate(item.createdAt ?? item.lessonDate),
+  const rows: ListPanelRow[] = exchangeRequests.map((item, index) => ({
+    id: item.id ?? startIndex + index + 1,
+    no: String(startIndex + index + 1).padStart(2, "0"),
+    className: item.classroomName ?? "-",
+    title: item.title ?? "제목 없음",
+    author: item.requestedByName ?? "-",
+    date: formatUtcToKstShortDate(item.createdAt),
 
-      status: formatRequestStatus(item.status),
-      statusType: item.status as "PENDING" | "APPROVED" | "REJECTED",
+    status: formatRequestStatus(item.status),
+    statusType: item.status as "PENDING" | "APPROVED" | "REJECTED",
 
-      detailHref: `/staff/class-management/exchange-request/${item.id ?? ""}`,
-    }));
+    detailHref: `/staff/class-management/exchange-request/${item.id ?? ""}`,
+  }));
 
   const emptyMessage =
     authStatus === "loading"
@@ -88,9 +93,89 @@ export default function ExchangeListPageClient() {
       rows={rows}
       currentPage={currentPage}
       totalPages={totalPages}
+      stableTableRows={STABLE_TABLE_ROWS}
       mineOnly={mineOnly}
       emptyMessage={emptyMessage}
       headerTone="journal"
+      searchSlot={
+        <SearchForm
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            setSearchKeyword(searchInput);
+            if (requestedPage > 1) {
+              router.replace("/staff/class-management/exchange-request", { scroll: false });
+            }
+          }}
+        >
+          <SearchInput
+            aria-label="수업 교환 신청 검색"
+            placeholder="검색어를 입력하세요"
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
+          />
+          <SearchButton type="submit" aria-label="검색">
+            <IconSearch size={18} stroke={2.25} />
+          </SearchButton>
+        </SearchForm>
+      }
     />
   );
 }
+
+const SearchForm = styled.form`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space8};
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    width: 100%;
+  }
+`;
+
+const SearchInput = styled.input`
+  width: 13.75rem;
+  min-height: 2.25rem;
+  border: 0;
+  border-bottom: 1px solid #c0c0c0;
+  border-radius: 0;
+  background: ${colors.white};
+  padding: 0.5rem ${spacing.space16};
+  color: ${colors.text};
+  font: inherit;
+  font-size: ${typography.fontSize14};
+  outline: none;
+
+  &::placeholder {
+    color: ${colors.placeholder};
+  }
+
+  @media (min-width: 120rem) {
+    width: 20.625rem;
+    min-height: 3rem;
+    font-size: ${typography.fontSize20};
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+`;
+
+const SearchButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: #414141;
+  color: ${colors.white};
+  cursor: pointer;
+
+  @media (min-width: 120rem) {
+    width: 3rem;
+    height: 3rem;
+  }
+`;
