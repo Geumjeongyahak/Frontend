@@ -50,6 +50,7 @@ export interface ApproveLessonExchangeRequestDto {
 
 export interface LessonExchangeRequestDetailDto {
   id?: number;
+  dailyScheduleId?: number;
   classroomName?: string;
   lessonDate?: string;
   requestedById?: number;
@@ -57,7 +58,6 @@ export interface LessonExchangeRequestDetailDto {
   title?: string;
   content?: string;
   status?: LessonExchangeRequestStatus;
-  scope?: string;
   expiresAt?: string;
   processedAt?: string;
   processedByName?: string;
@@ -86,18 +86,19 @@ export interface LessonExchangeRequestListResponseDto {
 }
 
 export interface LessonExchangeProposalRequestDto {
-  lessonDate?: string;
+  dailyScheduleId: number;
   content: string;
 }
 
 export interface UpdateLessonExchangeProposalRequestDto {
-  lessonDate?: string;
+  dailyScheduleId?: number;
   content?: string;
 }
 
 export interface LessonExchangeProposalDto {
   id?: number;
   requestId?: number;
+  dailyScheduleId?: number;
   classroomName?: string;
   proposedById?: number;
   proposedByName?: string;

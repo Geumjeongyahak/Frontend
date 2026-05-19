@@ -39,7 +39,7 @@ function normalizeLessonDateForApi(value: string): string | undefined {
 }
 
 interface ProposalFormValues {
-  lessonDate: string;
+  dailyScheduleId: string;
   content: string;
 }
 
@@ -72,7 +72,7 @@ export function useExchangePostPage() {
 
   const proposalForm = useForm<ProposalFormValues>({
     defaultValues: {
-      lessonDate: "",
+      dailyScheduleId: "",
       content: "",
     },
   });
@@ -204,7 +204,13 @@ export function useExchangePostPage() {
   });
 
   const submitProposal = proposalForm.handleSubmit((data) => {
+    const dailyScheduleId = Number.parseInt(data.dailyScheduleId, 10);
     const content = data.content.trim();
+
+    if (!Number.isInteger(dailyScheduleId) || dailyScheduleId <= 0) {
+      window.alert("하루 일정 ID를 입력해 주세요.");
+      return;
+    }
 
     if (!content) {
       window.alert("내용을 입력해 주세요.");
@@ -212,7 +218,7 @@ export function useExchangePostPage() {
     }
 
     createProposalMutation.mutate({
-      lessonDate: normalizeLessonDateForApi(data.lessonDate),
+      dailyScheduleId,
       content,
     });
   });
