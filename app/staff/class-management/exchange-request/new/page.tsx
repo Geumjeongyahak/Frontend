@@ -6,20 +6,12 @@ import { IconCalendarMonth } from "@tabler/icons-react";
 import { useMutation } from "@tanstack/react-query";
 import styled from "styled-components";
 import { createLessonExchangeRequest } from "@/api/lessonExchange/lessonExchange.api";
-import {
-  getKstTodayShortDate,
-  koreanShortDateToLocalDateTime,
-  parseKoreanShortDateToIsoDate,
-} from "@/utils/kstShortDate";
+import { koreanShortDateToLocalDateTime } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export default function Page() {
-  //const kstToday = getKstTodayShortDate();
-
-  const [lessonDateText, setLessonDateText] = useState("");
   const [expireDateText, setExpireDateText] = useState("");
 
-  const lessonDateInputRef = useRef<HTMLInputElement>(null);
   const expireDateInputRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
@@ -65,21 +57,15 @@ export default function Page() {
     const formData = new FormData(event.currentTarget);
     const title = String(formData.get("title") ?? "").trim();
     const content = String(formData.get("reason") ?? "").trim();
-    const lessonDateRaw = String(formData.get("lessonDate") ?? "").trim();
-    const periodFromRaw = String(formData.get("lessonPeriodFrom") ?? "").trim();
-    const periodToRaw = String(formData.get("lessonPeriodTo") ?? "").trim();
-
-    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateRaw);
+    const dailyScheduleId = Number.parseInt(String(formData.get("dailyScheduleId") ?? ""), 10);
     const expiresAt = koreanShortDateToLocalDateTime(expireDateText.trim());
-    const startPeriod = Number.parseInt(periodFromRaw, 10);
-    const endPeriod = Number.parseInt(periodToRaw, 10);
 
     if (!title || !content) {
       window.alert("필수 입력값을 확인해주세요.");
       return;
     }
-    if (!lessonDate) {
-      window.alert("수업 일자를 YY.MM.DD 형식으로 입력해 주세요.");
+    if (!Number.isInteger(dailyScheduleId) || dailyScheduleId <= 0) {
+      window.alert("하루 일정 ID를 입력해 주세요.");
       return;
     }
     if (!expiresAt) {
@@ -88,7 +74,7 @@ export default function Page() {
     }
 
     createLessonExchangeMutation.mutate({
-      lessonDate,
+      dailyScheduleId,
       title,
       content,
       expiresAt,
@@ -122,31 +108,14 @@ export default function Page() {
               <InlineInput id="className" name="className" placeholder="반 이름" />
               <FieldLabel htmlFor="writer">작성자</FieldLabel>
               <InlineInput id="writer" name="writer" placeholder="홍길동" />
-              <FieldLabel htmlFor="lessonDate">수업 일자</FieldLabel>
-              <DateRow>
-                <DateInput
-                  id="lessonDate"
-                  name="lessonDate"
-                  placeholder="00.00.00"
-                  value={lessonDateText}
-                  readOnly
-                  onClick={() => handleOpenDatePicker(lessonDateInputRef)}
-                />
-                <HiddenNativeDateInput
-                  ref={lessonDateInputRef}
-                  type="date"
-                  onChange={(e) => handleDateChange(e, setLessonDateText)}
-                  aria-hidden="true"
-                  tabIndex={-1}
-                />
-                <CalendarButton
-                  type="button"
-                  aria-label="수업 일자 달력 열기"
-                  onClick={() => handleOpenDatePicker(lessonDateInputRef)}
-                >
-                  <IconCalendarMonth size={16} stroke={2} color={colors.white} />
-                </CalendarButton>
-              </DateRow>
+              <FieldLabel htmlFor="dailyScheduleId">하루 일정 ID</FieldLabel>
+              <InlineInput
+                id="dailyScheduleId"
+                name="dailyScheduleId"
+                type="number"
+                min="1"
+                placeholder="하루 일정 ID"
+              />
             </InfoPairRow>
           </InfoStack>
         </Section>
