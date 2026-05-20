@@ -33,6 +33,7 @@ type OpenDropdown = "type" | "scope" | null;
 
 type BoardListPageClientProps = {
   initialPage: number;
+  initialBoardType?: BoardType;
 };
 
 function isNoticePost(post: PostSummaryResponseDto) {
@@ -71,10 +72,13 @@ function sortBoardPosts(posts: PostSummaryResponseDto[], pinnedChannelId?: numbe
   });
 }
 
-export default function BoardListPageClient({ initialPage }: BoardListPageClientProps) {
+export default function BoardListPageClient({
+  initialPage,
+  initialBoardType = "all",
+}: BoardListPageClientProps) {
   const router = useRouter();
   const { user } = useAuthSession();
-  const [boardType, setBoardType] = useState<BoardType>("all");
+  const [boardType, setBoardType] = useState<BoardType>(initialBoardType);
   const [boardScope, setBoardScope] = useState("all");
   const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null);
   const [mineOnly, setMineOnly] = useState(false);

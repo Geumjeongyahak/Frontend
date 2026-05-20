@@ -1,5 +1,6 @@
 import styled from "styled-components";
 import EventPhotoCard from "@/components/home/EventPhotoCard";
+import HomeToastContainer from "@/components/home/HomeToastContainer";
 import LoginCard from "@/components/home/LoginCard";
 import MeetingRecordsCard from "@/components/home/MeetingRecordsCard";
 import NoticeCard from "@/components/home/NoticeCard";
@@ -10,6 +11,7 @@ import { colors, layout, spacing } from "@/styles/tokens";
 export default function HomePage() {
   return (
     <Main>
+      <HomeToastContainer />
       <Content>
         <TopRow>
           <LoginArea>
