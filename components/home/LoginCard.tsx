@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { login } from "@/api/auth/auth.api";
 import { Input as AuthInput } from "@/components/auth/AuthFormParts";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
@@ -72,9 +72,11 @@ export default function LoginCard() {
       <SignedInCard aria-label="로그인 사용자 정보">
         <Flower aria-hidden="true" />
         <WelcomeMessage>
-          <span>안녕하세요</span>
-          <strong>{displayName}</strong>
-          <span> 선생님</span>
+          <GreetingText>안녕하세요</GreetingText>
+          <NameText>
+            <strong>{displayName}</strong>
+            <span> 선생님</span>
+          </NameText>
         </WelcomeMessage>
         <LogoutButton type="button" onClick={handleLogout}>
           로그아웃
@@ -92,9 +94,7 @@ export default function LoginCard() {
             placeholder="이메일"
             autoComplete="email"
             value={form.email}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, email: event.target.value }))
-            }
+            onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
           />
           <Input
             type="password"
@@ -185,6 +185,18 @@ const Flower = styled.span`
   }
 `;
 
+const slideFadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
 const WelcomeMessage = styled.p`
   margin: 0;
   color: ${colors.white};
@@ -192,10 +204,6 @@ const WelcomeMessage = styled.p`
   font-weight: 300;
   line-height: 1.25;
   word-break: keep-all;
-
-  span:first-child {
-    display: block;
-  }
 
   strong {
     font-weight: 800;
@@ -209,6 +217,18 @@ const WelcomeMessage = styled.p`
   @media (max-width: ${layout.breakpointMobile}) {
     font-size: ${typography.fontSize24};
   }
+`;
+
+const GreetingText = styled.span`
+  display: block;
+  opacity: 0;
+  animation: ${slideFadeIn} 1.2s ease-out forwards;
+`;
+
+const NameText = styled.span`
+  display: block;
+  opacity: 0;
+  animation: ${slideFadeIn} 1.6s ease-out 0.7s forwards;
 `;
 
 const Form = styled.form`
