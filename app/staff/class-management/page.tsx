@@ -344,6 +344,7 @@ const CardFooter = styled.footer`
   gap: ${spacing.space8};
   min-height: 2.625rem;
   padding: 0 ${spacing.space16};
+  border-top: 1px solid #d3d3d3;
   background-color: #f8f8f8;
 
   @media (min-width: 120rem) {
