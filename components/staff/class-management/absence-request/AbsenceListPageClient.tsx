@@ -25,7 +25,7 @@ export default function AbsenceListPageClient() {
 
   const isAuthenticated = authStatus === "authenticated";
   const rawPage = searchParams.get("page");
-  const mineOnly = searchParams.get("mineOnly") === "1";
+  const mineOnly = false;
   const parsedPage = rawPage ? Number(rawPage) : 1;
   const requestedPage = Number.isInteger(parsedPage) && parsedPage >= 1 ? parsedPage : 1;
 
@@ -92,6 +92,7 @@ export default function AbsenceListPageClient() {
       totalPages={totalPages}
       stableTableRows={STABLE_TABLE_ROWS}
       mineOnly={mineOnly}
+      showMineOnlyToggle={false}
       emptyMessage={emptyMessage}
       headerTone="journal"
       writeTone="archive"
