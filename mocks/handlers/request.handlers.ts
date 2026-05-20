@@ -21,10 +21,19 @@ export const PURCHASE_REQUEST_RESPONSE = {
   title: "Workbook",
   content: "Need new workbook copies",
   totalPrice: 30000,
-  advancePaymentRequestedAmount: 30000,
-  advancePaymentApprovedAmount: 30000,
   status: "PENDING",
-  items: [{ id: 1, name: "Workbook", expectedPrice: 30000 }],
+  vendorBalances: [{ vendorName: "문구점", balance: 30000 }],
+  items: [
+    {
+      id: 1,
+      name: "Workbook",
+      quantity: 1,
+      reason: "Need new workbook copies",
+      paymentType: "ACTUAL",
+      vendorName: "문구점",
+      actualPrice: 30000,
+    },
+  ],
   receipts: [],
 };
 
@@ -143,11 +152,22 @@ export const requestHandlers: RequestHandler[] = [
     const unauthorizedResponse = unauthorizedWhenNeeded(request);
     if (unauthorizedResponse) return unauthorizedResponse;
 
-    const body = (await request.json()) as Record<string, unknown>;
+    const body = (await request.json()) as {
+      items?: { itemId?: number; vendorName?: string; name?: string; price?: number }[];
+      receiptFileIds?: string[];
+    };
     return HttpResponse.json({
       ...PURCHASE_REQUEST_RESPONSE,
       id: Number(params.requestId),
-      ...body,
+      items:
+        body.items?.map((item, index) => ({
+          id: item.itemId ?? index + 1,
+          name: item.name ?? PURCHASE_REQUEST_RESPONSE.items[index]?.name,
+          vendorName: item.vendorName,
+          actualPrice: item.price,
+          quantity: PURCHASE_REQUEST_RESPONSE.items[index]?.quantity,
+          paymentType: PURCHASE_REQUEST_RESPONSE.items[index]?.paymentType,
+        })) ?? PURCHASE_REQUEST_RESPONSE.items,
       status: "PURCHASED",
     });
   }),
