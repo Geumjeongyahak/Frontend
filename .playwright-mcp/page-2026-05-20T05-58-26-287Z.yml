@@ -1,0 +1,125 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "금정야학 로고" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "금정야학 로고" [ref=e6]
+      - navigation [ref=e7]:
+        - list [ref=e8]:
+          - listitem [ref=e9]:
+            - link "기관 정보" [ref=e10] [cursor=pointer]:
+              - /url: /info
+          - listitem [ref=e11]:
+            - link "교원" [ref=e12] [cursor=pointer]:
+              - /url: /staff/class-management
+          - listitem [ref=e13]:
+            - link "신규 등록" [ref=e14] [cursor=pointer]:
+              - /url: /register
+      - link "로그인" [ref=e16] [cursor=pointer]:
+        - /url: /login
+  - generic [ref=e18]:
+    - complementary [ref=e19]:
+      - heading "교원" [level=1] [ref=e20]
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - button "수업 관리" [expanded] [ref=e23] [cursor=pointer]:
+            - generic [ref=e24]: 수업 관리
+            - generic [ref=e25]: ▾
+          - list [ref=e26]:
+            - listitem [ref=e27]:
+              - link "수업 일지" [ref=e28] [cursor=pointer]:
+                - /url: /staff/class-management
+            - listitem [ref=e29]:
+              - link "수업 교환 신청" [ref=e30] [cursor=pointer]:
+                - /url: /staff/class-management/exchange-request
+            - listitem [ref=e31]:
+              - link "수업 결강 신청" [ref=e32] [cursor=pointer]:
+                - /url: /staff/class-management/absence-request
+        - generic [ref=e33]:
+          - button "재무 관리" [ref=e34] [cursor=pointer]:
+            - generic [ref=e35]: 재무 관리
+            - generic [ref=e36]: ▾
+          - list:
+            - listitem [ref=e37]:
+              - link "결제 신청" [ref=e38] [cursor=pointer]:
+                - /url: /staff/finance-management
+        - generic [ref=e39]:
+          - button "자료실" [ref=e40] [cursor=pointer]:
+            - generic [ref=e41]: 자료실
+            - generic [ref=e42]: ▾
+          - list:
+            - listitem [ref=e43]:
+              - link "교칙" [ref=e44] [cursor=pointer]:
+                - /url: /staff/archive/school-rules
+            - listitem [ref=e45]:
+              - link "연락망" [ref=e46] [cursor=pointer]:
+                - /url: /staff/archive/phone-book
+            - listitem [ref=e47]:
+              - link "교학 회의록" [ref=e48] [cursor=pointer]:
+                - /url: /staff/archive/meeting-records
+            - listitem [ref=e49]:
+              - link "인수인계서" [ref=e50] [cursor=pointer]:
+                - /url: /staff/archive/handover-documents
+            - listitem [ref=e51]:
+              - link "시험 문제 자료" [ref=e52] [cursor=pointer]:
+                - /url: /staff/archive/exam-materials
+            - listitem [ref=e53]:
+              - link "서류 양식" [ref=e54] [cursor=pointer]:
+                - /url: /staff/archive/document-forms
+        - generic [ref=e55]:
+          - button "게시판" [ref=e56] [cursor=pointer]:
+            - generic [ref=e57]: 게시판
+            - generic [ref=e58]: ▾
+          - list:
+            - listitem [ref=e59]:
+              - link "게시판" [ref=e60] [cursor=pointer]:
+                - /url: /staff/board
+        - generic [ref=e61]:
+          - button "학사일정" [ref=e62] [cursor=pointer]:
+            - generic [ref=e63]: 학사일정
+            - generic [ref=e64]: ▾
+          - list:
+            - listitem [ref=e65]:
+              - link "월별 일정" [ref=e66] [cursor=pointer]:
+                - /url: /staff/calendar
+    - main [ref=e67]:
+      - generic [ref=e68]:
+        - generic [ref=e69]:
+          - heading "수업 교환" [level=1] [ref=e70]
+          - link "수업 교환 신청하기" [ref=e71] [cursor=pointer]:
+            - /url: /staff/class-management/exchange-request/new
+            - generic [ref=e72]: 수업 교환 신청하기
+        - table [ref=e74]:
+          - rowgroup [ref=e75]:
+            - row "no. 반 제목 작성자 작성일 신청 현황" [ref=e76]:
+              - columnheader "no." [ref=e77]
+              - columnheader "반" [ref=e78]
+              - columnheader "제목" [ref=e79]
+              - columnheader "작성자" [ref=e80]
+              - columnheader "작성일" [ref=e81]
+              - columnheader "신청 현황" [ref=e82]
+          - rowgroup [ref=e83]:
+            - row "로그인이 필요합니다." [ref=e84]:
+              - cell "로그인이 필요합니다." [ref=e85]
+        - generic [ref=e86]:
+          - generic [ref=e87]:
+            - generic [ref=e88]: 내가 작성한 신청서만 보기
+            - link "내 신청서만 보기" [ref=e89] [cursor=pointer]:
+              - /url: /staff/class-management/exchange-request?mineOnly=1
+          - navigation "페이지 이동" [ref=e91]:
+            - link "이전 페이지":
+              - /url: /staff/class-management/exchange-request
+              - text: ◀
+            - link "1" [ref=e92] [cursor=pointer]:
+              - /url: /staff/class-management/exchange-request
+            - link "다음 페이지":
+              - /url: /staff/class-management/exchange-request
+              - text: ▶
+          - search [ref=e94]:
+            - textbox "수업 교환 신청 검색" [ref=e95]:
+              - /placeholder: 검색어를 입력하세요
+            - button "검색" [ref=e96] [cursor=pointer]:
+              - img [ref=e97]
+  - button "Open Next.js Dev Tools" [ref=e105] [cursor=pointer]:
+    - img [ref=e106]
+  - alert [ref=e109]

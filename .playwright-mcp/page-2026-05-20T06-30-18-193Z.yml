@@ -1,0 +1,119 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "금정야학 로고" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "금정야학 로고" [ref=e6]
+      - navigation [ref=e7]:
+        - list [ref=e8]:
+          - listitem [ref=e9]:
+            - link "기관 정보" [ref=e10] [cursor=pointer]:
+              - /url: /info
+          - listitem [ref=e11]:
+            - link "교원" [ref=e12] [cursor=pointer]:
+              - /url: /staff/class-management
+          - listitem [ref=e13]:
+            - link "신규 등록" [ref=e14] [cursor=pointer]:
+              - /url: /register
+  - generic [ref=e18]:
+    - complementary [ref=e19]:
+      - heading "교원" [level=1] [ref=e20]
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - button "수업 관리" [ref=e23] [cursor=pointer]:
+            - generic [ref=e24]: 수업 관리
+            - generic [ref=e25]: ▾
+          - list:
+            - listitem [ref=e26]:
+              - link "수업 일지" [ref=e27] [cursor=pointer]:
+                - /url: /staff/class-management
+            - listitem [ref=e28]:
+              - link "수업 교환 신청" [ref=e29] [cursor=pointer]:
+                - /url: /staff/class-management/exchange-request
+            - listitem [ref=e30]:
+              - link "수업 결강 신청" [ref=e31] [cursor=pointer]:
+                - /url: /staff/class-management/absence-request
+        - generic [ref=e32]:
+          - button "재무 관리" [ref=e33] [cursor=pointer]:
+            - generic [ref=e34]: 재무 관리
+            - generic [ref=e35]: ▾
+          - list:
+            - listitem [ref=e36]:
+              - link "결제 신청" [ref=e37] [cursor=pointer]:
+                - /url: /staff/finance-management
+        - generic [ref=e38]:
+          - button "자료실" [expanded] [ref=e39] [cursor=pointer]:
+            - generic [ref=e40]: 자료실
+            - generic [ref=e41]: ▾
+          - list [ref=e42]:
+            - listitem [ref=e43]:
+              - link "교칙" [ref=e44] [cursor=pointer]:
+                - /url: /staff/archive/school-rules
+            - listitem [ref=e45]:
+              - link "연락망" [ref=e46] [cursor=pointer]:
+                - /url: /staff/archive/phone-book
+            - listitem [ref=e47]:
+              - link "교학 회의록" [ref=e48] [cursor=pointer]:
+                - /url: /staff/archive/meeting-records
+            - listitem [ref=e49]:
+              - link "인수인계서" [ref=e50] [cursor=pointer]:
+                - /url: /staff/archive/handover-documents
+            - listitem [ref=e51]:
+              - link "시험 문제 자료" [ref=e52] [cursor=pointer]:
+                - /url: /staff/archive/exam-materials
+            - listitem [ref=e53]:
+              - link "서류 양식" [ref=e54] [cursor=pointer]:
+                - /url: /staff/archive/document-forms
+        - generic [ref=e55]:
+          - button "게시판" [ref=e56] [cursor=pointer]:
+            - generic [ref=e57]: 게시판
+            - generic [ref=e58]: ▾
+          - list:
+            - listitem [ref=e59]:
+              - link "게시판" [ref=e60] [cursor=pointer]:
+                - /url: /staff/board
+        - generic [ref=e61]:
+          - button "학사일정" [ref=e62] [cursor=pointer]:
+            - generic [ref=e63]: 학사일정
+            - generic [ref=e64]: ▾
+          - list:
+            - listitem [ref=e65]:
+              - link "월별 일정" [ref=e66] [cursor=pointer]:
+                - /url: /staff/calendar
+    - main [ref=e67]:
+      - generic [ref=e68]:
+        - generic [ref=e69]:
+          - heading "인수인계서" [level=1] [ref=e70]
+          - link "인수인계서 작성하기" [ref=e71] [cursor=pointer]:
+            - /url: /staff/archive/handover-documents/new
+            - generic [ref=e72]: 인수인계서 작성하기
+        - table [ref=e74]:
+          - rowgroup [ref=e75]:
+            - row "no. 제목 작성자 작성일" [ref=e76]:
+              - columnheader "no." [ref=e77]
+              - columnheader "제목" [ref=e78]
+              - columnheader "작성자" [ref=e79]
+              - columnheader "작성일" [ref=e80]
+          - rowgroup [ref=e81]:
+            - row "인수인계서가 없습니다." [ref=e82]:
+              - cell "인수인계서가 없습니다." [ref=e83]
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - generic [ref=e86]: 내가 작성한 글만 보기
+            - button "내가 작성한 글만 보기" [ref=e87] [cursor=pointer]
+          - navigation "페이지 이동" [ref=e89]:
+            - link "이전 페이지":
+              - /url: /staff/archive/handover-documents
+              - text: ◀
+            - link "1" [ref=e90] [cursor=pointer]:
+              - /url: /staff/archive/handover-documents
+            - link "다음 페이지":
+              - /url: /staff/archive/handover-documents
+              - text: ▶
+          - search [ref=e92]:
+            - textbox "인수인계서 검색" [ref=e93]:
+              - /placeholder: 검색어를 입력해주세요
+            - button "검색" [ref=e94] [cursor=pointer]:
+              - img [ref=e95]
+  - button "Open Next.js Dev Tools" [ref=e103] [cursor=pointer]:
+    - img [ref=e104]
