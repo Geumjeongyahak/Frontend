@@ -12,7 +12,7 @@ import {
   getPost,
   updatePost,
 } from "@/api/post/post.api";
-import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/ArchiveDocumentListPage";
+import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import {
   ActionButton,
   DocumentSection,
@@ -49,13 +49,15 @@ export default function ArchiveDocumentFormPage({
 
   const channelsQuery = useQuery({
     queryKey: ["staff", "archive", "channels"],
-    queryFn: () => getChannels({ channelType: "CUSTOM", isActive: true }),
+    queryFn: () => getChannels({ isActive: true }),
     enabled: !isEditMode,
     retry: false,
   });
 
   const channel = resolveArchiveChannel(channelsQuery.data, config);
-  const channelId = isEditMode ? editChannelId : (channel?.id ?? config.channelId);
+  const channelId = isEditMode
+    ? editChannelId
+    : (channel?.id ?? (channelsQuery.isError ? config.channelId : undefined));
 
   const postDetailQuery = useQuery({
     queryKey: queryKeys.posts.boardDetail(editChannelId ?? 0, editPostId ?? 0),

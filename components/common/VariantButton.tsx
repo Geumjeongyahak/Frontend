@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-import { radii, spacing, typography } from "@/styles/tokens";
+import { colors, radii, spacing, typography } from "@/styles/tokens";
 
 export type ButtonVariant = "primary" | "danger" | "neutral" | "edit";
 
@@ -12,7 +12,7 @@ export const Button = styled.button<{ $variant?: ButtonVariant }>`
   min-width: 3.9375rem;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  border-radius: ${radii.radius12};
+  border-radius: ${radii.radius15};
 
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -29,6 +29,9 @@ export const Button = styled.button<{ $variant?: ButtonVariant }>`
         case "edit":
           return "#88cd5a";
 
+        case "neutral":
+          return colors.border;
+
         default:
           return "transparent";
       }
@@ -41,7 +44,7 @@ export const Button = styled.button<{ $variant?: ButtonVariant }>`
         return "#ffffff";
 
       case "neutral":
-        return "#88cd5a";
+        return colors.background;
 
       case "primary":
       default:
@@ -58,7 +61,7 @@ export const Button = styled.button<{ $variant?: ButtonVariant }>`
         return "#88cd5a";
 
       case "neutral":
-        return "#ffffff";
+        return colors.text;
 
       case "primary":
       default:
@@ -69,6 +72,25 @@ export const Button = styled.button<{ $variant?: ButtonVariant }>`
   &:disabled {
     opacity: 0.65;
     cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    background-color: ${({ $variant = "primary" }) => {
+      switch ($variant) {
+        case "danger":
+          return colors.noticeSoft;
+
+        case "edit":
+          return colors.pointSoft;
+
+        case "neutral":
+          return colors.border;
+
+        case "primary":
+        default:
+          return "#76bd49";
+      }
+    }};
   }
 
   @media (min-width: 120rem) {

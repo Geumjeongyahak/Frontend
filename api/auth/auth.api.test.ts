@@ -175,7 +175,6 @@ describe("auth.api", () => {
 
     await googleSignup({
       tempToken: "temp-token",
-      nickname: "nickname",
       name: "User",
       phoneNumber: "010-0000-0000",
     });
@@ -184,7 +183,6 @@ describe("auth.api", () => {
 
     expect(observedSignupBody).toEqual({
       tempToken: "temp-token",
-      nickname: "nickname",
       name: "User",
       phoneNumber: "010-0000-0000",
     });

@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import styled, { css } from "styled-components";
 import { createAbsenceRequest } from "@/api/request/request.api";
@@ -9,7 +9,6 @@ import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export default function AbsenceRequestForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const createAbsenceMutation = useMutation({
     mutationFn: createAbsenceRequest,
@@ -28,15 +27,16 @@ export default function AbsenceRequestForm() {
     if (createAbsenceMutation.isPending) return;
 
     const formData = new FormData(event.currentTarget);
+    const title = String(formData.get("title") ?? "").trim();
+    const lessonDate = String(formData.get("lessonDate") ?? "").trim();
     const reason = String(formData.get("reason") ?? "").trim();
-    const lessonId = Number(searchParams.get("lessonId") ?? "1");
 
-    if (!reason || !Number.isInteger(lessonId) || lessonId < 1) {
+    if (!title || !lessonDate || !reason) {
       window.alert("필수 입력값을 확인해주세요.");
       return;
     }
 
-    createAbsenceMutation.mutate({ lessonId, reason });
+    createAbsenceMutation.mutate({ lessonDate, title, reason });
   };
 
   return (
@@ -63,7 +63,7 @@ export default function AbsenceRequestForm() {
             <InlineInput id="className" name="className" placeholder="개나리반" />
 
             <FieldLabel htmlFor="lessonDate">수업 일자</FieldLabel>
-            <InlineInput id="lessonDate" name="lessonDate" placeholder="00.00.00" />
+            <InlineInput id="lessonDate" name="lessonDate" type="date" />
 
             <FieldLabel htmlFor="writer">작성자</FieldLabel>
             <InlineInput id="writer" name="writer" placeholder="홍길동" />
@@ -151,21 +151,24 @@ const SubmitButton = styled.button`
   justify-content: center;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  border: 0;
-  border-radius: ${radii.radius12};
-  background-color: ${colors.point};
-  color: ${colors.white};
+  border: 1px solid ${colors.point};
+  border-radius: ${radii.radius15};
+  background-color: ${colors.white};
+  color: ${colors.point};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
   white-space: nowrap;
   cursor: pointer;
 
-  &:hover {
-    filter: brightness(0.95);
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
   }
 
   &:disabled {
+    border-color: #d4d4d4;
+    background-color: #d4d4d4;
+    color: #7b7b7b;
     opacity: 0.6;
     cursor: not-allowed;
   }

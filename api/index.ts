@@ -26,6 +26,9 @@ export * as lessonExchangeDto from "./lessonExchange/lessonExchange.dto";
 export * as postApi from "./post/post.api";
 export * as postDto from "./post/post.dto";
 
+export * as pushApi from "./push/push.api";
+export * as pushDto from "./push/push.dto";
+
 export * as requestApi from "./request/request.api";
 export * as requestDto from "./request/request.dto";
 

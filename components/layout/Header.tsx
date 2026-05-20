@@ -182,11 +182,11 @@ const LogoArea = styled(Link)<{ $isOpen: boolean }>`
 
 const Logo = styled.img`
   display: block;
-  width: 3.5rem;
+  width: 4.7rem;
   height: auto;
 
   @media (min-width: 120rem) {
-    width: 5.25rem;
+    width: 7rem;
   }
 `;
 

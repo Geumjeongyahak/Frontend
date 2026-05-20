@@ -1,36 +1,33 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { IconFilePlus } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getClassrooms } from "@/api/classroom/classroom.api";
-import { uploadPurchaseItemImage } from "@/api/file/file.api";
 import { createPurchaseRequest } from "@/api/request/request.api";
 import type { CreatePurchaseRequestDto } from "@/api/request/request.dto";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
-import { financeReceiptToGoogleDrive } from "@/lib/googleDrive/financeReceiptToGoogleDrive";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+
+const vendorNames = ["예소디자인", "목민서관", "지성문구", "마트임"] as const;
 
 type FinanceItemForm = {
   id: number;
   name: string;
+  quantity: string;
   reason: string;
-  expectedPrice: string;
-  receiptFileName: string;
-  receiptFile: File | null;
+  paymentType: "PREPAID" | "ACTUAL";
 };
 
 const initialItem: FinanceItemForm = {
   id: 1,
   name: "",
+  quantity: "1",
   reason: "",
-  expectedPrice: "",
-  receiptFileName: "",
-  receiptFile: null,
+  paymentType: "ACTUAL",
 };
 
 export default function FinanceRequestCreatePage() {
@@ -39,7 +36,6 @@ export default function FinanceRequestCreatePage() {
   const { user, status: authStatus } = useAuthSession();
   const [title, setTitle] = useState("");
   const [classroomId, setClassroomId] = useState("");
-  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [items, setItems] = useState<FinanceItemForm[]>([initialItem]);
 
   const { data: classroomData } = useQuery({
@@ -61,25 +57,25 @@ export default function FinanceRequestCreatePage() {
   const normalizedItems = items
     .map((item) => ({
       name: item.name.trim(),
+      quantity: item.quantity.trim().length > 0 ? Number(item.quantity) : undefined,
       reason: item.reason.trim() || undefined,
-      expectedPrice: item.expectedPrice.trim().length > 0 ? Number(item.expectedPrice) : undefined,
+      paymentType: item.paymentType,
     }))
     .filter((item) => item.name.length > 0);
-
-  const totalExpectedPrice = normalizedItems.reduce(
-    (sum, item) => sum + (typeof item.expectedPrice === "number" ? item.expectedPrice : 0),
-    0,
-  );
 
   const canSubmit =
     title.trim().length > 0 &&
     classroomId.trim().length > 0 &&
     Number.isInteger(Number(classroomId)) &&
-    paymentDate.trim().length > 0 &&
     authStatus === "authenticated" &&
     normalizedItems.length > 0 &&
-    !normalizedItems.some((item) => Number.isNaN(item.expectedPrice)) &&
-    totalExpectedPrice > 0 &&
+    !normalizedItems.some(
+      (item) =>
+        typeof item.quantity !== "number" ||
+        Number.isNaN(item.quantity) ||
+        item.quantity < 1 ||
+        !Number.isInteger(item.quantity),
+    ) &&
     !mutation.isPending;
 
   const applicantName =
@@ -121,51 +117,24 @@ export default function FinanceRequestCreatePage() {
       return;
     }
 
-    const uploadedItems = await Promise.all(
-      items.map(async (item) => {
-        if (!item.receiptFile) {
-          return {
-            receiptUrl: "",
-          };
-        }
-
-        const [driveUploaded, apiUploaded] = await Promise.all([
-          financeReceiptToGoogleDrive(item.receiptFile),
-          uploadPurchaseItemImage(item.receiptFile, item.receiptFile.name),
-        ]);
-
-        return {
-          receiptFileId: apiUploaded.fileId,
-          receiptUrl: driveUploaded.url,
-        };
-      }),
-    );
-    const receiptFileIds = uploadedItems
-      .map((item) => item.receiptFileId)
-      .filter((fileId): fileId is string => Boolean(fileId));
-
     const itemContent = normalizedItems
       .map((item, index) => {
         const reason = item.reason ? ` - ${item.reason}` : "";
-        const price =
-          typeof item.expectedPrice === "number"
-            ? ` (${item.expectedPrice.toLocaleString()}원)`
-            : "";
-        const receiptUrl = uploadedItems[index]?.receiptUrl
-          ? `\n   영수증: ${uploadedItems[index].receiptUrl}`
-          : "";
+        const quantity = typeof item.quantity === "number" ? ` ${item.quantity}개` : "";
+        const paymentType = item.paymentType === "PREPAID" ? "선 결제" : "실 결제";
 
-        return `${index + 1}. ${item.name}${reason}${price}${receiptUrl}`;
+        return `${index + 1}. ${item.name}${quantity} / ${paymentType}${reason}`;
       })
       .join("\n");
 
     mutation.mutate({
       title: title.trim(),
-      content: `결제 일자: ${paymentDate}\n신청자: ${applicantName}\n\n${itemContent}`,
+      content: `신청자: ${applicantName}\n\n${itemContent}`,
       classroomId: Number(classroomId),
-      advancePaymentRequestedAmount: totalExpectedPrice,
-      ...(receiptFileIds.length ? { receiptFileIds } : {}),
-      items: normalizedItems,
+      items: normalizedItems.map((item) => ({
+        name: item.name,
+        reason: item.reason,
+      })),
     });
   }
 
@@ -213,18 +182,23 @@ export default function FinanceRequestCreatePage() {
                     </option>
                   ))}
                 </InlineSelect>
-                <FieldLabel htmlFor="paymentDate">결제 일자</FieldLabel>
-                <InlineInput
-                  id="paymentDate"
-                  name="paymentDate"
-                  type="date"
-                  value={paymentDate}
-                  onChange={(event) => setPaymentDate(event.target.value)}
-                  required
-                />
                 <FieldLabel htmlFor="applicant">신청자</FieldLabel>
                 <InlineInput id="applicant" name="applicant" value={applicantName} readOnly />
               </InfoRow>
+            </Section>
+
+            <Section>
+              <SectionTitle>현재 거래처별 잔액</SectionTitle>
+              <VendorBalanceTable>
+                <tbody>
+                  {vendorNames.map((vendorName) => (
+                    <tr key={vendorName}>
+                      <th scope="row">{vendorName}</th>
+                      <td>-</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </VendorBalanceTable>
             </Section>
 
             <Section>
@@ -244,6 +218,20 @@ export default function FinanceRequestCreatePage() {
                       />
                     </ItemFieldRow>
                     <ItemFieldRow>
+                      <ItemLabel htmlFor={`quantity-${item.id}`}>개수</ItemLabel>
+                      <ItemInput
+                        id={`quantity-${item.id}`}
+                        name={`quantity-${item.id}`}
+                        type="number"
+                        min="1"
+                        step="1"
+                        inputMode="numeric"
+                        placeholder="1"
+                        value={item.quantity}
+                        onChange={(event) => updateItem(item.id, { quantity: event.target.value })}
+                      />
+                    </ItemFieldRow>
+                    <ItemFieldRow>
                       <ItemLabel htmlFor={`paymentReason-${item.id}`}>결제 사유</ItemLabel>
                       <ItemInput
                         id={`paymentReason-${item.id}`}
@@ -254,40 +242,38 @@ export default function FinanceRequestCreatePage() {
                       />
                     </ItemFieldRow>
                     <ItemFieldRow>
-                      <ItemLabel htmlFor={`expectedPrice-${item.id}`}>예상 금액</ItemLabel>
-                      <ItemInput
-                        id={`expectedPrice-${item.id}`}
-                        name={`expectedPrice-${item.id}`}
-                        type="number"
-                        min="0"
-                        inputMode="numeric"
-                        placeholder="0"
-                        value={item.expectedPrice}
-                        onChange={(event) =>
-                          updateItem(item.id, { expectedPrice: event.target.value })
-                        }
-                      />
+                      <ItemLabel>결제 유형</ItemLabel>
+                      <PaymentTypeGroup>
+                        <PaymentTypeOption>
+                          <input
+                            type="checkbox"
+                            name={`paymentType-${item.id}`}
+                            value="PREPAID"
+                            checked={item.paymentType === "PREPAID"}
+                            onChange={(event) => {
+                              if (event.target.checked) {
+                                updateItem(item.id, { paymentType: "PREPAID" });
+                              }
+                            }}
+                          />
+                          <span>선 결제</span>
+                        </PaymentTypeOption>
+                        <PaymentTypeOption>
+                          <input
+                            type="checkbox"
+                            name={`paymentType-${item.id}`}
+                            value="ACTUAL"
+                            checked={item.paymentType === "ACTUAL"}
+                            onChange={(event) => {
+                              if (event.target.checked) {
+                                updateItem(item.id, { paymentType: "ACTUAL" });
+                              }
+                            }}
+                          />
+                          <span>실 결제</span>
+                        </PaymentTypeOption>
+                      </PaymentTypeGroup>
                     </ItemFieldRow>
-                    <ItemLabel as="span">영수증</ItemLabel>
-                    <UploadControl>
-                      <UploadInput
-                        id={`receiptFile-${item.id}`}
-                        name={`receiptFile-${item.id}`}
-                        type="file"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0] ?? null;
-
-                          updateItem(item.id, {
-                            receiptFile: file,
-                            receiptFileName: file?.name ?? "",
-                          });
-                        }}
-                      />
-                      <UploadBox htmlFor={`receiptFile-${item.id}`}>
-                        <IconFilePlus size={24} stroke={1.8} aria-hidden="true" />
-                        <span>{item.receiptFileName || "파일 추가하기"}</span>
-                      </UploadBox>
-                    </UploadControl>
                     {items.length > 1 ? (
                       <ItemActionRow>
                         <DeleteItemButton type="button" onClick={() => removeItem(item.id)}>
@@ -388,10 +374,10 @@ const SubmitButton = styled.button`
   justify-content: center;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  border: 0;
+  border: 1px solid ${colors.point};
   border-radius: ${radii.radius15};
-  background-color: ${colors.point};
-  color: ${colors.white};
+  background-color: ${colors.white};
+  color: ${colors.point};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -399,8 +385,12 @@ const SubmitButton = styled.button`
   cursor: pointer;
 
   &:disabled {
-    background-color: #b7b7b7;
+    opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
   }
 
   @media (min-width: 120rem) {
@@ -581,56 +571,69 @@ const ItemInput = styled(Input)`
   }
 `;
 
-const UploadControl = styled.div`
+const PaymentTypeGroup = styled.div`
   display: flex;
-  align-items: flex-start;
-`;
-
-const UploadInput = styled.input`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  border: 0;
-`;
-
-const UploadBox = styled.label`
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  flex-wrap: wrap;
   gap: ${spacing.space8};
-  min-width: 5.5rem;
-  min-height: 4.125rem;
-  padding: ${spacing.space20};
-  background-color: ${colors.background};
-  color: #969696;
-  font-size: 0.5rem;
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  cursor: pointer;
+`;
 
-  span {
-    max-width: 8rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+const VendorBalanceTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid ${colors.muted};
+  table-layout: fixed;
+
+  th,
+  td {
+    width: 50%;
+    padding: ${spacing.space12};
+    border: 1px solid ${colors.muted};
+    color: #000000;
+    font-size: ${typography.fontSize14};
+    line-height: ${typography.lineHeight130};
+  }
+
+  th {
+    background-color: ${colors.background};
+    font-weight: 600;
+    text-align: left;
+  }
+
+  td {
+    font-weight: 500;
+    text-align: right;
   }
 
   @media (min-width: 120rem) {
-    min-width: 8.375rem;
-    min-height: 6.25rem;
-    gap: 0.9375rem;
-    padding: 1.875rem;
-    font-size: 0.75rem;
-
-    svg {
-      width: 2rem;
-      height: 2rem;
+    th,
+    td {
+      padding: ${spacing.space20};
+      font-size: ${typography.fontSize20};
     }
+  }
+`;
+
+const PaymentTypeOption = styled.label`
+  display: inline-flex;
+  align-items: center;
+  gap: ${spacing.space8};
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space16};
+  background-color: ${colors.white};
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  cursor: pointer;
+
+  input {
+    accent-color: ${colors.point};
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20} 1.875rem;
+    font-size: ${typography.fontSize20};
   }
 `;
 
@@ -647,8 +650,8 @@ const AddItemButton = styled.button`
   align-items: center;
   justify-content: center;
   min-height: 2.125rem;
-  border: 1px solid ${colors.point};
-  background-color: #eef9e6;
+  border: 0;
+  background-color: ${colors.background};
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;

@@ -97,7 +97,7 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
               >
                 삭제
               </ActionButton>
-              <ActionLink href={editHref}>수정</ActionLink>
+              <ActionLink href={editHref} $variant="edit">수정</ActionLink>
             </ToolbarRight>
           ) : null}
         </Toolbar>

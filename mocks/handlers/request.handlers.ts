@@ -4,10 +4,13 @@ import { API_BASE_URL, REFRESHED_ACCESS_TOKEN, VALID_ACCESS_TOKEN } from "./auth
 
 export const ABSENCE_REQUEST_RESPONSE = {
   id: 1,
-  lessonId: 11,
+  dailyScheduleId: 11,
   lessonDate: "2026-04-10",
+  classroomId: 21,
+  classroomName: "한글반",
   requestedById: 5,
   requestedByName: "Teacher One",
+  title: "Absence request",
   reason: "Family matter",
   status: "PENDING",
 };
@@ -21,22 +24,33 @@ export const PURCHASE_REQUEST_RESPONSE = {
   title: "Workbook",
   content: "Need new workbook copies",
   totalPrice: 30000,
-  advancePaymentRequestedAmount: 30000,
-  advancePaymentApprovedAmount: 30000,
   status: "PENDING",
-  items: [{ id: 1, name: "Workbook", expectedPrice: 30000 }],
+  vendorBalances: [{ vendorName: "문구점", balance: 30000 }],
+  items: [
+    {
+      id: 1,
+      name: "Workbook",
+      quantity: 1,
+      reason: "Need new workbook copies",
+      paymentType: "ACTUAL",
+      vendorName: "문구점",
+      actualPrice: 30000,
+    },
+  ],
   receipts: [],
 };
 
 export const LESSON_EXCHANGE_REQUEST_RESPONSE = {
   id: 3,
-  lessonId: 31,
+  dailyScheduleId: 31,
+  classroomName: "한글반",
   lessonDate: "2026-04-11",
   requestedById: 5,
   requestedByName: "Teacher One",
   title: "Swap lesson",
   content: "Need coverage",
   status: "PENDING",
+  expiresAt: "2026-04-08T22:00:00",
 };
 
 export const SUBJECT_EXCHANGE_REQUEST_RESPONSE = {
@@ -68,14 +82,27 @@ function unauthorizedWhenNeeded(request: Request) {
 
 export const requestHandlers: RequestHandler[] = [
   http.get(`${API_BASE_URL}/api/v1/absence-requests`, ({ request }) => {
-    return unauthorizedWhenNeeded(request) ?? HttpResponse.json([ABSENCE_REQUEST_RESPONSE]);
+    return (
+      unauthorizedWhenNeeded(request) ??
+      HttpResponse.json({
+        content: [ABSENCE_REQUEST_RESPONSE],
+        page: 0,
+        size: 10,
+        totalElements: 1,
+        totalPages: 1,
+      })
+    );
   }),
   http.post(`${API_BASE_URL}/api/v1/absence-requests`, async ({ request }) => {
     const unauthorizedResponse = unauthorizedWhenNeeded(request);
     if (unauthorizedResponse) return unauthorizedResponse;
 
-    const body = (await request.json()) as { lessonId?: number; reason?: string };
-    if (!body.lessonId || !body.reason) {
+    const body = (await request.json()) as {
+      lessonDate?: string;
+      title?: string;
+      reason?: string;
+    };
+    if (!body.lessonDate || !body.title || !body.reason) {
       return HttpResponse.json({ message: "Invalid absence payload" }, { status: 400 });
     }
 
@@ -143,11 +170,22 @@ export const requestHandlers: RequestHandler[] = [
     const unauthorizedResponse = unauthorizedWhenNeeded(request);
     if (unauthorizedResponse) return unauthorizedResponse;
 
-    const body = (await request.json()) as Record<string, unknown>;
+    const body = (await request.json()) as {
+      items?: { itemId?: number; vendorName?: string; name?: string; price?: number }[];
+      receiptFileIds?: string[];
+    };
     return HttpResponse.json({
       ...PURCHASE_REQUEST_RESPONSE,
       id: Number(params.requestId),
-      ...body,
+      items:
+        body.items?.map((item, index) => ({
+          id: item.itemId ?? index + 1,
+          name: item.name ?? PURCHASE_REQUEST_RESPONSE.items[index]?.name,
+          vendorName: item.vendorName,
+          actualPrice: item.price,
+          quantity: PURCHASE_REQUEST_RESPONSE.items[index]?.quantity,
+          paymentType: PURCHASE_REQUEST_RESPONSE.items[index]?.paymentType,
+        })) ?? PURCHASE_REQUEST_RESPONSE.items,
       status: "PURCHASED",
     });
   }),
@@ -213,7 +251,12 @@ export const requestHandlers: RequestHandler[] = [
     const unauthorizedResponse = unauthorizedWhenNeeded(request);
     if (unauthorizedResponse) return unauthorizedResponse;
 
-    const body = (await request.json()) as { lessonId?: number; title?: string; content?: string };
+    const body = (await request.json()) as {
+      lessonDate?: string;
+      title?: string;
+      content?: string;
+      expiresAt?: string;
+    };
     return HttpResponse.json({ ...LESSON_EXCHANGE_REQUEST_RESPONSE, ...body, id: 30 });
   }),
   http.get(`${API_BASE_URL}/api/v1/lesson-exchange-requests/:requestId`, ({ request, params }) => {

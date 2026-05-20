@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AppToastContainer from "@/components/providers/AppToastContainer";
 import QueryProvider from "@/components/providers/QueryProvider";
 import Header from "@/components/layout/Header";
 import StyledComponentsRegistry from "@/lib/styled-components-registry";
@@ -24,6 +25,7 @@ export default function RootLayout({
           <QueryProvider>
             <Header />
             {children}
+            <AppToastContainer />
           </QueryProvider>
         </StyledComponentsRegistry>
       </body>

@@ -12,7 +12,7 @@ export type ListPanelRow = {
   author: string;
   date: string;
   status: string;
-  statusType?: "PENDING" | "APPROVED" | "REJECTED";
+  statusType?: "PENDING" | "APPROVED" | "PURCHASED" | "CONFIRMED" | "REJECTED";
   detailHref: string;
   isNotice?: boolean;
   isPinned?: boolean;
@@ -32,6 +32,7 @@ type ListPanelProps = {
   showMineOnlyToggle?: boolean;
   emptyMessage?: string;
   headerTone?: ListPanelTone;
+  writeTone?: ListPanelTone;
   showClassColumn?: boolean;
   classHeader?: string;
   showStatusColumn?: boolean;
@@ -75,6 +76,7 @@ export default function ListPanel({
   showMineOnlyToggle = true,
   emptyMessage = "목록이 없습니다.",
   headerTone = "default",
+  writeTone,
   showClassColumn = true,
   classHeader = "반",
   showStatusColumn = true,
@@ -97,7 +99,7 @@ export default function ListPanel({
     <Container>
       <HeaderRow>
         <Title $tone={headerTone}>{title}</Title>
-        <WriteButton href={writeHref} $tone={headerTone}>
+        <WriteButton href={writeHref} $tone={writeTone ?? headerTone}>
           <span>{writeLabel}</span>
           {writeIcon}
         </WriteButton>
@@ -365,11 +367,11 @@ const WriteButton = styled(Link)<{ $tone: ListPanelTone }>`
 const TableSection = styled.section<{ $stableRows?: number }>`
   width: 100%;
   min-height: ${({ $stableRows }) =>
-    $stableRows ? `calc(2.5rem + ${$stableRows} * 1.875rem)` : "0"};
+    $stableRows ? `calc(6rem + ${$stableRows} * 1.875rem)` : "0"};
 
   @media (min-width: 120rem) {
     min-height: ${({ $stableRows }) =>
-      $stableRows ? `calc(3.75rem + ${$stableRows} * 2.75rem)` : "0"};
+      $stableRows ? `calc(13rem + ${$stableRows} * 2.75rem)` : "0"};
   }
 `;
 
@@ -411,7 +413,7 @@ const Tr = styled.tr<{ $tone: ListPanelTone }>`
 
 const Td = styled.td<{ $width720?: string; $width1080?: string; $isNotice?: boolean }>`
   width: ${({ $width720 }) => $width720 ?? "auto"};
-  padding: 0.40625rem ${spacing.space12};
+  padding: 0.65625rem ${spacing.space12};
   color: ${({ $isNotice }) => ($isNotice ? colors.notice : colors.text)};
   font-size: ${typography.fontSize14};
   font-weight: ${({ $isNotice }) => ($isNotice ? 700 : 400)};
@@ -420,7 +422,7 @@ const Td = styled.td<{ $width720?: string; $width1080?: string; $isNotice?: bool
 
   @media (min-width: 120rem) {
     width: ${({ $width1080, $width720 }) => $width1080 ?? $width720 ?? "auto"};
-    padding: 0.75rem ${spacing.space12};
+    padding: 1.1875rem ${spacing.space12};
     font-size: ${typography.fontSize20};
   }
 `;
@@ -598,20 +600,24 @@ const PageNumber = styled(Link)<{ $isActive?: boolean }>`
   }
 `;
 
-const StatusBadge = styled.span<{ $status?: "PENDING" | "APPROVED" | "REJECTED" }>`
+const StatusBadge = styled.span<{
+  $status?: "PENDING" | "APPROVED" | "PURCHASED" | "CONFIRMED" | "REJECTED";
+}>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 3.5rem;
-  padding: 0.25rem 0.625rem;
-  border-radius: 999px;
+
   font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight130};
 
   color: ${({ $status }) => {
     switch ($status) {
       case "APPROVED":
         return "#3DA75C";
+      case "PURCHASED":
+        return "#2F80ED";
+      case "CONFIRMED":
+        return "#1D9A35";
       case "REJECTED":
         return "#DA3A30";
       case "PENDING":
@@ -622,7 +628,6 @@ const StatusBadge = styled.span<{ $status?: "PENDING" | "APPROVED" | "REJECTED" 
 
   @media (min-width: 120rem) {
     min-width: 4.5rem;
-    padding: 0.375rem 0.875rem;
     font-size: ${typography.fontSize20};
   }
 `;

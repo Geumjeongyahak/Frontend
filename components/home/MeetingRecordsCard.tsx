@@ -1,5 +1,8 @@
+"use client";
+
 import styled from "styled-components";
 import HomeCard from "@/components/home/HomeCard";
+import { useProtectedHomeNavigation } from "@/components/home/useProtectedHomeNavigation";
 import { colors, spacing, typography } from "@/styles/tokens";
 import type { MeetingRecord } from "@/types/home";
 
@@ -8,15 +11,25 @@ type MeetingRecordsCardProps = {
 };
 
 export default function MeetingRecordsCard({ meetingRecords }: MeetingRecordsCardProps) {
+  const { isAuthenticated, navigateWhenAuthenticated } = useProtectedHomeNavigation();
+
   return (
-    <Card title="교학회의록" actionLabel="더보기">
+    <Card
+      title="교학회의록"
+      actionLabel="더보기"
+      onActionClick={() => navigateWhenAuthenticated("/staff/archive/meeting-records")}
+    >
       <List>
-        {meetingRecords.map((minute) => (
-          <ListItem key={minute.id}>
-            <Title>{minute.title}</Title>
-            <Date>{minute.date}</Date>
-          </ListItem>
-        ))}
+        {!isAuthenticated ? (
+          <Fallback>로그인이 필요합니다.</Fallback>
+        ) : (
+          meetingRecords.map((minute) => (
+            <ListItem key={minute.id}>
+              <Title>{minute.title}</Title>
+              <Date>{minute.date}</Date>
+            </ListItem>
+          ))
+        )}
       </List>
     </Card>
   );
@@ -69,4 +82,11 @@ const Date = styled.time`
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize24};
   }
+`;
+
+const Fallback = styled.p`
+  color: ${colors.muted};
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight150};
+  padding: ${spacing.space8} 0;
 `;
