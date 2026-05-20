@@ -1,6 +1,5 @@
 export interface SignupRequestDto {
   password: string;
-  nickname: string;
   name: string;
   email: string;
   profileImageUrl?: string;
@@ -38,7 +37,6 @@ export interface GoogleCallbackQueryParamsDto {
 
 export interface GoogleSignupRequestDto {
   tempToken: string;
-  nickname: string;
   name: string;
   phoneNumber?: string;
 }

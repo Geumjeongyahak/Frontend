@@ -66,19 +66,19 @@ const Content = styled.div`
 
 const Panel = styled.section<{ $panelSize: "narrow" | "wide" }>`
   width: 100%;
-  max-width: ${({ $panelSize }) => ($panelSize === "wide" ? "51.9375rem" : "34.625rem")};
-  padding: ${spacing.space24};
+  max-width: ${({ $panelSize }) => ($panelSize === "wide" ? "30.75rem" : "20.5rem")};
+  padding: 1.5625rem 1.4375rem 1.5rem;
   background-color: ${colors.white};
   border: 1px solid ${colors.border};
-  border-radius: ${radii.radius30};
+  border-radius: ${radii.radius12};
 
   @media (min-width: 120rem) {
-    max-width: ${({ $panelSize }) => ($panelSize === "wide" ? "77.875rem" : "51.9375rem")};
-    padding: ${spacing.space32};
+    max-width: ${({ $panelSize }) => ($panelSize === "wide" ? "46.125rem" : "30.75rem")};
+    padding: 2.375rem 2.1875rem 2.25rem;
   }
 
   @media (max-width: ${layout.breakpointMobile}) {
-    padding: ${spacing.space24};
+    padding: 1.5625rem 1.4375rem 1.5rem;
   }
 `;
 

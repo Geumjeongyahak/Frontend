@@ -18,7 +18,6 @@ import { formatPhoneNumber } from "@/utils/phoneNumber";
 type RegisterFormState = {
   password: string;
   name: string;
-  nickname: string;
   email: string;
   phoneNumber: string;
 };
@@ -26,7 +25,6 @@ type RegisterFormState = {
 const initialState: RegisterFormState = {
   password: "",
   name: "",
-  nickname: "",
   email: "",
   phoneNumber: "",
 };
@@ -40,8 +38,7 @@ export default function RegisterForm() {
   const canSubmit =
     form.email.trim().length > 0 &&
     form.password.length >= 8 &&
-    form.name.trim().length > 0 &&
-    form.nickname.trim().length > 0;
+    form.name.trim().length > 0;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,7 +53,6 @@ export default function RegisterForm() {
     try {
       await signup({
         password: form.password,
-        nickname: form.nickname.trim(),
         name: form.name.trim(),
         email: form.email.trim(),
         phoneNumber: form.phoneNumber.trim() || undefined,
@@ -117,22 +113,6 @@ export default function RegisterForm() {
               placeholder="이름"
               value={form.name}
               onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              required
-            />
-          </Field>
-
-          <Field>
-            <Label htmlFor="register-nickname">닉네임</Label>
-            <Input
-              id="register-nickname"
-              name="nickname"
-              type="text"
-              autoComplete="nickname"
-              placeholder="닉네임"
-              value={form.nickname}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, nickname: event.target.value }))
-              }
               required
             />
           </Field>
