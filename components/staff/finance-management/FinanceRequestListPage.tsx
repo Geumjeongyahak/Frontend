@@ -31,6 +31,13 @@ function getStatusLabel(status?: PurchaseRequestStatus) {
   return status ? (statusLabels[status] ?? status) : "-";
 }
 
+function getRequestTime(createdAt?: string) {
+  if (!createdAt) return 0;
+
+  const time = new Date(createdAt).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
 export default function FinanceRequestListPage({ currentPage }: FinanceRequestListPageProps) {
   const router = useRouter();
   const { user } = useAuthSession();
@@ -52,30 +59,32 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
 
   const currentAuthor = user?.name ?? user?.nickname ?? user?.email;
   const normalizedKeyword = searchKeyword.trim().toLowerCase();
-  const requests = (data ?? []).filter((request) => {
-    const matchesMine =
-      !mineOnly ||
-      Boolean(
-        currentAuthor &&
-          (request.requestedByName === user?.name ||
-            request.requestedByName === user?.nickname ||
-            request.requestedByName === user?.email),
-      );
-    const statusLabel = getStatusLabel(request.status);
-    const matchesKeyword =
-      normalizedKeyword.length === 0 ||
-      [
-        request.title,
-        request.classroomName,
-        request.requestedByName,
-        statusLabel,
-        formatUtcToKstShortDate(request.createdAt),
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(normalizedKeyword));
+  const requests = (data ?? [])
+    .filter((request) => {
+      const matchesMine =
+        !mineOnly ||
+        Boolean(
+          currentAuthor &&
+            (request.requestedByName === user?.name ||
+              request.requestedByName === user?.nickname ||
+              request.requestedByName === user?.email),
+        );
+      const statusLabel = getStatusLabel(request.status);
+      const matchesKeyword =
+        normalizedKeyword.length === 0 ||
+        [
+          request.title,
+          request.classroomName,
+          request.requestedByName,
+          statusLabel,
+          formatUtcToKstShortDate(request.createdAt),
+        ]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(normalizedKeyword));
 
-    return matchesMine && matchesKeyword;
-  });
+      return matchesMine && matchesKeyword;
+    })
+    .sort((a, b) => getRequestTime(b.createdAt) - getRequestTime(a.createdAt));
   const totalPages = Math.max(1, Math.ceil(requests.length / FINANCE_REQUESTS_PER_PAGE));
   const safeCurrentPage =
     Number.isInteger(currentPage) && currentPage >= 1 && currentPage <= totalPages
@@ -86,7 +95,7 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
 
   const rows: ListPanelRow[] = visibleRequests.map((request, index) => ({
     id: request.id ?? index,
-    no: String((safeCurrentPage - 1) * FINANCE_REQUESTS_PER_PAGE + index + 1).padStart(2, "0"),
+    no: String(Math.max(1, requests.length - (startIndex + index))).padStart(2, "0"),
     className: request.classroomName ?? "-",
     title: request.title ?? "제목 없음",
     author: request.requestedByName ?? "-",

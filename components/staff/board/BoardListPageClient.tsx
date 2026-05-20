@@ -337,7 +337,7 @@ export default function BoardListPageClient({
           >
             <SearchInput
               aria-label="게시글 검색"
-              placeholder="검색어를 입력하세요"
+              placeholder="검색어를 입력해주세요"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
@@ -375,16 +375,16 @@ const SearchForm = styled.form`
 const SearchInput = styled.input`
   width: 13.75rem;
   min-height: 2.25rem;
-  border: 1px solid ${colors.border};
-  border-radius: ${radii.radius15};
+  border: 0;
+  border-bottom: 1px solid ${colors.muted};
   background: ${colors.white};
-  padding: 0.5rem ${spacing.space16};
+  padding: 0.5rem 0;
   color: ${colors.text};
   font: inherit;
   font-size: ${typography.fontSize14};
 
   &::placeholder {
-    color: ${colors.placeholder};
+    color: ${colors.muted};
   }
 
   @media (min-width: 120rem) {
@@ -406,13 +406,13 @@ const SearchButton = styled.button`
   width: 2.25rem;
   height: 2.25rem;
   border: 0;
-  border-radius: 999px;
+  border-radius: ${radii.radius30};
   background: ${colors.text};
   color: ${colors.white};
   cursor: pointer;
 
   @media (min-width: 120rem) {
-    width: 3rem;
-    height: 3rem;
+    width: 3.25rem;
+    height: 3.25rem;
   }
 `;
