@@ -8,7 +8,7 @@ import styled, { css } from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { deletePost, getPost } from "@/api/post/post.api";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
-import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/ArchiveDocumentListPage";
+import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import {
   ActionLink,
   ContentStack,
@@ -46,13 +46,14 @@ export default function ArchiveDocumentDetailPage({
 
   const channelsQuery = useQuery({
     queryKey: ["staff", "archive", "channels"],
-    queryFn: () => getChannels({ channelType: "CUSTOM", isActive: true }),
+    queryFn: () => getChannels({ isActive: true }),
     enabled: typeof initialChannelId !== "number",
     retry: false,
   });
 
   const channel = resolveArchiveChannel(channelsQuery.data, config);
-  const channelId = initialChannelId ?? channel?.id ?? config.channelId;
+  const channelId =
+    initialChannelId ?? channel?.id ?? (channelsQuery.isError ? config.channelId : undefined);
   const hasChannelId = typeof channelId === "number" && Number.isFinite(channelId);
 
   const postQuery = useQuery({

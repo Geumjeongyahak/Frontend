@@ -6,9 +6,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import type { ChannelResponseDto } from "@/api/channel/channel.dto";
 import { getPosts } from "@/api/post/post.api";
 import type { PostSummaryResponseDto } from "@/api/post/post.dto";
+import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
@@ -25,21 +25,6 @@ type ArchiveDocumentListPageProps = {
   config: ArchiveDocumentConfig;
   initialPage: number;
 };
-
-export function resolveArchiveChannel(
-  channels: ChannelResponseDto[] | undefined,
-  config: ArchiveDocumentConfig,
-) {
-  return (
-    channels?.find(
-      (channel) => channel.channelType === "CUSTOM" && channel.name?.trim() === config.title,
-    ) ??
-    channels?.find(
-      (channel) => channel.channelType === "CUSTOM" && channel.name?.includes(config.title),
-    ) ??
-    channels?.find((channel) => channel.id === config.channelId)
-  );
-}
 
 function getPostTime(post: PostSummaryResponseDto) {
   const dateValue = post.createdAt ?? post.updatedAt;
@@ -70,7 +55,7 @@ export default function ArchiveDocumentListPage({
 
   const channelsQuery = useQuery({
     queryKey: ["staff", "archive", "channels"],
-    queryFn: () => getChannels({ channelType: "CUSTOM", isActive: true }),
+    queryFn: () => getChannels({ isActive: true }),
     retry: false,
   });
 
@@ -78,12 +63,13 @@ export default function ArchiveDocumentListPage({
     () => resolveArchiveChannel(channelsQuery.data, config),
     [channelsQuery.data, config],
   );
-  const channelId = channel?.id ?? config.channelId;
+  const channelId = channel?.id ?? (channelsQuery.isError ? config.channelId : undefined);
+  const channelType = channel?.channelType;
 
   const postsQuery = useQuery({
     queryKey: queryKeys.posts.boardList({
       page: requestedPage,
-      channelType: "CUSTOM",
+      channelType: channelType ?? "RESOURCE",
       boardScope: String(channelId),
       searchKeyword,
       mineOnly,
@@ -92,7 +78,7 @@ export default function ArchiveDocumentListPage({
     }),
     queryFn: () =>
       getPosts({
-        channelType: "CUSTOM",
+        channelType,
         channelId,
         title: searchKeyword.trim() || undefined,
         page: 0,

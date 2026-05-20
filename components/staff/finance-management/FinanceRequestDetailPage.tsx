@@ -48,7 +48,7 @@ type ExtendedPurchaseRequest = PurchaseRequestResponseDto & {
   vendorBalances?: VendorBalance[];
 };
 
-const vendorNames = ["예소디자인", "목민서관", "지성문구", "마트임"] as const;
+const vendorNames = ["예소디자인", "목민서관", "지성문구", "마트"] as const;
 
 type EditableItem = {
   id: number;
