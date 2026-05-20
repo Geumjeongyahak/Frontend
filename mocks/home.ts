@@ -31,7 +31,7 @@ export const headerMenus: HeaderDropdownMenu[] = [
   {
     label: "신규 등록",
     href: "/register",
-    items: [{ label: "교사 신청", href: "/register/teacher" }],
+    items: [{ label: "교사 신청", href: "/apply" }],
   },
 ];
 
