@@ -32,13 +32,25 @@ describe("request.api", () => {
       http.get(`${API_BASE_URL}/api/v1/absence-requests`, ({ request }) => {
         observedAuthorizationHeader = request.headers.get("authorization");
         observedQueryString = new URL(request.url).search;
-        return HttpResponse.json([ABSENCE_REQUEST_RESPONSE]);
+        return HttpResponse.json({
+          content: [ABSENCE_REQUEST_RESPONSE],
+          page: 0,
+          size: 10,
+          totalElements: 1,
+          totalPages: 1,
+        });
       }),
     );
 
     const response = await getAbsenceRequests({ status: "PENDING" });
 
-    expect(response).toEqual([ABSENCE_REQUEST_RESPONSE]);
+    expect(response).toEqual({
+      content: [ABSENCE_REQUEST_RESPONSE],
+      page: 0,
+      size: 10,
+      totalElements: 1,
+      totalPages: 1,
+    });
     expect(observedAuthorizationHeader).toBe(`Bearer ${VALID_ACCESS_TOKEN}`);
     expect(observedQueryString).toContain("status=PENDING");
   });
@@ -62,16 +74,18 @@ describe("request.api", () => {
     );
 
     const response = await createLessonExchangeRequest({
-      lessonId: 31,
+      lessonDate: "2026-06-10",
       title: "Emergency swap",
       content: "Need a replacement",
+      expiresAt: "2026-06-07T22:00:00",
     });
 
     expect(response.id).toBe(30);
     expect(observedBody).toEqual({
-      lessonId: 31,
+      lessonDate: "2026-06-10",
       title: "Emergency swap",
       content: "Need a replacement",
+      expiresAt: "2026-06-07T22:00:00",
     });
   });
 

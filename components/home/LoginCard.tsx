@@ -1,15 +1,14 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import { login } from "@/api/auth/auth.api";
 import { Input as AuthInput } from "@/components/auth/AuthFormParts";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import HomeCard from "@/components/home/HomeCard";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { colors, radii, spacing, typography } from "@/styles/tokens";
+import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 type LoginFormState = {
   email: string;
@@ -70,20 +69,19 @@ export default function LoginCard() {
 
   if (status === "authenticated") {
     return (
-      <Card title="로그인">
-        <SignedInContent>
-          <WelcomeGroup>
-            <WelcomeTitle>어서오세요, {displayName}님!</WelcomeTitle>
-            <WelcomeText>오늘도 수업과 운영 일정을 확인해 주세요.</WelcomeText>
-          </WelcomeGroup>
-          <ActionRow>
-            <PrimaryLink href="/mypage">마이페이지</PrimaryLink>
-            <SecondaryButton type="button" onClick={handleLogout}>
-              로그아웃
-            </SecondaryButton>
-          </ActionRow>
-        </SignedInContent>
-      </Card>
+      <SignedInCard aria-label="로그인 사용자 정보">
+        <Flower aria-hidden="true" />
+        <WelcomeMessage>
+          <GreetingText>안녕하세요</GreetingText>
+          <NameText>
+            <strong>{displayName}</strong>
+            <span> 선생님</span>
+          </NameText>
+        </WelcomeMessage>
+        <LogoutButton type="button" onClick={handleLogout}>
+          로그아웃
+        </LogoutButton>
+      </SignedInCard>
     );
   }
 
@@ -96,9 +94,7 @@ export default function LoginCard() {
             placeholder="이메일"
             autoComplete="email"
             value={form.email}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, email: event.target.value }))
-            }
+            onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
           />
           <Input
             type="password"
@@ -129,6 +125,110 @@ const Card = styled(HomeCard)`
   display: flex;
   flex-direction: column;
   gap: ${spacing.space12};
+`;
+
+const SignedInCard = styled.section`
+  position: relative;
+  min-width: 0;
+  height: 100%;
+  min-height: 18.75rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 2.25rem 1.75rem;
+  border-radius: ${radii.radius30};
+  background: ${colors.point};
+
+  @media (min-width: 120rem) {
+    min-height: 26.5rem;
+    padding: 3.75rem 2.5rem;
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    min-height: 16rem;
+  }
+`;
+
+const Flower = styled.span`
+  position: absolute;
+  top: 2.25rem;
+  right: 2.125rem;
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 50%;
+  background: ${colors.white};
+  box-shadow:
+    0 -0.6875rem 0 ${colors.white},
+    0 0.6875rem 0 ${colors.white},
+    -0.6875rem 0 0 ${colors.white},
+    0.6875rem 0 0 ${colors.white},
+    -0.5rem -0.5rem 0 ${colors.white},
+    0.5rem -0.5rem 0 ${colors.white},
+    -0.5rem 0.5rem 0 ${colors.white},
+    0.5rem 0.5rem 0 ${colors.white};
+
+  @media (min-width: 120rem) {
+    top: 3.5rem;
+    right: 3.125rem;
+    width: 3.5rem;
+    height: 3.5rem;
+    box-shadow:
+      0 -1rem 0 ${colors.white},
+      0 1rem 0 ${colors.white},
+      -1rem 0 0 ${colors.white},
+      1rem 0 0 ${colors.white},
+      -0.75rem -0.75rem 0 ${colors.white},
+      0.75rem -0.75rem 0 ${colors.white},
+      -0.75rem 0.75rem 0 ${colors.white},
+      0.75rem 0.75rem 0 ${colors.white};
+  }
+`;
+
+const slideFadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const WelcomeMessage = styled.p`
+  margin: 0;
+  color: ${colors.white};
+  font-size: ${typography.fontSize32};
+  font-weight: 300;
+  line-height: 1.25;
+  word-break: keep-all;
+
+  strong {
+    font-weight: 800;
+  }
+
+  @media (min-width: 120rem) {
+    font-size: 3rem;
+    line-height: 1.25;
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    font-size: ${typography.fontSize24};
+  }
+`;
+
+const GreetingText = styled.span`
+  display: block;
+  opacity: 0;
+  animation: ${slideFadeIn} 1.2s ease-out forwards;
+`;
+
+const NameText = styled.span`
+  display: block;
+  opacity: 0;
+  animation: ${slideFadeIn} 1.6s ease-out 0.7s forwards;
 `;
 
 const Form = styled.form`
@@ -211,12 +311,6 @@ const SubmitButton = styled.button`
   }
 `;
 
-const SignedInContent = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${spacing.space40};
-`;
-
 const PendingContent = styled.div`
   min-height: 12.125rem;
   display: flex;
@@ -224,60 +318,22 @@ const PendingContent = styled.div`
   justify-content: center;
 `;
 
-const WelcomeGroup = styled.div`
-  min-height: 7.25rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: ${spacing.space12};
-`;
-
-const WelcomeTitle = styled.p`
-  color: ${colors.text};
-  font-size: ${typography.fontSize24};
-  font-weight: 800;
-  line-height: ${typography.lineHeight130};
-`;
-
-const WelcomeText = styled.p`
-  color: #5f6b5a;
-  font-size: ${typography.fontSize16};
-  line-height: ${typography.lineHeight150};
-`;
-
-const ActionRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: ${spacing.space12};
-`;
-
-const PrimaryLink = styled(Link)`
-  min-height: 3.5rem;
-  border-radius: ${radii.radius12};
-  background-color: ${colors.point};
+const LogoutButton = styled.button`
+  position: absolute;
+  top: ${spacing.space20};
+  left: ${spacing.space20};
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: ${radii.radius999};
+  padding: ${spacing.space8} ${spacing.space16};
+  background: transparent;
   color: ${colors.white};
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: ${typography.fontSize16};
-  font-weight: 700;
-  line-height: ${typography.lineHeight130};
-  text-decoration: none;
-`;
-
-const SecondaryButton = styled.button`
-  min-height: 3.5rem;
-  border: 1px solid ${colors.border};
-  border-radius: ${radii.radius12};
-  background-color: ${colors.white};
-  color: ${colors.text};
-  font-size: ${typography.fontSize16};
+  font-family: ${typography.fontFamily};
+  font-size: ${typography.fontSize14};
   font-weight: 700;
   line-height: ${typography.lineHeight130};
   cursor: pointer;
 
   &:hover {
-    border-color: ${colors.point};
-    color: ${colors.point};
+    background: rgba(255, 255, 255, 0.14);
   }
 `;

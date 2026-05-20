@@ -9,7 +9,7 @@ import {
   getAbsenceRequestDetail,
   updateAbsenceRequest,
 } from "@/api/request/request.api";
-import type { RequestStatus } from "@/api/request/request.dto";
+import type { AbsenceRequestStatus } from "@/api/request/request.dto";
 import { Button } from "@/components/common/VariantButton";
 import { StatusBadge, type ExchangeStatus } from "@/components/staff/class-management/exchange-request/ExchangeRequestDetail";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
@@ -18,9 +18,9 @@ import { queryKeys } from "@/lib/queryKeys";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
-function normalizeStatusTone(status?: RequestStatus): ExchangeStatus {
+function normalizeStatusTone(status?: AbsenceRequestStatus): ExchangeStatus {
   if (status === "APPROVED") return "APPROVED";
-  if (status === "REJECTED") return "REJECTED";
+  if (status === "REJECTED" || status === "CANCELLED" || status === "EXPIRED") return "REJECTED";
   return "PENDING";
 }
 

@@ -6,6 +6,7 @@ import type { WeeklyScheduleDay } from "@/types/home";
 
 type WeeklyScheduleCardProps = {
   schedule: WeeklyScheduleDay[];
+  onViewAllClick?: () => void;
 };
 
 const getMondayBasedIndex = (date = dayjs()) => {
@@ -13,11 +14,11 @@ const getMondayBasedIndex = (date = dayjs()) => {
   return d === 0 ? 6 : d - 1;
 };
 
-export default function WeeklyScheduleCard({ schedule }: WeeklyScheduleCardProps) {
+export default function WeeklyScheduleCard({ schedule, onViewAllClick }: WeeklyScheduleCardProps) {
   const todayIndex = getMondayBasedIndex();
 
   return (
-    <Card title="주간 일정" actionLabel="전체일정 보기">
+    <Card title="주간 일정" actionLabel="전체일정 보기" onActionClick={onViewAllClick}>
       <Schedule>
         {schedule.map((daySchedule, index) => {
           const isHighlighted = index === todayIndex;

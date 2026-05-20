@@ -1,19 +1,36 @@
 import styled, { css } from "styled-components";
+import type { MouseEventHandler } from "react";
 import { colors, radii, spacing, typography } from "@/styles/tokens";
 
 type HomeCardProps = {
   title: string;
   actionLabel?: string;
+  actionHref?: string;
+  onActionClick?: MouseEventHandler<HTMLButtonElement>;
   children: React.ReactNode;
   className?: string;
 };
 
-export default function HomeCard({ title, actionLabel, children, className }: HomeCardProps) {
+export default function HomeCard({
+  title,
+  actionLabel,
+  actionHref,
+  onActionClick,
+  children,
+  className,
+}: HomeCardProps) {
   return (
     <Card className={className}>
       <Header>
         <Title>{title}</Title>
-        {actionLabel ? <Action href="#">{actionLabel}</Action> : null}
+        {actionLabel && onActionClick ? (
+          <ActionButton type="button" onClick={onActionClick}>
+            {actionLabel}
+          </ActionButton>
+        ) : null}
+        {actionLabel && !onActionClick ? (
+          <Action href={actionHref ?? "#"}>{actionLabel}</Action>
+        ) : null}
       </Header>
       <Content>{children}</Content>
     </Card>
@@ -64,6 +81,24 @@ const Action = styled.a`
   line-height: ${typography.lineHeight130};
   text-decoration: underline;
   text-underline-offset: 0.125rem;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ActionButton = styled.button`
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: ${colors.point};
+  font-family: ${typography.fontFamily};
+  font-size: ${typography.fontSize13};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  text-decoration: underline;
+  text-underline-offset: 0.125rem;
+  cursor: pointer;
 
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize20};

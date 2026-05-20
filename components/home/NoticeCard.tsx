@@ -4,10 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
 import { getPosts } from "@/api/post/post.api";
 import HomeCard from "@/components/home/HomeCard";
+import { useProtectedHomeNavigation } from "@/components/home/useProtectedHomeNavigation";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, spacing, typography } from "@/styles/tokens";
 
 export default function NoticeCard() {
+  const { isAuthenticated, navigateWhenAuthenticated } = useProtectedHomeNavigation();
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.posts.noticeTop12(),
     queryFn: () =>
@@ -16,20 +18,27 @@ export default function NoticeCard() {
         page: 0,
         size: 12,
       }),
+    enabled: isAuthenticated,
     retry: false,
   });
 
   const notices = data?.content ?? [];
 
   return (
-    <Card title="공지사항" actionLabel="더보기">
+    <Card
+      title="공지사항"
+      actionLabel="더보기"
+      onActionClick={() => navigateWhenAuthenticated("/staff/board?type=NOTICE")}
+    >
       <List>
-        {isLoading && <Fallback>공지사항 불러오는 중...</Fallback>}
-        {isError && <Fallback>공지사항을 불러오지 못했습니다.</Fallback>}
-        {!isLoading && !isError && notices.length === 0 && (
+        {!isAuthenticated && <Fallback>로그인이 필요합니다.</Fallback>}
+        {isAuthenticated && isLoading && <Fallback>공지사항 불러오는 중...</Fallback>}
+        {isAuthenticated && isError && <Fallback>공지사항을 불러오지 못했습니다.</Fallback>}
+        {isAuthenticated && !isLoading && !isError && notices.length === 0 && (
           <Fallback>공지사항이 없습니다.</Fallback>
         )}
-        {!isLoading &&
+        {isAuthenticated &&
+          !isLoading &&
           !isError &&
           notices.map((notice, index) => (
             <ListItem key={`${notice.id ?? "notice"}-${index}`}>
