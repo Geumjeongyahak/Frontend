@@ -1,29 +1,47 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
-import {
-  buildSendClassNotePayloadFromFormData,
-  formatPhone,
-} from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
-import { sendClassAttendanceToGoogleSheet } from "@/lib/googleSheet/classAttendance/sendClassAttendanceToGoogleSheet";
-import { sendClassJournalToGoogleSheet } from "@/lib/googleSheet/classJournal/sendClassJournalToGoogleSheet";
+import { createJournal } from "@/api/dailySchedule/dailySchedule.api";
+import { getCurrentUser } from "@/api/user/user.api";
+import { formatPhone } from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
+import { queryKeys } from "@/lib/queryKeys";
+import { parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
-
-const teacherFields = [
-  { id: "writer", label: "작성자", placeholder: "홍길동" },
-  { id: "birthPrefix", label: "주민번호 앞자리", placeholder: "000000" },
-  { id: "phone", label: "연락처", placeholder: "010-0000-0000" },
-  { id: "className", label: "담당 수업", placeholder: "반 이름" },
-  { id: "activityDate", label: "활동 일자", placeholder: "00.00.00" },
-  { id: "activityTime", label: "활동 시간", placeholder: "14:00-15:00" },
-] as const;
 
 const lessonPeriods = [1, 2, 3] as const;
 const attendanceColumns = Array.from({ length: 10 }, (_, index) => index);
 
 export default function ClassJournalCreatePage() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+  const [lessonDateText, setLessonDateText] = useState("");
+  const [classroomId, setClassroomId] = useState("");
+
+  const currentUserQuery = useQuery({
+    queryKey: queryKeys.user.me(),
+    queryFn: getCurrentUser,
+    retry: false,
+  });
+
+  const createJournalMutation = useMutation({
+    mutationFn: createJournal,
+    onSuccess: (data) => {
+      window.alert("수업 일지가 등록되었습니다.");
+      if (data.dailyScheduleId) {
+        router.push(`/staff/class-management/${data.dailyScheduleId}`);
+        return;
+      }
+      router.push("/staff/class-management");
+    },
+    onError: (error) => {
+      window.alert(error instanceof Error ? error.message : "수업 일지 등록에 실패했습니다.");
+    },
+  });
+
+  const isSubmitting = createJournalMutation.isPending;
+  const currentUser = currentUserQuery.data;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -32,57 +50,33 @@ export default function ClassJournalCreatePage() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const payload = buildSendClassNotePayloadFromFormData(formData);
-    const className = String(formData.get("className") || "").trim();
+    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateText.trim());
+    const parsedClassroomId = Number.parseInt(classroomId, 10);
+    const personalInfoConsent = formData.get("privacyConsent") === "on";
+    const residentRegistrationNumberPrefix = String(formData.get("birthPrefix") ?? "").trim();
 
-    const attendances = Array.from({ length: 10 }, (_, index) => {
-      const name = String(formData.get(`studentName${index + 1}`) || "").trim();
-      const status = String(formData.get(`attendanceStatus${index + 1}`) || "").trim();
-
-      if (!name) return null;
-
-      return {
-        name,
-        status: status || "출석",
-      };
-    }).filter((attendance): attendance is { name: string; status: string } => attendance !== null);
-
-    if (!payload.date) {
-      window.alert("활동 일자를 입력해 주세요.");
+    if (!lessonDate) {
+      window.alert("활동 일자를 00.00.00 형식으로 입력해 주세요.");
       return;
     }
 
-    if (!payload.name) {
-      window.alert("성명을 입력해 주세요.");
+    if (!Number.isInteger(parsedClassroomId) || parsedClassroomId <= 0) {
+      window.alert("담당 수업 ID를 입력해 주세요.");
       return;
     }
 
-    if (!payload.agree || payload.agree === "미동의") {
+    if (!personalInfoConsent) {
       window.alert("개인정보 제공 동의가 필요합니다.");
       return;
     }
 
-    setIsSubmitting(true);
-
-    try {
-      await sendClassJournalToGoogleSheet(payload);
-
-      if (attendances.length > 0) {
-        await sendClassAttendanceToGoogleSheet({
-          date: payload.date,
-          className,
-          attendances,
-        });
-      }
-
-      window.alert("수업 일지와 출석부가 구글 시트에 저장되었습니다.");
-      form.reset();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "수업 일지 전송에 실패했습니다.";
-      window.alert(message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    createJournalMutation.mutate({
+      lessonDate,
+      classroomId: parsedClassroomId,
+      personalInfoConsent,
+      residentRegistrationNumberPrefix: residentRegistrationNumberPrefix || undefined,
+      lessonJournals: [],
+    });
   };
 
   return (
@@ -102,24 +96,67 @@ export default function ClassJournalCreatePage() {
 
       <Form id="class-journal-form" onSubmit={handleSubmit}>
         <InfoGrid>
-          {teacherFields.map((field) => (
-            <InfoField key={field.id}>
-              <FieldLabel htmlFor={field.id}>{field.label}</FieldLabel>
-              <FieldInput
-                id={field.id}
-                name={field.id}
-                type={field.id === "activityDate" ? "date" : "text"}
-                placeholder={field.placeholder}
-                onChange={
-                  field.id === "phone"
-                    ? (e) => {
-                        e.target.value = formatPhone(e.target.value);
-                      }
-                    : undefined
-                }
-              />
-            </InfoField>
-          ))}
+          <InfoField>
+            <FieldLabel htmlFor="writer">작성자</FieldLabel>
+            <FieldInput
+              id="writer"
+              name="writer"
+              type="text"
+              value={currentUser?.name ?? ""}
+              placeholder="작성자"
+              disabled
+              readOnly
+            />
+          </InfoField>
+
+          <InfoField>
+            <FieldLabel htmlFor="birthPrefix">주민번호 앞자리</FieldLabel>
+            <FieldInput
+              id="birthPrefix"
+              name="birthPrefix"
+              type="text"
+              placeholder="000000"
+            />
+          </InfoField>
+
+          <InfoField>
+            <FieldLabel htmlFor="phone">연락처</FieldLabel>
+            <FieldInput
+              id="phone"
+              name="phone"
+              type="text"
+              value={currentUser?.phoneNumber ? formatPhone(currentUser.phoneNumber) : ""}
+              placeholder="010-0000-0000"
+              disabled
+              readOnly
+            />
+          </InfoField>
+
+          <InfoField>
+            <FieldLabel htmlFor="classroomId">담당 수업</FieldLabel>
+            <FieldInput
+              id="classroomId"
+              name="classroomId"
+              type="number"
+              min="1"
+              inputMode="numeric"
+              placeholder="장미반"
+              value={classroomId}
+              onChange={(event) => setClassroomId(event.target.value)}
+            />
+          </InfoField>
+
+          <InfoField>
+            <FieldLabel htmlFor="lessonDate">활동 일자</FieldLabel>
+            <FieldInput
+              id="lessonDate"
+              name="lessonDate"
+              type="text"
+              placeholder="00.00.00"
+              value={lessonDateText}
+              onChange={(event) => setLessonDateText(event.target.value)}
+            />
+          </InfoField>
         </InfoGrid>
 
         <LessonSection>
@@ -362,7 +399,7 @@ const SectionTitle = styled.h2`
   }
 `;
 
-const FieldInput = styled.input`
+const fieldBaseStyle = `
   width: 100%;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
@@ -378,11 +415,20 @@ const FieldInput = styled.input`
     color: #b1b1b1;
   }
 
+  &:disabled {
+    color: #6d6d6d;
+    cursor: not-allowed;
+  }
+
   @media (min-width: 120rem) {
     min-height: 4rem;
     padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
   }
+`;
+
+const FieldInput = styled.input`
+  ${fieldBaseStyle}
 `;
 
 const LessonSection = styled.section`
