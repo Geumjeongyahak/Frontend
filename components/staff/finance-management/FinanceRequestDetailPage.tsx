@@ -370,6 +370,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
             </ActionButton>
             <ActionButton
               type="button"
+              $variant="edit"
               disabled={!canEditRequest}
               title={canEditRequest ? undefined : "대기 중인 본인 작성 글만 수정할 수 있습니다."}
               onClick={() => setIsEditing(true)}
@@ -746,17 +747,21 @@ const DateBar = styled.div`
   }
 `;
 
-const BaseAction = styled.button<{ $variant?: "default" | "danger" }>`
+const BaseAction = styled.button<{ $variant?: "default" | "danger" | "edit" }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 3.9375rem;
   min-height: 2.6875rem;
-  border: 0;
+  border: 1px solid
+    ${({ $variant }) =>
+      $variant === "danger" ? colors.notice : $variant === "edit" ? colors.point : "transparent"};
   border-radius: ${radii.radius15};
-  background-color: ${({ $variant }) => ($variant === "danger" ? "#fde4e2" : colors.point)};
+  background-color: ${({ $variant }) =>
+    $variant === "danger" || $variant === "edit" ? colors.white : colors.point};
   padding: 0.8125rem ${spacing.space20};
-  color: ${({ $variant }) => ($variant === "danger" ? "#da3a30" : colors.white)};
+  color: ${({ $variant }) =>
+    $variant === "danger" ? colors.notice : $variant === "edit" ? colors.point : colors.white};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -765,8 +770,18 @@ const BaseAction = styled.button<{ $variant?: "default" | "danger" }>`
 
   &:disabled {
     background-color: #d4d4d4;
+    border-color: #d4d4d4;
     color: #7b7b7b;
     cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    background-color: ${({ $variant }) =>
+      $variant === "danger"
+        ? colors.noticeSoft
+        : $variant === "edit"
+          ? colors.pointSoft
+          : "#76bd49"};
   }
 
   @media (min-width: 120rem) {
@@ -785,10 +800,11 @@ const ListButton = styled(Link)`
   justify-content: center;
   min-width: 3.9375rem;
   min-height: 2.6875rem;
+  border: 1px solid ${colors.border};
   border-radius: ${radii.radius15};
-  background-color: ${colors.point};
+  background-color: ${colors.background};
   padding: 0.8125rem ${spacing.space20};
-  color: ${colors.white};
+  color: ${colors.text};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -1402,20 +1418,25 @@ const ReportSubmitButton = styled.button`
   align-items: center;
   justify-content: center;
   min-height: 2.6875rem;
-  border: 0;
+  border: 1px solid ${colors.point};
   border-radius: ${radii.radius15};
-  background-color: ${colors.point};
+  background-color: ${colors.white};
   padding: 0.8125rem ${spacing.space20};
-  color: ${colors.white};
+  color: ${colors.point};
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
   cursor: pointer;
 
   &:disabled {
+    border-color: #d4d4d4;
     background-color: #d4d4d4;
     color: #7b7b7b;
     cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
   }
 
   @media (min-width: 120rem) {
@@ -1427,6 +1448,10 @@ const ReportSubmitButton = styled.button`
 
 const CancelEditButton = styled(ReportSubmitButton)`
   border: 1px solid ${colors.border};
-  background-color: ${colors.white};
-  color: #000000;
+  background-color: ${colors.background};
+  color: ${colors.text};
+
+  &:not(:disabled):hover {
+    background-color: ${colors.border};
+  }
 `;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { IconSearch } from "@tabler/icons-react";
+import { IconEdit, IconSearch } from "@tabler/icons-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
@@ -94,6 +94,8 @@ export default function AbsenceListPageClient() {
       mineOnly={mineOnly}
       emptyMessage={emptyMessage}
       headerTone="journal"
+      writeTone="archive"
+      writeIcon={<IconEdit aria-hidden="true" size={16} stroke={2} />}
       searchSlot={
         <SearchForm
           role="search"

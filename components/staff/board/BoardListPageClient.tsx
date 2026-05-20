@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { IconSearch } from "@tabler/icons-react";
+import { IconEdit, IconSearch } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
@@ -279,6 +279,7 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
         classHeader="부서"
         emptyMessage={emptyMessage}
         headerTone="archive"
+        writeIcon={<IconEdit aria-hidden="true" size={16} stroke={2} />}
         filterSlot={
           <FilterBar aria-label="게시판 필터">
             <BoardDropdown

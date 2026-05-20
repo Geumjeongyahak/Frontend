@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { IconSearch } from "@tabler/icons-react";
+import { IconEdit, IconSearch } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
@@ -145,6 +145,7 @@ export default function ArchiveDocumentListPage({
       onMineOnlyToggle={() => setMineOnly((current) => !current)}
       emptyMessage={emptyMessage}
       headerTone="archive"
+      writeIcon={<IconEdit aria-hidden="true" size={16} stroke={2} />}
       showClassColumn={false}
       showStatusColumn={false}
       searchSlot={

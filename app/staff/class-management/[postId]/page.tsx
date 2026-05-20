@@ -54,8 +54,8 @@ export default async function StaffClassJournalPostPage({ params }: PageProps) {
   return (
     <PageSection>
       <ButtonRow>
-        <ActionButton type="button">삭제</ActionButton>
-        <ActionButton type="button">수정</ActionButton>
+        <ActionButton type="button" $variant="danger">삭제</ActionButton>
+        <ActionButton type="button" $variant="edit">수정</ActionButton>
         <LinkButton href="/staff/class-management">목록</LinkButton>
       </ButtonRow>
 
@@ -128,16 +128,16 @@ const ButtonRow = styled.div`
   }
 `;
 
-const ActionButton = styled.button`
+const ActionButton = styled.button<{ $variant: "danger" | "edit" }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 3.9375rem;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  border: 0;
-  background-color: #88cd5a;
-  color: #ffffff;
+  border: 1px solid ${({ $variant }) => ($variant === "danger" ? colors.notice : colors.point)};
+  background-color: ${colors.white};
+  color: ${({ $variant }) => ($variant === "danger" ? colors.notice : colors.point)};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -145,7 +145,8 @@ const ActionButton = styled.button`
   border-radius: ${radii.radius12};
 
   &:hover {
-    background-color: #d9d9d9;
+    background-color: ${({ $variant }) =>
+      $variant === "danger" ? colors.noticeSoft : colors.pointSoft};
   }
 
   @media (min-width: 120rem) {
@@ -163,8 +164,9 @@ const LinkButton = styled(Link)`
   min-width: 3.9375rem;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  background-color: #88cd5a;
-  color: #ffffff;
+  border: 1px solid ${colors.border};
+  background-color: ${colors.background};
+  color: ${colors.text};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -172,7 +174,7 @@ const LinkButton = styled(Link)`
   border-radius: ${radii.radius12};
 
   &:hover {
-    background-color: #d9d9d9;
+    filter: brightness(0.97);
   }
 
   @media (min-width: 120rem) {

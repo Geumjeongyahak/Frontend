@@ -32,6 +32,7 @@ type ListPanelProps = {
   showMineOnlyToggle?: boolean;
   emptyMessage?: string;
   headerTone?: ListPanelTone;
+  writeTone?: ListPanelTone;
   showClassColumn?: boolean;
   classHeader?: string;
   showStatusColumn?: boolean;
@@ -75,6 +76,7 @@ export default function ListPanel({
   showMineOnlyToggle = true,
   emptyMessage = "목록이 없습니다.",
   headerTone = "default",
+  writeTone,
   showClassColumn = true,
   classHeader = "반",
   showStatusColumn = true,
@@ -97,7 +99,7 @@ export default function ListPanel({
     <Container>
       <HeaderRow>
         <Title $tone={headerTone}>{title}</Title>
-        <WriteButton href={writeHref} $tone={headerTone}>
+        <WriteButton href={writeHref} $tone={writeTone ?? headerTone}>
           <span>{writeLabel}</span>
           {writeIcon}
         </WriteButton>
