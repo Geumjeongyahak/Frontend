@@ -365,11 +365,11 @@ const WriteButton = styled(Link)<{ $tone: ListPanelTone }>`
 const TableSection = styled.section<{ $stableRows?: number }>`
   width: 100%;
   min-height: ${({ $stableRows }) =>
-    $stableRows ? `calc(2.5rem + ${$stableRows} * 1.875rem)` : "0"};
+    $stableRows ? `calc(6rem + ${$stableRows} * 1.875rem)` : "0"};
 
   @media (min-width: 120rem) {
     min-height: ${({ $stableRows }) =>
-      $stableRows ? `calc(3.75rem + ${$stableRows} * 2.75rem)` : "0"};
+      $stableRows ? `calc(13rem + ${$stableRows} * 2.75rem)` : "0"};
   }
 `;
 
@@ -411,7 +411,7 @@ const Tr = styled.tr<{ $tone: ListPanelTone }>`
 
 const Td = styled.td<{ $width720?: string; $width1080?: string; $isNotice?: boolean }>`
   width: ${({ $width720 }) => $width720 ?? "auto"};
-  padding: 0.40625rem ${spacing.space12};
+  padding: 0.65625rem ${spacing.space12};
   color: ${({ $isNotice }) => ($isNotice ? colors.notice : colors.text)};
   font-size: ${typography.fontSize14};
   font-weight: ${({ $isNotice }) => ($isNotice ? 700 : 400)};
@@ -420,7 +420,7 @@ const Td = styled.td<{ $width720?: string; $width1080?: string; $isNotice?: bool
 
   @media (min-width: 120rem) {
     width: ${({ $width1080, $width720 }) => $width1080 ?? $width720 ?? "auto"};
-    padding: 0.75rem ${spacing.space12};
+    padding: 1.1875rem ${spacing.space12};
     font-size: ${typography.fontSize20};
   }
 `;
@@ -605,10 +605,8 @@ const StatusBadge = styled.span<{
   align-items: center;
   justify-content: center;
   min-width: 3.5rem;
-  padding: 0.25rem 0.625rem;
-  border-radius: 999px;
+
   font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight130};
 
   color: ${({ $status }) => {
     switch ($status) {
@@ -628,7 +626,6 @@ const StatusBadge = styled.span<{
 
   @media (min-width: 120rem) {
     min-width: 4.5rem;
-    padding: 0.375rem 0.875rem;
     font-size: ${typography.fontSize20};
   }
 `;

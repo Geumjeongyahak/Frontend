@@ -9,15 +9,12 @@ import { getLessonExchangeRequests } from "@/api/lessonExchange/lessonExchange.a
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
-import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
-import {
-  formatRequestStatus,
-  normalizeRequestStatusTone,
-} from "@/utils/formatRequestStatus";
+import { colors, layout, spacing, typography } from "@/styles/tokens";
+import { formatRequestStatus, normalizeRequestStatusTone } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const ITEMS_PER_PAGE = 9;
-const STABLE_TABLE_ROWS = 11;
+const STABLE_TABLE_ROWS = 9;
 
 export default function ExchangeListPageClient() {
   const router = useRouter();
