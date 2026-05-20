@@ -1,10 +1,13 @@
 import Link from "next/link";
 import styled from "styled-components";
+import { ClassJournalSearch } from "@/components/staff/class-management/class-journal/ClassJournalSearch";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { buildClassJournalHref } from "@/utils/classJournalHref";
 
 type PageProps = {
   searchParams?: Promise<{
     page?: string;
+    keyword?: string;
   }>;
 };
 
@@ -36,21 +39,28 @@ const journalLessons = [
   { period: "3교시", content: "수업일지 내용 수업일지 내용 수업일지 내용" },
 ];
 
-function buildPageHref(page: number) {
-  return page === 1 ? "/staff/class-management" : `/staff/class-management?page=${page}`;
-}
-
 export default async function StaffClassPage({ searchParams }: PageProps) {
   const resolvedSearchParams = await searchParams;
+  const keyword = resolvedSearchParams?.keyword?.trim() ?? "";
   const pageParam = Number(resolvedSearchParams?.page);
-  const totalPages = Math.ceil(classJournals.length / JOURNALS_PER_PAGE);
+
+  const filteredJournals = keyword
+    ? classJournals.filter(
+        (journal) =>
+          journal.className.includes(keyword) ||
+          journal.teacher.includes(keyword) ||
+          journal.date.includes(keyword),
+      )
+    : classJournals;
+
+  const totalPages = Math.max(1, Math.ceil(filteredJournals.length / JOURNALS_PER_PAGE));
   const currentPage = Number.isInteger(pageParam)
     ? Math.min(Math.max(pageParam, 1), totalPages)
     : 1;
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
   const startIndex = (currentPage - 1) * JOURNALS_PER_PAGE;
-  const visibleJournals = classJournals.slice(startIndex, startIndex + JOURNALS_PER_PAGE);
+  const visibleJournals = filteredJournals.slice(startIndex, startIndex + JOURNALS_PER_PAGE);
 
   return (
     <PageSection>
@@ -96,7 +106,7 @@ export default async function StaffClassPage({ searchParams }: PageProps) {
 
         <Pagination aria-label="페이지 이동">
           <PageArrow
-            href={buildPageHref(prevPage)}
+            href={buildClassJournalHref(prevPage, keyword)}
             aria-label="이전 페이지"
             $isDisabled={currentPage === 1}
           >
@@ -108,7 +118,7 @@ export default async function StaffClassPage({ searchParams }: PageProps) {
             return (
               <PageNumber
                 key={pageNumber}
-                href={buildPageHref(pageNumber)}
+                href={buildClassJournalHref(pageNumber, keyword)}
                 $isActive={pageNumber === currentPage}
                 aria-current={pageNumber === currentPage ? "page" : undefined}
               >
@@ -117,13 +127,17 @@ export default async function StaffClassPage({ searchParams }: PageProps) {
             );
           })}
           <PageArrow
-            href={buildPageHref(nextPage)}
+            href={buildClassJournalHref(nextPage, keyword)}
             aria-label="다음 페이지"
             $isDisabled={currentPage === totalPages}
           >
             ▶
           </PageArrow>
         </Pagination>
+
+        <SearchArea>
+          <ClassJournalSearch defaultKeyword={keyword} />
+        </SearchArea>
       </FooterRow>
     </PageSection>
   );
@@ -267,7 +281,7 @@ const JournalCard = styled(Link)`
   height: 12.6875rem;
   color: #000000;
   text-decoration: none;
-  border: 1px solid #88cd5a;
+  border: 1px solid #d3d3d3;
   overflow: hidden;
   border-radius: ${radii.radius20};
 
@@ -330,7 +344,7 @@ const CardFooter = styled.footer`
   gap: ${spacing.space8};
   min-height: 2.625rem;
   padding: 0 ${spacing.space16};
-  background-color: #88cd5a;
+  background-color: #f8f8f8;
 
   @media (min-width: 120rem) {
     min-height: 3.9375rem;
@@ -341,7 +355,7 @@ const CardFooter = styled.footer`
 const ClassName = styled.strong`
   min-width: 0;
   overflow: hidden;
-  color: #ffffff;
+  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -365,7 +379,7 @@ const MetaGroup = styled.div`
 `;
 
 const Teacher = styled.span`
-  color: #ffffff;
+  color: #000000;
   font-size: 0.6875rem;
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -504,5 +518,17 @@ const PageNumber = styled(Link)<{ $isActive?: boolean }>`
 
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize24};
+  }
+`;
+
+const SearchArea = styled.div`
+  position: absolute;
+  right: 0;
+  display: flex;
+  align-items: center;
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    position: static;
+    width: 100%;
   }
 `;
