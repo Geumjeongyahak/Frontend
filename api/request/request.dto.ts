@@ -1,4 +1,5 @@
 export type RequestStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type AbsenceRequestStatus = RequestStatus | "CANCELLED" | "EXPIRED";
 export type PurchaseRequestStatus =
   | "PENDING"
   | "APPROVED"
@@ -23,7 +24,8 @@ export interface RequestPathParamsDto {
 }
 
 export interface CreateAbsenceRequestDto {
-  lessonId: number;
+  lessonDate: string;
+  title: string;
   reason: string;
 }
 
@@ -34,7 +36,6 @@ export interface UpdateAbsenceRequestDto {
 
 export interface AbsenceRequestResponseDto {
   id?: number;
-  lessonId?: number;
   dailyScheduleId?: number;
   lessonDate?: string;
   classroomId?: number;
@@ -44,7 +45,7 @@ export interface AbsenceRequestResponseDto {
   title?: string;
   reason?: string;
   expiresAt?: string;
-  status?: RequestStatus;
+  status?: AbsenceRequestStatus;
   approvalAt?: string;
   approvalByName?: string;
   note?: string;
@@ -140,14 +141,16 @@ export interface PurchaseRequestResponseDto extends PurchaseRequestSummaryRespon
 export type PurchaseRequestListItemDto = PurchaseRequestResponseDto;
 
 export interface CreateLessonExchangeRequestDto {
-  lessonId: number;
+  lessonDate: string;
   title: string;
   content: string;
+  expiresAt: string;
 }
 
 export interface LessonExchangeRequestResponseDto {
   id?: number;
-  lessonId?: number;
+  dailyScheduleId?: number;
+  classroomName?: string;
   lessonDate?: string;
   requestedById?: number;
   requestedByName?: string;
@@ -157,6 +160,12 @@ export interface LessonExchangeRequestResponseDto {
   approvalAt?: string;
   approvalByName?: string;
   note?: string;
+  expiresAt?: string;
+  processedAt?: string;
+  processedByName?: string;
+  rejectionNote?: string;
+  completedAt?: string;
+  cancelledAt?: string;
   createdAt?: string;
 }
 
