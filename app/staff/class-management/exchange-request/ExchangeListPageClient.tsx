@@ -16,6 +16,13 @@ import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 const ITEMS_PER_PAGE = 9;
 const STABLE_TABLE_ROWS = 9;
 
+function getRequestTime(createdAt?: string) {
+  if (!createdAt) return 0;
+
+  const time = new Date(createdAt).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
 export default function ExchangeListPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -52,16 +59,19 @@ export default function ExchangeListPageClient() {
     retry: false,
   });
 
-  const exchangeRequests = exchangeRequestPage?.content ?? [];
+  const exchangeRequests = [...(exchangeRequestPage?.content ?? [])].sort(
+    (a, b) => getRequestTime(b.createdAt) - getRequestTime(a.createdAt),
+  );
 
   const totalPages = Math.max(1, exchangeRequestPage?.totalPages ?? 1);
+  const totalCount = exchangeRequestPage?.totalElements ?? exchangeRequests.length;
 
   const currentPage = requestedPage <= totalPages ? requestedPage : totalPages;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
 
   const rows: ListPanelRow[] = exchangeRequests.map((item, index) => ({
     id: item.id ?? startIndex + index + 1,
-    no: String(startIndex + index + 1).padStart(2, "0"),
+    no: String(Math.max(1, totalCount - (startIndex + index))).padStart(2, "0"),
     className: item.classroomName ?? "-",
     title: item.title ?? "제목 없음",
     author: item.requestedByName ?? "-",
