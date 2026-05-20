@@ -47,24 +47,38 @@ export const ToolbarRight = styled.div`
   }
 `;
 
-const actionStyle = css<{ $variant?: "default" | "danger" | "muted" }>`
+const actionStyle = css<{ $variant?: "default" | "danger" | "edit" | "muted" }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-width: 3.9375rem;
   min-height: 2.6875rem;
   border: ${({ $variant }) =>
-    $variant === "muted" || $variant === "default" ? `1px solid ${colors.border}` : 0};
+    $variant === "danger"
+      ? `1px solid ${colors.notice}`
+      : $variant === "edit"
+        ? `1px solid ${colors.point}`
+        : $variant === "muted" || $variant === "default"
+          ? `1px solid ${colors.border}`
+          : `1px solid ${colors.point}`};
   border-radius: ${radii.radius15};
   background-color: ${({ $variant }) =>
     $variant === "danger"
-      ? colors.noticeSoft
+      ? colors.white
+      : $variant === "edit"
+        ? colors.white
       : $variant === "muted"
         ? colors.background
-        : colors.point};
+        : colors.white};
   padding: 0.8125rem ${spacing.space20};
   color: ${({ $variant }) =>
-    $variant === "danger" ? colors.notice : $variant === "muted" ? colors.text : colors.white};
+    $variant === "danger"
+      ? colors.notice
+      : $variant === "edit"
+        ? colors.point
+        : $variant === "muted"
+          ? colors.text
+          : colors.point};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -72,8 +86,19 @@ const actionStyle = css<{ $variant?: "default" | "danger" | "muted" }>`
   white-space: nowrap;
   cursor: pointer;
 
-  &:hover {
-    filter: brightness(0.97);
+  &:not(:disabled):hover {
+    background-color: ${({ $variant }) =>
+      $variant === "danger"
+        ? colors.noticeSoft
+        : $variant === "edit"
+          ? colors.pointSoft
+          : $variant === "muted"
+            ? undefined
+            : colors.pointSoft};
+    filter: ${({ $variant }) =>
+      $variant === "danger" || $variant === "edit" || $variant === "default" || !$variant
+        ? "none"
+        : "brightness(0.97)"};
   }
 
   &:disabled {
@@ -89,11 +114,11 @@ const actionStyle = css<{ $variant?: "default" | "danger" | "muted" }>`
   }
 `;
 
-export const ActionLink = styled(Link)<{ $variant?: "default" | "danger" | "muted" }>`
+export const ActionLink = styled(Link)<{ $variant?: "default" | "danger" | "edit" | "muted" }>`
   ${actionStyle}
 `;
 
-export const ActionButton = styled.button<{ $variant?: "default" | "danger" | "muted" }>`
+export const ActionButton = styled.button<{ $variant?: "default" | "danger" | "edit" | "muted" }>`
   ${actionStyle}
 `;
 

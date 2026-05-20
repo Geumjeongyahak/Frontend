@@ -30,7 +30,7 @@ export default function MeetingRecordDetailPage({ meetingRecord }: MeetingRecord
           <ActionButton type="button" $variant="danger">
             삭제
           </ActionButton>
-          <ActionButton type="button">수정</ActionButton>
+          <ActionButton type="button" $variant="edit">수정</ActionButton>
         </ToolbarRight>
       </Toolbar>
 

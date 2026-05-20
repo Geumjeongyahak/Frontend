@@ -107,7 +107,6 @@ export default function StaffCalendarPage({ initialYear, initialMonth }: StaffCa
         <Content>
           <HeaderRow>
             <Title>학사 일정</Title>
-            <AddButton type="button">일정 추가하기</AddButton>
           </HeaderRow>
 
           <CalendarPanel aria-label={`${visibleMonth.year}년 ${visibleMonth.month}월 학사 일정`}>

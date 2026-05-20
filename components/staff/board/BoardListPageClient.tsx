@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { IconSearch } from "@tabler/icons-react";
+import { IconEdit, IconSearch } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
@@ -18,6 +18,7 @@ import {
   getBoardScopeOptions,
 } from "@/components/staff/board/boardOptions";
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
+import { isArchiveDocumentPost } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -40,10 +41,6 @@ function isNoticePost(post: PostSummaryResponseDto) {
 
 function isPinnedPost(post: PostSummaryResponseDto) {
   return Boolean(post.isPinned);
-}
-
-function isArchivePost(post: PostSummaryResponseDto) {
-  return post.channelType === "CUSTOM";
 }
 
 function getPostTime(post: PostSummaryResponseDto) {
@@ -191,7 +188,7 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
     retry: false,
   });
 
-  const rawPosts = (data?.content ?? []).filter((post) => !isArchivePost(post));
+  const rawPosts = (data?.content ?? []).filter((post) => !isArchiveDocumentPost(post));
   const posts = rawPosts.filter((post) => {
     if (!mineOnly) return true;
     if (typeof user?.id === "number" && post.authorId === user.id) return true;
@@ -282,6 +279,7 @@ export default function BoardListPageClient({ initialPage }: BoardListPageClient
         classHeader="부서"
         emptyMessage={emptyMessage}
         headerTone="archive"
+        writeIcon={<IconEdit aria-hidden="true" size={16} stroke={2} />}
         filterSlot={
           <FilterBar aria-label="게시판 필터">
             <BoardDropdown

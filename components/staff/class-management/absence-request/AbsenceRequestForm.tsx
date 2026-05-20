@@ -151,21 +151,24 @@ const SubmitButton = styled.button`
   justify-content: center;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  border: 0;
-  border-radius: ${radii.radius12};
-  background-color: ${colors.point};
-  color: ${colors.white};
+  border: 1px solid ${colors.point};
+  border-radius: ${radii.radius15};
+  background-color: ${colors.white};
+  color: ${colors.point};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
   white-space: nowrap;
   cursor: pointer;
 
-  &:hover {
-    filter: brightness(0.95);
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
   }
 
   &:disabled {
+    border-color: #d4d4d4;
+    background-color: #d4d4d4;
+    color: #7b7b7b;
     opacity: 0.6;
     cursor: not-allowed;
   }

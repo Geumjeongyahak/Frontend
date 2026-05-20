@@ -374,10 +374,10 @@ const SubmitButton = styled.button`
   justify-content: center;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  border: 0;
+  border: 1px solid ${colors.point};
   border-radius: ${radii.radius15};
-  background-color: ${colors.point};
-  color: ${colors.white};
+  background-color: ${colors.white};
+  color: ${colors.point};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -385,8 +385,12 @@ const SubmitButton = styled.button`
   cursor: pointer;
 
   &:disabled {
-    background-color: #b7b7b7;
+    opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
   }
 
   @media (min-width: 120rem) {
