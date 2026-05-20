@@ -32,13 +32,7 @@ describe("request.api", () => {
       http.get(`${API_BASE_URL}/api/v1/absence-requests`, ({ request }) => {
         observedAuthorizationHeader = request.headers.get("authorization");
         observedQueryString = new URL(request.url).search;
-        return HttpResponse.json({
-          content: [ABSENCE_REQUEST_RESPONSE],
-          page: 0,
-          size: 10,
-          totalElements: 1,
-          totalPages: 1,
-        });
+        return HttpResponse.json([ABSENCE_REQUEST_RESPONSE]);
       }),
     );
 

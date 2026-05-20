@@ -257,6 +257,11 @@ export function AdminPurchasesSection({
                 </ListItem>
               ))}
             </List>
+            {purchaseDetailQuery.data?.status === "REJECTED" ? (
+              <SectionDescription>
+                거절 사유: {purchaseDetailQuery.data.note?.trim() || "-"}
+              </SectionDescription>
+            ) : null}
             <FormGrid onSubmit={(event) => event.preventDefault()}>
               <Label>
                 처리 사유

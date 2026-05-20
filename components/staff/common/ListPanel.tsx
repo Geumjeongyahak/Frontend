@@ -12,7 +12,7 @@ export type ListPanelRow = {
   author: string;
   date: string;
   status: string;
-  statusType?: "PENDING" | "APPROVED" | "REJECTED";
+  statusType?: "PENDING" | "APPROVED" | "PURCHASED" | "CONFIRMED" | "REJECTED";
   detailHref: string;
   isNotice?: boolean;
   isPinned?: boolean;
@@ -598,7 +598,9 @@ const PageNumber = styled(Link)<{ $isActive?: boolean }>`
   }
 `;
 
-const StatusBadge = styled.span<{ $status?: "PENDING" | "APPROVED" | "REJECTED" }>`
+const StatusBadge = styled.span<{
+  $status?: "PENDING" | "APPROVED" | "PURCHASED" | "CONFIRMED" | "REJECTED";
+}>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -612,6 +614,10 @@ const StatusBadge = styled.span<{ $status?: "PENDING" | "APPROVED" | "REJECTED" 
     switch ($status) {
       case "APPROVED":
         return "#3DA75C";
+      case "PURCHASED":
+        return "#2F80ED";
+      case "CONFIRMED":
+        return "#1D9A35";
       case "REJECTED":
         return "#DA3A30";
       case "PENDING":

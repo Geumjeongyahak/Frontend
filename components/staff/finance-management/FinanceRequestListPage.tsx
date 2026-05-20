@@ -20,7 +20,7 @@ const statusLabels: Record<PurchaseRequestStatus, string> = {
   APPROVED: "승인 완료",
   PURCHASED: "구매 완료",
   CONFIRMED: "결재 확인",
-  REJECTED: "반려",
+  REJECTED: "거절",
 };
 
 function getStatusLabel(status?: PurchaseRequestStatus) {
@@ -51,6 +51,7 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
     author: request.requestedByName ?? "-",
     date: formatUtcToKstShortDate(request.createdAt),
     status: getStatusLabel(request.status),
+    statusType: request.status,
     detailHref: `/staff/finance-management/${request.id}`,
   }));
 
