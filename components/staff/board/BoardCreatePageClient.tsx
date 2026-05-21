@@ -34,7 +34,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { uploadFileToGoogleDrive } from "@/lib/googleDrive/boardFileToGoogleDrive";
+import { boardFileToGoogleDrive } from "@/lib/googleDrive/boardFileToGoogleDrive";
 import { queryKeys } from "@/lib/queryKeys";
 
 type OpenDropdown = "type" | "scope" | null;
@@ -156,7 +156,7 @@ export default function BoardCreatePageClient({
   const uploadBoardFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
-    await Promise.all(files.map((file) => uploadFileToGoogleDrive(file)));
+    await Promise.all(files.map((file) => boardFileToGoogleDrive(file)));
   };
 
   const { mutate, isPending, isError } = useMutation({

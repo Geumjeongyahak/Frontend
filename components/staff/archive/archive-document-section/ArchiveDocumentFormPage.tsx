@@ -24,6 +24,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { handoverDocumentToGoogleDrive } from "@/lib/googleDrive/handoverDocumentToGoogleDrive";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -108,12 +109,16 @@ export default function ArchiveDocumentFormPage({
             },
           );
 
-      if (typeof post.id === "number") {
-        await Promise.all(
-          files.map((file) =>
-            attachPostAttachment({ channelId, postId: post.id as number }, file, file.name),
-          ),
-        );
+      if (typeof post.id === "number" && files.length > 0) {
+        if (config.category === "handover") {
+          await Promise.all(files.map((file) => handoverDocumentToGoogleDrive(file)));
+        } else {
+          await Promise.all(
+            files.map((file) =>
+              attachPostAttachment({ channelId, postId: post.id as number }, file, file.name),
+            ),
+          );
+        }
       }
 
       return post;
