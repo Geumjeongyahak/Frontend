@@ -34,6 +34,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { boardFileToGoogleDrive } from "@/lib/googleDrive/boardFileToGoogleDrive";
 import { queryKeys } from "@/lib/queryKeys";
 
 type OpenDropdown = "type" | "scope" | null;
@@ -58,7 +59,7 @@ export default function BoardCreatePageClient({
   const [contentHtml, setContentHtml] = useState<string | undefined>(undefined);
   const [isPinned, setIsPinned] = useState<boolean | undefined>(undefined);
   const [allowComment, setAllowComment] = useState<boolean | undefined>(undefined);
-  const [fileNames, setFileNames] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
   const channelsQuery = useQuery({
     queryKey: ["staff", "board", "channels"],
@@ -152,6 +153,12 @@ export default function BoardCreatePageClient({
           postDetailQuery.data.authorName === user?.email),
     );
 
+  const uploadBoardFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    await Promise.all(files.map((file) => boardFileToGoogleDrive(file)));
+  };
+
   const { mutate, isPending, isError } = useMutation({
     mutationFn: async () => {
       const channelId = isEditMode ? editChannelId : selectedChannelId;
@@ -179,10 +186,12 @@ export default function BoardCreatePageClient({
           await pinPost({ channelId, postId: editPostId }, { isPinned: visibleIsPinned });
         }
 
+        await uploadBoardFiles(selectedFiles);
+
         return updated;
       }
 
-      return createPost(
+      const created = await createPost(
         { channelId },
         {
           title: visibleTitle.trim(),
@@ -192,6 +201,10 @@ export default function BoardCreatePageClient({
           allowComment: visibleAllowComment,
         },
       );
+
+      await uploadBoardFiles(selectedFiles);
+
+      return created;
     },
     onSuccess: async (post) => {
       await Promise.all([
@@ -309,8 +322,10 @@ export default function BoardCreatePageClient({
 
           <Label>자료</Label>
           <FileUploadPanel>
-            {fileNames.length > 0 ? (
-              fileNames.map((fileName) => <span key={fileName}>{fileName}</span>)
+            {selectedFiles.length > 0 ? (
+              selectedFiles.map((file, index) => (
+                <span key={`${file.name}-${index}`}>{file.name}</span>
+              ))
             ) : (
               <span>선택된 파일이 없습니다.</span>
             )}
@@ -322,7 +337,7 @@ export default function BoardCreatePageClient({
                 name="files"
                 multiple
                 onChange={(event) => {
-                  setFileNames(Array.from(event.target.files ?? []).map((file) => file.name));
+                  setSelectedFiles(Array.from(event.target.files ?? []));
                 }}
               />
             </FileSelectLabel>
