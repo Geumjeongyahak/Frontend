@@ -6,12 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import {
-  attachPostAttachment,
-  createPost,
-  getPost,
-  updatePost,
-} from "@/api/post/post.api";
+import { createPost, getPost, updatePost } from "@/api/post/post.api";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import {
   ActionButton,
@@ -24,6 +19,8 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { documentFormsToGoogleDrive } from "@/lib/googleDrive/documentFormsToGoogleDrive";
+import { examMaterialsToGoogleDrive } from "@/lib/googleDrive/examMaterialsToGoogleDrive";
 import { handoverDocumentToGoogleDrive } from "@/lib/googleDrive/handoverDocumentToGoogleDrive";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
@@ -110,15 +107,14 @@ export default function ArchiveDocumentFormPage({
           );
 
       if (typeof post.id === "number" && files.length > 0) {
-        if (config.category === "handover") {
-          await Promise.all(files.map((file) => handoverDocumentToGoogleDrive(file)));
-        } else {
-          await Promise.all(
-            files.map((file) =>
-              attachPostAttachment({ channelId, postId: post.id as number }, file, file.name),
-            ),
-          );
-        }
+        const uploadToGoogleDrive =
+          config.category === "handover"
+            ? handoverDocumentToGoogleDrive
+            : config.category === "exam"
+              ? examMaterialsToGoogleDrive
+              : documentFormsToGoogleDrive;
+
+        await Promise.all(files.map((file) => uploadToGoogleDrive(file)));
       }
 
       return post;
