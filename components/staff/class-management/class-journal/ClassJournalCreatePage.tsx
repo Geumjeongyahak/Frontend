@@ -510,8 +510,8 @@ const fieldBaseStyle = `
   width: 100%;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  border: 0;
-  background-color: #f8f8f8;
+  border: 1px solid #c0c0c0;
+  background-color: transparent;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -565,14 +565,15 @@ const LessonTextArea = styled.textarea`
   width: 100%;
   min-height: 5.375rem;
   padding: 0.8125rem ${spacing.space12};
-  border: 0;
-  background-color: #f8f8f8;
+  border: 1px solid #c0c0c0;
+  background-color: transparent;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
-  resize: vertical;
+  resize: none;
   outline: none;
+  font-family: inherit;
 
   &::placeholder {
     color: #b1b1b1;

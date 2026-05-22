@@ -418,7 +418,7 @@ const LessonNoteInput = styled.textarea`
   ${lessonContentStyle}
   border: 1px solid #c0c0c0;
   background-color: transparent;
-  resize: vertical;
+  resize: none;
   font-family: inherit;
 `;
 
