@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
-import type { DailyScheduleLessonResponseDto } from "@/api/dailySchedule/dailySchedule.dto";
+import type {
+  DailyScheduleLessonResponseDto,
+  LessonJournalRequestDto,
+} from "@/api/dailySchedule/dailySchedule.dto";
 import { createJournal, getDailyScheduleDetail } from "@/api/dailySchedule/dailySchedule.api";
 import { getCurrentUser } from "@/api/user/user.api";
 import { formatPhone } from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
@@ -30,6 +33,30 @@ function formatLessonsActivityTime(lessons?: DailyScheduleLessonResponseDto[]) {
 
   if (start && end) return `${start} - ${end}`;
   return start || end || "";
+}
+
+function buildLessonJournals(
+  lessons: DailyScheduleLessonResponseDto[] | undefined,
+  formData: FormData,
+): LessonJournalRequestDto[] {
+  const orderedLessons = [...(lessons ?? [])]
+    .map((lesson, index) => ({ lesson, index }))
+    .sort((a, b) => {
+      const periodA = a.lesson.period;
+      const periodB = b.lesson.period;
+      if (typeof periodA === "number" && typeof periodB === "number") return periodA - periodB;
+      return a.index - b.index;
+    })
+    .map(({ lesson }) => lesson);
+
+  return lessonPeriods.flatMap((period, index) => {
+    const note = String(formData.get(`lesson${period}`) ?? "").trim();
+    const lesson = orderedLessons.find((item) => item.period === period) ?? orderedLessons[index];
+    const lessonId = lesson?.lessonId;
+
+    if (typeof lessonId !== "number" || !note) return [];
+    return [{ lessonId, note }];
+  });
 }
 
 export default function ClassJournalCreatePage() {
@@ -103,7 +130,7 @@ export default function ClassJournalCreatePage() {
     const lessonDate = parseKoreanShortDateToIsoDate(lessonDateText.trim());
     const parsedClassroomId = Number.parseInt(classroomId, 10);
     const personalInfoConsent = formData.get("privacyConsent") === "on";
-    const residentRegistrationNumberPrefix = String(formData.get("birthPrefix") ?? "").trim();
+    const lessonJournals = buildLessonJournals(scheduleDetail?.lessons, formData);
 
     if (!lessonDate) {
       window.alert("활동 일자를 00.00.00 형식으로 입력해 주세요.");
@@ -124,8 +151,8 @@ export default function ClassJournalCreatePage() {
       lessonDate,
       classroomId: parsedClassroomId,
       personalInfoConsent,
-      residentRegistrationNumberPrefix: residentRegistrationNumberPrefix || undefined,
-      lessonJournals: [],
+      residentRegistrationNumberPrefix: "900101", // TODO: 주민번호 앞자리 실제 값 연동
+      lessonJournals,
     });
   };
 
