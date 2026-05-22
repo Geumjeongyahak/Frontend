@@ -1,12 +1,14 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import styled from "styled-components";
-import { getDailySchedule } from "@/api/dailySchedule/dailySchedule.api";
+import { getDailySchedule, updateJournal } from "@/api/dailySchedule/dailySchedule.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { colors, layout, spacing, typography, radii } from "@/styles/tokens";
 import {
+  buildUpdateJournalBody,
   mapClassJournalDetailView,
   type ClassJournalDetailView,
 } from "@/utils/mapClassJournalDetailView";
@@ -39,8 +41,11 @@ type ClassJournalDetailPageClientProps = {
 export default function ClassJournalDetailPageClient({
   dailyScheduleId,
 }: ClassJournalDetailPageClientProps) {
+  const queryClient = useQueryClient();
   const { status: authStatus } = useAuthSession();
   const isAuthenticated = authStatus === "authenticated";
+  const [isEditing, setIsEditing] = useState(false);
+  const [editableNotes, setEditableNotes] = useState(["", "", ""]);
 
   const scheduleQuery = useQuery({
     queryKey: ["daily-schedules", "detail", dailyScheduleId] as const,
@@ -49,15 +54,56 @@ export default function ClassJournalDetailPageClient({
     retry: false,
   });
 
+  const updateJournalMutation = useMutation({
+    mutationFn: async () => {
+      const schedule = scheduleQuery.data;
+      if (!schedule) throw new Error("수업 일지 정보를 불러오지 못했습니다.");
+      return updateJournal({ dailyScheduleId }, buildUpdateJournalBody(schedule, editableNotes));
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["daily-schedules", "detail", dailyScheduleId],
+      });
+      await queryClient.invalidateQueries({ queryKey: ["daily-schedules", "list"] });
+      setIsEditing(false);
+      window.alert("수업 일지가 수정되었습니다.");
+    },
+    onError: (error) => {
+      window.alert(error instanceof Error ? error.message : "수업 일지 수정에 실패했습니다.");
+    },
+  });
+
   const journal = scheduleQuery.data
     ? mapClassJournalDetailView(scheduleQuery.data)
     : emptyJournal;
+
+  useEffect(() => {
+    if (!scheduleQuery.data) return;
+    setEditableNotes(mapClassJournalDetailView(scheduleQuery.data).lessons);
+  }, [scheduleQuery.data]);
+
+  const handleEditClick = () => {
+    if (!isEditing) {
+      setEditableNotes(journal.lessons);
+      setIsEditing(true);
+      return;
+    }
+
+    updateJournalMutation.mutate();
+  };
 
   return (
     <PageSection>
       <ButtonRow>
         <ActionButton type="button" $variant="danger">삭제</ActionButton>
-        <ActionButton type="button" $variant="edit">수정</ActionButton>
+        <ActionButton
+          type="button"
+          $variant="edit"
+          disabled={updateJournalMutation.isPending || !scheduleQuery.data}
+          onClick={handleEditClick}
+        >
+          {updateJournalMutation.isPending ? "저장 중..." : isEditing ? "저장" : "수정"}
+        </ActionButton>
         <LinkButton href="/staff/class-management">목록</LinkButton>
       </ButtonRow>
 
@@ -78,7 +124,20 @@ export default function ClassJournalDetailPageClient({
           {journal.lessons.map((lesson, index) => (
             <LessonBlock key={index + 1}>
               <FieldLabel>{index + 1}교시</FieldLabel>
-              <LessonContent>{lesson}</LessonContent>
+              {isEditing ? (
+                <LessonNoteInput
+                  value={editableNotes[index] ?? ""}
+                  onChange={(event) =>
+                    setEditableNotes((current) =>
+                      current.map((note, noteIndex) =>
+                        noteIndex === index ? event.target.value : note,
+                      ),
+                    )
+                  }
+                />
+              ) : (
+                <LessonContent>{lesson}</LessonContent>
+              )}
             </LessonBlock>
           ))}
         </LessonSection>
@@ -146,9 +205,14 @@ const ActionButton = styled.button<{ $variant: "danger" | "edit" }>`
   cursor: pointer;
   border-radius: ${radii.radius12};
 
-  &:hover {
+  &:hover:not(:disabled) {
     background-color: ${({ $variant }) =>
       $variant === "danger" ? colors.noticeSoft : colors.pointSoft};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 
   @media (min-width: 120rem) {
@@ -297,21 +361,36 @@ const LessonBlock = styled.div`
   display: contents;
 `;
 
-const LessonContent = styled.p`
+const lessonContentStyle = `
+  width: 100%;
   min-height: 5.375rem;
   margin: 0;
   padding: 0.8125rem ${spacing.space12};
+  border: 0;
   background-color: #f7f7f7;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
+  outline: none;
 
   @media (min-width: 120rem) {
     min-height: 8.0625rem;
     padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
   }
+`;
+
+const LessonContent = styled.p`
+  ${lessonContentStyle}
+`;
+
+const LessonNoteInput = styled.textarea`
+  ${lessonContentStyle}
+  border: 1px solid #c0c0c0;
+  background-color: transparent;
+  resize: vertical;
+  font-family: inherit;
 `;
 
 const AttendanceSection = styled.section`

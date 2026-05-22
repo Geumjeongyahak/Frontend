@@ -1,4 +1,8 @@
-import type { DailyScheduleDetailResponseDto } from "@/api/dailySchedule/dailySchedule.dto";
+import type {
+  DailyScheduleDetailResponseDto,
+  DailyScheduleLessonResponseDto,
+  UpdateDailyScheduleJournalRequestDto,
+} from "@/api/dailySchedule/dailySchedule.dto";
 import { formatPhone } from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
@@ -21,7 +25,7 @@ function formatLessonsActivityTime(lessons: DailyScheduleDetailResponseDto["less
   return start || end || "";
 }
 
-function orderLessons(lessons: DailyScheduleDetailResponseDto["lessons"]) {
+export function orderDailyScheduleLessons(lessons?: DailyScheduleLessonResponseDto[]) {
   return [...(lessons ?? [])]
     .map((lesson, index) => ({ lesson, index }))
     .sort((a, b) => {
@@ -31,6 +35,23 @@ function orderLessons(lessons: DailyScheduleDetailResponseDto["lessons"]) {
       return a.index - b.index;
     })
     .map(({ lesson }) => lesson);
+}
+
+export function buildUpdateJournalBody(
+  schedule: DailyScheduleDetailResponseDto,
+  notes: string[],
+): UpdateDailyScheduleJournalRequestDto {
+  const orderedLessons = orderDailyScheduleLessons(schedule.lessons);
+
+  return {
+    personalInfoConsent: schedule.personalInfoConsent ?? true,
+    residentRegistrationNumberPrefix: schedule.residentRegistrationNumberPrefix ?? undefined,
+    lessonJournals: Array.from({ length: LESSON_PERIOD_COUNT }, (_, index) => {
+      const lessonId = orderedLessons[index]?.lessonId;
+      if (typeof lessonId !== "number") return null;
+      return { lessonId, note: notes[index] ?? "" };
+    }).filter((entry): entry is { lessonId: number; note: string } => entry !== null),
+  };
 }
 
 function formatAttendanceStatus(status?: string) {
@@ -55,7 +76,7 @@ export type ClassJournalDetailView = {
 export function mapClassJournalDetailView(
   schedule: DailyScheduleDetailResponseDto,
 ): ClassJournalDetailView {
-  const orderedLessons = orderLessons(schedule.lessons);
+  const orderedLessons = orderDailyScheduleLessons(schedule.lessons);
   const students = schedule.studentAttendances ?? [];
 
   return {
