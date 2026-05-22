@@ -1,3 +1,5 @@
+import type { ClassroomType } from "@/api/classroom/classroom.dto";
+
 export type UserRole = string;
 
 export interface PermissionResponseDto {
@@ -29,6 +31,12 @@ export interface PermissionDefinitionDto {
   description?: string;
 }
 
+export interface UserClassroomResponseDto {
+  id?: number;
+  name?: string;
+  type?: ClassroomType;
+}
+
 export interface UserResponseDto {
   id?: number;
   name?: string;
@@ -37,6 +45,11 @@ export interface UserResponseDto {
   phoneNumber?: string;
   role?: UserRole;
   departmentId?: number | null;
+  department?: DepartmentResponseDto;
+  classroom?: UserClassroomResponseDto;
+  residentRegistrationNumberPrefix?: string;
+  teacherStartAt?: string;
+  teacherEndAt?: string;
   permissions?: PermissionResponseDto[];
   createdAt?: string;
   updatedAt?: string;

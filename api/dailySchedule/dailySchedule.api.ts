@@ -1,6 +1,7 @@
 import authClient from "../client/authClient";
 import type {
   CreateDailyScheduleJournalRequestDto,
+  DailyScheduleDetailQueryParamsDto,
   DailyScheduleDetailResponseDto,
   DailyScheduleListResponseDto,
   DailyScheduleListQueryParamsDto,
@@ -26,6 +27,16 @@ export async function getDailySchedules(query?: DailyScheduleListQueryParamsDto)
 export async function getDailySchedule(pathParams: DailySchedulePathParamsDto) {
   const response = await authClient.get<DailyScheduleDetailResponseDto>(
     `/api/v1/daily-schedules/${pathParams.dailyScheduleId}`,
+  );
+
+  return response.data;
+}
+
+// 날짜/분반 기준 하루 일정 상세를 조회하는 요청
+export async function getDailyScheduleDetail(query: DailyScheduleDetailQueryParamsDto) {
+  const response = await authClient.get<DailyScheduleDetailResponseDto>(
+    "/api/v1/daily-schedules/detail",
+    { params: query },
   );
 
   return response.data;
