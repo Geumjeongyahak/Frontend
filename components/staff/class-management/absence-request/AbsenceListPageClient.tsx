@@ -16,6 +16,13 @@ import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 const ITEMS_PER_PAGE = 9;
 const STABLE_TABLE_ROWS = 9;
 
+function getRequestTime(createdAt?: string) {
+  if (!createdAt) return 0;
+
+  const time = new Date(createdAt).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
 export default function AbsenceListPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -25,7 +32,7 @@ export default function AbsenceListPageClient() {
 
   const isAuthenticated = authStatus === "authenticated";
   const rawPage = searchParams.get("page");
-  const mineOnly = searchParams.get("mineOnly") === "1";
+  const mineOnly = false;
   const parsedPage = rawPage ? Number(rawPage) : 1;
   const requestedPage = Number.isInteger(parsedPage) && parsedPage >= 1 ? parsedPage : 1;
 
@@ -52,15 +59,19 @@ export default function AbsenceListPageClient() {
     retry: false,
   });
 
-  const absenceRequests = absenceRequestPage?.content ?? [];
+  const absenceRequests = [...(absenceRequestPage?.content ?? [])].sort(
+    (a, b) =>
+      getRequestTime(b.createdAt ?? b.lessonDate) - getRequestTime(a.createdAt ?? a.lessonDate),
+  );
   const totalPages = Math.max(1, absenceRequestPage?.totalPages ?? 1);
+  const totalCount = absenceRequestPage?.totalElements ?? absenceRequests.length;
 
   const currentPage = requestedPage <= totalPages ? requestedPage : totalPages;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
 
   const rows: ListPanelRow[] = absenceRequests.map((item, index) => ({
     id: item.id ?? startIndex + index + 1,
-    no: String(startIndex + index + 1).padStart(2, "0"),
+    no: String(Math.max(1, totalCount - (startIndex + index))).padStart(2, "0"),
     className: item.classroomName ?? "-",
     title: item.title ?? item.reason ?? "제목 없음",
     author: item.requestedByName ?? "-",
@@ -92,6 +103,7 @@ export default function AbsenceListPageClient() {
       totalPages={totalPages}
       stableTableRows={STABLE_TABLE_ROWS}
       mineOnly={mineOnly}
+      showMineOnlyToggle={false}
       emptyMessage={emptyMessage}
       headerTone="journal"
       writeTone="archive"

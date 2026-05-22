@@ -14,6 +14,13 @@ type MeetingRecordsPageProps = {
   initialMineOnly: boolean;
 };
 
+function getMeetingRecordTime(date: string) {
+  const [year, month, day] = date.split(".").map(Number);
+  if (!year || !month || !day) return 0;
+
+  return new Date(2000 + year, month - 1, day).getTime();
+}
+
 export default function MeetingRecordsPage({
   initialPage,
   meetingRecords,
@@ -32,14 +39,16 @@ export default function MeetingRecordsPage({
   };
 
   const normalizedKeyword = searchKeyword.trim().toLowerCase();
-  const filteredMeetingRecords = meetingRecords.filter((minute) => {
-    const matchesAuthor = !mineOnly || minute.author === "홍길동";
-    const matchesKeyword =
-      normalizedKeyword.length === 0 ||
-      minute.title.toLowerCase().includes(normalizedKeyword);
+  const filteredMeetingRecords = meetingRecords
+    .filter((minute) => {
+      const matchesAuthor = !mineOnly || minute.author === "홍길동";
+      const matchesKeyword =
+        normalizedKeyword.length === 0 ||
+        minute.title.toLowerCase().includes(normalizedKeyword);
 
-    return matchesAuthor && matchesKeyword;
-  });
+      return matchesAuthor && matchesKeyword;
+    })
+    .sort((a, b) => getMeetingRecordTime(b.date) - getMeetingRecordTime(a.date) || b.id - a.id);
 
   const totalPages = Math.max(
     1,
@@ -53,7 +62,12 @@ export default function MeetingRecordsPage({
 
   const rows: ListPanelRow[] = visibleMeetingRecords.map((minute, index) => ({
     id: minute.id,
-    no: String((currentPage - 1) * MEETING_RECORDS_PER_PAGE + index + 1).padStart(2, "0"),
+    no: String(
+      Math.max(
+        1,
+        filteredMeetingRecords.length - ((currentPage - 1) * MEETING_RECORDS_PER_PAGE + index),
+      ),
+    ).padStart(2, "0"),
     className: "",
     title: minute.title,
     author: minute.author,
