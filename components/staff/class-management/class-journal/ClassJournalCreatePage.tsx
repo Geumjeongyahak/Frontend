@@ -1,27 +1,62 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
-import { createJournal } from "@/api/dailySchedule/dailySchedule.api";
+import type { DailyScheduleLessonResponseDto } from "@/api/dailySchedule/dailySchedule.dto";
+import { createJournal, getDailyScheduleDetail } from "@/api/dailySchedule/dailySchedule.api";
 import { getCurrentUser } from "@/api/user/user.api";
 import { formatPhone } from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
 import { queryKeys } from "@/lib/queryKeys";
-import { parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
+import { getKstTodayIsoDate, parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const lessonPeriods = [1, 2, 3] as const;
 const attendanceColumns = Array.from({ length: 10 }, (_, index) => index);
 
+function trimTrailingClockSeconds(time?: string) {
+  if (!time) return "";
+  return time.endsWith(":00") ? time.slice(0, -3) : time;
+}
+
+function formatLessonsActivityTime(lessons?: DailyScheduleLessonResponseDto[]) {
+  if (!lessons?.length) return "";
+
+  const sorted = [...lessons].sort((a, b) => (a.period ?? 0) - (b.period ?? 0));
+  const start = trimTrailingClockSeconds(sorted[0]?.startTime);
+  const end = trimTrailingClockSeconds(sorted[sorted.length - 1]?.endTime);
+
+  if (start && end) return `${start} - ${end}`;
+  return start || end || "";
+}
+
 export default function ClassJournalCreatePage() {
   const router = useRouter();
+  const todayIsoDate = useMemo(() => getKstTodayIsoDate(), []);
   const [lessonDateText, setLessonDateText] = useState("");
   const [classroomId, setClassroomId] = useState("");
+  const [classroomName, setClassroomName] = useState("");
+  const [birthPrefix, setBirthPrefix] = useState("");
+  const [activityTime, setActivityTime] = useState("");
 
   const currentUserQuery = useQuery({
     queryKey: queryKeys.user.me(),
     queryFn: getCurrentUser,
+    retry: false,
+  });
+
+  const userClassroomId = currentUserQuery.data?.classroom?.id;
+
+  const dailyScheduleDetailQuery = useQuery({
+    queryKey: ["daily-schedules", "detail", userClassroomId, todayIsoDate] as const,
+    queryFn: () =>
+      getDailyScheduleDetail({
+        classroomId: userClassroomId as number,
+        lessonDate: todayIsoDate,
+      }),
+    enabled: typeof userClassroomId === "number" && userClassroomId > 0,
     retry: false,
   });
 
@@ -42,6 +77,21 @@ export default function ClassJournalCreatePage() {
 
   const isSubmitting = createJournalMutation.isPending;
   const currentUser = currentUserQuery.data;
+  const scheduleDetail = dailyScheduleDetailQuery.data;
+
+  const writerName = scheduleDetail?.teacherName ?? currentUser?.name ?? "";
+  const phoneNumber = scheduleDetail?.teacherPhoneNumber ?? currentUser?.phoneNumber ?? "";
+
+  useEffect(() => {
+    const detail = dailyScheduleDetailQuery.data;
+    if (!detail) return;
+
+    setLessonDateText(formatUtcToKstShortDate(`${detail.lessonDate}T00:00:00`));
+    setClassroomId(String(detail.classroomId));
+    setClassroomName(detail.classroomName ?? "");
+    setBirthPrefix(detail.residentRegistrationNumberPrefix ?? "");
+    setActivityTime(formatLessonsActivityTime(detail.lessons));
+  }, [dailyScheduleDetailQuery.data]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -61,7 +111,7 @@ export default function ClassJournalCreatePage() {
     }
 
     if (!Number.isInteger(parsedClassroomId) || parsedClassroomId <= 0) {
-      window.alert("담당 수업 ID를 입력해 주세요.");
+      window.alert("담당 수업 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
 
@@ -85,7 +135,12 @@ export default function ClassJournalCreatePage() {
         <Title>수업 일지 작성하기</Title>
         <HeaderActions>
           <ConsentLabel>
-            <ConsentCheckbox type="checkbox" name="privacyConsent" form="class-journal-form" />
+            <ConsentCheckbox
+              type="checkbox"
+              name="privacyConsent"
+              form="class-journal-form"
+              defaultChecked
+            />
             <span>정보 제공 동의</span>
           </ConsentLabel>
           <SubmitButton type="submit" form="class-journal-form" disabled={isSubmitting}>
@@ -98,11 +153,11 @@ export default function ClassJournalCreatePage() {
         <InfoGrid>
           <InfoField>
             <FieldLabel htmlFor="writer">작성자</FieldLabel>
-            <FieldInput
+            <ReadOnlyFieldInput
               id="writer"
               name="writer"
               type="text"
-              value={currentUser?.name ?? ""}
+              value={writerName}
               placeholder="작성자"
               disabled
               readOnly
@@ -111,21 +166,23 @@ export default function ClassJournalCreatePage() {
 
           <InfoField>
             <FieldLabel htmlFor="birthPrefix">주민번호 앞자리</FieldLabel>
-            <FieldInput
+            <ReadOnlyFieldInput
               id="birthPrefix"
               name="birthPrefix"
               type="text"
               placeholder="000000"
+              value={birthPrefix}
+              readOnly
             />
           </InfoField>
 
           <InfoField>
             <FieldLabel htmlFor="phone">연락처</FieldLabel>
-            <FieldInput
+            <ReadOnlyFieldInput
               id="phone"
               name="phone"
               type="text"
-              value={currentUser?.phoneNumber ? formatPhone(currentUser.phoneNumber) : ""}
+              value={phoneNumber ? formatPhone(phoneNumber) : ""}
               placeholder="010-0000-0000"
               disabled
               readOnly
@@ -133,28 +190,38 @@ export default function ClassJournalCreatePage() {
           </InfoField>
 
           <InfoField>
-            <FieldLabel htmlFor="classroomId">담당 수업</FieldLabel>
-            <FieldInput
-              id="classroomId"
-              name="classroomId"
-              type="number"
-              min="1"
-              inputMode="numeric"
+            <FieldLabel htmlFor="classroomName">담당 수업</FieldLabel>
+            <EditableFieldInput
+              id="classroomName"
+              name="classroomName"
+              type="text"
               placeholder="장미반"
-              value={classroomId}
-              onChange={(event) => setClassroomId(event.target.value)}
+              value={classroomName}
+              onChange={(event) => setClassroomName(event.target.value)}
             />
           </InfoField>
 
           <InfoField>
             <FieldLabel htmlFor="lessonDate">활동 일자</FieldLabel>
-            <FieldInput
+            <EditableFieldInput
               id="lessonDate"
               name="lessonDate"
               type="text"
               placeholder="00.00.00"
               value={lessonDateText}
               onChange={(event) => setLessonDateText(event.target.value)}
+            />
+          </InfoField>
+
+          <InfoField>
+            <FieldLabel htmlFor="activityTime">활동 시간</FieldLabel>
+            <EditableFieldInput
+              id="activityTime"
+              name="activityTime"
+              type="text"
+              placeholder="14:00 - 15:00"
+              value={activityTime}
+              onChange={(event) => setActivityTime(event.target.value)}
             />
           </InfoField>
         </InfoGrid>
@@ -429,6 +496,15 @@ const fieldBaseStyle = `
 
 const FieldInput = styled.input`
   ${fieldBaseStyle}
+`;
+
+const ReadOnlyFieldInput = styled(FieldInput)`
+  color: #6d6d6d;
+  cursor: not-allowed;
+`;
+
+const EditableFieldInput = styled(FieldInput)`
+  color: #000000;
 `;
 
 const LessonSection = styled.section`
