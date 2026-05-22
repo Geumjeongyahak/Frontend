@@ -9,9 +9,10 @@ import { buildClassJournalHref } from "@/utils/classJournalHref";
 
 interface ClassJournalSearchProps {
   defaultKeyword?: string;
+  mineOnly?: boolean;
 }
 
-export function ClassJournalSearch({ defaultKeyword = "" }: ClassJournalSearchProps) {
+export function ClassJournalSearch({ defaultKeyword = "", mineOnly = false }: ClassJournalSearchProps) {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState(defaultKeyword);
 
@@ -20,7 +21,7 @@ export function ClassJournalSearch({ defaultKeyword = "" }: ClassJournalSearchPr
       role="search"
       onSubmit={(event) => {
         event.preventDefault();
-        router.push(buildClassJournalHref(1, searchInput));
+        router.push(buildClassJournalHref(1, searchInput, mineOnly));
       }}
     >
       <SearchInput
