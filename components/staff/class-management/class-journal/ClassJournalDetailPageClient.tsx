@@ -436,8 +436,8 @@ const AttendanceGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(10, minmax(0, 1fr));
   overflow-x: auto;
-  border-top: 1px solid #000000;
-  border-left: 1px solid #000000;
+  border-top: 1px solid #c0c0c0;
+  border-left: 1px solid #c0c0c0;
 
   @media (max-width: ${layout.breakpointTablet}) {
     grid-template-columns: repeat(5, minmax(5rem, 1fr));
@@ -450,9 +450,10 @@ const AttendanceCell = styled.div`
   justify-content: center;
   min-height: 2.75rem;
   padding: ${spacing.space8};
-  border-right: 1px solid #000000;
-  border-bottom: 1px solid #000000;
-  background-color: #f7f7f7;
+  border: 0;
+  border-right: 1px solid #c0c0c0;
+  border-bottom: 1px solid #c0c0c0;
+  background-color: transparent;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;

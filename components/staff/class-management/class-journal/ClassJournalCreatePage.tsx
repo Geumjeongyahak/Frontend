@@ -67,6 +67,7 @@ export default function ClassJournalCreatePage() {
   const [classroomName, setClassroomName] = useState("");
   const [birthPrefix, setBirthPrefix] = useState("");
   const [activityTime, setActivityTime] = useState("");
+  const [attendanceRowCount, setAttendanceRowCount] = useState(1);
 
   const currentUserQuery = useQuery({
     queryKey: queryKeys.user.me(),
@@ -270,24 +271,36 @@ export default function ClassJournalCreatePage() {
         <AttendanceSection>
           <SectionTitle>출석</SectionTitle>
           <AttendanceTableWrap>
-            <AttendanceGrid aria-label="출석부">
-              {attendanceColumns.map((column) => (
-                <AttendanceInput
-                  key={`student-${column}`}
-                  name={`studentName${column + 1}`}
-                  aria-label={`${column + 1}번 학생 이름`}
-                  placeholder={column < 4 ? "최양진" : ""}
-                />
+            <AttendanceBlocks>
+              {Array.from({ length: attendanceRowCount }, (_, rowIndex) => (
+                <AttendanceGrid
+                  key={rowIndex}
+                  aria-label={rowIndex === 0 ? "출석부" : `출석부 ${rowIndex + 1}`}
+                >
+                  {attendanceColumns.map((column) => (
+                    <AttendanceInput
+                      key={`student-${rowIndex}-${column}`}
+                      name={`studentName${rowIndex * 10 + column + 1}`}
+                      aria-label={`${rowIndex * 10 + column + 1}번 학생 이름`}
+                      placeholder={rowIndex === 0 && column < 4 ? "최양진" : ""}
+                    />
+                  ))}
+                  {attendanceColumns.map((column) => (
+                    <AttendanceInput
+                      key={`attendance-${rowIndex}-${column}`}
+                      name={`attendanceStatus${rowIndex * 10 + column + 1}`}
+                      aria-label={`${rowIndex * 10 + column + 1}번 출석 상태`}
+                    />
+                  ))}
+                </AttendanceGrid>
               ))}
-              {attendanceColumns.map((column) => (
-                <AttendanceInput
-                  key={`attendance-${column}`}
-                  name={`attendanceStatus${column + 1}`}
-                  aria-label={`${column + 1}번 출석 상태`}
-                />
-              ))}
-            </AttendanceGrid>
-            <AddAttendanceButton type="button">출석부 추가하기</AddAttendanceButton>
+            </AttendanceBlocks>
+            <AddAttendanceButton
+              type="button"
+              onClick={() => setAttendanceRowCount((count) => count + 1)}
+            >
+              출석부 추가하기
+            </AddAttendanceButton>
           </AttendanceTableWrap>
         </AttendanceSection>
       </Form>
@@ -595,6 +608,16 @@ const AttendanceTableWrap = styled.div`
   }
 `;
 
+const AttendanceBlocks = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space16};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+`;
+
 const AttendanceGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(10, minmax(4.5rem, 1fr));
@@ -610,7 +633,7 @@ const AttendanceInput = styled.input`
   border: 0;
   border-right: 1px solid #c0c0c0;
   border-bottom: 1px solid #c0c0c0;
-  background: transparent;
+  background-color: transparent;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -634,8 +657,8 @@ const AddAttendanceButton = styled.button`
   justify-content: center;
   width: 100%;
   min-height: 2.6875rem;
-  border: 1px solid #88cd5a;
-  background-color: #eef9e6;
+  border: 1px solid #d3d3d3;
+  background-color: #f8f8f8;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
@@ -643,7 +666,7 @@ const AddAttendanceButton = styled.button`
   cursor: pointer;
 
   &:hover {
-    filter: brightness(0.97);
+    filter: brightness(0.98);
   }
 
   @media (min-width: 120rem) {
