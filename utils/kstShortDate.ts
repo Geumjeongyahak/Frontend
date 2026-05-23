@@ -4,6 +4,15 @@ export function getKstTodayShortDate(): string {
   return formatUtcToKstShortDate(new Date().toISOString());
 }
 
+export function getKstTodayIsoDate(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 export function parseKoreanShortDateToIsoDate(text: string): string | null {
   const m = /^(\d{2})\.(\d{2})\.(\d{2})$/.exec(text.trim());
   if (!m) return null;

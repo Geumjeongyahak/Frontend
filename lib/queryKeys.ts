@@ -16,6 +16,12 @@ export const queryKeys = {
   lessons: {
     weekly: (from: string, to: string) => ["lessons", "weekly", { from, to }] as const,
   },
+  user: {
+    me: () => ["users", "me"] as const,
+  },
+  classrooms: {
+    list: () => ["classrooms", "list"] as const,
+  },
   requests: {
     lessonExchangeList: () => ["lesson-exchange-requests"] as const,
     lessonExchangeDetail: (requestId: number) => ["lesson-exchange-request", requestId] as const,

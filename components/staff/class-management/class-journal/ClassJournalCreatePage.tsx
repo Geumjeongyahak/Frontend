@@ -1,29 +1,125 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
-import {
-  buildSendClassNotePayloadFromFormData,
-  formatPhone,
-} from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
-import { sendClassAttendanceToGoogleSheet } from "@/lib/googleSheet/classAttendance/sendClassAttendanceToGoogleSheet";
-import { sendClassJournalToGoogleSheet } from "@/lib/googleSheet/classJournal/sendClassJournalToGoogleSheet";
+import type {
+  DailyScheduleLessonResponseDto,
+  LessonJournalRequestDto,
+} from "@/api/dailySchedule/dailySchedule.dto";
+import { createJournal, getDailyScheduleDetail } from "@/api/dailySchedule/dailySchedule.api";
+import { getCurrentUser } from "@/api/user/user.api";
+import { formatPhone } from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
+import { queryKeys } from "@/lib/queryKeys";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
+import { getKstTodayIsoDate, parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
-
-const teacherFields = [
-  { id: "writer", label: "작성자", placeholder: "홍길동" },
-  { id: "birthPrefix", label: "주민번호 앞자리", placeholder: "000000" },
-  { id: "phone", label: "연락처", placeholder: "010-0000-0000" },
-  { id: "className", label: "담당 수업", placeholder: "반 이름" },
-  { id: "activityDate", label: "활동 일자", placeholder: "00.00.00" },
-  { id: "activityTime", label: "활동 시간", placeholder: "14:00-15:00" },
-] as const;
 
 const lessonPeriods = [1, 2, 3] as const;
 const attendanceColumns = Array.from({ length: 10 }, (_, index) => index);
 
+function trimTrailingClockSeconds(time?: string) {
+  if (!time) return "";
+  return time.endsWith(":00") ? time.slice(0, -3) : time;
+}
+
+function formatLessonsActivityTime(lessons?: DailyScheduleLessonResponseDto[]) {
+  if (!lessons?.length) return "";
+
+  const sorted = [...lessons].sort((a, b) => (a.period ?? 0) - (b.period ?? 0));
+  const start = trimTrailingClockSeconds(sorted[0]?.startTime);
+  const end = trimTrailingClockSeconds(sorted[sorted.length - 1]?.endTime);
+
+  if (start && end) return `${start} - ${end}`;
+  return start || end || "";
+}
+
+function buildLessonJournals(
+  lessons: DailyScheduleLessonResponseDto[] | undefined,
+  formData: FormData,
+): LessonJournalRequestDto[] {
+  const orderedLessons = [...(lessons ?? [])]
+    .map((lesson, index) => ({ lesson, index }))
+    .sort((a, b) => {
+      const periodA = a.lesson.period;
+      const periodB = b.lesson.period;
+      if (typeof periodA === "number" && typeof periodB === "number") return periodA - periodB;
+      return a.index - b.index;
+    })
+    .map(({ lesson }) => lesson);
+
+  return lessonPeriods.flatMap((period, index) => {
+    const note = String(formData.get(`lesson${period}`) ?? "").trim();
+    const lesson = orderedLessons.find((item) => item.period === period) ?? orderedLessons[index];
+    const lessonId = lesson?.lessonId;
+
+    if (typeof lessonId !== "number" || !note) return [];
+    return [{ lessonId, note }];
+  });
+}
+
 export default function ClassJournalCreatePage() {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
+  const todayIsoDate = useMemo(() => getKstTodayIsoDate(), []);
+  const [lessonDateText, setLessonDateText] = useState("");
+  const [classroomId, setClassroomId] = useState("");
+  const [classroomName, setClassroomName] = useState("");
+  const [birthPrefix, setBirthPrefix] = useState("");
+  const [activityTime, setActivityTime] = useState("");
+  const [attendanceRowCount, setAttendanceRowCount] = useState(1);
+
+  const currentUserQuery = useQuery({
+    queryKey: queryKeys.user.me(),
+    queryFn: getCurrentUser,
+    retry: false,
+  });
+
+  const userClassroomId = currentUserQuery.data?.classroom?.id;
+
+  const dailyScheduleDetailQuery = useQuery({
+    queryKey: ["daily-schedules", "detail", userClassroomId, todayIsoDate] as const,
+    queryFn: () =>
+      getDailyScheduleDetail({
+        classroomId: userClassroomId as number,
+        lessonDate: todayIsoDate,
+      }),
+    enabled: typeof userClassroomId === "number" && userClassroomId > 0,
+    retry: false,
+  });
+
+  const createJournalMutation = useMutation({
+    mutationFn: createJournal,
+    onSuccess: (data) => {
+      window.alert("수업 일지가 등록되었습니다.");
+      if (data.dailyScheduleId) {
+        router.push(`/staff/class-management/${data.dailyScheduleId}`);
+        return;
+      }
+      router.push("/staff/class-management");
+    },
+    onError: (error) => {
+      window.alert(error instanceof Error ? error.message : "수업 일지 등록에 실패했습니다.");
+    },
+  });
+
+  const isSubmitting = createJournalMutation.isPending;
+  const currentUser = currentUserQuery.data;
+  const scheduleDetail = dailyScheduleDetailQuery.data;
+
+  const writerName = scheduleDetail?.teacherName ?? currentUser?.name ?? "";
+  const phoneNumber = scheduleDetail?.teacherPhoneNumber ?? currentUser?.phoneNumber ?? "";
+
+  useEffect(() => {
+    const detail = dailyScheduleDetailQuery.data;
+    if (!detail) return;
+
+    setLessonDateText(formatUtcToKstShortDate(`${detail.lessonDate}T00:00:00`));
+    setClassroomId(String(detail.classroomId));
+    setClassroomName(detail.classroomName ?? "");
+    setBirthPrefix(detail.residentRegistrationNumberPrefix ?? "");
+    setActivityTime(formatLessonsActivityTime(detail.lessons));
+  }, [dailyScheduleDetailQuery.data]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -32,57 +128,33 @@ export default function ClassJournalCreatePage() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const payload = buildSendClassNotePayloadFromFormData(formData);
-    const className = String(formData.get("className") || "").trim();
+    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateText.trim());
+    const parsedClassroomId = Number.parseInt(classroomId, 10);
+    const personalInfoConsent = formData.get("privacyConsent") === "on";
+    const lessonJournals = buildLessonJournals(scheduleDetail?.lessons, formData);
 
-    const attendances = Array.from({ length: 10 }, (_, index) => {
-      const name = String(formData.get(`studentName${index + 1}`) || "").trim();
-      const status = String(formData.get(`attendanceStatus${index + 1}`) || "").trim();
-
-      if (!name) return null;
-
-      return {
-        name,
-        status: status || "출석",
-      };
-    }).filter((attendance): attendance is { name: string; status: string } => attendance !== null);
-
-    if (!payload.date) {
-      window.alert("활동 일자를 입력해 주세요.");
+    if (!lessonDate) {
+      window.alert("활동 일자를 00.00.00 형식으로 입력해 주세요.");
       return;
     }
 
-    if (!payload.name) {
-      window.alert("성명을 입력해 주세요.");
+    if (!Number.isInteger(parsedClassroomId) || parsedClassroomId <= 0) {
+      window.alert("담당 수업 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
 
-    if (!payload.agree || payload.agree === "미동의") {
+    if (!personalInfoConsent) {
       window.alert("개인정보 제공 동의가 필요합니다.");
       return;
     }
 
-    setIsSubmitting(true);
-
-    try {
-      await sendClassJournalToGoogleSheet(payload);
-
-      if (attendances.length > 0) {
-        await sendClassAttendanceToGoogleSheet({
-          date: payload.date,
-          className,
-          attendances,
-        });
-      }
-
-      window.alert("수업 일지와 출석부가 구글 시트에 저장되었습니다.");
-      form.reset();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "수업 일지 전송에 실패했습니다.";
-      window.alert(message);
-    } finally {
-      setIsSubmitting(false);
-    }
+    createJournalMutation.mutate({
+      lessonDate,
+      classroomId: parsedClassroomId,
+      personalInfoConsent,
+      residentRegistrationNumberPrefix: "900101", // TODO: 주민번호 앞자리 실제 값 연동
+      lessonJournals,
+    });
   };
 
   return (
@@ -91,7 +163,12 @@ export default function ClassJournalCreatePage() {
         <Title>수업 일지 작성하기</Title>
         <HeaderActions>
           <ConsentLabel>
-            <ConsentCheckbox type="checkbox" name="privacyConsent" form="class-journal-form" />
+            <ConsentCheckbox
+              type="checkbox"
+              name="privacyConsent"
+              form="class-journal-form"
+              defaultChecked
+            />
             <span>정보 제공 동의</span>
           </ConsentLabel>
           <SubmitButton type="submit" form="class-journal-form" disabled={isSubmitting}>
@@ -102,24 +179,79 @@ export default function ClassJournalCreatePage() {
 
       <Form id="class-journal-form" onSubmit={handleSubmit}>
         <InfoGrid>
-          {teacherFields.map((field) => (
-            <InfoField key={field.id}>
-              <FieldLabel htmlFor={field.id}>{field.label}</FieldLabel>
-              <FieldInput
-                id={field.id}
-                name={field.id}
-                type={field.id === "activityDate" ? "date" : "text"}
-                placeholder={field.placeholder}
-                onChange={
-                  field.id === "phone"
-                    ? (e) => {
-                        e.target.value = formatPhone(e.target.value);
-                      }
-                    : undefined
-                }
-              />
-            </InfoField>
-          ))}
+          <InfoField>
+            <FieldLabel htmlFor="writer">작성자</FieldLabel>
+            <ReadOnlyFieldInput
+              id="writer"
+              name="writer"
+              type="text"
+              value={writerName}
+              placeholder="작성자"
+              disabled
+              readOnly
+            />
+          </InfoField>
+
+          <InfoField>
+            <FieldLabel htmlFor="birthPrefix">주민번호 앞자리</FieldLabel>
+            <ReadOnlyFieldInput
+              id="birthPrefix"
+              name="birthPrefix"
+              type="text"
+              placeholder="000000"
+              value={birthPrefix}
+              readOnly
+            />
+          </InfoField>
+
+          <InfoField>
+            <FieldLabel htmlFor="phone">연락처</FieldLabel>
+            <ReadOnlyFieldInput
+              id="phone"
+              name="phone"
+              type="text"
+              value={phoneNumber ? formatPhone(phoneNumber) : ""}
+              placeholder="010-0000-0000"
+              disabled
+              readOnly
+            />
+          </InfoField>
+
+          <InfoField>
+            <FieldLabel htmlFor="classroomName">담당 수업</FieldLabel>
+            <EditableFieldInput
+              id="classroomName"
+              name="classroomName"
+              type="text"
+              placeholder="장미반"
+              value={classroomName}
+              onChange={(event) => setClassroomName(event.target.value)}
+            />
+          </InfoField>
+
+          <InfoField>
+            <FieldLabel htmlFor="lessonDate">활동 일자</FieldLabel>
+            <EditableFieldInput
+              id="lessonDate"
+              name="lessonDate"
+              type="text"
+              placeholder="00.00.00"
+              value={lessonDateText}
+              onChange={(event) => setLessonDateText(event.target.value)}
+            />
+          </InfoField>
+
+          <InfoField>
+            <FieldLabel htmlFor="activityTime">활동 시간</FieldLabel>
+            <EditableFieldInput
+              id="activityTime"
+              name="activityTime"
+              type="text"
+              placeholder="14:00 - 15:00"
+              value={activityTime}
+              onChange={(event) => setActivityTime(event.target.value)}
+            />
+          </InfoField>
         </InfoGrid>
 
         <LessonSection>
@@ -139,24 +271,36 @@ export default function ClassJournalCreatePage() {
         <AttendanceSection>
           <SectionTitle>출석</SectionTitle>
           <AttendanceTableWrap>
-            <AttendanceGrid aria-label="출석부">
-              {attendanceColumns.map((column) => (
-                <AttendanceInput
-                  key={`student-${column}`}
-                  name={`studentName${column + 1}`}
-                  aria-label={`${column + 1}번 학생 이름`}
-                  placeholder={column < 4 ? "최양진" : ""}
-                />
+            <AttendanceBlocks>
+              {Array.from({ length: attendanceRowCount }, (_, rowIndex) => (
+                <AttendanceGrid
+                  key={rowIndex}
+                  aria-label={rowIndex === 0 ? "출석부" : `출석부 ${rowIndex + 1}`}
+                >
+                  {attendanceColumns.map((column) => (
+                    <AttendanceInput
+                      key={`student-${rowIndex}-${column}`}
+                      name={`studentName${rowIndex * 10 + column + 1}`}
+                      aria-label={`${rowIndex * 10 + column + 1}번 학생 이름`}
+                      placeholder={rowIndex === 0 && column < 4 ? "최양진" : ""}
+                    />
+                  ))}
+                  {attendanceColumns.map((column) => (
+                    <AttendanceInput
+                      key={`attendance-${rowIndex}-${column}`}
+                      name={`attendanceStatus${rowIndex * 10 + column + 1}`}
+                      aria-label={`${rowIndex * 10 + column + 1}번 출석 상태`}
+                    />
+                  ))}
+                </AttendanceGrid>
               ))}
-              {attendanceColumns.map((column) => (
-                <AttendanceInput
-                  key={`attendance-${column}`}
-                  name={`attendanceStatus${column + 1}`}
-                  aria-label={`${column + 1}번 출석 상태`}
-                />
-              ))}
-            </AttendanceGrid>
-            <AddAttendanceButton type="button">출석부 추가하기</AddAttendanceButton>
+            </AttendanceBlocks>
+            <AddAttendanceButton
+              type="button"
+              onClick={() => setAttendanceRowCount((count) => count + 1)}
+            >
+              출석부 추가하기
+            </AddAttendanceButton>
           </AttendanceTableWrap>
         </AttendanceSection>
       </Form>
@@ -362,12 +506,12 @@ const SectionTitle = styled.h2`
   }
 `;
 
-const FieldInput = styled.input`
+const fieldBaseStyle = `
   width: 100%;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  border: 0;
-  background-color: #f8f8f8;
+  border: 1px solid #c0c0c0;
+  background-color: transparent;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -378,11 +522,29 @@ const FieldInput = styled.input`
     color: #b1b1b1;
   }
 
+  &:disabled {
+    color: #6d6d6d;
+    cursor: not-allowed;
+  }
+
   @media (min-width: 120rem) {
     min-height: 4rem;
     padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
   }
+`;
+
+const FieldInput = styled.input`
+  ${fieldBaseStyle}
+`;
+
+const ReadOnlyFieldInput = styled(FieldInput)`
+  color: #6d6d6d;
+  cursor: not-allowed;
+`;
+
+const EditableFieldInput = styled(FieldInput)`
+  color: #000000;
 `;
 
 const LessonSection = styled.section`
@@ -403,14 +565,15 @@ const LessonTextArea = styled.textarea`
   width: 100%;
   min-height: 5.375rem;
   padding: 0.8125rem ${spacing.space12};
-  border: 0;
-  background-color: #f8f8f8;
+  border: 1px solid #c0c0c0;
+  background-color: transparent;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
-  resize: vertical;
+  resize: none;
   outline: none;
+  font-family: inherit;
 
   &::placeholder {
     color: #b1b1b1;
@@ -446,6 +609,16 @@ const AttendanceTableWrap = styled.div`
   }
 `;
 
+const AttendanceBlocks = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space16};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+`;
+
 const AttendanceGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(10, minmax(4.5rem, 1fr));
@@ -461,7 +634,7 @@ const AttendanceInput = styled.input`
   border: 0;
   border-right: 1px solid #c0c0c0;
   border-bottom: 1px solid #c0c0c0;
-  background: transparent;
+  background-color: transparent;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -485,8 +658,8 @@ const AddAttendanceButton = styled.button`
   justify-content: center;
   width: 100%;
   min-height: 2.6875rem;
-  border: 1px solid #88cd5a;
-  background-color: #eef9e6;
+  border: 1px solid #d3d3d3;
+  background-color: #f8f8f8;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
@@ -494,7 +667,7 @@ const AddAttendanceButton = styled.button`
   cursor: pointer;
 
   &:hover {
-    filter: brightness(0.97);
+    filter: brightness(0.98);
   }
 
   @media (min-width: 120rem) {

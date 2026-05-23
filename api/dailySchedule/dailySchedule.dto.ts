@@ -13,6 +13,11 @@ export interface DailySchedulePathParamsDto {
   dailyScheduleId: number;
 }
 
+export interface DailyScheduleDetailQueryParamsDto {
+  classroomId: number;
+  lessonDate: string;
+}
+
 export interface DailyScheduleVolunteerHoursQueryParamsDto {
   from?: string;
   to?: string;
