@@ -2,19 +2,23 @@ import { HttpResponse, http, type RequestHandler } from "msw";
 
 import { API_BASE_URL, REFRESHED_ACCESS_TOKEN, VALID_ACCESS_TOKEN } from "./auth.handlers";
 
-export const STUDENT_LIST_RESPONSE = {
-  content: [{ id: 1, name: "Kim Student", phoneNumber: "010-1111-2222", status: "ENROLLED" }],
-  page: 0,
-  size: 10,
-  totalElements: 1,
-  totalPages: 1,
-};
+export const STUDENT_LIST_RESPONSE = [
+  {
+    id: 1,
+    name: "Kim Student",
+    phoneNumber: "010-1111-2222",
+    description: "Middle school student",
+    classrooms: [{ id: 1, name: "벚꽃반" }],
+    status: "ENROLLED",
+  },
+];
 
 export const STUDENT_DETAIL_RESPONSE = {
   id: 1,
   name: "Kim Student",
   phoneNumber: "010-1111-2222",
   description: "Middle school student",
+  classrooms: [{ id: 1, name: "벚꽃반" }],
   status: "ENROLLED",
 };
 
@@ -32,16 +36,38 @@ export const studentHandlers: RequestHandler[] = [
       return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    return HttpResponse.json(STUDENT_LIST_RESPONSE);
+    const url = new URL(request.url);
+    const classroomId = url.searchParams.get("classroomId");
+    const status = url.searchParams.get("status");
+
+    let students = [...STUDENT_LIST_RESPONSE];
+
+    if (classroomId) {
+      const parsedClassroomId = Number(classroomId);
+      students = students.filter((student) =>
+        student.classrooms.some((classroom) => classroom.id === parsedClassroomId),
+      );
+    }
+
+    if (status) {
+      students = students.filter((student) => student.status === status);
+    }
+
+    return HttpResponse.json(students);
   }),
   http.post(`${API_BASE_URL}/api/v1/students`, async ({ request }) => {
     if (!hasValidAuthorization(request)) {
       return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const body = (await request.json()) as { name?: string; phoneNumber?: string; description?: string };
+    const body = (await request.json()) as {
+      name?: string;
+      phoneNumber?: string;
+      description?: string;
+      classroomId?: number;
+    };
 
-    if (!body.name) {
+    if (!body.name || !body.classroomId) {
       return HttpResponse.json({ message: "Invalid student payload" }, { status: 400 });
     }
 
@@ -50,6 +76,7 @@ export const studentHandlers: RequestHandler[] = [
       name: body.name,
       phoneNumber: body.phoneNumber,
       description: body.description,
+      classrooms: [{ id: body.classroomId, name: "벚꽃반" }],
       status: "ENROLLED",
     });
   }),

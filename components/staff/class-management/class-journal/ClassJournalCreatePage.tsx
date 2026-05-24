@@ -9,6 +9,7 @@ import type {
   LessonJournalRequestDto,
 } from "@/api/dailySchedule/dailySchedule.dto";
 import { createJournal, getDailyScheduleDetail } from "@/api/dailySchedule/dailySchedule.api";
+import { getStudents } from "@/api/student/student.api";
 import { getCurrentUser } from "@/api/user/user.api";
 import { formatPhone } from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
 import { queryKeys } from "@/lib/queryKeys";
@@ -18,6 +19,13 @@ import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const lessonPeriods = [1, 2, 3] as const;
 const attendanceColumns = Array.from({ length: 10 }, (_, index) => index);
+
+/** TODO: users/me classroomId 필드가 고정 될 때까지 테스트를 위해 기본값으로 설정 */
+const CLASS_JOURNAL_FORM_DEFAULTS = {
+  classroomId: 1,
+  residentRegistrationNumberPrefix: "900101",
+  phoneNumber: "01012345678",
+} as const;
 
 function trimTrailingClockSeconds(time?: string) {
   if (!time) return "";
@@ -63,9 +71,12 @@ export default function ClassJournalCreatePage() {
   const router = useRouter();
   const todayIsoDate = useMemo(() => getKstTodayIsoDate(), []);
   const [lessonDateText, setLessonDateText] = useState("");
-  const [classroomId, setClassroomId] = useState("");
+  const [classroomId, setClassroomId] = useState(String(CLASS_JOURNAL_FORM_DEFAULTS.classroomId));
   const [classroomName, setClassroomName] = useState("");
-  const [birthPrefix, setBirthPrefix] = useState("");
+  const [birthPrefix, setBirthPrefix] = useState(
+    CLASS_JOURNAL_FORM_DEFAULTS.residentRegistrationNumberPrefix,
+  );
+  const [phoneNumber, setPhoneNumber] = useState(CLASS_JOURNAL_FORM_DEFAULTS.phoneNumber);
   const [activityTime, setActivityTime] = useState("");
   const [attendanceRowCount, setAttendanceRowCount] = useState(1);
 
@@ -75,16 +86,35 @@ export default function ClassJournalCreatePage() {
     retry: false,
   });
 
-  const userClassroomId = currentUserQuery.data?.classroom?.id;
+  const parsedClassroomId = Number.parseInt(classroomId, 10);
+  const enrollmentClassroomId =
+    Number.isFinite(parsedClassroomId) && parsedClassroomId > 0
+      ? parsedClassroomId
+      : CLASS_JOURNAL_FORM_DEFAULTS.classroomId;
+
+  const studentsQuery = useQuery({
+    queryKey: queryKeys.students.list({
+      classroomId: enrollmentClassroomId,
+      status: "ENROLLED",
+    }),
+    queryFn: () =>
+      getStudents({
+        classroomId: enrollmentClassroomId as number,
+        status: "ENROLLED",
+      }),
+    enabled: typeof enrollmentClassroomId === "number" && enrollmentClassroomId > 0,
+    retry: false,
+  });
+
+  const enrolledStudents = studentsQuery.data ?? [];
 
   const dailyScheduleDetailQuery = useQuery({
-    queryKey: ["daily-schedules", "detail", userClassroomId, todayIsoDate] as const,
+    queryKey: ["daily-schedules", "detail", enrollmentClassroomId, todayIsoDate] as const,
     queryFn: () =>
       getDailyScheduleDetail({
-        classroomId: userClassroomId as number,
+        classroomId: enrollmentClassroomId,
         lessonDate: todayIsoDate,
       }),
-    enabled: typeof userClassroomId === "number" && userClassroomId > 0,
     retry: false,
   });
 
@@ -108,18 +138,22 @@ export default function ClassJournalCreatePage() {
   const scheduleDetail = dailyScheduleDetailQuery.data;
 
   const writerName = scheduleDetail?.teacherName ?? currentUser?.name ?? "";
-  const phoneNumber = scheduleDetail?.teacherPhoneNumber ?? currentUser?.phoneNumber ?? "";
 
   useEffect(() => {
     const detail = dailyScheduleDetailQuery.data;
     if (!detail) return;
 
     setLessonDateText(formatUtcToKstShortDate(`${detail.lessonDate}T00:00:00`));
-    setClassroomId(String(detail.classroomId));
     setClassroomName(detail.classroomName ?? "");
-    setBirthPrefix(detail.residentRegistrationNumberPrefix ?? "");
     setActivityTime(formatLessonsActivityTime(detail.lessons));
   }, [dailyScheduleDetailQuery.data]);
+
+  useEffect(() => {
+    if (enrolledStudents.length === 0) return;
+
+    const requiredRows = Math.ceil(enrolledStudents.length / attendanceColumns.length);
+    setAttendanceRowCount((current) => Math.max(current, requiredRows));
+  }, [enrolledStudents.length]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -148,11 +182,14 @@ export default function ClassJournalCreatePage() {
       return;
     }
 
+    const residentRegistrationNumberPrefix =
+      birthPrefix.trim() || CLASS_JOURNAL_FORM_DEFAULTS.residentRegistrationNumberPrefix;
+
     createJournalMutation.mutate({
       lessonDate,
       classroomId: parsedClassroomId,
       personalInfoConsent,
-      residentRegistrationNumberPrefix: "900101", // TODO: 주민번호 앞자리 실제 값 연동
+      residentRegistrationNumberPrefix,
       lessonJournals,
     });
   };
@@ -210,7 +247,7 @@ export default function ClassJournalCreatePage() {
               id="phone"
               name="phone"
               type="text"
-              value={phoneNumber ? formatPhone(phoneNumber) : ""}
+              value={formatPhone(phoneNumber)}
               placeholder="010-0000-0000"
               disabled
               readOnly
@@ -277,14 +314,18 @@ export default function ClassJournalCreatePage() {
                   key={rowIndex}
                   aria-label={rowIndex === 0 ? "출석부" : `출석부 ${rowIndex + 1}`}
                 >
-                  {attendanceColumns.map((column) => (
-                    <AttendanceInput
-                      key={`student-${rowIndex}-${column}`}
-                      name={`studentName${rowIndex * 10 + column + 1}`}
-                      aria-label={`${rowIndex * 10 + column + 1}번 학생 이름`}
-                      placeholder={rowIndex === 0 && column < 4 ? "최양진" : ""}
-                    />
-                  ))}
+                  {attendanceColumns.map((column) => {
+                    const student = enrolledStudents[rowIndex * 10 + column];
+
+                    return (
+                      <AttendanceInput
+                        key={`student-${rowIndex}-${column}-${student?.id ?? "empty"}`}
+                        name={`studentName${rowIndex * 10 + column + 1}`}
+                        aria-label={`${rowIndex * 10 + column + 1}번 학생 이름`}
+                        defaultValue={student?.name ?? ""}
+                      />
+                    );
+                  })}
                   {attendanceColumns.map((column) => (
                     <AttendanceInput
                       key={`attendance-${rowIndex}-${column}`}

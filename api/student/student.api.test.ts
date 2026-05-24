@@ -29,11 +29,12 @@ describe("student.api", () => {
       }),
     );
 
-    const response = await getStudents({ status: "ENROLLED", page: 0, size: 10 });
+    const response = await getStudents({ status: "ENROLLED", classroomId: 1 });
 
     expect(response).toEqual(STUDENT_LIST_RESPONSE);
     expect(observedAuthorizationHeader).toBe(`Bearer ${VALID_ACCESS_TOKEN}`);
     expect(observedQueryString).toContain("status=ENROLLED");
+    expect(observedQueryString).toContain("classroomId=1");
   });
 
   it("creates a student with the expected POST body", async () => {
@@ -49,6 +50,7 @@ describe("student.api", () => {
           name: "Park Student",
           phoneNumber: "010-4444-5555",
           description: "New student",
+          classrooms: [{ id: 2, name: "장미반" }],
           status: "ENROLLED",
         });
       }),
@@ -58,13 +60,16 @@ describe("student.api", () => {
       name: "Park Student",
       phoneNumber: "010-4444-5555",
       description: "New student",
+      classroomId: 2,
     });
 
     expect(response.name).toBe("Park Student");
+    expect(response.classrooms).toEqual([{ id: 2, name: "장미반" }]);
     expect(observedBody).toEqual({
       name: "Park Student",
       phoneNumber: "010-4444-5555",
       description: "New student",
+      classroomId: 2,
     });
   });
 

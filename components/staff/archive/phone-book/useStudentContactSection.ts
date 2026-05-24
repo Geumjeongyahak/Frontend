@@ -9,6 +9,7 @@ import {
   updateStudent,
 } from "@/api/student/student.api";
 import type { StudentListResponseDto } from "@/api/student/student.dto";
+import { queryKeys } from "@/lib/queryKeys";
 import type {
   StudentClass,
   StudentContact,
@@ -24,22 +25,34 @@ function mapStudentsToClasses(students: StudentListResponseDto): StudentClass[] 
   const grouped = new Map<string, StudentClass>();
 
   students.forEach((student) => {
-    const classId = String(student.classroomId ?? student.classroomName ?? "unknown");
-    const className = student.classroomName ?? "미지정";
+    const classrooms =
+      student.classrooms && student.classrooms.length > 0
+        ? student.classrooms
+        : [{ id: -1, name: "미지정" }];
 
-    if (!grouped.has(classId)) {
-      grouped.set(classId, {
-        id: classId,
-        name: className,
-        isOpen: grouped.size === 0,
-        students: [],
+    classrooms.forEach((classroom) => {
+      const classId = String(classroom.id);
+      const className = classroom.name;
+
+      if (!grouped.has(classId)) {
+        grouped.set(classId, {
+          id: classId,
+          name: className,
+          isOpen: grouped.size === 0,
+          students: [],
+        });
+      }
+
+      const classStudents = grouped.get(classId)?.students;
+      const studentId = student.id ?? Date.now();
+
+      if (classStudents?.some((item) => item.id === studentId)) return;
+
+      classStudents?.push({
+        id: studentId,
+        name: student.name ?? "",
+        phone: student.phoneNumber ?? "",
       });
-    }
-
-    grouped.get(classId)?.students.push({
-      id: student.id ?? Date.now(),
-      name: student.name ?? "",
-      phone: student.phoneNumber ?? "",
     });
   });
 
@@ -50,7 +63,7 @@ export function useStudentContactSection(initialClasses: StudentClass[] = []) {
   const queryClient = useQueryClient();
 
   const { data: students = [] } = useQuery({
-    queryKey: ["students"],
+    queryKey: queryKeys.students.list(),
     queryFn: () => getStudents(),
   });
 
@@ -228,7 +241,7 @@ export function useStudentContactSection(initialClasses: StudentClass[] = []) {
         ...deletedStudents.map((student) => deleteStudentMutation.mutateAsync(student.id)),
       ]);
 
-      await queryClient.invalidateQueries({ queryKey: ["students"] });
+      await queryClient.invalidateQueries({ queryKey: ["students", "list"] });
 
       setClasses(cleanedClasses);
       setIsEditing(false);
