@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import styled from "styled-components";
 import type {
   DailyScheduleLessonResponseDto,
@@ -115,6 +115,7 @@ function buildLessonJournals(
 
 export default function ClassJournalCreatePage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const todayIsoDate = useMemo(() => getKstTodayIsoDate(), []);
   const [lessonDateText, setLessonDateText] = useState("");
   const [classroomNameText, setClassroomNameText] = useState("");
@@ -181,13 +182,14 @@ export default function ClassJournalCreatePage() {
     }) => {
       const journal = await createJournal(journalBody);
 
-      if (attendances.length > 0) {
-        await updateStudentAttendances({ dailyScheduleId }, { attendances });
-      }
+      if (attendances.length === 0) return journal;
 
-      return journal;
+      return updateStudentAttendances({ dailyScheduleId }, { attendances });
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: ["daily-schedules", "list"] });
+      queryClient.setQueryData(["daily-schedules", "detail", data.dailyScheduleId], data);
+
       window.alert("수업 일지가 등록되었습니다.");
       if (data.dailyScheduleId) {
         router.push(`/staff/class-management/${data.dailyScheduleId}`);
