@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
@@ -9,6 +9,7 @@ import type {
   LessonJournalRequestDto,
 } from "@/api/dailySchedule/dailySchedule.dto";
 import { createJournal, getDailyScheduleDetail } from "@/api/dailySchedule/dailySchedule.api";
+import type { StudentListResponseDto } from "@/api/student/student.dto";
 import { getStudents } from "@/api/student/student.api";
 import { getCurrentUser } from "@/api/user/user.api";
 import { formatPhone } from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
@@ -23,9 +24,28 @@ const attendanceColumns = Array.from({ length: 10 }, (_, index) => index);
 /** TODO: users/me classroomId 필드가 고정 될 때까지 테스트를 위해 기본값으로 설정 */
 const CLASS_JOURNAL_FORM_DEFAULTS = {
   classroomId: 1,
+  classroomName: "벚꽃반",
   residentRegistrationNumberPrefix: "900101",
   phoneNumber: "01012345678",
 } as const;
+
+function buildAttendanceNameKey(rowIndex: number, column: number) {
+  return `${rowIndex}-${column}`;
+}
+
+function resolveClassroomName(
+  classroomId: number,
+  students: StudentListResponseDto,
+  detailClassroomName?: string,
+) {
+  if (detailClassroomName?.trim()) return detailClassroomName;
+
+  const fromStudents = students
+    .flatMap((student) => student.classrooms ?? [])
+    .find((classroom) => classroom.id === classroomId)?.name;
+
+  return fromStudents?.trim() ? fromStudents : CLASS_JOURNAL_FORM_DEFAULTS.classroomName;
+}
 
 function trimTrailingClockSeconds(time?: string) {
   if (!time) return "";
@@ -71,14 +91,14 @@ export default function ClassJournalCreatePage() {
   const router = useRouter();
   const todayIsoDate = useMemo(() => getKstTodayIsoDate(), []);
   const [lessonDateText, setLessonDateText] = useState("");
-  const [classroomId, setClassroomId] = useState(String(CLASS_JOURNAL_FORM_DEFAULTS.classroomId));
-  const [classroomName, setClassroomName] = useState("");
-  const [birthPrefix, setBirthPrefix] = useState(
-    CLASS_JOURNAL_FORM_DEFAULTS.residentRegistrationNumberPrefix,
-  );
-  const [phoneNumber, setPhoneNumber] = useState(CLASS_JOURNAL_FORM_DEFAULTS.phoneNumber);
-  const [activityTime, setActivityTime] = useState("");
-  const [attendanceRowCount, setAttendanceRowCount] = useState(1);
+  const [classroomNameText, setClassroomNameText] = useState("");
+  const [activityTimeText, setActivityTimeText] = useState("");
+  const [attendanceNameOverrides, setAttendanceNameOverrides] = useState<Record<string, string>>({});
+  const [additionalAttendanceRows, setAdditionalAttendanceRows] = useState(0);
+
+  const classroomId = String(CLASS_JOURNAL_FORM_DEFAULTS.classroomId);
+  const birthPrefix = CLASS_JOURNAL_FORM_DEFAULTS.residentRegistrationNumberPrefix;
+  const phoneNumber = CLASS_JOURNAL_FORM_DEFAULTS.phoneNumber;
 
   const currentUserQuery = useQuery({
     queryKey: queryKeys.user.me(),
@@ -106,7 +126,12 @@ export default function ClassJournalCreatePage() {
     retry: false,
   });
 
-  const enrolledStudents = studentsQuery.data ?? [];
+  const enrolledStudents = useMemo(() => {
+    const students = studentsQuery.data ?? [];
+    return students.filter((student) =>
+      student.classrooms?.some((classroom) => classroom.id === enrollmentClassroomId),
+    );
+  }, [studentsQuery.data, enrollmentClassroomId]);
 
   const dailyScheduleDetailQuery = useQuery({
     queryKey: ["daily-schedules", "detail", enrollmentClassroomId, todayIsoDate] as const,
@@ -139,21 +164,53 @@ export default function ClassJournalCreatePage() {
 
   const writerName = scheduleDetail?.teacherName ?? currentUser?.name ?? "";
 
-  useEffect(() => {
-    const detail = dailyScheduleDetailQuery.data;
-    if (!detail) return;
+  const resolvedLessonDate = useMemo(() => {
+    if (!scheduleDetail?.lessonDate) return "";
+    return formatUtcToKstShortDate(`${scheduleDetail.lessonDate}T00:00:00`);
+  }, [scheduleDetail?.lessonDate]);
 
-    setLessonDateText(formatUtcToKstShortDate(`${detail.lessonDate}T00:00:00`));
-    setClassroomName(detail.classroomName ?? "");
-    setActivityTime(formatLessonsActivityTime(detail.lessons));
-  }, [dailyScheduleDetailQuery.data]);
+  const resolvedActivityTime = useMemo(
+    () => formatLessonsActivityTime(scheduleDetail?.lessons),
+    [scheduleDetail?.lessons],
+  );
 
-  useEffect(() => {
-    if (enrolledStudents.length === 0) return;
+  const resolvedClassroomName = useMemo(
+    () =>
+      resolveClassroomName(
+        enrollmentClassroomId,
+        enrolledStudents,
+        scheduleDetail?.classroomName,
+      ),
+    [enrollmentClassroomId, enrolledStudents, scheduleDetail?.classroomName],
+  );
 
-    const requiredRows = Math.ceil(enrolledStudents.length / attendanceColumns.length);
-    setAttendanceRowCount((current) => Math.max(current, requiredRows));
-  }, [enrolledStudents.length]);
+  const lessonDateValue = lessonDateText || resolvedLessonDate;
+  const classroomNameValue = classroomNameText || resolvedClassroomName;
+  const activityTimeValue = activityTimeText || resolvedActivityTime;
+
+  const apiAttendanceNames = useMemo(() => {
+    const names: Record<string, string> = {};
+
+    enrolledStudents.forEach((student, index) => {
+      const rowIndex = Math.floor(index / attendanceColumns.length);
+      const column = index % attendanceColumns.length;
+      names[buildAttendanceNameKey(rowIndex, column)] = student.name ?? "";
+    });
+
+    return names;
+  }, [enrolledStudents]);
+
+  const minAttendanceRows = useMemo(
+    () => Math.max(1, Math.ceil(enrolledStudents.length / attendanceColumns.length)),
+    [enrolledStudents.length],
+  );
+
+  const attendanceRowCount = minAttendanceRows + additionalAttendanceRows;
+
+  const getAttendanceName = (nameKey: string) =>
+    nameKey in attendanceNameOverrides
+      ? attendanceNameOverrides[nameKey]
+      : (apiAttendanceNames[nameKey] ?? "");
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -162,8 +219,8 @@ export default function ClassJournalCreatePage() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateText.trim());
-    const parsedClassroomId = Number.parseInt(classroomId, 10);
+    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateValue.trim());
+    const parsedClassroomId = enrollmentClassroomId;
     const personalInfoConsent = formData.get("privacyConsent") === "on";
     const lessonJournals = buildLessonJournals(scheduleDetail?.lessons, formData);
 
@@ -261,8 +318,8 @@ export default function ClassJournalCreatePage() {
               name="classroomName"
               type="text"
               placeholder="장미반"
-              value={classroomName}
-              onChange={(event) => setClassroomName(event.target.value)}
+              value={classroomNameValue}
+              onChange={(event) => setClassroomNameText(event.target.value)}
             />
           </InfoField>
 
@@ -273,7 +330,7 @@ export default function ClassJournalCreatePage() {
               name="lessonDate"
               type="text"
               placeholder="00.00.00"
-              value={lessonDateText}
+              value={lessonDateValue}
               onChange={(event) => setLessonDateText(event.target.value)}
             />
           </InfoField>
@@ -285,8 +342,8 @@ export default function ClassJournalCreatePage() {
               name="activityTime"
               type="text"
               placeholder="14:00 - 15:00"
-              value={activityTime}
-              onChange={(event) => setActivityTime(event.target.value)}
+              value={activityTimeValue}
+              onChange={(event) => setActivityTimeText(event.target.value)}
             />
           </InfoField>
         </InfoGrid>
@@ -315,14 +372,20 @@ export default function ClassJournalCreatePage() {
                   aria-label={rowIndex === 0 ? "출석부" : `출석부 ${rowIndex + 1}`}
                 >
                   {attendanceColumns.map((column) => {
-                    const student = enrolledStudents[rowIndex * 10 + column];
+                    const nameKey = buildAttendanceNameKey(rowIndex, column);
 
                     return (
                       <AttendanceInput
-                        key={`student-${rowIndex}-${column}-${student?.id ?? "empty"}`}
+                        key={`student-${rowIndex}-${column}`}
                         name={`studentName${rowIndex * 10 + column + 1}`}
                         aria-label={`${rowIndex * 10 + column + 1}번 학생 이름`}
-                        defaultValue={student?.name ?? ""}
+                        value={getAttendanceName(nameKey)}
+                        onChange={(event) =>
+                          setAttendanceNameOverrides((current) => ({
+                            ...current,
+                            [nameKey]: event.target.value,
+                          }))
+                        }
                       />
                     );
                   })}
@@ -338,7 +401,7 @@ export default function ClassJournalCreatePage() {
             </AttendanceBlocks>
             <AddAttendanceButton
               type="button"
-              onClick={() => setAttendanceRowCount((count) => count + 1)}
+              onClick={() => setAdditionalAttendanceRows((count) => count + 1)}
             >
               출석부 추가하기
             </AddAttendanceButton>
