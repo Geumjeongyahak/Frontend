@@ -1,9 +1,11 @@
 import type { SendClassJournalToGoogleSheetPayload } from "@/lib/googleSheet/classJournal/sendClassJournalToGoogleSheet";
+import { parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 
 export function getDayLabel(dateValue: string) {
   if (!dateValue) return "";
 
-  const date = new Date(dateValue);
+  const isoDate = parseKoreanShortDateToIsoDate(dateValue) ?? dateValue;
+  const date = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(date.getTime())) return "";
 
   return ["일", "월", "화", "수", "목", "금", "토"][date.getDay()];
@@ -23,14 +25,20 @@ export function formatPhone(value: string) {
 export function buildSendClassNotePayloadFromFormData(
   formData: FormData,
 ): SendClassJournalToGoogleSheetPayload {
-  const activityDate = String(formData.get("activityDate") ?? "").trim();
+  return buildClassJournalSheetPayloadFromFormData(formData);
+}
+
+export function buildClassJournalSheetPayloadFromFormData(
+  formData: FormData,
+): SendClassJournalToGoogleSheetPayload {
+  const activityDate = String(formData.get("lessonDate") ?? "").trim();
 
   return {
     name: String(formData.get("writer") ?? "").trim(),
     birth: String(formData.get("birthPrefix") ?? "").trim(),
     phone: String(formData.get("phone") ?? "").trim(),
-    volunteerNote: String(formData.get("className") ?? "").trim(),
-    agree: formData.get("privacyConsent") ? "동의" : "미동의",
+    volunteerNote: String(formData.get("classroomName") ?? "").trim(),
+    agree: formData.get("privacyConsent") === "on" ? "동의" : "미동의",
     date: activityDate,
     time: String(formData.get("activityTime") ?? "").trim(),
     day: getDayLabel(activityDate),
