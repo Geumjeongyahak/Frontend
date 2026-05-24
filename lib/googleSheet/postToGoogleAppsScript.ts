@@ -4,10 +4,14 @@ type GoogleAppsScriptResponse = {
   message?: string;
 };
 
-/**
- * GAS 웹앱은 application/json 시 CORS preflight(OPTIONS)에서 405가 날 수 있어
- * text/plain으로 JSON 문자열을 보낸다. doPost의 JSON.parse(e.postData.contents)는 동일하게 동작한다.
- */
+export function requireGoogleAppsScriptUrl(url: string | undefined, label: string) {
+  const trimmed = url?.trim();
+  if (!trimmed) {
+    throw new Error(`${label} Apps Script URL이 설정되지 않았습니다.`);
+  }
+  return trimmed;
+}
+
 export async function postToGoogleAppsScript(
   url: string,
   payload: Record<string, unknown>,

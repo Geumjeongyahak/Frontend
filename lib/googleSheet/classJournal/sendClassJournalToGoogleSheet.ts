@@ -1,6 +1,7 @@
 import {
   isGoogleAppsScriptSuccess,
   postToGoogleAppsScript,
+  requireGoogleAppsScriptUrl,
 } from "@/lib/googleSheet/postToGoogleAppsScript";
 
 export type SendClassJournalToGoogleSheetPayload = {
@@ -17,11 +18,12 @@ export type SendClassJournalToGoogleSheetPayload = {
   period3: string;
 };
 
-const GOOGLE_APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbxAQTwUuRT6X7Hysjhxnx1rp_Env0P-0xPIVuoUXjJtP-EZruBJOEEqDxXbRVpJkxpxFg/exec";
-
 export async function sendClassJournalToGoogleSheet(payload: SendClassJournalToGoogleSheetPayload) {
-  const data = await postToGoogleAppsScript(GOOGLE_APPS_SCRIPT_URL, payload);
+  const url = requireGoogleAppsScriptUrl(
+    process.env.NEXT_PUBLIC_APPS_SCRIPT_CLASS_JOURNAL_SHEET_URL,
+    "수업 일지",
+  );
+  const data = await postToGoogleAppsScript(url, payload);
 
   if (!isGoogleAppsScriptSuccess(data)) {
     throw new Error(data.message ?? "구글 시트 저장 실패");
