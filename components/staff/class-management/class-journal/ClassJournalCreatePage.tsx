@@ -7,8 +7,13 @@ import styled from "styled-components";
 import type {
   DailyScheduleLessonResponseDto,
   LessonJournalRequestDto,
+  UpdateDailyStudentAttendanceItemRequestDto,
 } from "@/api/dailySchedule/dailySchedule.dto";
-import { createJournal, getDailyScheduleDetail } from "@/api/dailySchedule/dailySchedule.api";
+import {
+  createJournal,
+  getDailyScheduleDetail,
+  updateStudentAttendances,
+} from "@/api/dailySchedule/dailySchedule.api";
 import type { StudentListResponseDto } from "@/api/student/student.dto";
 import { getStudents } from "@/api/student/student.api";
 import { getCurrentUser } from "@/api/user/user.api";
@@ -61,6 +66,27 @@ function formatLessonsActivityTime(lessons?: DailyScheduleLessonResponseDto[]) {
 
   if (start && end) return `${start} - ${end}`;
   return start || end || "";
+}
+
+function buildStudentAttendances(
+  formData: FormData,
+  students: StudentListResponseDto,
+): UpdateDailyStudentAttendanceItemRequestDto[] {
+  return students.flatMap((student, index) => {
+    if (typeof student.id !== "number") return [];
+
+    const rowIndex = Math.floor(index / attendanceColumns.length);
+    const column = index % attendanceColumns.length;
+    const statusIndex = rowIndex * attendanceColumns.length + column + 1;
+    const isPresent = formData.get(`attendanceStatus${statusIndex}`) === "on";
+
+    return [
+      {
+        studentId: student.id,
+        status: isPresent ? "PRESENT" : "ABSENT",
+      },
+    ];
+  });
 }
 
 function buildLessonJournals(
@@ -143,8 +169,24 @@ export default function ClassJournalCreatePage() {
     retry: false,
   });
 
-  const createJournalMutation = useMutation({
-    mutationFn: createJournal,
+  const submitMutation = useMutation({
+    mutationFn: async ({
+      journalBody,
+      dailyScheduleId,
+      attendances,
+    }: {
+      journalBody: Parameters<typeof createJournal>[0];
+      dailyScheduleId: number;
+      attendances: UpdateDailyStudentAttendanceItemRequestDto[];
+    }) => {
+      const journal = await createJournal(journalBody);
+
+      if (attendances.length > 0) {
+        await updateStudentAttendances({ dailyScheduleId }, { attendances });
+      }
+
+      return journal;
+    },
     onSuccess: (data) => {
       window.alert("수업 일지가 등록되었습니다.");
       if (data.dailyScheduleId) {
@@ -158,7 +200,7 @@ export default function ClassJournalCreatePage() {
     },
   });
 
-  const isSubmitting = createJournalMutation.isPending;
+  const isSubmitting = submitMutation.isPending;
   const currentUser = currentUserQuery.data;
   const scheduleDetail = dailyScheduleDetailQuery.data;
 
@@ -239,15 +281,25 @@ export default function ClassJournalCreatePage() {
       return;
     }
 
+    const dailyScheduleId = scheduleDetail?.dailyScheduleId;
+    if (!dailyScheduleId) {
+      window.alert("일정 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+
     const residentRegistrationNumberPrefix =
       birthPrefix.trim() || CLASS_JOURNAL_FORM_DEFAULTS.residentRegistrationNumberPrefix;
 
-    createJournalMutation.mutate({
-      lessonDate,
-      classroomId: parsedClassroomId,
-      personalInfoConsent,
-      residentRegistrationNumberPrefix,
-      lessonJournals,
+    submitMutation.mutate({
+      dailyScheduleId,
+      attendances: buildStudentAttendances(formData, enrolledStudents),
+      journalBody: {
+        lessonDate,
+        classroomId: parsedClassroomId,
+        personalInfoConsent,
+        residentRegistrationNumberPrefix,
+        lessonJournals,
+      },
     });
   };
 
@@ -389,13 +441,19 @@ export default function ClassJournalCreatePage() {
                       />
                     );
                   })}
-                  {attendanceColumns.map((column) => (
-                    <AttendanceInput
-                      key={`attendance-${rowIndex}-${column}`}
-                      name={`attendanceStatus${rowIndex * 10 + column + 1}`}
-                      aria-label={`${rowIndex * 10 + column + 1}번 출석 상태`}
-                    />
-                  ))}
+                  {attendanceColumns.map((column) => {
+                    const statusIndex = rowIndex * 10 + column + 1;
+
+                    return (
+                      <AttendanceCheckboxCell key={`attendance-${rowIndex}-${column}`}>
+                        <ConsentCheckbox
+                          type="checkbox"
+                          name={`attendanceStatus${statusIndex}`}
+                          aria-label={`${statusIndex}번 출석`}
+                        />
+                      </AttendanceCheckboxCell>
+                    );
+                  })}
                 </AttendanceGrid>
               ))}
             </AttendanceBlocks>
@@ -753,6 +811,21 @@ const AttendanceInput = styled.input`
   @media (min-width: 120rem) {
     min-height: 3.875rem;
     font-size: ${typography.fontSize20};
+  }
+`;
+
+const AttendanceCheckboxCell = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 2.75rem;
+  border-right: 1px solid #c0c0c0;
+  border-bottom: 1px solid #c0c0c0;
+  background-color: transparent;
+
+  @media (min-width: 120rem) {
+    min-height: 3.875rem;
   }
 `;
 
