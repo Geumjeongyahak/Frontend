@@ -18,6 +18,7 @@ export type EventPhoto = {
 };
 
 export type WeeklyScheduleItem = {
+  id?: number;
   time: string;
   title: string;
 };
