@@ -1,16 +1,29 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import styled from "styled-components";
 import type {
   DailyScheduleLessonResponseDto,
   LessonJournalRequestDto,
+  UpdateDailyStudentAttendanceItemRequestDto,
 } from "@/api/dailySchedule/dailySchedule.dto";
-import { createJournal, getDailyScheduleDetail } from "@/api/dailySchedule/dailySchedule.api";
+import {
+  createJournal,
+  getDailyScheduleDetail,
+  updateStudentAttendances,
+} from "@/api/dailySchedule/dailySchedule.api";
+import type { StudentListResponseDto } from "@/api/student/student.dto";
+import { getStudents } from "@/api/student/student.api";
 import { getCurrentUser } from "@/api/user/user.api";
-import { formatPhone } from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
+import { buildClassAttendanceSheetPayload } from "@/lib/googleSheet/classAttendance/classAttendanceSheetPayload";
+import { sendClassAttendanceToGoogleSheet } from "@/lib/googleSheet/classAttendance/sendClassAttendanceToGoogleSheet";
+import {
+  buildClassJournalSheetPayloadFromFormData,
+  formatPhone,
+} from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
+import { sendClassJournalToGoogleSheet } from "@/lib/googleSheet/classJournal/sendClassJournalToGoogleSheet";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import { getKstTodayIsoDate, parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
@@ -18,6 +31,32 @@ import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const lessonPeriods = [1, 2, 3] as const;
 const attendanceColumns = Array.from({ length: 10 }, (_, index) => index);
+
+/** TODO: users/me classroomId 필드가 고정 될 때까지 테스트를 위해 기본값으로 설정 */
+const CLASS_JOURNAL_FORM_DEFAULTS = {
+  classroomId: 1,
+  classroomName: "벚꽃반",
+  residentRegistrationNumberPrefix: "900101",
+  phoneNumber: "01012345678",
+} as const;
+
+function buildAttendanceNameKey(rowIndex: number, column: number) {
+  return `${rowIndex}-${column}`;
+}
+
+function resolveClassroomName(
+  classroomId: number,
+  students: StudentListResponseDto,
+  detailClassroomName?: string,
+) {
+  if (detailClassroomName?.trim()) return detailClassroomName;
+
+  const fromStudents = students
+    .flatMap((student) => student.classrooms ?? [])
+    .find((classroom) => classroom.id === classroomId)?.name;
+
+  return fromStudents?.trim() ? fromStudents : CLASS_JOURNAL_FORM_DEFAULTS.classroomName;
+}
 
 function trimTrailingClockSeconds(time?: string) {
   if (!time) return "";
@@ -33,6 +72,27 @@ function formatLessonsActivityTime(lessons?: DailyScheduleLessonResponseDto[]) {
 
   if (start && end) return `${start} - ${end}`;
   return start || end || "";
+}
+
+function buildStudentAttendances(
+  formData: FormData,
+  students: StudentListResponseDto,
+): UpdateDailyStudentAttendanceItemRequestDto[] {
+  return students.flatMap((student, index) => {
+    if (typeof student.id !== "number") return [];
+
+    const rowIndex = Math.floor(index / attendanceColumns.length);
+    const column = index % attendanceColumns.length;
+    const statusIndex = rowIndex * attendanceColumns.length + column + 1;
+    const isPresent = formData.get(`attendanceStatus${statusIndex}`) === "on";
+
+    return [
+      {
+        studentId: student.id,
+        status: isPresent ? "PRESENT" : "ABSENT",
+      },
+    ];
+  });
 }
 
 function buildLessonJournals(
@@ -61,13 +121,17 @@ function buildLessonJournals(
 
 export default function ClassJournalCreatePage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const todayIsoDate = useMemo(() => getKstTodayIsoDate(), []);
   const [lessonDateText, setLessonDateText] = useState("");
-  const [classroomId, setClassroomId] = useState("");
-  const [classroomName, setClassroomName] = useState("");
-  const [birthPrefix, setBirthPrefix] = useState("");
-  const [activityTime, setActivityTime] = useState("");
-  const [attendanceRowCount, setAttendanceRowCount] = useState(1);
+  const [classroomNameText, setClassroomNameText] = useState("");
+  const [activityTimeText, setActivityTimeText] = useState("");
+  const [attendanceNameOverrides, setAttendanceNameOverrides] = useState<Record<string, string>>({});
+  const [additionalAttendanceRows, setAdditionalAttendanceRows] = useState(0);
+
+  const classroomId = String(CLASS_JOURNAL_FORM_DEFAULTS.classroomId);
+  const birthPrefix = CLASS_JOURNAL_FORM_DEFAULTS.residentRegistrationNumberPrefix;
+  const phoneNumber = CLASS_JOURNAL_FORM_DEFAULTS.phoneNumber;
 
   const currentUserQuery = useQuery({
     queryKey: queryKeys.user.me(),
@@ -75,22 +139,83 @@ export default function ClassJournalCreatePage() {
     retry: false,
   });
 
-  const userClassroomId = currentUserQuery.data?.classroom?.id;
+  const parsedClassroomId = Number.parseInt(classroomId, 10);
+  const enrollmentClassroomId =
+    Number.isFinite(parsedClassroomId) && parsedClassroomId > 0
+      ? parsedClassroomId
+      : CLASS_JOURNAL_FORM_DEFAULTS.classroomId;
 
-  const dailyScheduleDetailQuery = useQuery({
-    queryKey: ["daily-schedules", "detail", userClassroomId, todayIsoDate] as const,
+  const studentsQuery = useQuery({
+    queryKey: queryKeys.students.list({
+      classroomId: enrollmentClassroomId,
+      status: "ENROLLED",
+    }),
     queryFn: () =>
-      getDailyScheduleDetail({
-        classroomId: userClassroomId as number,
-        lessonDate: todayIsoDate,
+      getStudents({
+        classroomId: enrollmentClassroomId as number,
+        status: "ENROLLED",
       }),
-    enabled: typeof userClassroomId === "number" && userClassroomId > 0,
+    enabled: typeof enrollmentClassroomId === "number" && enrollmentClassroomId > 0,
     retry: false,
   });
 
-  const createJournalMutation = useMutation({
-    mutationFn: createJournal,
-    onSuccess: (data) => {
+  const enrolledStudents = useMemo(() => {
+    const students = studentsQuery.data ?? [];
+    return students.filter((student) =>
+      student.classrooms?.some((classroom) => classroom.id === enrollmentClassroomId),
+    );
+  }, [studentsQuery.data, enrollmentClassroomId]);
+
+  const dailyScheduleDetailQuery = useQuery({
+    queryKey: ["daily-schedules", "detail", enrollmentClassroomId, todayIsoDate] as const,
+    queryFn: () =>
+      getDailyScheduleDetail({
+        classroomId: enrollmentClassroomId,
+        lessonDate: todayIsoDate,
+      }),
+    retry: false,
+  });
+
+  const submitMutation = useMutation({
+    mutationFn: async ({
+      journalBody,
+      dailyScheduleId,
+      attendances,
+      googleSheet,
+    }: {
+      journalBody: Parameters<typeof createJournal>[0];
+      dailyScheduleId: number;
+      attendances: UpdateDailyStudentAttendanceItemRequestDto[];
+      googleSheet: {
+        journal: ReturnType<typeof buildClassJournalSheetPayloadFromFormData>;
+        attendance: ReturnType<typeof buildClassAttendanceSheetPayload>;
+      };
+    }) => {
+      const journal = await createJournal(journalBody);
+
+      const schedule =
+        attendances.length > 0
+          ? await updateStudentAttendances({ dailyScheduleId }, { attendances })
+          : journal;
+
+      try {
+        await sendClassJournalToGoogleSheet(googleSheet.journal);
+
+        if (googleSheet.attendance.attendances.length > 0) {
+          await sendClassAttendanceToGoogleSheet(googleSheet.attendance);
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "구글 시트 연동에 실패했습니다.";
+        throw new Error(`수업 일지는 저장되었으나 ${message}`);
+      }
+
+      return schedule;
+    },
+    onSuccess: async (data) => {
+      await queryClient.invalidateQueries({ queryKey: ["daily-schedules", "list"] });
+      queryClient.setQueryData(["daily-schedules", "detail", data.dailyScheduleId], data);
+
       window.alert("수업 일지가 등록되었습니다.");
       if (data.dailyScheduleId) {
         router.push(`/staff/class-management/${data.dailyScheduleId}`);
@@ -103,23 +228,59 @@ export default function ClassJournalCreatePage() {
     },
   });
 
-  const isSubmitting = createJournalMutation.isPending;
+  const isSubmitting = submitMutation.isPending;
   const currentUser = currentUserQuery.data;
   const scheduleDetail = dailyScheduleDetailQuery.data;
 
   const writerName = scheduleDetail?.teacherName ?? currentUser?.name ?? "";
-  const phoneNumber = scheduleDetail?.teacherPhoneNumber ?? currentUser?.phoneNumber ?? "";
 
-  useEffect(() => {
-    const detail = dailyScheduleDetailQuery.data;
-    if (!detail) return;
+  const resolvedLessonDate = useMemo(() => {
+    if (!scheduleDetail?.lessonDate) return "";
+    return formatUtcToKstShortDate(`${scheduleDetail.lessonDate}T00:00:00`);
+  }, [scheduleDetail?.lessonDate]);
 
-    setLessonDateText(formatUtcToKstShortDate(`${detail.lessonDate}T00:00:00`));
-    setClassroomId(String(detail.classroomId));
-    setClassroomName(detail.classroomName ?? "");
-    setBirthPrefix(detail.residentRegistrationNumberPrefix ?? "");
-    setActivityTime(formatLessonsActivityTime(detail.lessons));
-  }, [dailyScheduleDetailQuery.data]);
+  const resolvedActivityTime = useMemo(
+    () => formatLessonsActivityTime(scheduleDetail?.lessons),
+    [scheduleDetail?.lessons],
+  );
+
+  const resolvedClassroomName = useMemo(
+    () =>
+      resolveClassroomName(
+        enrollmentClassroomId,
+        enrolledStudents,
+        scheduleDetail?.classroomName,
+      ),
+    [enrollmentClassroomId, enrolledStudents, scheduleDetail?.classroomName],
+  );
+
+  const lessonDateValue = lessonDateText || resolvedLessonDate;
+  const classroomNameValue = classroomNameText || resolvedClassroomName;
+  const activityTimeValue = activityTimeText || resolvedActivityTime;
+
+  const apiAttendanceNames = useMemo(() => {
+    const names: Record<string, string> = {};
+
+    enrolledStudents.forEach((student, index) => {
+      const rowIndex = Math.floor(index / attendanceColumns.length);
+      const column = index % attendanceColumns.length;
+      names[buildAttendanceNameKey(rowIndex, column)] = student.name ?? "";
+    });
+
+    return names;
+  }, [enrolledStudents]);
+
+  const minAttendanceRows = useMemo(
+    () => Math.max(1, Math.ceil(enrolledStudents.length / attendanceColumns.length)),
+    [enrolledStudents.length],
+  );
+
+  const attendanceRowCount = minAttendanceRows + additionalAttendanceRows;
+
+  const getAttendanceName = (nameKey: string) =>
+    nameKey in attendanceNameOverrides
+      ? attendanceNameOverrides[nameKey]
+      : (apiAttendanceNames[nameKey] ?? "");
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -128,8 +289,8 @@ export default function ClassJournalCreatePage() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateText.trim());
-    const parsedClassroomId = Number.parseInt(classroomId, 10);
+    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateValue.trim());
+    const parsedClassroomId = enrollmentClassroomId;
     const personalInfoConsent = formData.get("privacyConsent") === "on";
     const lessonJournals = buildLessonJournals(scheduleDetail?.lessons, formData);
 
@@ -148,12 +309,34 @@ export default function ClassJournalCreatePage() {
       return;
     }
 
-    createJournalMutation.mutate({
-      lessonDate,
-      classroomId: parsedClassroomId,
-      personalInfoConsent,
-      residentRegistrationNumberPrefix: "900101", // TODO: 주민번호 앞자리 실제 값 연동
-      lessonJournals,
+    const dailyScheduleId = scheduleDetail?.dailyScheduleId;
+    if (!dailyScheduleId) {
+      window.alert("일정 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      return;
+    }
+
+    const residentRegistrationNumberPrefix =
+      birthPrefix.trim() || CLASS_JOURNAL_FORM_DEFAULTS.residentRegistrationNumberPrefix;
+
+    submitMutation.mutate({
+      dailyScheduleId,
+      attendances: buildStudentAttendances(formData, enrolledStudents),
+      journalBody: {
+        lessonDate,
+        classroomId: parsedClassroomId,
+        personalInfoConsent,
+        residentRegistrationNumberPrefix,
+        lessonJournals,
+      },
+      googleSheet: {
+        journal: buildClassJournalSheetPayloadFromFormData(formData),
+        attendance: buildClassAttendanceSheetPayload(
+          formData,
+          enrolledStudents,
+          classroomNameValue,
+          lessonDateValue.trim(),
+        ),
+      },
     });
   };
 
@@ -210,7 +393,7 @@ export default function ClassJournalCreatePage() {
               id="phone"
               name="phone"
               type="text"
-              value={phoneNumber ? formatPhone(phoneNumber) : ""}
+              value={formatPhone(phoneNumber)}
               placeholder="010-0000-0000"
               disabled
               readOnly
@@ -224,8 +407,8 @@ export default function ClassJournalCreatePage() {
               name="classroomName"
               type="text"
               placeholder="장미반"
-              value={classroomName}
-              onChange={(event) => setClassroomName(event.target.value)}
+              value={classroomNameValue}
+              onChange={(event) => setClassroomNameText(event.target.value)}
             />
           </InfoField>
 
@@ -236,7 +419,7 @@ export default function ClassJournalCreatePage() {
               name="lessonDate"
               type="text"
               placeholder="00.00.00"
-              value={lessonDateText}
+              value={lessonDateValue}
               onChange={(event) => setLessonDateText(event.target.value)}
             />
           </InfoField>
@@ -248,8 +431,8 @@ export default function ClassJournalCreatePage() {
               name="activityTime"
               type="text"
               placeholder="14:00 - 15:00"
-              value={activityTime}
-              onChange={(event) => setActivityTime(event.target.value)}
+              value={activityTimeValue}
+              onChange={(event) => setActivityTimeText(event.target.value)}
             />
           </InfoField>
         </InfoGrid>
@@ -277,27 +460,43 @@ export default function ClassJournalCreatePage() {
                   key={rowIndex}
                   aria-label={rowIndex === 0 ? "출석부" : `출석부 ${rowIndex + 1}`}
                 >
-                  {attendanceColumns.map((column) => (
-                    <AttendanceInput
-                      key={`student-${rowIndex}-${column}`}
-                      name={`studentName${rowIndex * 10 + column + 1}`}
-                      aria-label={`${rowIndex * 10 + column + 1}번 학생 이름`}
-                      placeholder={rowIndex === 0 && column < 4 ? "최양진" : ""}
-                    />
-                  ))}
-                  {attendanceColumns.map((column) => (
-                    <AttendanceInput
-                      key={`attendance-${rowIndex}-${column}`}
-                      name={`attendanceStatus${rowIndex * 10 + column + 1}`}
-                      aria-label={`${rowIndex * 10 + column + 1}번 출석 상태`}
-                    />
-                  ))}
+                  {attendanceColumns.map((column) => {
+                    const nameKey = buildAttendanceNameKey(rowIndex, column);
+
+                    return (
+                      <AttendanceInput
+                        key={`student-${rowIndex}-${column}`}
+                        name={`studentName${rowIndex * 10 + column + 1}`}
+                        aria-label={`${rowIndex * 10 + column + 1}번 학생 이름`}
+                        value={getAttendanceName(nameKey)}
+                        onChange={(event) =>
+                          setAttendanceNameOverrides((current) => ({
+                            ...current,
+                            [nameKey]: event.target.value,
+                          }))
+                        }
+                      />
+                    );
+                  })}
+                  {attendanceColumns.map((column) => {
+                    const statusIndex = rowIndex * 10 + column + 1;
+
+                    return (
+                      <AttendanceCheckboxCell key={`attendance-${rowIndex}-${column}`}>
+                        <ConsentCheckbox
+                          type="checkbox"
+                          name={`attendanceStatus${statusIndex}`}
+                          aria-label={`${statusIndex}번 출석`}
+                        />
+                      </AttendanceCheckboxCell>
+                    );
+                  })}
                 </AttendanceGrid>
               ))}
             </AttendanceBlocks>
             <AddAttendanceButton
               type="button"
-              onClick={() => setAttendanceRowCount((count) => count + 1)}
+              onClick={() => setAdditionalAttendanceRows((count) => count + 1)}
             >
               출석부 추가하기
             </AddAttendanceButton>
@@ -649,6 +848,21 @@ const AttendanceInput = styled.input`
   @media (min-width: 120rem) {
     min-height: 3.875rem;
     font-size: ${typography.fontSize20};
+  }
+`;
+
+const AttendanceCheckboxCell = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 2.75rem;
+  border-right: 1px solid #c0c0c0;
+  border-bottom: 1px solid #c0c0c0;
+  background-color: transparent;
+
+  @media (min-width: 120rem) {
+    min-height: 3.875rem;
   }
 `;
 

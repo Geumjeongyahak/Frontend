@@ -10,6 +10,11 @@ export interface StudentListQueryParamsDto {
   classroomId?: number;
 }
 
+export interface StudentClassroomDto {
+  id: number;
+  name: string;
+}
+
 export interface CreateStudentRequestDto {
   name: string;
   phoneNumber?: string;
@@ -30,9 +35,8 @@ export interface StudentResponseDto {
   name?: string;
   phoneNumber?: string;
   description?: string;
-  classroomId?: number;
-  classroomName?: string;
-  status?: StudentStatus | string;
+  classrooms?: StudentClassroomDto[];
+  status?: StudentStatus;
 }
 
 export type StudentListItemDto = StudentResponseDto;

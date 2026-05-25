@@ -1,23 +1,20 @@
-const GOOGLE_APPS_SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycbxZ9VY6A9rXkNInZnXt_cSO6SVgkd196DV7_mfqeXJViUmFSVgSRfvM9tX9oOy63P-n7Q/exec";
+import type { ClassAttendanceSheetPayload } from "@/lib/googleSheet/classAttendance/classAttendanceSheetPayload";
+import {
+  isGoogleAppsScriptSuccess,
+  postToGoogleAppsScript,
+  requireGoogleAppsScriptUrl,
+} from "@/lib/googleSheet/postToGoogleAppsScript";
 
-export async function sendClassAttendanceToGoogleSheet(payload: {
-  date: string;
-  className: string;
-  attendances: {
-    name: string;
-    status: string;
-  }[];
-}) {
-  const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-    method: "POST",
-    redirect: "follow",
-    body: JSON.stringify(payload),
-  });
+export async function sendClassAttendanceToGoogleSheet(payload: ClassAttendanceSheetPayload) {
+  const url = requireGoogleAppsScriptUrl(
+    process.env.NEXT_PUBLIC_APPS_SCRIPT_CLASS_ATTENDANCE_SHEET_URL,
+    "출석",
+  );
+  const data = await postToGoogleAppsScript(url, payload);
 
-  if (!response.ok) {
-    throw new Error("출석 저장 실패");
+  if (!isGoogleAppsScriptSuccess(data)) {
+    throw new Error(data.message ?? "출석 시트 저장 실패");
   }
 
-  return response.json();
+  return data;
 }
