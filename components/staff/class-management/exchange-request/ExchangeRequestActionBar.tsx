@@ -29,9 +29,11 @@ export function ExchangeRequestActionBar({
 }: ExchangeRequestActionBarProps) {
   return (
     <TopButtonRow>
-      <Button type="button" $variant="danger" disabled={!canDelete} onClick={onDelete}>
-        삭제
-      </Button>
+      {canDelete ? (
+        <Button type="button" $variant="danger" onClick={onDelete}>
+          삭제
+        </Button>
+      ) : null}
 
       {isEditing ? (
         <>
@@ -45,9 +47,11 @@ export function ExchangeRequestActionBar({
         </>
       ) : (
         <>
-          <Button type="button" $variant="edit" onClick={onStartEdit} disabled={!canEdit}>
-            수정
-          </Button>
+          {canEdit ? (
+            <Button type="button" $variant="edit" onClick={onStartEdit}>
+              수정
+            </Button>
+          ) : null}
 
           <Button type="button" $variant="neutral" onClick={onBackToList}>
             목록
