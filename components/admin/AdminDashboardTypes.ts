@@ -3,7 +3,15 @@ import type { ClassroomType } from "@/api/classroom/classroom.dto";
 import type { PostStatus } from "@/api/post/post.dto";
 import type { UserRole } from "@/api/user/user.dto";
 
-export type AdminMenu = "dashboard" | "users" | "channels" | "posts" | "departments" | "classrooms" | "purchases";
+export type AdminMenu =
+  | "dashboard"
+  | "users"
+  | "channels"
+  | "posts"
+  | "departments"
+  | "classrooms"
+  | "lessons"
+  | "purchases";
 
 export type UserFormState = {
   email: string;
