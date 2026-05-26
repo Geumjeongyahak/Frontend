@@ -31,6 +31,12 @@ const LessonTable = styled(Table)`
   }
 `;
 
+const DateFilterRow = styled(ControlRow)`
+  input {
+    font-weight: 500;
+  }
+`;
+
 function formatLessonTimeRange(startTime?: string, endTime?: string) {
   const start = startTime ? startTime.slice(0, 5) : "—";
   const end = endTime ? endTime.slice(0, 5) : "—";
@@ -74,7 +80,7 @@ export function AdminLessonManagementSection() {
           <SectionTitle>수업 목록</SectionTitle>
         </SectionHeaderRow>
 
-        <ControlRow>
+        <DateFilterRow>
           <Label>
             시작일
             <TextInput
@@ -87,7 +93,7 @@ export function AdminLessonManagementSection() {
             종료일
             <TextInput type="date" value={to} onChange={(event) => setTo(event.target.value)} />
           </Label>
-        </ControlRow>
+        </DateFilterRow>
 
         {!isValidRange ? (
           <StableListArea>시작일과 종료일을 올바르게 입력해 주세요.</StableListArea>

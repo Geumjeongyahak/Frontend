@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
@@ -339,6 +339,16 @@ export const CheckLabel = styled.label`
   font-weight: 800;
 `;
 
+const inputFocusStyle = css`
+  outline: none;
+  transition: border-color 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: ${colors.point};
+  }
+`;
+
 export const TextInput = styled.input`
   width: 100%;
   min-height: 2.375rem;
@@ -347,6 +357,7 @@ export const TextInput = styled.input`
   padding: 0 ${spacing.space12};
   font-family: inherit;
   font-size: ${typography.fontSize14};
+  ${inputFocusStyle}
 `;
 
 export const TextArea = styled.textarea`
@@ -358,6 +369,7 @@ export const TextArea = styled.textarea`
   font-family: inherit;
   font-size: ${typography.fontSize14};
   resize: vertical;
+  ${inputFocusStyle}
 `;
 
 export const Select = styled.select`
@@ -369,6 +381,7 @@ export const Select = styled.select`
   background-color: ${colors.white};
   font-family: inherit;
   font-size: ${typography.fontSize14};
+  ${inputFocusStyle}
 `;
 
 export const ButtonRow = styled.div`

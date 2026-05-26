@@ -30,6 +30,14 @@ import {
 } from "@/components/admin/lesson-management/lessonCreateError";
 import { colors, spacing, typography } from "@/styles/tokens";
 
+const LessonFormGrid = styled(FormGrid)`
+  input,
+  select,
+  ${StatePanel} {
+    font-weight: 500;
+  }
+`;
+
 const SubjectGrid = styled(ActionGrid)`
   margin-top: ${spacing.space4};
 `;
@@ -70,13 +78,6 @@ const TeacherSelect = styled(Select)`
   appearance: none;
   -webkit-appearance: none;
   padding-right: 2.25rem;
-  outline: none;
-  transition: border-color 0.2s ease;
-
-  &:focus {
-    outline: none;
-    border-color: ${colors.point};
-  }
 `;
 
 const TeacherSelectChevron = styled(IconChevronDown)`
@@ -169,7 +170,7 @@ export function AdminLessonCreateForm() {
         과목, 담당 교사, 일자, 교시, 시간을 입력해 새 수업을 등록합니다.
       </SectionDescription>
 
-      <FormGrid
+      <LessonFormGrid
         onSubmit={(event) => {
           event.preventDefault();
           submitLesson();
@@ -308,7 +309,7 @@ export function AdminLessonCreateForm() {
             {isSubmitting ? "생성 중..." : "수업 생성"}
           </PrimaryButton>
         </ButtonRow>
-      </FormGrid>
+      </LessonFormGrid>
     </>
   );
 }
