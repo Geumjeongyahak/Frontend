@@ -47,3 +47,30 @@ export function resolveLessonCreateErrorMessage(error: unknown) {
 
   return "수업 생성에 실패했습니다.";
 }
+
+export function formatLessonTimeRange(startTime?: string, endTime?: string) {
+  const start = startTime ? startTime.slice(0, 5) : "—";
+  const end = endTime ? endTime.slice(0, 5) : "—";
+  return `${start} - ${end}`;
+}
+
+export function formatLessonStatusLabel(status?: string) {
+  switch (status) {
+    case "SCHEDULED":
+      return "예정";
+    case "COMPLETED":
+      return "완료";
+    case "CANCELED":
+      return "취소";
+    default:
+      return status ?? "—";
+  }
+}
+
+export function resolveLessonDeleteErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "수업 삭제에 실패했습니다.";
+}
