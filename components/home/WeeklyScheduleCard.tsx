@@ -38,8 +38,8 @@ export default function WeeklyScheduleCard({ schedule, onViewAllClick }: WeeklyS
                   </EmptyText>
                 ) : (
                   <>
-                    {daySchedule.items.slice(0, 2).map((item) => (
-                      <Item key={`${daySchedule.day}-${item.time}-${item.title}`}>
+                    {daySchedule.items.slice(0, 2).map((item, index) => (
+                      <Item key={`${daySchedule.day}-${item.id ?? index}`}>
                         <Time>{item.time}</Time>
                         <ItemTitle>{item.title}</ItemTitle>
                         <Divider />

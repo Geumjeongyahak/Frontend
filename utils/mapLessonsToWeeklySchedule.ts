@@ -23,6 +23,7 @@ export function mapLessonsToWeeklySchedule(
 
     const day = WEEK_ORDER[isoDay - 1];
     grouped.get(day)?.push({
+      id: lesson.lessonId,
       time: lesson.startTime ? lesson.startTime.slice(0, 5) : "",
       title: lesson.subjectName ?? "수업",
     });

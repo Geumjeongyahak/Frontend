@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -94,6 +94,7 @@ export function useExchangePostPage() {
   });
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isChangingExchangeTarget, setIsChangingExchangeTarget] = useState(false);
 
   const createProposalMutation = useMutation({
     mutationFn: (body: LessonExchangeProposalRequestDto) =>
@@ -134,7 +135,9 @@ export function useExchangePostPage() {
   const acceptProposalMutation = useMutation({
     mutationFn: (proposalId: number) =>
       acceptLessonExchangeProposal({ requestId: postId, proposalId }),
-    onSuccess: async (_, proposalId) => {
+    onSuccess: async () => {
+      setIsChangingExchangeTarget(false);
+
       await queryClient.invalidateQueries({
         queryKey: queryKeys.requests.lessonExchangeDetail(postId),
       });
@@ -144,10 +147,6 @@ export function useExchangePostPage() {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.requests.lessonExchangeList(),
       });
-
-      router.push(
-        `/staff/class-management/exchange-request/${postId}/accepted?proposalId=${proposalId}`,
-      );
     },
     onError: (error) => {
       window.alert(error instanceof Error ? error.message : "교환 제안 수락에 실패했습니다.");
@@ -265,6 +264,51 @@ export function useExchangePostPage() {
     acceptProposalMutation.mutate(proposalId);
   };
 
+  const changeExchangeTarget = () => {
+    if (!window.confirm("교환 대상을 변경할까요?")) return;
+
+    setIsChangingExchangeTarget(true);
+  };
+
+  const request = requestQuery.data;
+  const requestStatus = request?.status;
+  const isApplicant =
+    user?.id != null && request?.requestedById != null && user.id === request.requestedById;
+
+  const uiStatus =
+    isChangingExchangeTarget && requestStatus === "COMPLETED" ? "APPROVED" : requestStatus;
+
+  const showProposalMessage =
+    uiStatus === "PENDING" || uiStatus === "CANCELLED" || uiStatus === "REJECTED";
+  const proposalMessage =
+    uiStatus === "REJECTED"
+      ? "관리자에 의해 거절된 제안서입니다."
+      : uiStatus === "PENDING" || uiStatus === "CANCELLED"
+        ? "관리자 승인 후 교환 제안서 작성이 가능합니다"
+        : null;
+
+  const showProposalForm = uiStatus === "APPROVED" && !isApplicant;
+  const showProposalList = uiStatus === "APPROVED" || uiStatus === "COMPLETED";
+  const showProposalSection = showProposalMessage || showProposalForm || showProposalList;
+
+  const visibleProposals = useMemo(() => {
+    const all = proposalsQuery.data ?? [];
+
+    if (uiStatus === "COMPLETED") {
+      return all.filter((proposal) => proposal.status === "ACCEPTED");
+    }
+
+    return all;
+  }, [proposalsQuery.data, uiStatus]);
+
+  const canDelete =
+    isAuthenticated && isValidPostId && isApplicant && (uiStatus === "PENDING" || uiStatus === "CANCELLED");
+  const canEdit =
+    isAuthenticated && isValidPostId && !requestQuery.isError && isApplicant && uiStatus === "PENDING";
+  const canAcceptProposal = isApplicant && uiStatus === "APPROVED";
+  const canChangeExchangeTarget = isApplicant && uiStatus === "COMPLETED";
+  const proposalListTitle = uiStatus === "COMPLETED" ? "교환 대상" : "교환 제안서";
+
   return {
     postId,
     isAuthenticated,
@@ -272,10 +316,22 @@ export function useExchangePostPage() {
 
     user,
 
-    request: requestQuery.data,
+    request,
     requestError: requestQuery.isError,
 
-    proposals: proposalsQuery.data ?? [],
+    isApplicant,
+    showProposalSection,
+    showProposalMessage,
+    proposalMessage,
+    showProposalForm,
+    showProposalList,
+    proposalListTitle,
+    canDelete,
+    canEdit,
+    canAcceptProposal,
+    canChangeExchangeTarget,
+
+    proposals: visibleProposals,
     proposalsLoading: proposalsQuery.isLoading,
     proposalsError: proposalsQuery.isError,
 
@@ -292,6 +348,7 @@ export function useExchangePostPage() {
     saveEdit,
     submitProposal,
     acceptProposal,
+    changeExchangeTarget,
     deleteRequest,
     backToList,
   };

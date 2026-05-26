@@ -14,25 +14,11 @@ interface ExchangeRequestPageProps {
 }
 
 export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
-  const canDelete = page.isAuthenticated && page.isValidPostId;
-  const isLocked =
-    page.request?.status === "APPROVED" ||
-    page.request?.status === "COMPLETED" ||
-    page.request?.status === "REJECTED";
-
-  const canEdit = page.isAuthenticated && page.isValidPostId && !page.requestError && !isLocked;
-  const acceptedHref = `/staff/class-management/exchange-request/${page.postId}/accepted`;
-  const canAcceptProposal =
-    page.isAuthenticated &&
-    page.user?.id != null &&
-    page.user.id === page.request?.requestedById &&
-    page.request?.status === "APPROVED";
-
   return (
     <PageWrapper>
       <ExchangeRequestActionBar
-        canDelete={canDelete}
-        canEdit={canEdit}
+        canDelete={page.canDelete}
+        canEdit={page.canEdit}
         isEditing={page.isEditing}
         isUpdating={page.isUpdating}
         onDelete={page.deleteRequest}
@@ -44,71 +30,91 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
 
       <ContentColumn>
         <ExchangePostDetail page={page} />
-        {!page.isEditing && (
+        {!page.isEditing && page.showProposalSection ? (
           <>
             <Divider />
 
-            <ProposalHeader>
-              <ProposalTitle>교환 제안서</ProposalTitle>
+            {page.showProposalMessage ? (
+              <ProposalMessage>{page.proposalMessage}</ProposalMessage>
+            ) : null}
 
-              <Button
-                type="submit"
-                form="exchange-proposal-form"
-                $variant="edit"
-                disabled={page.isCreatingProposal}
-              >
-                작성 완료
-              </Button>
-            </ProposalHeader>
+            {page.showProposalForm ? (
+              <>
+                <ProposalHeader>
+                  <ProposalTitle>{page.proposalListTitle}</ProposalTitle>
 
-            <ProposalForm id="exchange-proposal-form" onSubmit={page.submitProposal}>
-              <FieldInput
-                $tone="proposal"
-                aria-label="반 이름"
-                placeholder="반 이름"
-                type="text"
-                value={page.user?.role ?? ""} //TODO: dto 반이름
-                readOnly
-              />
-              <FieldInput
-                $tone="proposal"
-                aria-label="작성자"
-                placeholder="작성자"
-                type="text"
-                value={page.user?.name ?? ""}
-                readOnly
-              />
-              <FieldInput
-                $tone="proposal"
-                aria-label="수업 일자"
-                placeholder="00.00.00"
-                type="text"
-                {...page.proposalForm.register("lessonDate")}
-              />
+                  <Button
+                    type="submit"
+                    form="exchange-proposal-form"
+                    $variant="edit"
+                    disabled={page.isCreatingProposal}
+                  >
+                    작성 완료
+                  </Button>
+                </ProposalHeader>
 
-              <ProposalFormTextarea
-                $tone="proposal"
-                placeholder="내용"
-                rows={6}
-                {...page.proposalForm.register("content")}
-              />
-            </ProposalForm>
+                <ProposalForm id="exchange-proposal-form" onSubmit={page.submitProposal}>
+                  <FieldInput
+                    $tone="proposal"
+                    aria-label="반 이름"
+                    placeholder="반 이름"
+                    type="text"
+                    value={page.user?.role ?? ""} //TODO: dto 반이름
+                    readOnly
+                  />
+                  <FieldInput
+                    $tone="proposal"
+                    aria-label="작성자"
+                    placeholder="작성자"
+                    type="text"
+                    value={page.user?.name ?? ""}
+                    readOnly
+                  />
+                  <FieldInput
+                    $tone="proposal"
+                    aria-label="수업 일자"
+                    placeholder="00.00.00"
+                    type="text"
+                    {...page.proposalForm.register("lessonDate")}
+                  />
 
-            <ExchangeProposalList
-              acceptedHref={(proposal) =>
-                proposal.id ? `${acceptedHref}?proposalId=${proposal.id}` : acceptedHref
-              }
-              showAcceptLink={canAcceptProposal}
-              isAccepting={page.isAcceptingProposal}
-              onAcceptProposal={(proposal) => {
-                if (proposal.id) page.acceptProposal(proposal.id);
-              }}
-              proposals={page.proposals}
-              proposalsLoading={page.proposalsLoading}
-              proposalsError={page.proposalsError}
-            />
+                  <ProposalFormTextarea
+                    $tone="proposal"
+                    placeholder="내용"
+                    rows={6}
+                    {...page.proposalForm.register("content")}
+                  />
+                </ProposalForm>
+              </>
+            ) : null}
+
+            {page.showProposalList ? (
+              <>
+                {!page.showProposalForm ? (
+                  <ProposalTitle>{page.proposalListTitle}</ProposalTitle>
+                ) : null}
+
+                <ExchangeProposalList
+                  acceptedHref={`/staff/class-management/exchange-request/${page.postId}`}
+                  acceptLabel={page.canChangeExchangeTarget ? "교환 대상 변경하기" : "제안 수락하기"}
+                  showAcceptLink={page.canAcceptProposal || page.canChangeExchangeTarget}
+                  showCardTopBorder={!page.canChangeExchangeTarget}
+                  isAccepting={page.isAcceptingProposal}
+                  onAcceptProposal={
+                    page.canChangeExchangeTarget
+                      ? () => page.changeExchangeTarget()
+                      : (proposal) => {
+                          if (proposal.id) page.acceptProposal(proposal.id);
+                        }
+                  }
+                  proposals={page.proposals}
+                  proposalsLoading={page.proposalsLoading}
+                  proposalsError={page.proposalsError}
+                />
+              </>
+            ) : null}
           </>
-        )}
+        ) : null}
       </ContentColumn>
     </PageWrapper>
   );
@@ -144,6 +150,17 @@ const Divider = styled.hr`
   border: 0;
   border-top: 1px solid #c0c0c0;
   margin: 0;
+`;
+
+const ProposalMessage = styled.p`
+  margin: 0;
+  color: #878787;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
 `;
 
 const ProposalHeader = styled.div`
