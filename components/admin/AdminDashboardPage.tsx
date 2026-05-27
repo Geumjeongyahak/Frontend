@@ -13,6 +13,7 @@ import { AdminClassroomsSection } from "@/components/admin/classes/AdminClassroo
 import { AdminDepartmentsSection } from "@/components/admin/departments/AdminDepartmentsSection";
 import { AdminPostsSection } from "@/components/admin/posts/AdminPostsSection";
 import { AdminPurchasesSection } from "@/components/admin/purchase-requests/AdminPurchasesSection";
+import { AdminLessonManagementSection } from "@/components/admin/lesson-management/AdminLessonManagementSection";
 import { AdminUsersSection } from "@/components/admin/users/AdminUsersSection";
 import type {
   AdminMenu,
@@ -87,6 +88,7 @@ const navigationItems: { key: AdminMenu; label: string }[] = [
   { key: "users", label: "사용자" },
   { key: "departments", label: "부서" },
   { key: "classrooms", label: "분반" },
+  { key: "lessons", label: "수업" },
   { key: "channels", label: "채널" },
   { key: "posts", label: "게시글" },
   { key: "purchases", label: "구매 요청" },
@@ -915,6 +917,7 @@ export default function AdminDashboardPage() {
     departments:
       "부서 목록과 상세 정보를 조회하고 부서 생성/수정/삭제, 소속 사용자와 권한 정보를 확인합니다.",
     classrooms: "분반 목록과 상세 정보를 조회하고 분반 생성/수정/삭제 및 이름 검색을 제공합니다.",
+    lessons: "수업 목록을 조회하고 새 수업을 생성합니다.",
     purchases: "구매 요청 작성, 목록/상세 조회, 승인/반려/결재 확인/삭제 처리를 제공합니다.",
   }[activeMenu];
 
@@ -1071,6 +1074,7 @@ export default function AdminDashboardPage() {
               emptyClassroomForm={emptyClassroomForm}
             />
           ) : null}
+          {activeMenu === "lessons" ? <AdminLessonManagementSection /> : null}
           {activeMenu === "purchases" ? (
             <AdminPurchasesSection
               classrooms={classrooms}
