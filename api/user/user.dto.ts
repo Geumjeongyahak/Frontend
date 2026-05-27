@@ -76,6 +76,9 @@ export interface DepartmentListResponseDto {
 }
 
 export interface UserListQueryParamsDto {
+  role?: UserRole;
+  name?: string;
+  currentTeacher?: boolean;
   page?: number;
   size?: number;
 }
