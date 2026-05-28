@@ -11,7 +11,8 @@ export type AdminMenu =
   | "departments"
   | "classrooms"
   | "lessons"
-  | "purchases";
+  | "purchases"
+  | "absenceRequests";
 
 export type UserFormState = {
   email: string;
