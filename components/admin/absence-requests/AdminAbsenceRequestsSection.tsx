@@ -306,24 +306,31 @@ export function AdminAbsenceRequestsSection() {
   };
 
   const approveMutation = useMutation({
-    mutationFn: (requestId: number) => {
+    mutationFn: (requestId: number) => approveAbsenceRequest({ requestId }),
+    onMutate: (requestId) => {
       setPendingActionId(requestId);
-      return approveAbsenceRequest({ requestId });
+    },
+    onSuccess: () => {
+      invalidateList();
+      setRejectNote("");
     },
     onSettled: () => {
       setPendingActionId(null);
-      invalidateList();
     },
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ requestId, note }: { requestId: number; note: string }) => {
+    mutationFn: ({ requestId, note }: { requestId: number; note: string }) =>
+      rejectAbsenceRequest({ requestId }, { note }),
+    onMutate: ({ requestId }) => {
       setPendingActionId(requestId);
-      return rejectAbsenceRequest({ requestId }, { note });
+    },
+    onSuccess: () => {
+      invalidateList();
+      setRejectNote("");
     },
     onSettled: () => {
       setPendingActionId(null);
-      invalidateList();
     },
   });
 
@@ -356,17 +363,19 @@ export function AdminAbsenceRequestsSection() {
   };
 
   const handleApprove = () => {
-    if (!selectedAbsenceId || approveMutation.isPending) return;
-    approveMutation.mutate(selectedAbsenceId);
+    const requestId = selectedAbsence?.id;
+    if (!requestId || approveMutation.isPending) return;
+    approveMutation.mutate(requestId);
   };
 
   const handleReject = () => {
-    if (!selectedAbsenceId || rejectMutation.isPending) return;
+    const requestId = selectedAbsence?.id;
+    if (!requestId || rejectMutation.isPending) return;
 
     const note = rejectNote.trim();
     if (!note) return;
 
-    rejectMutation.mutate({ requestId: selectedAbsenceId, note });
+    rejectMutation.mutate({ requestId, note });
   };
 
   const isActionPending =
