@@ -1,4 +1,4 @@
-export type ChannelType = "NOTICE" | "CLASSROOM" | "DEPARTMENT" | "CUSTOM" | string;
+export type ChannelType = "NOTICE" | "CLASSROOM" | "DEPARTMENT" | "EVENT" | "CUSTOM" | string;
 
 export type ChannelBindingType = "STANDALONE" | "DOMAIN_LINKED" | string;
 export type ChannelAccessLevel = "CLOSED" | "READ_ONLY" | "READ_COMMENT" | "READ_WRITE" | string;

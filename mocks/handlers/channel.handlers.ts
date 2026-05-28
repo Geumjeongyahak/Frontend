@@ -21,6 +21,19 @@ export const CHANNEL_RESPONSE = {
 };
 
 export const CHANNEL_LIST_RESPONSE = [CHANNEL_RESPONSE];
+export const EVENT_CHANNEL_RESPONSE = {
+  ...CHANNEL_RESPONSE,
+  id: 4,
+  name: "행사 정보",
+  description: "행사 정보 기본 채널",
+  channelType: "EVENT",
+  bindingType: "STANDALONE",
+  refId: null,
+  accessLevel: "READ_WRITE",
+  allowGuestRead: true,
+  isDefault: true,
+  isActive: true,
+};
 
 function hasValidAuthorization(request: Request) {
   const authorizationHeader = request.headers.get("authorization");
@@ -36,7 +49,14 @@ export const channelHandlers: RequestHandler[] = [
       return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    return HttpResponse.json(CHANNEL_LIST_RESPONSE);
+    const url = new URL(request.url);
+    const channelType = url.searchParams.get("channelType");
+
+    if (channelType === "EVENT") {
+      return HttpResponse.json([EVENT_CHANNEL_RESPONSE]);
+    }
+
+    return HttpResponse.json([...CHANNEL_LIST_RESPONSE, EVENT_CHANNEL_RESPONSE]);
   }),
   http.post(`${API_BASE_URL}/api/v1/channels`, async ({ request }) => {
     if (!hasValidAuthorization(request)) {

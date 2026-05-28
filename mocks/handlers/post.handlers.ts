@@ -33,6 +33,37 @@ export const POST_LIST_RESPONSE = {
   totalPages: 1,
 };
 
+export const EVENT_POSTS_RESPONSE = [
+  {
+    id: 10,
+    channelId: 4,
+    channelName: "행사 정보",
+    channelType: "EVENT",
+    title: "문학의 밤",
+    postType: "EVENT",
+    status: "PUBLISHED",
+    authorId: 1,
+    authorName: "최양진",
+    thumbnailUrl: "/home/event-photo-1.svg",
+    createdAt: "2026-04-10T19:30:00",
+    updatedAt: "2026-04-10T19:30:00",
+  },
+  {
+    id: 11,
+    channelId: 4,
+    channelName: "행사 정보",
+    channelType: "EVENT",
+    title: "봄 소풍",
+    postType: "EVENT",
+    status: "PUBLISHED",
+    authorId: 2,
+    authorName: "관리자",
+    thumbnailUrl: "/home/event-photo-2.svg",
+    createdAt: "2026-04-08T19:30:00",
+    updatedAt: "2026-04-08T19:30:00",
+  },
+];
+
 function hasValidAuthorization(request: Request) {
   const authorizationHeader = request.headers.get("authorization");
   return (
@@ -45,6 +76,18 @@ export const postHandlers: RequestHandler[] = [
   http.get(`${API_BASE_URL}/api/v1/posts`, ({ request }) => {
     if (!hasValidAuthorization(request)) {
       return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const url = new URL(request.url);
+    const channelType = url.searchParams.get("channelType");
+
+    if (channelType === "EVENT") {
+      return HttpResponse.json({
+        ...POST_LIST_RESPONSE,
+        content: EVENT_POSTS_RESPONSE,
+        totalElements: EVENT_POSTS_RESPONSE.length,
+        totalPages: 1,
+      });
     }
 
     return HttpResponse.json({
@@ -94,6 +137,17 @@ export const postHandlers: RequestHandler[] = [
 
     if (channelId === 1 && postId === 1) {
       return HttpResponse.json(POST_DETAIL_RESPONSE);
+    }
+
+    if (channelId === 4) {
+      const eventPost = EVENT_POSTS_RESPONSE.find((post) => post.id === postId);
+      return HttpResponse.json({
+        ...(eventPost ?? EVENT_POSTS_RESPONSE[0]),
+        id: postId,
+        channelId,
+        contentHtml: "<p>행사 사진과 설명입니다.</p><p><img src=\"/home/event-photo-1.svg\" alt=\"행사\" /></p>",
+        allowComment: true,
+      });
     }
 
     return HttpResponse.json({
