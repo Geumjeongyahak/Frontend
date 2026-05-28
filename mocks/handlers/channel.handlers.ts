@@ -45,15 +45,15 @@ function hasValidAuthorization(request: Request) {
 
 export const channelHandlers: RequestHandler[] = [
   http.get(`${API_BASE_URL}/api/v1/channels`, ({ request }) => {
-    if (!hasValidAuthorization(request)) {
-      return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
     const url = new URL(request.url);
     const channelType = url.searchParams.get("channelType");
 
     if (channelType === "EVENT") {
       return HttpResponse.json([EVENT_CHANNEL_RESPONSE]);
+    }
+
+    if (!hasValidAuthorization(request)) {
+      return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     return HttpResponse.json([...CHANNEL_LIST_RESPONSE, EVENT_CHANNEL_RESPONSE]);

@@ -5,6 +5,18 @@ export const EVENT_CHANNEL_TYPE = "EVENT";
 export const EVENTS_PER_PAGE = 6;
 export const EVENT_FETCH_SIZE = 100;
 
+export function getEventPostTime(post: PostSummaryResponseDto) {
+  const dateValue = post.createdAt ?? post.updatedAt;
+  if (!dateValue) return 0;
+
+  const time = new Date(dateValue).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
+export function sortEventPosts(posts: PostSummaryResponseDto[]) {
+  return [...posts].sort((a, b) => getEventPostTime(b) - getEventPostTime(a));
+}
+
 export function findEventChannel(channels?: ChannelResponseDto[]) {
   return channels?.find((channel) => channel.channelType === EVENT_CHANNEL_TYPE && channel.isDefault)
     ?? channels?.find((channel) => channel.channelType === EVENT_CHANNEL_TYPE)

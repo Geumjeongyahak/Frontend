@@ -8,13 +8,13 @@ import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { getPosts } from "@/api/post/post.api";
-import type { PostSummaryResponseDto } from "@/api/post/post.dto";
 import EventInfoLayout from "@/components/info/events/EventInfoLayout";
 import {
   EVENT_CHANNEL_TYPE,
   EVENT_FETCH_SIZE,
   EVENTS_PER_PAGE,
   findEventChannel,
+  sortEventPosts,
 } from "@/components/info/events/eventUtils";
 import { ActionLink } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
@@ -24,18 +24,6 @@ import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 type EventListPageClientProps = {
   initialPage: number;
 };
-
-function getPostTime(post: PostSummaryResponseDto) {
-  const dateValue = post.createdAt ?? post.updatedAt;
-  if (!dateValue) return 0;
-
-  const time = new Date(dateValue).getTime();
-  return Number.isNaN(time) ? 0 : time;
-}
-
-function sortEventPosts(posts: PostSummaryResponseDto[]) {
-  return [...posts].sort((a, b) => getPostTime(b) - getPostTime(a));
-}
 
 export default function EventListPageClient({ initialPage }: EventListPageClientProps) {
   const router = useRouter();

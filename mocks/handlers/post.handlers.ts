@@ -35,6 +35,20 @@ export const POST_LIST_RESPONSE = {
 
 export const EVENT_POSTS_RESPONSE = [
   {
+    id: 12,
+    channelId: 4,
+    channelName: "행사 정보",
+    channelType: "EVENT",
+    title: "신입생 환영회",
+    postType: "EVENT",
+    status: "PUBLISHED",
+    authorId: 3,
+    authorName: "박지은",
+    thumbnailUrl: "/home/event-photo-3.svg",
+    createdAt: "2026-04-12T19:30:00",
+    updatedAt: "2026-04-12T19:30:00",
+  },
+  {
     id: 10,
     channelId: 4,
     channelName: "행사 정보",
@@ -74,10 +88,6 @@ function hasValidAuthorization(request: Request) {
 
 export const postHandlers: RequestHandler[] = [
   http.get(`${API_BASE_URL}/api/v1/posts`, ({ request }) => {
-    if (!hasValidAuthorization(request)) {
-      return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
     const url = new URL(request.url);
     const channelType = url.searchParams.get("channelType");
 
@@ -88,6 +98,10 @@ export const postHandlers: RequestHandler[] = [
         totalElements: EVENT_POSTS_RESPONSE.length,
         totalPages: 1,
       });
+    }
+
+    if (!hasValidAuthorization(request)) {
+      return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     return HttpResponse.json({
@@ -128,16 +142,8 @@ export const postHandlers: RequestHandler[] = [
     });
   }),
   http.get(`${API_BASE_URL}/api/v1/channels/:channelId/posts/:postId`, ({ request, params }) => {
-    if (!hasValidAuthorization(request)) {
-      return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
-    }
-
     const postId = Number(params.postId);
     const channelId = Number(params.channelId);
-
-    if (channelId === 1 && postId === 1) {
-      return HttpResponse.json(POST_DETAIL_RESPONSE);
-    }
 
     if (channelId === 4) {
       const eventPost = EVENT_POSTS_RESPONSE.find((post) => post.id === postId);
@@ -148,6 +154,14 @@ export const postHandlers: RequestHandler[] = [
         contentHtml: "<p>행사 사진과 설명입니다.</p><p><img src=\"/home/event-photo-1.svg\" alt=\"행사\" /></p>",
         allowComment: true,
       });
+    }
+
+    if (!hasValidAuthorization(request)) {
+      return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    if (channelId === 1 && postId === 1) {
+      return HttpResponse.json(POST_DETAIL_RESPONSE);
     }
 
     return HttpResponse.json({
