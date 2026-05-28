@@ -1,6 +1,8 @@
 export const queryKeys = {
   posts: {
     noticeTop12: () => ["posts", "notice", "top12"] as const,
+    eventChannels: () => ["posts", "event", "channels"] as const,
+    eventHomePhotos: (channelId?: number) => ["posts", "event", "homePhotos", channelId] as const,
     boardList: (filters: {
       page: number;
       channelType: string;

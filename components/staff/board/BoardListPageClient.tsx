@@ -40,6 +40,10 @@ function isNoticePost(post: PostSummaryResponseDto) {
   return post.channelType === "NOTICE" || post.postType === "NOTICE";
 }
 
+function isEventPost(post: PostSummaryResponseDto) {
+  return post.channelType === "EVENT" || post.postType === "EVENT";
+}
+
 function isPinnedPost(post: PostSummaryResponseDto) {
   return Boolean(post.isPinned);
 }
@@ -192,7 +196,9 @@ export default function BoardListPageClient({
     retry: false,
   });
 
-  const rawPosts = (data?.content ?? []).filter((post) => !isArchiveDocumentPost(post));
+  const rawPosts = (data?.content ?? []).filter(
+    (post) => !isArchiveDocumentPost(post) && !isEventPost(post),
+  );
   const posts = rawPosts.filter((post) => {
     if (!mineOnly) return true;
     if (typeof user?.id === "number" && post.authorId === user.id) return true;

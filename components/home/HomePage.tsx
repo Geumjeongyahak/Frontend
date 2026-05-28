@@ -4,7 +4,7 @@ import LoginCard from "@/components/home/LoginCard";
 import MeetingRecordsCard from "@/components/home/MeetingRecordsCard";
 import NoticeCard from "@/components/home/NoticeCard";
 import WeeklySchedulePanel from "@/components/home/WeeklySchedulePanel";
-import { eventPhotos, meetingRecords } from "@/mocks/home";
+import { meetingRecords } from "@/mocks/home";
 import { colors, layout, spacing } from "@/styles/tokens";
 
 export default function HomePage() {
@@ -31,7 +31,7 @@ export default function HomePage() {
           </MeetingArea>
 
           <EventArea>
-            <EventPhotoCard photos={eventPhotos} />
+            <EventPhotoCard />
           </EventArea>
         </BottomGrid>
       </Content>
