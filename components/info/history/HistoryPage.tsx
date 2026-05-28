@@ -372,6 +372,20 @@ export default function HistoryPage() {
 
                   {item.detail ? <DetailText>{item.detail}</DetailText> : null}
 
+                  {item.photos?.length ? (
+                    <PhotoGrid>
+                      {item.photos.map((photo) =>
+                        photo.src ? (
+                          <PhotoImage key={photo.id} src={photo.src} alt={photo.alt} />
+                        ) : (
+                          <PhotoPlaceholder key={photo.id} aria-label={photo.alt}>
+                            <IconPhoto aria-hidden="true" size={22} stroke={1.8} />
+                          </PhotoPlaceholder>
+                        ),
+                      )}
+                    </PhotoGrid>
+                  ) : null}
+
                   {item.links?.length ? (
                     <AttachmentRow aria-label="관련 링크">
                       {item.links.map((link) => (
@@ -388,20 +402,6 @@ export default function HistoryPage() {
                         </LinkPill>
                       ))}
                     </AttachmentRow>
-                  ) : null}
-
-                  {item.photos?.length ? (
-                    <PhotoGrid>
-                      {item.photos.map((photo) =>
-                        photo.src ? (
-                          <PhotoImage key={photo.id} src={photo.src} alt={photo.alt} />
-                        ) : (
-                          <PhotoPlaceholder key={photo.id} aria-label={photo.alt}>
-                            <IconPhoto aria-hidden="true" size={22} stroke={1.8} />
-                          </PhotoPlaceholder>
-                        ),
-                      )}
-                    </PhotoGrid>
                   ) : null}
                 </TimelineBody>
               </TimelineItem>
