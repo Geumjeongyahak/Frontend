@@ -7,7 +7,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
+import type { ChannelResponseDto } from "@/api/channel/channel.dto";
 import { getPosts } from "@/api/post/post.api";
+import type { PostListResponseDto } from "@/api/post/post.dto";
 import EventInfoLayout from "@/components/info/events/EventInfoLayout";
 import {
   EVENT_CHANNEL_TYPE,
@@ -23,9 +25,15 @@ import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type EventListPageClientProps = {
   initialPage: number;
+  initialChannels?: ChannelResponseDto[];
+  initialPosts?: PostListResponseDto;
 };
 
-export default function EventListPageClient({ initialPage }: EventListPageClientProps) {
+export default function EventListPageClient({
+  initialPage,
+  initialChannels,
+  initialPosts,
+}: EventListPageClientProps) {
   const router = useRouter();
   const { status } = useAuthSession();
   const [searchInput, setSearchInput] = useState("");
@@ -35,6 +43,7 @@ export default function EventListPageClient({ initialPage }: EventListPageClient
   const channelsQuery = useQuery({
     queryKey: ["info", "events", "channels"],
     queryFn: () => getChannels({ channelType: EVENT_CHANNEL_TYPE, isActive: true }),
+    initialData: initialChannels,
     retry: false,
   });
 
@@ -52,6 +61,8 @@ export default function EventListPageClient({ initialPage }: EventListPageClient
         size: EVENT_FETCH_SIZE,
       }),
     enabled: typeof eventChannel?.id === "number",
+    initialData: searchKeyword ? undefined : initialPosts,
+    placeholderData: (previousData) => previousData,
     retry: false,
   });
 
@@ -66,7 +77,8 @@ export default function EventListPageClient({ initialPage }: EventListPageClient
     currentPage * EVENTS_PER_PAGE,
   );
   const canWrite = status === "authenticated";
-  const isLoading = channelsQuery.isLoading || postsQuery.isLoading;
+  const hasLoadedPosts = typeof postsQuery.data !== "undefined";
+  const isLoading = channelsQuery.isLoading || (postsQuery.isLoading && !hasLoadedPosts);
   const isError = channelsQuery.isError || postsQuery.isError;
   const emptyMessage = isLoading
     ? "행사 정보를 불러오는 중입니다."
@@ -205,9 +217,11 @@ const HeaderRow = styled.div`
   align-items: flex-start;
   justify-content: space-between;
   gap: ${spacing.space24};
+  min-height: 2.9rem;
   margin-bottom: 2.75rem;
 
   @media (min-width: 120rem) {
+    min-height: 4.5rem;
     margin-bottom: 3.5rem;
   }
 
