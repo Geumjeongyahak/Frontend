@@ -9,7 +9,7 @@ import type {
 export const headerMenus: HeaderDropdownMenu[] = [
   {
     label: "기관 정보",
-    href: "/info",
+    href: "/info/history",
     items: [
       { label: "연혁", href: "/info/history" },
       { label: "부서 정보", href: "/info/departments" },
