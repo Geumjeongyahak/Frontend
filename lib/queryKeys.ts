@@ -38,6 +38,11 @@ export const queryKeys = {
     purchaseList: () => ["purchase-requests"] as const,
     purchaseDetail: (requestId: number) => ["purchase-request", requestId] as const,
   },
+  siteContent: {
+    history: () => ["site-content", "history"] as const,
+    departments: () => ["site-content", "departments"] as const,
+    classes: () => ["site-content", "classes"] as const,
+  },
   admin: {
     users: (page = 0, size = 20) => ["admin", "users", { page, size }] as const,
     userDetail: (userId: number) => ["admin", "users", "detail", userId] as const,

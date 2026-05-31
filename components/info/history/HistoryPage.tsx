@@ -2,6 +2,7 @@
 
 import { type ChangeEvent, type FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   IconEdit,
   IconExternalLink,
@@ -12,7 +13,16 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import styled from "styled-components";
+import {
+  createHistory,
+  deleteHistory,
+  getHistories,
+  updateHistory,
+} from "@/api/siteContent/siteContent.api";
+import type { SiteHistoryResponseDto } from "@/api/siteContent/siteContent.dto";
+import { uploadSiteContentImage } from "@/api/file/file.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 type HistoryLink = {
@@ -28,7 +38,7 @@ type HistoryPhoto = {
 };
 
 type HistoryItem = {
-  id: string;
+  id: number;
   title: string;
   detail?: string;
   links?: HistoryLink[];
@@ -50,108 +60,6 @@ const sidebarItems = [
   { label: "행사 정보", href: "/info/events" },
 ];
 
-const initialHistoryItems: HistoryItem[] = [
-  {
-    id: "history-1994-open",
-    title: "1994년 5월 2일 개교",
-    detail: "부산 성화야학에서 분리 개교",
-  },
-  { id: "history-1996-knn", title: "1996년 4월 PSB (현 KNN) 방송국 취재 및 방송" },
-  {
-    id: "history-2009-channel-pnu",
-    title: "2009년 9월 21일 채널 PNU 소개",
-    links: [{ id: "link-2009-channel-pnu", label: "영상 보기", href: "#" }],
-  },
-  {
-    id: "history-2014-interview",
-    title: "2014년 6월 9일 채널 PNU 조정환 교장 인터뷰",
-    links: [{ id: "link-2014-interview", label: "인터뷰 보기", href: "#" }],
-  },
-  {
-    id: "history-2017-lecture",
-    title: "2017년 3월 학생 1명과 교사 1명이 각각 일반인 대상으로 강연 (조해진 교무)",
-    detail: "부산문화재단 불쏘시개",
-  },
-  { id: "history-2017-award", title: "2017년 12월 금정구자원봉사센터 우수 수요처 감사패 수상" },
-  {
-    id: "history-2018-051",
-    title: "2018년 5월 11일 051초대석 18회 김수연 선생님, 이재빈 선생님 출연 (박혁서 교무)",
-    photos: [{ id: "photo-2018-051", alt: "051초대석 출연 사진", src: "" }],
-  },
-  {
-    id: "history-2018-logo",
-    title: "2018년 9월 21일 금정열린배움터 공식 로고 제작 (박혁서 교무)",
-    detail: "by 예소 디자인",
-  },
-  {
-    id: "history-2018-goldenbell",
-    title: "2018년 9월 23일 전국방영 성인 문해 KBS 골든벨 두명 출전 및 전국 2위 배출 (박혁서 교무)",
-    photos: [{ id: "photo-2018-goldenbell", alt: "KBS 골든벨 출전 사진", src: "" }],
-  },
-  {
-    id: "history-2021-radio",
-    title: "2021년 10월 10일 공오일 에프엠 뉴스 201회 깜짝 초대석 소개 이영주 선생님, 김현 선생님 출연 (김우찬 교무)",
-    photos: [{ id: "photo-2021-radio", alt: "공오일 에프엠 뉴스 출연 사진", src: "" }],
-  },
-  {
-    id: "history-2022-mbc",
-    title: "2022년 8월 23일 MBC 라디오 정해웅 교장 출연",
-    detail: "금정열린배움터 '배움에 나이가 있나요'",
-    photos: [{ id: "photo-2022-mbc", alt: "MBC 라디오 출연 사진", src: "" }],
-  },
-  {
-    id: "history-2022-kbs",
-    title: "2022년 10월 13일 KBS 생생투데이 방송 (안기재 교무)",
-    detail: "배움엔 나이가 없다! 공부하는 즐거움이 가득한 금정열린배움터",
-  },
-  {
-    id: "history-2022-poem",
-    title: "2022년 10월 17일 금정열린배움터 출신 학생 시집 출간 (박여진 교무)",
-    detail: "엄마의 꽁단보리밥, 손정화",
-    links: [{ id: "link-2022-poem", label: "관련 자료", href: "#" }],
-  },
-  { id: "history-2022-pnu-news", title: "2022년 11월 10일 채널 PNU 영상뉴스 취재 및 방송" },
-  { id: "history-2022-award", title: "2022년 12월 평생학습 활성화 평생학습도시 조성 표창 수상 (금정구청)" },
-  {
-    id: "history-2023-kbs",
-    title: "2023년 3월 20일 KBS 대담한K 정해웅 교장 출연",
-    detail: "'배움 전하는 야학' 금정열린배움터",
-    photos: [{ id: "photo-2023-kbs", alt: "KBS 대담한K 출연 사진", src: "" }],
-  },
-  {
-    id: "history-2023-forum",
-    title: "2023년 12월 7일 부산대 사회공헌포럼 정해웅 교장 금정열린배움터 소개 강연",
-    links: [{ id: "link-2023-forum", label: "강연 자료", href: "#" }],
-  },
-  {
-    id: "history-2023-song",
-    title: "2023년 12월 18일 금정열린배움터 교가 완성",
-    detail: "곡명 : 정성을 다하여",
-    links: [{ id: "link-2023-song", label: "교가 듣기", href: "#" }],
-  },
-  {
-    id: "history-2024-ktv",
-    title: "2024년 2월 19일 KTV 국민방송 국민 리포트 소개 (배건희 교무)",
-    links: [{ id: "link-2024-ktv", label: "방송 보기", href: "#" }],
-  },
-  { id: "history-2024-tbn", title: "2024년 2월 26일 부산시청자미디어센터 TBN 시민 리포트 소개" },
-  { id: "history-2024-kbs-radio", title: "2024년 5월 30일 KBS 라디오 시사 포커스 정해웅 교장 출연" },
-  {
-    id: "history-2025-song",
-    title: "2025년 1월 10일 교가 편곡 (빠른 ver)",
-    links: [{ id: "link-2025-song", label: "편곡 듣기", href: "#" }],
-  },
-  {
-    id: "history-2025-daedong",
-    title: "2025년 8월 22일 대동대학교와 산학협력 협약",
-    links: [{ id: "link-2025-daedong", label: "협약 자료", href: "#" }],
-  },
-  {
-    id: "history-2025-hackathon",
-    title: "2025년 8월 25일 야학어플개발팀 '손길모아' 창의융합SW해커톤 대상 수상 (부산대학교)",
-  },
-];
-
 const emptyForm: HistoryFormState = {
   title: "",
   detail: "",
@@ -160,15 +68,36 @@ const emptyForm: HistoryFormState = {
   photos: [],
 };
 
-function makeId(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.round(Math.random() * 100000)}`;
-}
-
 function normalizeHref(href: string) {
   const trimmed = href.trim();
   if (!trimmed) return "";
   if (/^(https?:\/\/|mailto:|tel:|\/|#)/.test(trimmed)) return trimmed;
   return `https://${trimmed}`;
+}
+
+function mapHistoryItem(item: SiteHistoryResponseDto): HistoryItem | null {
+  if (typeof item.id !== "number" || !item.title) return null;
+  const linkHref = normalizeHref(item.linkHref ?? "");
+
+  return {
+    id: item.id,
+    title: item.title,
+    detail: item.detail || undefined,
+    links: linkHref
+      ? [
+          {
+            id: `link-${item.id}`,
+            label: item.linkLabel ?? "",
+            href: linkHref,
+          },
+        ]
+      : undefined,
+    photos: item.photos?.map((photo, index) => ({
+      id: String(photo.id ?? `${item.id}-${index}`),
+      alt: photo.alt ?? item.title ?? "연혁 사진",
+      src: photo.url ?? "",
+    })),
+  };
 }
 
 function itemToForm(item: HistoryItem): HistoryFormState {
@@ -197,19 +126,46 @@ function readFileAsDataUrl(file: File) {
 }
 
 export default function HistoryPage() {
+  const queryClient = useQueryClient();
   const { status, user } = useAuthSession();
   const isAdmin = status === "authenticated" && user?.role === "ADMIN";
-  const [items, setItems] = useState<HistoryItem[]>(initialHistoryItems);
+  const historiesQuery = useQuery({
+    queryKey: queryKeys.siteContent.history(),
+    queryFn: getHistories,
+  });
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [form, setForm] = useState<HistoryFormState>(emptyForm);
   const [photoFileNames, setPhotoFileNames] = useState<string[]>([]);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  const items = useMemo(
+    () => historiesQuery.data?.history?.map(mapHistoryItem).filter((item): item is HistoryItem => item !== null) ?? [],
+    [historiesQuery.data],
+  );
 
   const editingItem = useMemo(
     () => items.find((item) => item.id === editingItemId) ?? null,
     [editingItemId, items],
   );
+
+  const refreshHistory = () => queryClient.invalidateQueries({ queryKey: queryKeys.siteContent.history() });
+
+  const createMutation = useMutation({
+    mutationFn: createHistory,
+    onSuccess: refreshHistory,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Parameters<typeof updateHistory>[1] }) =>
+      updateHistory({ historyId: id }, body),
+    onSuccess: refreshHistory,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteHistory({ historyId: id }),
+    onSuccess: refreshHistory,
+  });
 
   function openCreateEditor() {
     setEditingItemId(null);
@@ -246,11 +202,18 @@ export default function HistoryPage() {
     if (files.length === 0) return;
 
     const nextPhotos = await Promise.all(
-      files.map(async (file) => ({
-        id: makeId("photo"),
-        alt: file.name,
-        src: await readFileAsDataUrl(file),
-      })),
+      files.map(async (file) => {
+        const [previewSrc, uploaded] = await Promise.all([
+          readFileAsDataUrl(file),
+          uploadSiteContentImage(file, file.name),
+        ]);
+
+        return {
+          id: uploaded.fileId ?? `${file.name}-${Date.now()}`,
+          alt: file.name,
+          src: uploaded.url ?? previewSrc,
+        };
+      }),
     );
 
     setPhotoFileNames(files.map((file) => file.name));
@@ -268,41 +231,37 @@ export default function HistoryPage() {
     }));
   }
 
-  function handleDeleteItem() {
+  async function handleDeleteItem() {
     if (!editingItemId) return;
 
-    setItems((current) => current.filter((item) => item.id !== editingItemId));
+    await deleteMutation.mutateAsync(editingItemId);
     closeEditor();
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const title = form.title.trim();
     if (!title) return;
 
     const linkHref = normalizeHref(form.linkHref);
-    const nextItem: HistoryItem = {
-      id: editingItemId ?? makeId("history"),
+    const body = {
       title,
       detail: form.detail.trim() || undefined,
-      links: linkHref
-        ? [
-            {
-              id: editingItem?.links?.[0]?.id ?? makeId("link"),
-              label: form.linkLabel.trim(),
-              href: linkHref,
-            },
-          ]
+      linkLabel: linkHref ? form.linkLabel.trim() : undefined,
+      linkHref: linkHref || undefined,
+      photos: form.photos.length > 0
+        ? form.photos
+            .filter((photo) => photo.src)
+            .map((photo) => ({ url: photo.src, alt: photo.alt || title }))
         : undefined,
-      photos: form.photos.length > 0 ? form.photos.map((photo) => ({ ...photo, alt: photo.alt || title })) : undefined,
     };
 
-    setItems((current) =>
-      editingItemId
-        ? current.map((item) => (item.id === editingItemId ? nextItem : item))
-        : [...current, nextItem],
-    );
+    if (editingItemId) {
+      await updateMutation.mutateAsync({ id: editingItemId, body });
+    } else {
+      await createMutation.mutateAsync(body);
+    }
     closeEditor();
   }
 
@@ -355,8 +314,15 @@ export default function HistoryPage() {
             ) : null}
           </HeaderRow>
 
-          <TimelineList>
-            {items.map((item) => (
+          {historiesQuery.isLoading ? (
+            <EmptyState>연혁 정보를 불러오는 중입니다.</EmptyState>
+          ) : historiesQuery.isError ? (
+            <EmptyState>연혁 정보를 불러오지 못했습니다.</EmptyState>
+          ) : items.length === 0 ? (
+            <EmptyState>등록된 연혁이 없습니다.</EmptyState>
+          ) : (
+            <TimelineList>
+              {items.map((item) => (
               <TimelineItem key={item.id}>
                 <TimelineMarker aria-hidden="true" />
                 <TimelineBody>
@@ -405,8 +371,9 @@ export default function HistoryPage() {
                   ) : null}
                 </TimelineBody>
               </TimelineItem>
-            ))}
-          </TimelineList>
+              ))}
+            </TimelineList>
+          )}
         </Content>
       </Stage>
 
@@ -853,6 +820,17 @@ const DetailText = styled.p`
 
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize20};
+  }
+`;
+
+const EmptyState = styled.p`
+  margin: 0;
+  color: ${colors.placeholder};
+  font-size: ${typography.fontSize16};
+  line-height: ${typography.lineHeight150};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize24};
   }
 `;
 
