@@ -10,6 +10,7 @@ import type {
   UserListResponseDto,
   UserPathParamsDto,
   UserResponseDto,
+  TeacherContactResponseDto,
 } from "./user.dto";
 
 // 사용자 목록을 조회하는 요청
@@ -96,6 +97,14 @@ export async function removeUserPermission(
 export async function getAssignablePermissions() {
   const response = await authClient.get<PermissionDefinitionDto[]>(
     "/api/v1/permission-registry",
+  );
+  return response.data;
+}
+
+// 현재 활동 중인 교사 연락망을 조회하는 요청
+export async function getTeacherContacts() {
+  const response = await authClient.get<TeacherContactResponseDto[]>(
+    "/api/v1/teachers/contact-list",
   );
   return response.data;
 }

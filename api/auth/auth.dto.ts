@@ -4,6 +4,7 @@ export interface SignupRequestDto {
   email: string;
   profileImageUrl?: string;
   phoneNumber?: string;
+  residentRegistrationNumberPrefix?: string;
 }
 
 export interface LoginRequestDto {
@@ -44,3 +45,5 @@ export interface GoogleSignupRequestDto {
 export interface GoogleLoginRequestDto {
   tempToken: string;
 }
+
+export type AdminLoginRequestDto = LoginRequestDto;

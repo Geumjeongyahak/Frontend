@@ -14,3 +14,10 @@ export interface FileDownloadUrlResponseDto {
 export interface FilePathParamsDto {
   fileId: string;
 }
+
+export interface RegisterDriveFileRequestDto {
+  driveUrl: string;
+  originalName: string;
+  mimeType?: string;
+  fileSize?: number;
+}

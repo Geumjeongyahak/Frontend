@@ -3,6 +3,7 @@ import type {
   FileDownloadUrlResponseDto,
   FilePathParamsDto,
   FileUploadResponseDto,
+  RegisterDriveFileRequestDto,
 } from "./file.dto";
 
 function createMultipartFormData(file: Blob, filename?: string) {
@@ -17,11 +18,7 @@ function createMultipartFormData(file: Blob, filename?: string) {
   return formData;
 }
 
-async function uploadImage(
-  endpoint: string,
-  file: Blob,
-  filename?: string,
-) {
+async function uploadImage(endpoint: string, file: Blob, filename?: string) {
   const response = await authClient.post<FileUploadResponseDto>(
     endpoint,
     createMultipartFormData(file, filename),
@@ -48,6 +45,17 @@ export async function uploadProfileImage(file: Blob, filename?: string) {
 // 게시글 본문용 이미지를 업로드하는 요청
 export async function uploadPostImage(file: Blob, filename?: string) {
   return uploadImage("/api/v1/files/images/posts", file, filename);
+}
+
+// 사이트 콘텐츠 이미지를 업로드하는 요청
+export async function uploadSiteContentImage(file: Blob, filename?: string) {
+  return uploadImage("/api/v1/files/images/site-contents", file, filename);
+}
+
+// 프론트에서 Google Drive에 업로드한 파일 메타데이터를 등록하는 요청
+export async function registerDriveFile(body: RegisterDriveFileRequestDto) {
+  const response = await authClient.post<FileUploadResponseDto>("/api/v1/files/drive", body);
+  return response.data;
 }
 
 // 일반 첨부파일을 업로드하는 요청

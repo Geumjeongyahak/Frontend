@@ -16,6 +16,7 @@ import {
   assignSubjectTeacher,
   createSubject,
   getSubjects,
+  getUnassignedSubjects,
   updateSubject,
   updateSubjectSchedule,
 } from "./subject.api";
@@ -84,6 +85,24 @@ describe("subject.api", () => {
       period: 2,
       description: "Writing practice",
     });
+  });
+
+  it("returns unassigned subjects from the dedicated endpoint", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedPathname = "";
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/subjects/unassigned`, ({ request }) => {
+        observedPathname = new URL(request.url).pathname;
+        return HttpResponse.json(SUBJECT_LIST_RESPONSE);
+      }),
+    );
+
+    const response = await getUnassignedSubjects();
+
+    expect(response).toEqual(SUBJECT_LIST_RESPONSE);
+    expect(observedPathname).toBe("/api/v1/subjects/unassigned");
   });
 
   it("updates subject teacher and schedule through dedicated Swagger routes", async () => {

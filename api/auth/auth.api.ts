@@ -3,6 +3,7 @@ import publicClient from "../client/publicClient";
 import { clearTokens, setTokens } from "../client/tokenStorage";
 import type {
   AuthMessageResponseDto,
+  AdminLoginRequestDto,
   GoogleCallbackQueryParamsDto,
   GoogleLoginRequestDto,
   GoogleSignupRequestDto,
@@ -23,6 +24,16 @@ export async function signup(body: SignupRequestDto) {
 // 로그인 후 토큰을 발급받는 요청
 export async function login(body: LoginRequestDto) {
   const response = await publicClient.post<TokenResponseDto>("/api/v1/auth/login", body);
+  setTokens(response.data.accessToken, response.data.refreshToken);
+  return response.data;
+}
+
+// 관리자 로그인 후 토큰을 발급받는 요청
+export async function adminLogin(body: AdminLoginRequestDto) {
+  const response = await publicClient.post<TokenResponseDto>(
+    "/api/v1/auth/admin/login",
+    body,
+  );
   setTokens(response.data.accessToken, response.data.refreshToken);
   return response.data;
 }

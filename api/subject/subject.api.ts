@@ -17,6 +17,14 @@ export async function getSubjects(query?: SubjectListQueryParamsDto) {
   return response.data;
 }
 
+// 담당 교사가 배정되지 않은 과목 목록을 조회하는 요청
+export async function getUnassignedSubjects() {
+  const response = await authClient.get<SubjectDetailResponseDto[]>(
+    "/api/v1/subjects/unassigned",
+  );
+  return response.data;
+}
+
 // 새 과목을 생성하는 요청
 export async function createSubject(body: CreateSubjectRequestDto) {
   const response = await authClient.post<SubjectDetailResponseDto>("/api/v1/subjects", body);
