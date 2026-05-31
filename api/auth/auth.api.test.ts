@@ -20,6 +20,7 @@ import {
 
 import { getAccessToken, getRefreshToken, setTokens } from "../client/tokenStorage";
 import {
+  adminLogin,
   connectLocalAccount,
   googleLogin,
   googleSignup,
@@ -82,6 +83,28 @@ describe("auth.api", () => {
       pathname: "/api/v1/auth/login",
       body: DEFAULT_LOGIN_REQUEST,
     });
+  });
+
+  it("returns and stores tokens for admin login", async () => {
+    let observedBody: unknown;
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/auth/admin/login`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({
+          accessToken: VALID_ACCESS_TOKEN,
+          refreshToken: VALID_REFRESH_TOKEN,
+          tokenType: "Bearer",
+        });
+      }),
+    );
+
+    const response = await adminLogin(DEFAULT_LOGIN_REQUEST);
+
+    expect(response.accessToken).toBe(VALID_ACCESS_TOKEN);
+    expect(observedBody).toEqual(DEFAULT_LOGIN_REQUEST);
+    expect(getAccessToken()).toBe(VALID_ACCESS_TOKEN);
+    expect(getRefreshToken()).toBe(VALID_REFRESH_TOKEN);
   });
 
   it("returns tokens for a successful signup", async () => {

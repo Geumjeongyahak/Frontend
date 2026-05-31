@@ -1,4 +1,12 @@
-export type ChannelType = "NOTICE" | "CLASSROOM" | "DEPARTMENT" | "EVENT" | "CUSTOM" | string;
+export type ChannelType =
+  | "NOTICE"
+  | "EVENT"
+  | "RESOURCE"
+  | "CLASSROOM"
+  | "DEPARTMENT"
+  | "GUIDE"
+  | "CUSTOM"
+  | string;
 
 export type ChannelBindingType = "STANDALONE" | "DOMAIN_LINKED" | string;
 export type ChannelAccessLevel = "CLOSED" | "READ_ONLY" | "READ_COMMENT" | "READ_WRITE" | string;
@@ -17,6 +25,7 @@ export interface ChannelListQueryParamsDto {
 export interface CreateChannelRequestDto {
   name: string;
   description?: string;
+  channelType?: Extract<ChannelType, "NOTICE" | "EVENT" | "RESOURCE" | "GUIDE" | "CUSTOM">;
   accessLevel: ChannelAccessLevel;
   allowGuestRead?: boolean;
   isDefault?: boolean;

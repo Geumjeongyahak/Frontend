@@ -55,6 +55,13 @@ export interface UserResponseDto {
   updatedAt?: string;
 }
 
+export interface TeacherContactResponseDto {
+  id?: number;
+  name?: string;
+  classroomName?: string | null;
+  phoneNumber?: string;
+}
+
 export type UserListItemDto = UserResponseDto;
 
 export interface UserListResponseDto {

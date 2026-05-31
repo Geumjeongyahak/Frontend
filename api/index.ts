@@ -40,3 +40,18 @@ export * as subjectDto from "./subject/subject.dto";
 
 export * as userApi from "./user/user.api";
 export * as userDto from "./user/user.dto";
+
+export * as eventApi from "./event/event.api";
+export * as eventDto from "./event/event.dto";
+
+export * as meetingRecordApi from "./meetingRecord/meetingRecord.api";
+export * as meetingRecordDto from "./meetingRecord/meetingRecord.dto";
+
+export * as siteContentApi from "./siteContent/siteContent.api";
+export * as siteContentDto from "./siteContent/siteContent.dto";
+
+export * as teacherApplicationApi from "./teacherApplication/teacherApplication.api";
+export * as teacherApplicationDto from "./teacherApplication/teacherApplication.dto";
+
+export * as vendorApi from "./vendor/vendor.api";
+export * as vendorDto from "./vendor/vendor.dto";

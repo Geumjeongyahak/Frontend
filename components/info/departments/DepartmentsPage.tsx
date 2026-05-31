@@ -2,16 +2,26 @@
 
 import { type CSSProperties, type FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconEdit, IconPlus, IconX } from "@tabler/icons-react";
 import styled from "styled-components";
+import {
+  createDepartmentInfo,
+  deleteDepartmentInfo,
+  getDepartmentInfos,
+  updateDepartmentInfo,
+} from "@/api/siteContent/siteContent.api";
+import type { SiteContentDepartmentResponseDto } from "@/api/siteContent/siteContent.dto";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 type OrganizationMember = {
-  id: string;
+  id: number;
   name: string;
   title: string;
   responsibilities: string[];
+  isPrincipal?: boolean;
 };
 
 type DepartmentFormState = {
@@ -27,55 +37,11 @@ const sidebarItems = [
   { label: "행사 정보", href: "/info/events" },
 ];
 
-const initialPrincipal: OrganizationMember = {
-  id: "principal",
-  title: "교장",
-  name: "정해웅",
-  responsibilities: ["금정열린배움터의 전반적인 운영을 총괄"],
-};
-
-const initialDepartments: OrganizationMember[] = [
-  {
-    id: "academic-planning",
-    title: "교무기획부",
-    name: "",
-    responsibilities: ["야학 행사 계획 및 교무 선생님 보조"],
-  },
-  {
-    id: "education-research",
-    title: "교육연구부",
-    name: "",
-    responsibilities: ["신입 선생님 면접", "생일 및 참관, 연구 수업 관리", "각종 일지 관리"],
-  },
-  {
-    id: "general-affairs",
-    title: "총무부",
-    name: "",
-    responsibilities: ["야학 재정 관리"],
-  },
-  {
-    id: "life-safety",
-    title: "생활안전부",
-    name: "",
-    responsibilities: ["시설 안전 점검 및 수리", "비품 관리"],
-  },
-  {
-    id: "public-relations",
-    title: "홍보부",
-    name: "",
-    responsibilities: ["야학 홍보 및 학생, 교사 모집"],
-  },
-];
-
 const emptyDepartmentForm: DepartmentFormState = {
   title: "",
   name: "",
   responsibilities: "",
 };
-
-function makeId(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.round(Math.random() * 100000)}`;
-}
 
 function toForm(item: OrganizationMember): DepartmentFormState {
   return {
@@ -92,20 +58,70 @@ function toResponsibilities(value: string) {
     .filter(Boolean);
 }
 
+function mapOrganizationMember(
+  item: SiteContentDepartmentResponseDto | null | undefined,
+  isPrincipal = false,
+): OrganizationMember | null {
+  if (!item || typeof item.id !== "number" || !item.title) return null;
+
+  return {
+    id: item.id,
+    title: item.title,
+    name: item.name ?? "",
+    responsibilities: item.responsibilities ?? [],
+    isPrincipal,
+  };
+}
+
 export default function DepartmentsPage() {
+  const queryClient = useQueryClient();
   const { status, user } = useAuthSession();
   const isAdmin = status === "authenticated" && user?.role === "ADMIN";
-  const [principal, setPrincipal] = useState(initialPrincipal);
-  const [departments, setDepartments] = useState(initialDepartments);
+  const departmentsQuery = useQuery({
+    queryKey: queryKeys.siteContent.departments(),
+    queryFn: getDepartmentInfos,
+  });
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyDepartmentForm);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
+  const principal = useMemo(
+    () => mapOrganizationMember(departmentsQuery.data?.principal, true),
+    [departmentsQuery.data],
+  );
+
+  const departments = useMemo(
+    () =>
+      departmentsQuery.data?.departments
+        ?.map((item) => mapOrganizationMember(item))
+        .filter((item): item is OrganizationMember => item !== null) ?? [],
+    [departmentsQuery.data],
+  );
+
   const editingItem = useMemo(() => {
-    if (editingId === principal.id) return principal;
+    if (editingId === principal?.id) return principal;
     return departments.find((item) => item.id === editingId) ?? null;
   }, [departments, editingId, principal]);
+
+  const refreshDepartments = () =>
+    queryClient.invalidateQueries({ queryKey: queryKeys.siteContent.departments() });
+
+  const createMutation = useMutation({
+    mutationFn: createDepartmentInfo,
+    onSuccess: refreshDepartments,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Parameters<typeof updateDepartmentInfo>[1] }) =>
+      updateDepartmentInfo({ departmentInfoId: id }, body),
+    onSuccess: refreshDepartments,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteDepartmentInfo({ departmentInfoId: id }),
+    onSuccess: refreshDepartments,
+  });
 
   function openCreateEditor() {
     setEditingId(null);
@@ -134,31 +150,28 @@ export default function DepartmentsPage() {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
-  function handleDeleteItem() {
-    if (!editingId || editingId === principal.id) return;
-    setDepartments((current) => current.filter((item) => item.id !== editingId));
+  async function handleDeleteItem() {
+    if (!editingId || editingId === principal?.id) return;
+    await deleteMutation.mutateAsync(editingId);
     closeEditor();
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const title = form.title.trim();
     if (!title) return;
 
-    const nextItem: OrganizationMember = {
-      id: editingId ?? makeId("department"),
+    const body = {
       title,
       name: form.name.trim(),
       responsibilities: toResponsibilities(form.responsibilities),
     };
 
-    if (editingId === principal.id) {
-      setPrincipal(nextItem);
-    } else if (editingId) {
-      setDepartments((current) => current.map((item) => (item.id === editingId ? nextItem : item)));
+    if (editingId) {
+      await updateMutation.mutateAsync({ id: editingId, body });
     } else {
-      setDepartments((current) => [...current, nextItem]);
+      await createMutation.mutateAsync(body);
     }
 
     closeEditor();
@@ -213,12 +226,19 @@ export default function DepartmentsPage() {
             ) : null}
           </HeaderRow>
 
-          <OrganizationChart aria-label="금정열린배움터 조직 구성도">
-            <PrincipalGroup>
-              <MemberCard item={principal} isEditMode={isAdmin && isEditMode} onEdit={openEditEditor} />
-            </PrincipalGroup>
+          {departmentsQuery.isLoading ? (
+            <EmptyState>부서 정보를 불러오는 중입니다.</EmptyState>
+          ) : departmentsQuery.isError ? (
+            <EmptyState>부서 정보를 불러오지 못했습니다.</EmptyState>
+          ) : (
+            <OrganizationChart aria-label="금정열린배움터 조직 구성도">
+              {principal ? (
+                <PrincipalGroup>
+                  <MemberCard item={principal} isEditMode={isAdmin && isEditMode} onEdit={openEditEditor} />
+                </PrincipalGroup>
+              ) : null}
 
-            {departments.length > 0 ? (
+              {departments.length > 0 ? (
               <>
                 <ConnectorRow
                   aria-hidden="true"
@@ -239,10 +259,11 @@ export default function DepartmentsPage() {
                   ))}
                 </DepartmentGrid>
               </>
-            ) : (
-              <EmptyState>등록된 부서가 없습니다.</EmptyState>
-            )}
-          </OrganizationChart>
+              ) : (
+                <EmptyState>등록된 부서가 없습니다.</EmptyState>
+              )}
+            </OrganizationChart>
+          )}
         </Content>
       </Stage>
 
@@ -299,7 +320,7 @@ export default function DepartmentsPage() {
                 <SecondaryButton type="button" onClick={closeEditor}>
                   취소
                 </SecondaryButton>
-                {editingId && editingId !== principal.id ? (
+                {editingId && editingId !== principal?.id ? (
                   <DeleteButton type="button" onClick={handleDeleteItem}>
                     삭제
                   </DeleteButton>

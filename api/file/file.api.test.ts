@@ -17,7 +17,9 @@ import { setAccessToken } from "../client/tokenStorage";
 import {
   deleteAttachment,
   getAttachmentDownloadUrl,
+  registerDriveFile,
   uploadPurchaseItemImage,
+  uploadSiteContentImage,
 } from "./file.api";
 
 describe("file.api", () => {
@@ -54,6 +56,55 @@ describe("file.api", () => {
     });
 
     expect(response).toEqual(ATTACHMENT_DOWNLOAD_URL_RESPONSE);
+  });
+
+  it("uploads a site content image through the expected endpoint", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedPathname = "";
+    let observedContentType = "";
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/files/images/site-contents`, ({ request }) => {
+        observedPathname = new URL(request.url).pathname;
+        observedContentType = request.headers.get("content-type") ?? "";
+        return HttpResponse.json(FILE_UPLOAD_RESPONSE);
+      }),
+    );
+
+    const response = await uploadSiteContentImage(
+      new File(["image"], "history.png", { type: "image/png" }),
+      "history.png",
+    );
+
+    expect(response).toEqual(FILE_UPLOAD_RESPONSE);
+    expect(observedPathname).toBe("/api/v1/files/images/site-contents");
+    expect(observedContentType).toContain("multipart/form-data");
+  });
+
+  it("registers Google Drive file metadata", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedBody: unknown;
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/files/drive`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json(FILE_UPLOAD_RESPONSE);
+      }),
+    );
+
+    const body = {
+      driveUrl: "https://drive.google.com/file/d/abc123/view",
+      originalName: "handover.pdf",
+      mimeType: "application/pdf",
+      fileSize: 1024,
+    };
+
+    const response = await registerDriveFile(body);
+
+    expect(response).toEqual(FILE_UPLOAD_RESPONSE);
+    expect(observedBody).toEqual(body);
   });
 
   it("deletes an attachment through the expected endpoint", async () => {

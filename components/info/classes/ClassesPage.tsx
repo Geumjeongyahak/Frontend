@@ -2,15 +2,24 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { IconEdit, IconPlus, IconX } from "@tabler/icons-react";
 import styled from "styled-components";
+import {
+  createClassInfo,
+  deleteClassInfo,
+  getClassInfos,
+  updateClassInfo,
+} from "@/api/siteContent/siteContent.api";
+import type { SiteContentClassResponseDto } from "@/api/siteContent/siteContent.dto";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 type ClassGroupId = "weekday" | "weekendMorning" | "weekendAfternoon";
 
 type ClassItem = {
-  id: string;
+  id: number;
   groupId: ClassGroupId;
   name: string;
   description: string;
@@ -53,84 +62,11 @@ const classGroups: ClassGroup[] = [
   },
 ];
 
-const initialClasses: ClassItem[] = [
-  {
-    id: "weekday-cherry",
-    groupId: "weekday",
-    name: "벚꽃반",
-    description: "한글 기초 학습 (자모, 받침, 기본 낱말)",
-  },
-  {
-    id: "weekday-forsythia",
-    groupId: "weekday",
-    name: "개나리반",
-    description: "짧은 기본 문장 읽기·쓰기 학습 (초등 1단계 국어)",
-  },
-  {
-    id: "weekday-dandelion",
-    groupId: "weekday",
-    name: "민들레반",
-    description: "생활 문장 읽기·이해 및 기초 수학 학습 (초등 2단계 국어·수학)",
-  },
-  {
-    id: "weekday-camellia",
-    groupId: "weekday",
-    name: "동백반",
-    description: "초등 고학년 수준의 교과 학습 (초등 3단계 국어·수학·영어)",
-  },
-  {
-    id: "weekday-sunflower",
-    groupId: "weekday",
-    name: "해바라기반",
-    description: "초졸 검정고시 대비 학습 (국어·영어·수학·사회·과학)",
-  },
-  {
-    id: "weekday-chrysanthemum",
-    groupId: "weekday",
-    name: "국화반",
-    description: "중졸 검정고시 대비 학습 (국어·영어·수학·사회·과학)",
-  },
-  {
-    id: "weekend-sprout",
-    groupId: "weekendMorning",
-    name: "새싹반",
-    description: "영어 기초 학습 (알파벳, 파닉스, 기본 단어)",
-  },
-  {
-    id: "weekend-tree",
-    groupId: "weekendMorning",
-    name: "나무반",
-    description: "초등 영어 문장 읽기 학습 (초등 영어 과정, 문장 읽기)",
-  },
-  {
-    id: "weekend-fruit",
-    groupId: "weekendMorning",
-    name: "열매반",
-    description: "중등 영어 문법·독해 학습 (중등 영어 과정, 문법)",
-  },
-  {
-    id: "weekend-seed",
-    groupId: "weekendAfternoon",
-    name: "씨앗반",
-    description: "영어 기초 과정 학습 (기초 영어)",
-  },
-  {
-    id: "weekend-moon",
-    groupId: "weekendAfternoon",
-    name: "상현/하현/초승반",
-    description: "디지털 기초 활용 학습 (스마트폰 기능, 생활 앱 사용법)",
-  },
-];
-
 const emptyForm: ClassFormState = {
   groupId: "weekday",
   name: "",
   description: "",
 };
-
-function makeId(prefix: string) {
-  return `${prefix}-${Date.now()}-${Math.round(Math.random() * 100000)}`;
-}
 
 function toForm(item: ClassItem): ClassFormState {
   return {
@@ -147,19 +83,71 @@ function toDescriptionItems(value: string) {
     .filter(Boolean);
 }
 
+function mapClassItems(
+  groupId: ClassGroupId,
+  items: SiteContentClassResponseDto[] | undefined,
+) {
+  return (
+    items
+      ?.map((item) => {
+        if (typeof item.id !== "number" || !item.name) return null;
+
+        return {
+          id: item.id,
+          groupId,
+          name: item.name,
+          description: item.description?.join("\n") ?? "",
+        };
+      })
+      .filter((item): item is ClassItem => item !== null) ?? []
+  );
+}
+
 export default function ClassesPage() {
+  const queryClient = useQueryClient();
   const { status, user } = useAuthSession();
   const isAdmin = status === "authenticated" && user?.role === "ADMIN";
-  const [classes, setClasses] = useState(initialClasses);
+  const classesQuery = useQuery({
+    queryKey: queryKeys.siteContent.classes(),
+    queryFn: getClassInfos,
+  });
   const [isEditMode, setIsEditMode] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<ClassFormState>(emptyForm);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  const classes = useMemo(
+    () => [
+      ...mapClassItems("weekday", classesQuery.data?.weekday),
+      ...mapClassItems("weekendMorning", classesQuery.data?.weekendMorning),
+      ...mapClassItems("weekendAfternoon", classesQuery.data?.weekendAfternoon),
+    ],
+    [classesQuery.data],
+  );
 
   const editingItem = useMemo(
     () => classes.find((item) => item.id === editingId) ?? null,
     [classes, editingId],
   );
+
+  const refreshClasses = () =>
+    queryClient.invalidateQueries({ queryKey: queryKeys.siteContent.classes() });
+
+  const createMutation = useMutation({
+    mutationFn: createClassInfo,
+    onSuccess: refreshClasses,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Parameters<typeof updateClassInfo>[1] }) =>
+      updateClassInfo({ classInfoId: id }, body),
+    onSuccess: refreshClasses,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => deleteClassInfo({ classInfoId: id }),
+    onSuccess: refreshClasses,
+  });
 
   function openCreateEditor() {
     setEditingId(null);
@@ -188,31 +176,30 @@ export default function ClassesPage() {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
-  function handleDeleteItem() {
+  async function handleDeleteItem() {
     if (!editingId) return;
-    setClasses((current) => current.filter((item) => item.id !== editingId));
+    await deleteMutation.mutateAsync(editingId);
     closeEditor();
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const name = form.name.trim();
     const descriptionItems = toDescriptionItems(form.description);
     if (!name || descriptionItems.length === 0) return;
 
-    const nextItem: ClassItem = {
-      id: editingId ?? makeId("class"),
+    const body = {
       groupId: form.groupId,
       name,
-      description: descriptionItems.join("\n"),
+      description: descriptionItems,
     };
 
-    setClasses((current) =>
-      editingId
-        ? current.map((item) => (item.id === editingId ? nextItem : item))
-        : [...current, nextItem],
-    );
+    if (editingId) {
+      await updateMutation.mutateAsync({ id: editingId, body });
+    } else {
+      await createMutation.mutateAsync(body);
+    }
     closeEditor();
   }
 
@@ -265,31 +252,37 @@ export default function ClassesPage() {
             ) : null}
           </HeaderRow>
 
-          <ClassLayout aria-label="금정열린배움터 반 정보">
-            <ClassColumn>
-              <ClassSection
-                group={classGroups[0]}
-                items={classes.filter((item) => item.groupId === "weekday")}
-                isEditMode={isAdmin && isEditMode}
-                onEdit={openEditEditor}
-              />
-            </ClassColumn>
-            <ColumnDivider aria-hidden="true" />
-            <ClassColumn>
-              <ClassSection
-                group={classGroups[1]}
-                items={classes.filter((item) => item.groupId === "weekendMorning")}
-                isEditMode={isAdmin && isEditMode}
-                onEdit={openEditEditor}
-              />
-              <ClassSection
-                group={classGroups[2]}
-                items={classes.filter((item) => item.groupId === "weekendAfternoon")}
-                isEditMode={isAdmin && isEditMode}
-                onEdit={openEditEditor}
-              />
-            </ClassColumn>
-          </ClassLayout>
+          {classesQuery.isLoading ? (
+            <EmptyState>반 정보를 불러오는 중입니다.</EmptyState>
+          ) : classesQuery.isError ? (
+            <EmptyState>반 정보를 불러오지 못했습니다.</EmptyState>
+          ) : (
+            <ClassLayout aria-label="금정열린배움터 반 정보">
+              <ClassColumn>
+                <ClassSection
+                  group={classGroups[0]}
+                  items={classes.filter((item) => item.groupId === "weekday")}
+                  isEditMode={isAdmin && isEditMode}
+                  onEdit={openEditEditor}
+                />
+              </ClassColumn>
+              <ColumnDivider aria-hidden="true" />
+              <ClassColumn>
+                <ClassSection
+                  group={classGroups[1]}
+                  items={classes.filter((item) => item.groupId === "weekendMorning")}
+                  isEditMode={isAdmin && isEditMode}
+                  onEdit={openEditEditor}
+                />
+                <ClassSection
+                  group={classGroups[2]}
+                  items={classes.filter((item) => item.groupId === "weekendAfternoon")}
+                  isEditMode={isAdmin && isEditMode}
+                  onEdit={openEditEditor}
+                />
+              </ClassColumn>
+            </ClassLayout>
+          )}
         </Content>
       </Stage>
 

@@ -14,6 +14,7 @@ import { setAccessToken } from "../client/tokenStorage";
 
 import {
   getAssignablePermissions,
+  getTeacherContacts,
   getUsers,
   removeUserPermission,
   updateCurrentUser,
@@ -127,5 +128,35 @@ describe("user.api", () => {
     await expect(getAssignablePermissions()).resolves.toEqual([
       expect.objectContaining({ permissionCode: "post:manage:*" }),
     ]);
+  });
+
+  it("returns teacher contacts with authorization header", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedAuthorizationHeader: string | null = null;
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/teachers/contact-list`, ({ request }) => {
+        observedAuthorizationHeader = request.headers.get("authorization");
+        return HttpResponse.json([
+          {
+            id: 1,
+            name: "Teacher",
+            classroomName: "국화반",
+            phoneNumber: "010-1234-5678",
+          },
+        ]);
+      }),
+    );
+
+    const response = await getTeacherContacts();
+
+    expect(response).toEqual([
+      expect.objectContaining({
+        id: 1,
+        name: "Teacher",
+      }),
+    ]);
+    expect(observedAuthorizationHeader).toBe(`Bearer ${VALID_ACCESS_TOKEN}`);
   });
 });
