@@ -60,7 +60,7 @@ describe("student.api", () => {
       name: "Park Student",
       phoneNumber: "010-4444-5555",
       description: "New student",
-      classroomId: 2,
+      classroomIds: [2],
     });
 
     expect(response.name).toBe("Park Student");
@@ -69,7 +69,7 @@ describe("student.api", () => {
       name: "Park Student",
       phoneNumber: "010-4444-5555",
       description: "New student",
-      classroomId: 2,
+      classroomIds: [2],
     });
   });
 

@@ -30,6 +30,13 @@ export const queryKeys = {
   students: {
     list: (params?: { name?: string; status?: string; classroomId?: number }) =>
       ["students", "list", params ?? {}] as const,
+    contactClasses: () => ["students", "contact-classes"] as const,
+  },
+  teachers: {
+    contactList: () => ["teachers", "contact-list"] as const,
+  },
+  vendors: {
+    list: () => ["vendors", "list"] as const,
   },
   requests: {
     lessonExchangeList: () => ["lesson-exchange-requests"] as const,

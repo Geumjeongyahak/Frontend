@@ -79,11 +79,7 @@ export const CompleteEditButton = styled.button<{ $variant?: "danger" | "default
   min-height: 2.125rem;
   border: 1px solid
     ${({ $variant }) =>
-      $variant === "muted"
-        ? colors.border
-        : $variant === "danger"
-          ? colors.notice
-          : colors.point};
+      $variant === "muted" ? colors.border : $variant === "danger" ? colors.notice : colors.point};
   border-radius: ${radii.radius15};
   padding: 0.625rem ${spacing.space20};
   background-color: ${({ $variant }) =>

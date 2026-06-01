@@ -13,6 +13,7 @@ import {
   studentHandlers,
   subjectHandlers,
   userHandlers,
+  vendorHandlers,
 } from "./handlers";
 
 export const server = setupServer(
@@ -28,4 +29,5 @@ export const server = setupServer(
   ...studentHandlers,
   ...subjectHandlers,
   ...userHandlers,
+  ...vendorHandlers,
 );

@@ -10,3 +10,4 @@ export { requestHandlers } from "./request.handlers";
 export { studentHandlers } from "./student.handlers";
 export { subjectHandlers } from "./subject.handlers";
 export { userHandlers } from "./user.handlers";
+export { vendorHandlers } from "./vendor.handlers";
