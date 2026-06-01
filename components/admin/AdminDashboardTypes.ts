@@ -69,10 +69,10 @@ export type PurchaseCreateState = {
   title: string;
   content: string;
   classroomId: string;
-  advancePaymentRequestedAmount: string;
   itemName: string;
+  itemQuantity: string;
   itemReason: string;
-  itemExpectedPrice: string;
+  itemPaymentType: "PREPAID" | "ACTUAL";
 };
 
 export type PermissionFormState = {

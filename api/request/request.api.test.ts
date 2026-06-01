@@ -17,8 +17,12 @@ import { setAccessToken } from "../client/tokenStorage";
 
 import {
   approvePurchaseRequest,
+  createPurchaseRequest,
   createLessonExchangeRequest,
   getAbsenceRequests,
+  reportPurchase,
+  updateAdminPurchaseItemReceipts,
+  updatePurchaseItemReceipts,
 } from "./request.api";
 
 describe("request.api", () => {
@@ -115,6 +119,155 @@ describe("request.api", () => {
     expect(response.status).toBe("APPROVED");
     expect(observedPathname).toBe("/api/v1/admin/purchase-requests/4/approve");
     expect(observedBody).toEqual({ note: "승인합니다." });
+  });
+
+  it("creates a purchase request with payment type and without expected price", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedBody: unknown;
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/purchase-requests`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({ id: 21, status: "PENDING" });
+      }),
+    );
+
+    await createPurchaseRequest({
+      title: "교재 결제 신청",
+      content: "신청자: 홍길동",
+      classroomId: 1,
+      items: [
+        {
+          name: "국어 교재",
+          quantity: 3,
+          reason: "수업 교재",
+          paymentType: "PREPAID",
+        },
+      ],
+    });
+
+    expect(observedBody).toEqual({
+      title: "교재 결제 신청",
+      content: "신청자: 홍길동",
+      classroomId: 1,
+      items: [
+        {
+          name: "국어 교재",
+          quantity: 3,
+          reason: "수업 교재",
+          paymentType: "PREPAID",
+        },
+      ],
+    });
+  });
+
+  it("reports purchase completion with vendor, item names, amount, and optional receipt ids", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedBody: unknown;
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/purchase-requests/4/report`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({ id: 4, status: "PURCHASED" });
+      }),
+    );
+
+    await reportPurchase(
+      { requestId: 4 },
+      {
+        transactions: [
+          {
+            vendorId: 2,
+            itemNames: ["국어 교재", "수학 교재"],
+            amount: 45000,
+            receiptFileId: "11111111-1111-1111-1111-111111111111",
+          },
+        ],
+      },
+    );
+
+    expect(observedBody).toEqual({
+      transactions: [
+        {
+          vendorId: 2,
+          itemNames: ["국어 교재", "수학 교재"],
+          amount: 45000,
+          receiptFileId: "11111111-1111-1111-1111-111111111111",
+        },
+      ],
+    });
+  });
+
+  it("updates purchase item receipts through the requester endpoint", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedPathname = "";
+    let observedBody: unknown;
+
+    server.use(
+      http.post(
+        `${API_BASE_URL}/api/v1/purchase-requests/4/item-receipts`,
+        async ({ request }) => {
+          observedPathname = new URL(request.url).pathname;
+          observedBody = await request.json();
+          return HttpResponse.json({ id: 4, status: "PURCHASED" });
+        },
+      ),
+    );
+
+    await updatePurchaseItemReceipts(
+      { requestId: 4 },
+      {
+        transactions: [
+          {
+            vendorId: 2,
+            itemNames: ["국어 교재"],
+            amount: 15000,
+          },
+        ],
+      },
+    );
+
+    expect(observedPathname).toBe("/api/v1/purchase-requests/4/item-receipts");
+    expect(observedBody).toEqual({
+      transactions: [
+        {
+          vendorId: 2,
+          itemNames: ["국어 교재"],
+          amount: 15000,
+        },
+      ],
+    });
+  });
+
+  it("updates purchase item receipts through the admin endpoint", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedPathname = "";
+
+    server.use(
+      http.patch(`${API_BASE_URL}/api/v1/admin/purchase-requests/4/item-receipts`, ({ request }) => {
+        observedPathname = new URL(request.url).pathname;
+        return HttpResponse.json({ id: 4, status: "PURCHASED" });
+      }),
+    );
+
+    await updateAdminPurchaseItemReceipts(
+      { requestId: 4 },
+      {
+        transactions: [
+          {
+            vendorId: 2,
+            itemNames: ["국어 교재"],
+            amount: 15000,
+          },
+        ],
+      },
+    );
+
+    expect(observedPathname).toBe("/api/v1/admin/purchase-requests/4/item-receipts");
   });
 
   it("throws when purchase approval fails", async () => {

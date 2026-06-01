@@ -7,12 +7,13 @@ import styled from "styled-components";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { createPurchaseRequest } from "@/api/request/request.api";
 import type { CreatePurchaseRequestDto } from "@/api/request/request.dto";
+import { getVendors } from "@/api/vendor/vendor.api";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
-const vendorNames = ["예소디자인", "목민서관", "지성문구", "마트임"] as const;
+const fallbackVendorNames = ["예소디자인", "목민서관", "지성문구", "마트"] as const;
 
 type FinanceItemForm = {
   id: number;
@@ -43,8 +44,23 @@ export default function FinanceRequestCreatePage() {
     queryFn: () => getClassrooms({ page: 0, size: 100 }),
     retry: false,
   });
+  const { data: vendorData } = useQuery({
+    queryKey: queryKeys.vendors.list(),
+    queryFn: () => getVendors(),
+    retry: false,
+  });
 
   const classrooms = useMemo(() => classroomData?.content ?? [], [classroomData]);
+  const vendorBalances = useMemo(
+    () =>
+      vendorData?.length
+        ? vendorData.map((vendor) => ({
+            name: vendor.name ?? "-",
+            balance: vendor.balance,
+          }))
+        : fallbackVendorNames.map((name) => ({ name, balance: undefined })),
+    [vendorData],
+  );
 
   const mutation = useMutation({
     mutationFn: (body: CreatePurchaseRequestDto) => createPurchaseRequest(body),
@@ -121,7 +137,7 @@ export default function FinanceRequestCreatePage() {
       .map((item, index) => {
         const reason = item.reason ? ` - ${item.reason}` : "";
         const quantity = typeof item.quantity === "number" ? ` ${item.quantity}개` : "";
-        const paymentType = item.paymentType === "PREPAID" ? "선 결제" : "실 결제";
+        const paymentType = item.paymentType === "PREPAID" ? "선금 결제" : "실 결제";
 
         return `${index + 1}. ${item.name}${quantity} / ${paymentType}${reason}`;
       })
@@ -133,7 +149,9 @@ export default function FinanceRequestCreatePage() {
       classroomId: Number(classroomId),
       items: normalizedItems.map((item) => ({
         name: item.name,
+        quantity: item.quantity ?? 1,
         reason: item.reason,
+        paymentType: item.paymentType,
       })),
     });
   }
@@ -191,10 +209,14 @@ export default function FinanceRequestCreatePage() {
               <SectionTitle>현재 거래처별 잔액</SectionTitle>
               <VendorBalanceTable>
                 <tbody>
-                  {vendorNames.map((vendorName) => (
-                    <tr key={vendorName}>
-                      <th scope="row">{vendorName}</th>
-                      <td>-</td>
+                  {vendorBalances.map((vendor) => (
+                    <tr key={vendor.name}>
+                      <th scope="row">{vendor.name}</th>
+                      <td>
+                        {typeof vendor.balance === "number"
+                          ? `${vendor.balance.toLocaleString()}원`
+                          : "-"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -256,7 +278,7 @@ export default function FinanceRequestCreatePage() {
                               }
                             }}
                           />
-                          <span>선 결제</span>
+                          <span>선금 결제</span>
                         </PaymentTypeOption>
                         <PaymentTypeOption>
                           <input

@@ -24,6 +24,9 @@ export const queryKeys = {
   classrooms: {
     list: () => ["classrooms", "list"] as const,
   },
+  vendors: {
+    list: () => ["vendors", "list"] as const,
+  },
   students: {
     list: (params?: { name?: string; status?: string; classroomId?: number }) =>
       ["students", "list", params ?? {}] as const,

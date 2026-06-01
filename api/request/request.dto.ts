@@ -6,6 +6,7 @@ export type PurchaseRequestStatus =
   | "PURCHASED"
   | "CONFIRMED"
   | "REJECTED";
+export type PaymentType = "PREPAID" | "ACTUAL";
 
 export interface RequestStatusQueryParamsDto {
   status?: RequestStatus;
@@ -66,30 +67,29 @@ export interface CreatePurchaseRequestDto {
   title: string;
   content: string;
   classroomId: number;
-  advancePaymentRequestedAmount?: number;
-  receiptFileIds?: string[];
   items: PurchaseRequestItemDto[];
 }
 
 export interface PurchaseRequestItemDto {
   name: string;
+  quantity: number;
   reason?: string;
-  expectedPrice?: number;
+  paymentType: PaymentType;
 }
 
-export interface PurchaseRequestItemReportDto {
-  itemId: number;
-  price: number;
+export interface PurchaseTransactionReportDto {
+  vendorId: number;
+  itemNames: string[];
+  amount: number;
+  receiptFileId?: string;
 }
 
 export interface ReportPurchaseRequestDto {
-  items: PurchaseRequestItemReportDto[];
-  receiptFileIds?: string[];
+  transactions: PurchaseTransactionReportDto[];
 }
 
 export interface ReviewPurchaseRequestDto {
   note: string;
-  advancePaymentApprovedAmount?: number;
 }
 
 export interface RequestReconfirmationResponseDto {
@@ -99,19 +99,19 @@ export interface RequestReconfirmationResponseDto {
 export interface PurchaseRequestItemResponseDto {
   id?: number;
   name?: string;
+  quantity?: number;
   reason?: string;
-  expectedPrice?: number;
-  actualPrice?: number;
+  paymentType?: PaymentType;
 }
 
-export interface PurchaseRequestReceiptResponseDto {
+export interface PurchaseTransactionResponseDto {
   id?: number;
-  fileId?: string;
-  fileName?: string;
-  originalName?: string;
-  ext?: string;
-  fileUrl?: string;
-  url?: string;
+  vendorId?: number;
+  vendorName?: string;
+  itemNames?: string[];
+  amount?: number;
+  receiptFileId?: string;
+  receiptFileUrl?: string;
 }
 
 export interface PurchaseRequestSummaryResponseDto {
@@ -120,8 +120,6 @@ export interface PurchaseRequestSummaryResponseDto {
   requestedByName?: string;
   title?: string;
   totalPrice?: number;
-  advancePaymentRequestedAmount?: number;
-  advancePaymentApprovedAmount?: number;
   status?: PurchaseRequestStatus;
   createdAt?: string;
 }
@@ -130,12 +128,18 @@ export interface PurchaseRequestResponseDto extends PurchaseRequestSummaryRespon
   classroomId?: number;
   requestedById?: number;
   content?: string;
+  vendorName?: string;
+  vendorBalances?: {
+    vendorId?: number;
+    vendorName?: string;
+    balance?: number;
+  }[];
   approvalAt?: string;
   approvalByName?: string;
   purchasedAt?: string;
   note?: string;
   items?: PurchaseRequestItemResponseDto[];
-  receipts?: PurchaseRequestReceiptResponseDto[];
+  transactions?: PurchaseTransactionResponseDto[];
 }
 
 export type PurchaseRequestListItemDto = PurchaseRequestResponseDto;
