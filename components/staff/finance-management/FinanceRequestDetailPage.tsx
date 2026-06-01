@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { IconDownload, IconFilePlus } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -11,16 +11,18 @@ import {
   deletePurchaseRequest,
   getPurchaseRequestDetail,
   reportPurchase,
+  updateAdminPurchaseItemReceipts,
+  updatePurchaseItemReceipts,
 } from "@/api/request/request.api";
 import type {
   PurchaseRequestItemResponseDto,
   PurchaseRequestResponseDto,
   PurchaseRequestStatus,
 } from "@/api/request/request.dto";
+import { getVendors } from "@/api/vendor/vendor.api";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
-import { financeReceiptToGoogleDrive } from "@/lib/googleDrive/financeReceiptToGoogleDrive";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
@@ -31,24 +33,16 @@ type FinanceRequestDetailPageProps = {
 type PaymentType = "PREPAID" | "ACTUAL";
 
 type VendorBalance = {
+  vendorId?: number;
   vendorName?: string;
   balance?: number;
-  totalAmount?: number;
 };
 
-type ExtendedPurchaseItem = PurchaseRequestItemResponseDto & {
-  quantity?: number;
-  paymentType?: PaymentType;
-  vendorName?: string;
-  purchaseDate?: string;
-};
+type ExtendedPurchaseItem = PurchaseRequestItemResponseDto;
 
-type ExtendedPurchaseRequest = PurchaseRequestResponseDto & {
-  vendorName?: string;
-  vendorBalances?: VendorBalance[];
-};
+type ExtendedPurchaseRequest = PurchaseRequestResponseDto;
 
-const vendorNames = ["예소디자인", "목민서관", "지성문구", "마트"] as const;
+const fallbackVendorNames = ["예소디자인", "목민서관", "지성문구", "마트"] as const;
 
 type EditableItem = {
   id: number;
@@ -56,6 +50,18 @@ type EditableItem = {
   quantity: string;
   reason: string;
   paymentType: PaymentType;
+};
+
+type ReportItem = {
+  itemId: number;
+  vendorId: string;
+  vendorName: string;
+  name: string;
+  price: string;
+  receiptFile: File | null;
+  receiptFileName: string;
+  receiptFileId?: string;
+  receiptFileUrl?: string;
 };
 
 const statusLabels: Record<PurchaseRequestStatus, string> = {
@@ -71,7 +77,7 @@ function getStatusLabel(status?: PurchaseRequestStatus) {
 }
 
 function getPaymentTypeLabel(paymentType?: PaymentType) {
-  if (paymentType === "PREPAID") return "선 결제";
+  if (paymentType === "PREPAID") return "선금 결제";
   if (paymentType === "ACTUAL") return "실 결제";
   return "-";
 }
@@ -101,18 +107,81 @@ function getReceiptName(receipt: {
   originalName?: string;
   ext?: string;
   fileId?: string;
+  receiptFileId?: string;
 }) {
   if (receipt.fileName) {
     return receipt.fileName;
   }
 
   if (!receipt.originalName) {
-    return receipt.fileId ?? "영수증";
+    return receipt.fileId ?? receipt.receiptFileId ?? "영수증";
   }
 
   return receipt.ext && !receipt.originalName.endsWith(`.${receipt.ext}`)
     ? `${receipt.originalName}.${receipt.ext}`
     : receipt.originalName;
+}
+
+function mapPurchaseItemsToEditableItems(items?: PurchaseRequestItemResponseDto[]) {
+  return (items ?? []).map((item, index) => {
+    const extendedItem = item as ExtendedPurchaseItem;
+
+    return {
+      id: item.id ?? index + 1,
+      name: item.name ?? "",
+      quantity: typeof extendedItem.quantity === "number" ? String(extendedItem.quantity) : "1",
+      reason: item.reason ?? "",
+      paymentType: extendedItem.paymentType ?? "ACTUAL",
+    };
+  });
+}
+
+function mapPurchaseItemsToReportItems(purchase?: ExtendedPurchaseRequest): ReportItem[] {
+  if (purchase?.transactions?.length) {
+    return purchase.transactions.map((transaction, index) => {
+      const item = findPurchaseItemForTransaction(transaction.itemNames, purchase.items);
+
+      return {
+        itemId: transaction.id ?? item?.id ?? index + 1,
+        vendorId: typeof transaction.vendorId === "number" ? String(transaction.vendorId) : "",
+        vendorName: transaction.vendorName ?? "",
+        name: transaction.itemNames?.join(", ") || item?.name || "",
+        price: typeof transaction.amount === "number" ? String(transaction.amount) : "0",
+        receiptFile: null,
+        receiptFileName:
+          transaction.receiptFileId || transaction.receiptFileUrl
+            ? getReceiptName({ receiptFileId: transaction.receiptFileId })
+            : "",
+        receiptFileId: transaction.receiptFileId,
+        receiptFileUrl: transaction.receiptFileUrl,
+      };
+    });
+  }
+
+  return (purchase?.items ?? [])
+    .filter((item) => typeof item.id === "number")
+    .map((item) => ({
+      itemId: item.id ?? 0,
+      vendorId: "",
+      vendorName: purchase?.vendorName ?? "",
+      name: item.name ?? "",
+      price: "0",
+      receiptFile: null,
+      receiptFileName: "",
+    }));
+}
+
+function findPurchaseItemForTransaction(
+  transactionItemNames?: string[],
+  items?: PurchaseRequestItemResponseDto[],
+) {
+  return items?.find((item) => {
+    if (!item.name) {
+      return false;
+    }
+
+    return transactionItemNames?.some((name) => name.trim() === item.name);
+  });
 }
 
 export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDetailPageProps) {
@@ -123,17 +192,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const [editTitle, setEditTitle] = useState("");
   const [editClassroomName, setEditClassroomName] = useState("");
   const [editItems, setEditItems] = useState<EditableItem[]>([]);
-  const [reportItems, setReportItems] = useState<
-    {
-      itemId: number;
-      vendorName: string;
-      name: string;
-      price: string;
-      purchaseDate: string;
-      receiptFile: File | null;
-      receiptFileName: string;
-    }[]
-  >([]);
+  const [reportItems, setReportItems] = useState<ReportItem[]>([]);
+  const [isReportEditing, setIsReportEditing] = useState(false);
   const {
     data: request,
     isLoading,
@@ -142,6 +202,13 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     queryKey: queryKeys.requests.purchaseDetail(requestId),
     queryFn: () => getPurchaseRequestDetail({ requestId }),
     retry: false,
+  });
+  const { data: vendorData } = useQuery({
+    queryKey: queryKeys.vendors.list(),
+    queryFn: () => getVendors(),
+    retry: false,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const deleteMutation = useMutation({
@@ -153,137 +220,142 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     },
   });
 
-  useEffect(() => {
-    if (!request) {
-      return;
-    }
-
-    setEditTitle(request.title ?? "");
-    setEditClassroomName(request.classroomName ?? "");
-    setEditItems(
-      (request.items ?? []).map((item, index) => {
-        const extendedItem = item as ExtendedPurchaseItem;
-
-        return {
-          id: item.id ?? index + 1,
-          name: item.name ?? "",
-          quantity: typeof extendedItem.quantity === "number" ? String(extendedItem.quantity) : "1",
-          reason: item.reason ?? "",
-          paymentType: extendedItem.paymentType ?? "ACTUAL",
-        };
-      }),
-    );
-  }, [request]);
-
-  useEffect(() => {
-    if (!request?.items?.length) {
-      setReportItems([]);
-      return;
-    }
-
-    const purchase = request as ExtendedPurchaseRequest;
-    setReportItems(
-      (purchase.items ?? [])
-        .filter((item) => typeof item.id === "number")
-        .map((item) => ({
-          itemId: item.id ?? 0,
-          vendorName: (item as ExtendedPurchaseItem).vendorName ?? purchase.vendorName ?? "",
-          name: item.name ?? "",
-          price: typeof item.actualPrice === "number" ? String(item.actualPrice) : "",
-          purchaseDate: (item as ExtendedPurchaseItem).purchaseDate ?? "",
-          receiptFile: null,
-          receiptFileName: "",
-        })),
-    );
-  }, [request]);
+  const purchase = request as ExtendedPurchaseRequest | undefined;
+  const initialEditItems = useMemo(
+    () => mapPurchaseItemsToEditableItems(request?.items),
+    [request?.items],
+  );
+  const initialReportItems = useMemo(() => mapPurchaseItemsToReportItems(purchase), [purchase]);
+  const activeReportItems = reportItems.length ? reportItems : initialReportItems;
 
   const reportMutation = useMutation({
     mutationFn: async () => {
-      const receiptFileIds: string[] = [];
-
       const uploadedReceiptIds = await Promise.all(
-        reportItems.map(async (item) => {
+        activeReportItems.map(async (item) => {
           if (!item.receiptFile) {
             return null;
           }
 
-          const [, apiUploaded] = await Promise.all([
-            financeReceiptToGoogleDrive(item.receiptFile),
-            uploadPurchaseItemImage(item.receiptFile, item.receiptFile.name),
-          ]);
-
-          return apiUploaded.fileId ?? null;
+          const uploaded = await uploadPurchaseItemImage(item.receiptFile, item.receiptFile.name);
+          return uploaded.fileId ?? null;
         }),
       );
-      receiptFileIds.push(
-        ...uploadedReceiptIds.filter((fileId): fileId is string => Boolean(fileId)),
-      );
 
-      return reportPurchase(
-        { requestId },
-        {
-          items: reportItems.map((item) => ({
-            itemId: item.itemId,
-            price: Number(item.price),
-          })),
-          ...(receiptFileIds.length ? { receiptFileIds } : {}),
-        },
-      );
+      const body = {
+        transactions: activeReportItems.map((item, index) => ({
+          vendorId: Number(item.vendorId),
+          itemNames: item.name
+            .split(",")
+            .map((name) => name.trim())
+            .filter(Boolean),
+          amount: Number(item.price),
+          ...(uploadedReceiptIds[index] || item.receiptFileId
+            ? { receiptFileId: uploadedReceiptIds[index] ?? item.receiptFileId }
+            : {}),
+        })),
+      };
+
+      if (isReportEditing) {
+        return user?.role === "ADMIN"
+          ? updateAdminPurchaseItemReceipts({ requestId }, body)
+          : updatePurchaseItemReceipts({ requestId }, body);
+      }
+
+      return reportPurchase({ requestId }, body);
     },
     onSuccess: () => {
+      setIsReportEditing(false);
+      setReportItems([]);
       queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseDetail(requestId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseList() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.list() });
     },
   });
 
-  const purchase = request as ExtendedPurchaseRequest | undefined;
-  const detailItems = purchase?.items?.length
-    ? purchase.items.map((item, index) => {
-        const extendedItem = item as ExtendedPurchaseItem;
-        const receipt = purchase.receipts?.[index];
+  const detailItems = purchase?.transactions?.length
+    ? purchase.transactions.map((transaction, index) => {
+        const item = findPurchaseItemForTransaction(transaction.itemNames, purchase.items);
+
         return {
-          id: item.id ?? index,
-          name: item.name ?? "-",
-          reason: item.reason ?? purchase.content ?? "-",
-          quantity: extendedItem.quantity,
-          paymentType: extendedItem.paymentType,
-          vendorName: extendedItem.vendorName ?? purchase.vendorName,
-          price: item.actualPrice,
-          purchaseDate: extendedItem.purchaseDate,
-          receipt,
+          id: transaction.id ?? item?.id ?? index,
+          name: transaction.itemNames?.join(", ") || item?.name || "-",
+          reason: item?.reason ?? purchase.content ?? "-",
+          quantity: item?.quantity,
+          paymentType: item?.paymentType,
+          vendorName: transaction.vendorName,
+          price: transaction.amount,
+          receipt:
+            transaction.receiptFileId || transaction.receiptFileUrl
+              ? {
+                  receiptFileId: transaction.receiptFileId,
+                  fileUrl: transaction.receiptFileUrl,
+                }
+              : undefined,
         };
       })
-    : [
-        {
-          id: purchase?.id ?? 0,
-          name: purchase?.title ?? "-",
-          reason: purchase?.content ?? "-",
-          quantity: undefined,
-          paymentType: undefined,
-          vendorName: purchase?.vendorName,
-          price: purchase?.totalPrice,
-          purchaseDate: undefined,
-          receipt: purchase?.receipts?.[0],
-        },
-      ];
+    : purchase?.items?.length
+      ? purchase.items.map((item, index) => {
+          const extendedItem = item as ExtendedPurchaseItem;
+          return {
+            id: item.id ?? index,
+            name: item.name ?? "-",
+            reason: item.reason ?? purchase.content ?? "-",
+            quantity: extendedItem.quantity,
+            paymentType: extendedItem.paymentType,
+            vendorName: purchase.vendorName,
+            price: undefined,
+            receipt: undefined,
+          };
+        })
+      : [
+          {
+            id: purchase?.id ?? 0,
+            name: purchase?.title ?? "-",
+            reason: purchase?.content ?? "-",
+            quantity: undefined,
+            paymentType: undefined,
+            vendorName: purchase?.vendorName,
+            price: purchase?.totalPrice,
+            receipt: undefined,
+          },
+        ];
   const isRequester =
     authStatus === "authenticated" &&
     typeof user?.id === "number" &&
     typeof request?.requestedById === "number" &&
     user.id === request.requestedById;
+  const canManagePurchaseReport =
+    authStatus === "authenticated" && (user?.role === "ADMIN" || isRequester);
   const canEditRequest = request?.status === "PENDING" && isRequester;
+  const canDeleteRequest = request?.status === "PENDING" && isRequester;
   const canShowReportForm = request?.status === "APPROVED" && isRequester;
+  const canEditPurchaseReport = request?.status === "PURCHASED" && canManagePurchaseReport;
+  const canShowReportEditor = canShowReportForm || isReportEditing;
+  const vendorBalances: VendorBalance[] = vendorData?.length
+    ? vendorData.map((vendor) => ({
+        vendorId: vendor.id,
+        vendorName: vendor.name,
+        balance: vendor.balance,
+      }))
+    : (purchase?.vendorBalances ?? []);
+  const vendorNames = vendorBalances.length
+    ? vendorBalances
+        .map((vendor) => vendor.vendorName)
+        .filter((name): name is string => Boolean(name))
+    : [...fallbackVendorNames];
+  const vendorOptions = vendorBalances
+    .filter((vendor) => typeof vendor.vendorId === "number" && Boolean(vendor.vendorName))
+    .map((vendor) => ({ id: vendor.vendorId as number, name: vendor.vendorName as string }));
   const canSubmitReport =
-    canShowReportForm &&
-    reportItems.length > 0 &&
-    reportItems.every(
+    canShowReportEditor &&
+    activeReportItems.length > 0 &&
+    activeReportItems.every(
       (item) =>
-        item.vendorName.trim().length > 0 &&
+        Number.isInteger(Number(item.vendorId)) &&
         item.name.trim().length > 0 &&
         item.price.trim().length > 0 &&
-        item.purchaseDate.trim().length > 0 &&
         Number.isFinite(Number(item.price)) &&
-        Number(item.price) >= 0,
+        Number(item.price) >= 1,
     ) &&
     !reportMutation.isPending;
 
@@ -291,15 +363,19 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     itemId: number,
     patch: Partial<{
       vendorName: string;
+      vendorId: string;
       name: string;
       price: string;
-      purchaseDate: string;
       receiptFile: File | null;
       receiptFileName: string;
+      receiptFileId: string;
+      receiptFileUrl: string;
     }>,
   ) {
     setReportItems((current) =>
-      current.map((item) => (item.itemId === itemId ? { ...item, ...patch } : item)),
+      (current.length ? current : initialReportItems).map((item) =>
+        item.itemId === itemId ? { ...item, ...patch } : item,
+      ),
     );
   }
 
@@ -313,8 +389,31 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
 
   function updateEditItem(itemId: number, patch: Partial<EditableItem>) {
     setEditItems((current) =>
-      current.map((item) => (item.id === itemId ? { ...item, ...patch } : item)),
+      (current.length ? current : initialEditItems).map((item) =>
+        item.id === itemId ? { ...item, ...patch } : item,
+      ),
     );
+  }
+
+  function startEditing() {
+    if (!request) {
+      return;
+    }
+
+    setEditTitle(request.title ?? "");
+    setEditClassroomName(request.classroomName ?? "");
+    setEditItems(initialEditItems);
+    setIsEditing(true);
+  }
+
+  function startReportEditing() {
+    setReportItems(initialReportItems);
+    setIsReportEditing(true);
+  }
+
+  function cancelReportEditing() {
+    setReportItems([]);
+    setIsReportEditing(false);
   }
 
   function handleReportSubmit(event: FormEvent<HTMLFormElement>) {
@@ -335,7 +434,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       ...request,
       title: editTitle.trim() || request.title,
       classroomName: editClassroomName.trim() || request.classroomName,
-      items: editItems.map((item) => ({
+      items: (editItems.length ? editItems : initialEditItems).map((item) => ({
         id: item.id,
         name: item.name.trim(),
         reason: item.reason.trim() || undefined,
@@ -363,7 +462,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
             <ActionButton
               type="button"
               $variant="danger"
-              disabled={deleteMutation.isPending || isLoading || !request}
+              disabled={!canDeleteRequest || deleteMutation.isPending || isLoading}
+              title={canDeleteRequest ? undefined : "대기 중인 본인 작성 글만 삭제할 수 있습니다."}
               onClick={() => deleteMutation.mutate()}
             >
               {deleteMutation.isPending ? "삭제 중" : "삭제"}
@@ -373,7 +473,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
               $variant="edit"
               disabled={!canEditRequest}
               title={canEditRequest ? undefined : "대기 중인 본인 작성 글만 수정할 수 있습니다."}
-              onClick={() => setIsEditing(true)}
+              onClick={startEditing}
             >
               {isEditing ? "수정 중" : "수정"}
             </ActionButton>
@@ -422,10 +522,17 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
               </Section>
 
               <Section>
-                <SectionTitle>상세 품목</SectionTitle>
+                <DetailSectionHeader>
+                  <SectionTitle>상세 품목</SectionTitle>
+                  {canEditPurchaseReport && !isReportEditing ? (
+                    <ReportEditTextButton type="button" onClick={startReportEditing}>
+                      수정
+                    </ReportEditTextButton>
+                  ) : null}
+                </DetailSectionHeader>
                 {isEditing ? (
                   <EditItemList>
-                    {editItems.map((item, index) => (
+                    {(editItems.length ? editItems : initialEditItems).map((item, index) => (
                       <EditItemBlock key={item.id}>
                         <ItemFieldRow>
                           <ItemLabel htmlFor={`editItemName-${item.id}`}>
@@ -476,7 +583,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                   }
                                 }}
                               />
-                              <span>선 결제</span>
+                              <span>선금 결제</span>
                             </PaymentTypeOption>
                             <PaymentTypeOption>
                               <input
@@ -505,7 +612,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                         <th>결제 사유</th>
                         <th>결제 유형</th>
                         <th>결제 금액</th>
-                        <th>구매 일자</th>
                         <th>영수증</th>
                       </tr>
                     </thead>
@@ -519,17 +625,14 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                           <td>{getPaymentTypeLabel(item.paymentType)}</td>
                           <td>{formatAmount(item.price)}</td>
                           <td>
-                            {item.purchaseDate ? formatUtcToKstShortDate(item.purchaseDate) : "-"}
-                          </td>
-                          <td>
                             {item.receipt ? (
                               <InlineReceiptLink
-                                href={item.receipt.fileUrl ?? item.receipt.url ?? "#"}
+                                href={item.receipt.fileUrl ?? "#"}
                                 download={getReceiptName(item.receipt)}
                               >
-                                {getReceiptName(item.receipt)}
+                                파일
                                 <ReceiptIcon aria-hidden="true">
-                                  <IconDownload size={16} stroke={2.25} />
+                                  <IconDownload size={12} stroke={2.25} />
                                 </ReceiptIcon>
                               </InlineReceiptLink>
                             ) : (
@@ -548,14 +651,12 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                 <VendorBalanceTable>
                   <tbody>
                     {vendorNames.map((vendorName) => {
-                      const balance = purchase?.vendorBalances?.find(
-                        (item) => item.vendorName === vendorName,
-                      );
+                      const balance = vendorBalances.find((item) => item.vendorName === vendorName);
 
                       return (
                         <tr key={vendorName}>
                           <th scope="row">{vendorName}</th>
-                          <td>{formatAmount(balance?.balance ?? balance?.totalAmount)}</td>
+                          <td>{formatAmount(balance?.balance)}</td>
                         </tr>
                       );
                     })}
@@ -571,10 +672,12 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                 ) : null}
               </Section>
 
-              {canShowReportForm ? (
+              {canShowReportEditor ? (
                 <ReportForm onSubmit={handleReportSubmit}>
-                  <SectionTitle>구매 완료 보고</SectionTitle>
-                  {reportItems.map((item, index) => (
+                  <SectionTitle>
+                    {isReportEditing ? "구매 완료 보고 수정" : "구매 완료 보고"}
+                  </SectionTitle>
+                  {activeReportItems.map((item, index) => (
                     <ReportGrid key={item.itemId}>
                       <ReportLabel htmlFor={`reportName-${item.itemId}`}>
                         품목 {index + 1}
@@ -585,15 +688,22 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                       <ReportLabel htmlFor={`vendor-${item.itemId}`}>거래처</ReportLabel>
                       <ReportSelect
                         id={`vendor-${item.itemId}`}
-                        value={item.vendorName}
-                        onChange={(event) =>
-                          updateReportItem(item.itemId, { vendorName: event.target.value })
-                        }
+                        value={item.vendorId}
+                        onChange={(event) => {
+                          const vendor = vendorOptions.find(
+                            (option) => String(option.id) === event.target.value,
+                          );
+
+                          updateReportItem(item.itemId, {
+                            vendorId: event.target.value,
+                            vendorName: vendor?.name ?? "",
+                          });
+                        }}
                       >
                         <option value="">거래처 선택</option>
-                        {vendorNames.map((vendorName) => (
-                          <option key={vendorName} value={vendorName}>
-                            {vendorName}
+                        {vendorOptions.map((vendor) => (
+                          <option key={vendor.id} value={vendor.id}>
+                            {vendor.name}
                           </option>
                         ))}
                       </ReportSelect>
@@ -601,21 +711,12 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                       <ReportInput
                         id={`price-${item.itemId}`}
                         type="number"
-                        min="0"
+                        min="1"
                         inputMode="numeric"
                         placeholder="0"
                         value={item.price}
                         onChange={(event) =>
                           updateReportItem(item.itemId, { price: event.target.value })
-                        }
-                      />
-                      <ReportLabel htmlFor={`purchaseDate-${item.itemId}`}>구매 일자</ReportLabel>
-                      <ReportInput
-                        id={`purchaseDate-${item.itemId}`}
-                        type="date"
-                        value={item.purchaseDate}
-                        onChange={(event) =>
-                          updateReportItem(item.itemId, { purchaseDate: event.target.value })
                         }
                       />
                       <ReportLabel htmlFor={`receipt-${item.itemId}`}>영수증</ReportLabel>
@@ -632,11 +733,32 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                       </UploadControl>
                     </ReportGrid>
                   ))}
-                  <ReportSubmitButton type="submit" disabled={!canSubmitReport}>
-                    {reportMutation.isPending ? "보고 중" : "구매 완료 보고하기"}
-                  </ReportSubmitButton>
+                  <ReportActionRow>
+                    <ReportSubmitButton type="submit" disabled={!canSubmitReport}>
+                      {reportMutation.isPending
+                        ? isReportEditing
+                          ? "수정 중"
+                          : "보고 중"
+                        : isReportEditing
+                          ? "수정 완료"
+                          : "구매 완료 보고하기"}
+                    </ReportSubmitButton>
+                    {isReportEditing ? (
+                      <CancelEditButton
+                        type="button"
+                        disabled={reportMutation.isPending}
+                        onClick={cancelReportEditing}
+                      >
+                        취소
+                      </CancelEditButton>
+                    ) : null}
+                  </ReportActionRow>
                   {reportMutation.isError ? (
-                    <StateMessage role="alert">구매 완료 보고에 실패했습니다.</StateMessage>
+                    <StateMessage role="alert">
+                      {isReportEditing
+                        ? "구매 완료 보고 수정에 실패했습니다."
+                        : "구매 완료 보고에 실패했습니다."}
+                    </StateMessage>
                   ) : null}
                 </ReportForm>
               ) : null}
@@ -852,6 +974,35 @@ const SectionTitle = styled.h2`
   }
 `;
 
+const DetailSectionHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: ${spacing.space20};
+`;
+
+const ReportEditTextButton = styled.button`
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #b3b3b3;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  text-decoration: underline;
+  text-underline-offset: 0.125rem;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    color: ${colors.point};
+  }
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
 const Field = styled.div`
   display: flex;
   align-items: center;
@@ -1056,43 +1207,6 @@ const PaymentTypeOption = styled.label`
   }
 `;
 
-const BalanceList = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: ${spacing.space8};
-  padding: ${spacing.space12};
-  background-color: ${colors.background};
-
-  @media (min-width: 120rem) {
-    gap: ${spacing.space12};
-    padding: ${spacing.space20};
-  }
-`;
-
-const BalanceItem = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: ${spacing.space12};
-  min-height: 2.5rem;
-  padding: ${spacing.space8} ${spacing.space12};
-  background-color: ${colors.white};
-  color: #000000;
-  font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight130};
-
-  strong {
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 3.75rem;
-    padding: ${spacing.space12} ${spacing.space20};
-    font-size: ${typography.fontSize20};
-  }
-`;
-
 const VendorBalanceTable = styled.table`
   width: 100%;
   border-collapse: collapse;
@@ -1129,19 +1243,6 @@ const VendorBalanceTable = styled.table`
   }
 `;
 
-const ReceiptList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.3125rem;
-  min-width: 0;
-  background-color: ${colors.background};
-  padding: ${spacing.space12};
-
-  @media (min-width: 120rem) {
-    padding: ${spacing.space20};
-  }
-`;
-
 const StateMessage = styled.p`
   margin: 0 0 ${spacing.space20};
   color: ${colors.muted};
@@ -1150,58 +1251,12 @@ const StateMessage = styled.p`
   line-height: ${typography.lineHeight150};
 `;
 
-const EmptyText = styled.span`
-  color: ${colors.muted};
-  font-size: ${typography.fontSize14};
-  font-weight: 600;
-  line-height: ${typography.lineHeight150};
-`;
-
-const ReceiptRow = styled.div`
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: ${spacing.space8};
-  min-width: 0;
-`;
-
-const ReceiptName = styled.span`
-  color: #000000;
-  font-size: ${typography.fontSize14};
-  font-weight: 600;
-  line-height: ${typography.lineHeight130};
-  text-decoration: underline;
-  text-underline-offset: 0.125rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
-`;
-
-const ReceiptDownloadButton = styled.a`
-  display: inline-flex;
-  align-items: center;
-  gap: ${spacing.space8};
-  color: #000000;
-  font-size: ${typography.fontSize14};
-  font-weight: 600;
-  line-height: ${typography.lineHeight130};
-  text-decoration: none;
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
-`;
-
 const ReceiptIcon = styled.span`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.2em;
+  height: 1.2rem;
   border-radius: 50%;
   background-color: ${colors.point};
   color: ${colors.white};
@@ -1267,10 +1322,17 @@ const ReportForm = styled.form`
   }
 `;
 
+const ReportActionRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space12};
+  flex-wrap: wrap;
+`;
+
 const ReportGrid = styled.div`
   display: grid;
   grid-template-columns:
-    auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 0.8fr) auto minmax(0, 0.8fr)
+    auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 0.8fr)
     auto minmax(8rem, auto);
   align-items: center;
   gap: ${spacing.space12};

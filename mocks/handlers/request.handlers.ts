@@ -33,11 +33,9 @@ export const PURCHASE_REQUEST_RESPONSE = {
       quantity: 1,
       reason: "Need new workbook copies",
       paymentType: "ACTUAL",
-      vendorName: "문구점",
-      actualPrice: 30000,
     },
   ],
-  receipts: [],
+  transactions: [],
 };
 
 export const LESSON_EXCHANGE_REQUEST_RESPONSE = {
@@ -153,7 +151,12 @@ export const requestHandlers: RequestHandler[] = [
       classroomId?: number;
       title?: string;
       content?: string;
-      items?: unknown[];
+      items?: {
+        name?: string;
+        quantity?: number;
+        reason?: string;
+        paymentType?: "PREPAID" | "ACTUAL";
+      }[];
     };
     return HttpResponse.json({ ...PURCHASE_REQUEST_RESPONSE, ...body, id: 20 });
   }),
@@ -171,24 +174,58 @@ export const requestHandlers: RequestHandler[] = [
     if (unauthorizedResponse) return unauthorizedResponse;
 
     const body = (await request.json()) as {
-      items?: { itemId?: number; vendorName?: string; name?: string; price?: number }[];
-      receiptFileIds?: string[];
+      transactions?: {
+        vendorId?: number;
+        itemNames?: string[];
+        amount?: number;
+        receiptFileId?: string;
+      }[];
     };
     return HttpResponse.json({
       ...PURCHASE_REQUEST_RESPONSE,
       id: Number(params.requestId),
-      items:
-        body.items?.map((item, index) => ({
-          id: item.itemId ?? index + 1,
-          name: item.name ?? PURCHASE_REQUEST_RESPONSE.items[index]?.name,
-          vendorName: item.vendorName,
-          actualPrice: item.price,
-          quantity: PURCHASE_REQUEST_RESPONSE.items[index]?.quantity,
-          paymentType: PURCHASE_REQUEST_RESPONSE.items[index]?.paymentType,
-        })) ?? PURCHASE_REQUEST_RESPONSE.items,
+      transactions:
+        body.transactions?.map((transaction, index) => ({
+          id: index + 1,
+          vendorId: transaction.vendorId,
+          vendorName: transaction.vendorId ? `거래처 ${transaction.vendorId}` : undefined,
+          itemNames: transaction.itemNames,
+          amount: transaction.amount,
+          receiptFileId: transaction.receiptFileId,
+        })) ?? [],
       status: "PURCHASED",
     });
   }),
+  http.post(
+    `${API_BASE_URL}/api/v1/purchase-requests/:requestId/item-receipts`,
+    async ({ request, params }) => {
+      const unauthorizedResponse = unauthorizedWhenNeeded(request);
+      if (unauthorizedResponse) return unauthorizedResponse;
+
+      const body = (await request.json()) as {
+        transactions?: {
+          vendorId?: number;
+          itemNames?: string[];
+          amount?: number;
+          receiptFileId?: string;
+        }[];
+      };
+      return HttpResponse.json({
+        ...PURCHASE_REQUEST_RESPONSE,
+        id: Number(params.requestId),
+        transactions:
+          body.transactions?.map((transaction, index) => ({
+            id: index + 1,
+            vendorId: transaction.vendorId,
+            vendorName: transaction.vendorId ? `거래처 ${transaction.vendorId}` : undefined,
+            itemNames: transaction.itemNames,
+            amount: transaction.amount,
+            receiptFileId: transaction.receiptFileId,
+          })) ?? [],
+        status: "PURCHASED",
+      });
+    },
+  ),
   http.post(`${API_BASE_URL}/api/v1/purchase-requests/:requestId/reconfirmation`, ({ request }) => {
     return unauthorizedWhenNeeded(request) ?? HttpResponse.json({ message: "재확인을 요청했습니다." });
   }),
@@ -244,6 +281,36 @@ export const requestHandlers: RequestHandler[] = [
       })
     );
   }),
+  http.patch(
+    `${API_BASE_URL}/api/v1/admin/purchase-requests/:requestId/item-receipts`,
+    async ({ request, params }) => {
+      const unauthorizedResponse = unauthorizedWhenNeeded(request);
+      if (unauthorizedResponse) return unauthorizedResponse;
+
+      const body = (await request.json()) as {
+        transactions?: {
+          vendorId?: number;
+          itemNames?: string[];
+          amount?: number;
+          receiptFileId?: string;
+        }[];
+      };
+      return HttpResponse.json({
+        ...PURCHASE_REQUEST_RESPONSE,
+        id: Number(params.requestId),
+        transactions:
+          body.transactions?.map((transaction, index) => ({
+            id: index + 1,
+            vendorId: transaction.vendorId,
+            vendorName: transaction.vendorId ? `거래처 ${transaction.vendorId}` : undefined,
+            itemNames: transaction.itemNames,
+            amount: transaction.amount,
+            receiptFileId: transaction.receiptFileId,
+          })) ?? [],
+        status: "PURCHASED",
+      });
+    },
+  ),
   http.get(`${API_BASE_URL}/api/v1/lesson-exchange-requests`, ({ request }) => {
     return unauthorizedWhenNeeded(request) ?? HttpResponse.json([LESSON_EXCHANGE_REQUEST_RESPONSE]);
   }),

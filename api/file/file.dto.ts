@@ -4,6 +4,7 @@ export interface FileUploadResponseDto {
   contentType?: string;
   fileSize?: number;
   ext?: string;
+  isGoogleDrive?: boolean;
   url?: string;
 }
 

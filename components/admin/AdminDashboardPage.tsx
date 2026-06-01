@@ -66,7 +66,11 @@ import {
   getAllPurchaseRequests,
   rejectAdminPurchaseRequest,
 } from "@/api/request/request.api";
-import type { PurchaseRequestStatus } from "@/api/request/request.dto";
+import type {
+  PurchaseRequestResponseDto,
+  PurchaseRequestStatus,
+  PurchaseTransactionResponseDto,
+} from "@/api/request/request.dto";
 import {
   addUserPermission,
   createUser,
@@ -79,6 +83,8 @@ import {
   updateUser,
 } from "@/api/user/user.api";
 import type { PermissionDefinitionDto } from "@/api/user/user.dto";
+import { chargeVendor, getVendors } from "@/api/vendor/vendor.api";
+import type { VendorResponseDto } from "@/api/vendor/vendor.dto";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
@@ -208,10 +214,10 @@ const emptyPurchaseCreate: PurchaseCreateState = {
   title: "",
   content: "",
   classroomId: "",
-  advancePaymentRequestedAmount: "",
   itemName: "",
+  itemQuantity: "1",
   itemReason: "",
-  itemExpectedPrice: "",
+  itemPaymentType: "ACTUAL",
 };
 
 const emptyPermissionForm: PermissionFormState = {
@@ -302,6 +308,45 @@ function mapPostToEditState(post?: {
   };
 }
 
+function findPurchaseItemForTransaction(
+  transaction: PurchaseTransactionResponseDto,
+  purchase?: PurchaseRequestResponseDto,
+) {
+  return purchase?.items?.find((item) => {
+    if (!item.name) {
+      return false;
+    }
+
+    return transaction.itemNames?.some((name) => name.trim() === item.name);
+  });
+}
+
+function getPrepaidTransactions(purchase?: PurchaseRequestResponseDto) {
+  return (purchase?.transactions ?? []).filter((transaction) => {
+    const item = findPurchaseItemForTransaction(transaction, purchase);
+    return item?.paymentType === "PREPAID";
+  });
+}
+
+function applyVendorChargeToCache(
+  vendors: VendorResponseDto[] | undefined,
+  vendorId: number,
+  amount: number,
+) {
+  return vendors?.map((vendor) =>
+    vendor.id === vendorId
+      ? {
+          ...vendor,
+          balance: (vendor.balance ?? 0) + amount,
+        }
+      : vendor,
+  );
+}
+
+function getVendorBalance(vendors: VendorResponseDto[] | undefined, vendorId: number) {
+  return vendors?.find((vendor) => vendor.id === vendorId)?.balance ?? 0;
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -331,7 +376,6 @@ export default function AdminDashboardPage() {
   const [purchaseCreate, setPurchaseCreate] = useState<PurchaseCreateState>(emptyPurchaseCreate);
   const [permissionForm, setPermissionForm] = useState<PermissionFormState>(emptyPermissionForm);
   const [reviewNote, setReviewNote] = useState("");
-  const [approvedAmount, setApprovedAmount] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated" || (status === "authenticated" && user?.role !== "ADMIN")) {
@@ -821,18 +865,12 @@ export default function AdminDashboardPage() {
         title: purchaseCreate.title.trim(),
         content: purchaseCreate.content.trim(),
         classroomId: toNumber(purchaseCreate.classroomId) ?? 0,
-        ...(purchaseCreate.advancePaymentRequestedAmount
-          ? {
-              advancePaymentRequestedAmount: toNumber(purchaseCreate.advancePaymentRequestedAmount),
-            }
-          : {}),
         items: [
           {
             name: purchaseCreate.itemName.trim(),
+            quantity: Math.max(1, Math.trunc(toNumber(purchaseCreate.itemQuantity) ?? 1)),
             reason: purchaseCreate.itemReason.trim() || undefined,
-            ...(purchaseCreate.itemExpectedPrice
-              ? { expectedPrice: toNumber(purchaseCreate.itemExpectedPrice) }
-              : {}),
+            paymentType: purchaseCreate.itemPaymentType,
           },
         ],
       }),
@@ -849,8 +887,7 @@ export default function AdminDashboardPage() {
       approveAdminPurchaseRequest(
         { requestId: selectedPurchaseId ?? 0 },
         {
-          note: reviewNote || "승인합니다.",
-          ...(approvedAmount ? { advancePaymentApprovedAmount: toNumber(approvedAmount) } : {}),
+          note: reviewNote.trim() || "승인합니다.",
         },
       ),
     onSuccess: () => {
@@ -863,7 +900,7 @@ export default function AdminDashboardPage() {
     mutationFn: () =>
       rejectAdminPurchaseRequest(
         { requestId: selectedPurchaseId ?? 0 },
-        { note: reviewNote || "반려합니다." },
+        { note: reviewNote.trim() || "반려합니다." },
       ),
     onSuccess: () => {
       notifySuccess("구매 요청을 반려했습니다.");
@@ -872,10 +909,85 @@ export default function AdminDashboardPage() {
     onError: (error) => notifyError(getErrorMessage(error, "구매 요청 반려에 실패했습니다.")),
   });
   const confirmPurchaseMutation = useMutation({
-    mutationFn: () => confirmPurchase({ requestId: selectedPurchaseId ?? 0 }),
+    mutationFn: async () => {
+      const purchase = purchaseDetailQuery.data;
+      const prepaidTransactions = getPrepaidTransactions(purchase).filter(
+        (transaction) =>
+          typeof transaction.vendorId === "number" &&
+          typeof transaction.amount === "number" &&
+          transaction.amount > 0,
+      );
+      const prepaidTargetBalances = new Map<number, number>();
+
+      if (prepaidTransactions.length > 0) {
+        await Promise.all(
+          prepaidTransactions.map(async (transaction) => {
+            const vendorId = transaction.vendorId as number;
+            const amount = transaction.amount as number;
+            const chargedVendor = await chargeVendor(
+              { vendorId: transaction.vendorId as number },
+              {
+                amount: transaction.amount as number,
+                memo: `${purchase?.title ?? "구매 요청"} 선금 결제 충전`,
+                ...(transaction.receiptFileId
+                  ? { receiptFileId: transaction.receiptFileId }
+                  : {}),
+              },
+            );
+            prepaidTargetBalances.set(vendorId, chargedVendor.balance ?? 0);
+
+            queryClient.setQueryData<VendorResponseDto[] | undefined>(
+              queryKeys.vendors.list(),
+              (current) =>
+                current?.some((vendor) => vendor.id === chargedVendor.id)
+                  ? current.map((vendor) =>
+                      vendor.id === chargedVendor.id ? { ...vendor, ...chargedVendor } : vendor,
+                    )
+                  : applyVendorChargeToCache(current, vendorId, amount),
+            );
+          }),
+        );
+      }
+
+      const confirmedPurchase = await confirmPurchase({ requestId: selectedPurchaseId ?? 0 });
+
+      if (prepaidTargetBalances.size > 0) {
+        const vendorsAfterConfirm = await getVendors();
+
+        await Promise.all(
+          Array.from(prepaidTargetBalances.entries()).map(async ([vendorId, targetBalance]) => {
+            const currentBalance = getVendorBalance(vendorsAfterConfirm, vendorId);
+            const compensationAmount = targetBalance - currentBalance;
+
+            if (compensationAmount <= 0) {
+              return null;
+            }
+
+            return chargeVendor(
+              { vendorId },
+              {
+                amount: compensationAmount,
+                memo: `${purchase?.title ?? "구매 요청"} 선금 결제 잔액 보정`,
+              },
+            );
+          }),
+        );
+
+        const refreshedVendors = await getVendors();
+        queryClient.setQueryData(queryKeys.vendors.list(), refreshedVendors);
+      }
+
+      return confirmedPurchase;
+    },
     onSuccess: () => {
       notifySuccess("구매 요청을 결재 확인했습니다.");
       invalidateDashboard();
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendors.list() });
+      if (selectedPurchaseId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.purchaseRequestDetail(selectedPurchaseId),
+        });
+      }
     },
     onError: (error) => notifyError(getErrorMessage(error, "결재 확인에 실패했습니다.")),
   });
@@ -1087,7 +1199,6 @@ export default function AdminDashboardPage() {
               purchaseStatus={purchaseStatus}
               purchaseCreate={purchaseCreate}
               reviewNote={reviewNote}
-              approvedAmount={approvedAmount}
               purchasesQuery={purchasesQuery}
               purchaseDetailQuery={purchaseDetailQuery}
               createPurchaseMutation={createPurchaseMutation}
@@ -1099,7 +1210,6 @@ export default function AdminDashboardPage() {
               setPurchaseCreate={setPurchaseCreate}
               setSelectedPurchaseId={setSelectedPurchaseId}
               setReviewNote={setReviewNote}
-              setApprovedAmount={setApprovedAmount}
             />
           ) : null}
           <ToastContainer position="top-right" autoClose={2400} newestOnTop pauseOnHover />

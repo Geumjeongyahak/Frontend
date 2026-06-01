@@ -101,14 +101,11 @@ export async function createPurchaseRequest(body: CreatePurchaseRequestDto) {
     title: body.title,
     content: body.content,
     classroomId: body.classroomId,
-    ...(typeof body.advancePaymentRequestedAmount === "number"
-      ? { advancePaymentRequestedAmount: body.advancePaymentRequestedAmount }
-      : {}),
-    ...(body.receiptFileIds?.length ? { receiptFileIds: body.receiptFileIds } : {}),
     items: body.items.map((item) => ({
       name: item.name,
+      quantity: item.quantity,
       ...(item.reason ? { reason: item.reason } : {}),
-      ...(typeof item.expectedPrice === "number" ? { expectedPrice: item.expectedPrice } : {}),
+      paymentType: item.paymentType,
     })),
   };
 
@@ -219,6 +216,30 @@ export async function reportPurchase(
 ) {
   const response = await authClient.post<PurchaseRequestResponseDto>(
     `/api/v1/purchase-requests/${pathParams.requestId}/report`,
+    body,
+  );
+  return response.data;
+}
+
+// 구매 완료 거래를 수정하는 요청
+export async function updatePurchaseItemReceipts(
+  pathParams: RequestPathParamsDto,
+  body: ReportPurchaseRequestDto,
+) {
+  const response = await authClient.post<PurchaseRequestResponseDto>(
+    `/api/v1/purchase-requests/${pathParams.requestId}/item-receipts`,
+    body,
+  );
+  return response.data;
+}
+
+// 관리자 기준 구매 완료 거래를 수정하는 요청
+export async function updateAdminPurchaseItemReceipts(
+  pathParams: RequestPathParamsDto,
+  body: ReportPurchaseRequestDto,
+) {
+  const response = await authClient.patch<PurchaseRequestResponseDto>(
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/item-receipts`,
     body,
   );
   return response.data;

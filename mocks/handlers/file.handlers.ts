@@ -8,6 +8,7 @@ export const FILE_UPLOAD_RESPONSE = {
   contentType: "image/png",
   fileSize: 102400,
   ext: "png",
+  isGoogleDrive: false,
   url: "https://storage.googleapis.com/example-bucket/purchase-items/receipt.png",
 };
 

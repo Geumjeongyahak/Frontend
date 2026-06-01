@@ -1,6 +1,7 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
+import styled from "styled-components";
 import type { ClassroomListItemDto } from "@/api/classroom/classroom.dto";
 import type {
   PurchaseRequestListItemDto,
@@ -30,6 +31,7 @@ import {
   TextInput,
   TwoColumnGrid,
 } from "@/components/admin/AdminDashboardSectionParts";
+import { colors, spacing } from "@/styles/tokens";
 
 type QueryState<TData> = {
   data?: TData;
@@ -49,7 +51,6 @@ type AdminPurchasesSectionProps = {
   purchaseStatus: PurchaseRequestStatus | "";
   purchaseCreate: PurchaseCreateState;
   reviewNote: string;
-  approvedAmount: string;
   purchasesQuery: QueryState<unknown>;
   purchaseDetailQuery: QueryState<PurchaseRequestResponseDto>;
   createPurchaseMutation: VoidMutationAction;
@@ -61,7 +62,6 @@ type AdminPurchasesSectionProps = {
   setPurchaseCreate: Dispatch<SetStateAction<PurchaseCreateState>>;
   setSelectedPurchaseId: Dispatch<SetStateAction<number | null>>;
   setReviewNote: Dispatch<SetStateAction<string>>;
-  setApprovedAmount: Dispatch<SetStateAction<string>>;
 };
 
 export function AdminPurchasesSection({
@@ -71,7 +71,6 @@ export function AdminPurchasesSection({
   purchaseStatus,
   purchaseCreate,
   reviewNote,
-  approvedAmount,
   purchasesQuery,
   purchaseDetailQuery,
   createPurchaseMutation,
@@ -83,8 +82,51 @@ export function AdminPurchasesSection({
   setPurchaseCreate,
   setSelectedPurchaseId,
   setReviewNote,
-  setApprovedAmount,
 }: AdminPurchasesSectionProps) {
+  const [rejectTargetId, setRejectTargetId] = useState<number | null>(null);
+  const selectedStatus = purchaseDetailQuery.data?.status;
+  const canReviewPurchase = selectedStatus === "PENDING";
+  const canConfirmPurchase = selectedStatus === "PURCHASED";
+  const canDeletePurchase = selectedStatus === "PENDING";
+  const isRejecting = rejectTargetId === selectedPurchaseId && canReviewPurchase;
+  const canSubmitRejection =
+    isRejecting && reviewNote.trim().length > 0 && !rejectPurchaseMutation.isPending;
+  const canShowReceiptRows = selectedStatus === "PURCHASED" || selectedStatus === "CONFIRMED";
+  const receiptRows =
+    purchaseDetailQuery.data?.transactions?.map((transaction, index) => ({
+      id: transaction.id ?? index,
+      label: transaction.itemNames?.join(", ") || "영수증",
+      url: transaction.receiptFileUrl,
+    })) ?? [];
+
+  function approvePurchase() {
+    setReviewNote("");
+    approvePurchaseMutation.mutate();
+  }
+
+  function startRejecting() {
+    if (!selectedPurchaseId || !canReviewPurchase) {
+      return;
+    }
+
+    setReviewNote("");
+    setRejectTargetId(selectedPurchaseId);
+  }
+
+  function cancelRejecting() {
+    setReviewNote("");
+    setRejectTargetId(null);
+  }
+
+  function submitRejection() {
+    if (!canSubmitRejection) {
+      return;
+    }
+
+    rejectPurchaseMutation.mutate();
+    setRejectTargetId(null);
+  }
+
   return (
     <>
       <SectionCard>
@@ -133,23 +175,27 @@ export function AdminPurchasesSection({
             </Select>
           </Label>
           <Label>
-            선금 요청 금액
-            <TextInput
-              value={purchaseCreate.advancePaymentRequestedAmount}
-              onChange={(event) =>
-                setPurchaseCreate((current) => ({
-                  ...current,
-                  advancePaymentRequestedAmount: event.target.value,
-                }))
-              }
-            />
-          </Label>
-          <Label>
             품목명
             <TextInput
               value={purchaseCreate.itemName}
               onChange={(event) =>
                 setPurchaseCreate((current) => ({ ...current, itemName: event.target.value }))
+              }
+              required
+            />
+          </Label>
+          <Label>
+            수량
+            <TextInput
+              type="number"
+              min="1"
+              step="1"
+              value={purchaseCreate.itemQuantity}
+              onChange={(event) =>
+                setPurchaseCreate((current) => ({
+                  ...current,
+                  itemQuantity: event.target.value,
+                }))
               }
               required
             />
@@ -164,16 +210,19 @@ export function AdminPurchasesSection({
             />
           </Label>
           <Label>
-            예상 금액
-            <TextInput
-              value={purchaseCreate.itemExpectedPrice}
+            결제 유형
+            <Select
+              value={purchaseCreate.itemPaymentType}
               onChange={(event) =>
                 setPurchaseCreate((current) => ({
                   ...current,
-                  itemExpectedPrice: event.target.value,
+                  itemPaymentType: event.target.value as PurchaseCreateState["itemPaymentType"],
                 }))
               }
-            />
+            >
+              <option value="ACTUAL">실 결제</option>
+              <option value="PREPAID">선금 결제</option>
+            </Select>
           </Label>
           <PrimaryButton disabled={createPurchaseMutation.isPending || !purchaseCreate.classroomId}>
             구매 요청 작성
@@ -223,7 +272,13 @@ export function AdminPurchasesSection({
                     <td>{item.classroomName}</td>
                     <td>{item.requestedByName}</td>
                     <td>{item.status}</td>
-                    <td>{item.advancePaymentRequestedAmount ?? item.totalPrice ?? 0}</td>
+                    <td>
+                      {item.status === "PENDING" ||
+                      item.status === "REJECTED" ||
+                      item.status === "APPROVED"
+                        ? "-"
+                        : (item.totalPrice ?? 0)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -253,60 +308,100 @@ export function AdminPurchasesSection({
               {purchaseDetailQuery.data?.items?.map((item) => (
                 <ListItem key={item.id}>
                   <span>{item.name}</span>
-                  <span>{item.expectedPrice ?? item.actualPrice ?? 0}원</span>
+                  <span>
+                    {item.quantity ?? 0}개 /{" "}
+                    {item.paymentType === "PREPAID" ? "선금 결제" : "실 결제"}
+                  </span>
                 </ListItem>
               ))}
+              {canShowReceiptRows && receiptRows.length
+                ? receiptRows.map((receipt) => (
+                    <ListItem key={`receipt-${receipt.id}`}>
+                      <span>영수증</span>
+                      <span>
+                        {receipt.url ? (
+                          <ReceiptLink href={receipt.url} target="_blank" rel="noreferrer">
+                            영수증 보기
+                          </ReceiptLink>
+                        ) : (
+                          "-"
+                        )}
+                      </span>
+                    </ListItem>
+                  ))
+                : null}
+              {canShowReceiptRows && receiptRows.length === 0 ? (
+                <ListItem>
+                  <span>영수증</span>
+                  <span>-</span>
+                </ListItem>
+              ) : null}
             </List>
             {purchaseDetailQuery.data?.status === "REJECTED" ? (
               <SectionDescription>
-                거절 사유: {purchaseDetailQuery.data.note?.trim() || "-"}
+                반려 사유: {purchaseDetailQuery.data.note?.trim() || "-"}
               </SectionDescription>
             ) : null}
             <FormGrid onSubmit={(event) => event.preventDefault()}>
-              <Label>
-                처리 사유
-                <TextInput
-                  value={reviewNote}
-                  onChange={(event) => setReviewNote(event.target.value)}
-                />
-              </Label>
-              <Label>
-                승인 선금
-                <TextInput
-                  value={approvedAmount}
-                  onChange={(event) => setApprovedAmount(event.target.value)}
-                />
-              </Label>
-              <ButtonRow>
-                <PrimaryButton
-                  type="button"
-                  disabled={approvePurchaseMutation.isPending}
-                  onClick={() => approvePurchaseMutation.mutate()}
-                >
-                  승인
-                </PrimaryButton>
-                <DangerButton
-                  type="button"
-                  disabled={rejectPurchaseMutation.isPending}
-                  onClick={() => rejectPurchaseMutation.mutate()}
-                >
-                  반려
-                </DangerButton>
-                <SmallButton
-                  type="button"
-                  disabled={confirmPurchaseMutation.isPending}
-                  onClick={() => confirmPurchaseMutation.mutate()}
-                >
-                  결재 확인
-                </SmallButton>
-                <DangerButton
-                  type="button"
-                  disabled={deletePurchaseMutation.isPending}
-                  onClick={() => deletePurchaseMutation.mutate()}
-                >
-                  삭제
-                </DangerButton>
-              </ButtonRow>
+              {isRejecting ? (
+                <>
+                  <Label>
+                    반려 사유
+                    <TextInput
+                      value={reviewNote}
+                      onChange={(event) => setReviewNote(event.target.value)}
+                      autoFocus
+                    />
+                  </Label>
+                  <ButtonRow>
+                    <DangerButton
+                      type="button"
+                      disabled={!canSubmitRejection}
+                      onClick={submitRejection}
+                    >
+                      확인
+                    </DangerButton>
+                    <SmallButton
+                      type="button"
+                      disabled={rejectPurchaseMutation.isPending}
+                      onClick={cancelRejecting}
+                    >
+                      취소
+                    </SmallButton>
+                  </ButtonRow>
+                </>
+              ) : (
+                <ButtonRow>
+                  <ApproveButton
+                    type="button"
+                    disabled={!canReviewPurchase || approvePurchaseMutation.isPending}
+                    onClick={approvePurchase}
+                  >
+                    승인
+                  </ApproveButton>
+                  <DangerButton
+                    type="button"
+                    disabled={!canReviewPurchase || rejectPurchaseMutation.isPending}
+                    onClick={startRejecting}
+                  >
+                    반려
+                  </DangerButton>
+                  <SmallButton
+                    type="button"
+                    disabled={!canConfirmPurchase || confirmPurchaseMutation.isPending}
+                    onClick={() => confirmPurchaseMutation.mutate()}
+                  >
+                    결재 확인
+                  </SmallButton>
+                  <DangerButton
+                    type="button"
+                    disabled={!canDeletePurchase || deletePurchaseMutation.isPending}
+                    onClick={() => deletePurchaseMutation.mutate()}
+                  >
+                    삭제
+                  </DangerButton>
+                </ButtonRow>
+              )}
             </FormGrid>
           </DataState>
         </SectionCard>
@@ -314,3 +409,36 @@ export function AdminPurchasesSection({
     </>
   );
 }
+
+const ApproveButton = styled.button`
+  min-height: 2.375rem;
+  border: 1px solid ${colors.point};
+  border-radius: 0.375rem;
+  background-color: ${colors.white};
+  padding: 0 ${spacing.space16};
+  color: ${colors.point};
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+`;
+
+const ReceiptLink = styled.a`
+  color: ${colors.point};
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.125rem;
+`;
