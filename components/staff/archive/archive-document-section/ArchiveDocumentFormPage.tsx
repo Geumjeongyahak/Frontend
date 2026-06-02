@@ -19,7 +19,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { documentFormsToGoogleDrive } from "@/lib/googleDrive/documentFormsToGoogleDrive";
+import { uploadDocumentFormsDocument } from "@/lib/googleDrive/uploadDocumentFormsDocument";
 import { uploadExamMaterialsDocument } from "@/lib/googleDrive/uploadExamMaterialsDocument";
 import { uploadHandoverDocument } from "@/lib/googleDrive/uploadHandoverDocument";
 import { queryKeys } from "@/lib/queryKeys";
@@ -96,7 +96,9 @@ export default function ArchiveDocumentFormPage({
           ? uploadHandoverDocument
           : config.category === "exam"
             ? uploadExamMaterialsDocument
-            : null;
+            : config.category === "forms"
+              ? uploadDocumentFormsDocument
+              : null;
 
       if (uploadArchiveDocument && files.length > 0) {
         const draftPost = isEditMode
@@ -126,18 +128,12 @@ export default function ArchiveDocumentFormPage({
         return publishPost({ channelId, postId: draftPost.id }, publishBody);
       }
 
-      const post = isEditMode
-        ? await updatePost(
+      return isEditMode
+        ? updatePost(
             { channelId, postId: editPostId },
             { title, contentHtml, status: "PUBLISHED", allowComment },
           )
-        : await createPost({ channelId }, { title, contentHtml, status: "PUBLISHED", allowComment });
-
-      if (typeof post.id === "number" && files.length > 0 && config.category === "forms") {
-        await Promise.all(files.map((file) => documentFormsToGoogleDrive(file)));
-      }
-
-      return post;
+        : createPost({ channelId }, { title, contentHtml, status: "PUBLISHED", allowComment });
     },
     onSuccess: async (post) => {
       await Promise.all([
