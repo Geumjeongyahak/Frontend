@@ -2,7 +2,7 @@ import { registerDriveFile } from "@/api/file/file.api";
 import type { FileUploadResponseDto } from "@/api/file/file.dto";
 import type { GoogleDriveUploadResponse } from "@/lib/googleDrive/googleDriveUpload";
 
-export async function uploadArchiveDriveDocument(
+export async function registerDriveDocument(
   file: File,
   uploadToDrive: (file: File) => Promise<GoogleDriveUploadResponse>,
   label: string,

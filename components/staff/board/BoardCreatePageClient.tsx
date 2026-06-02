@@ -36,7 +36,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { uploadBoardDocument } from "@/lib/googleDrive/uploadBoardDocument";
+import { uploadBoardDocument } from "@/lib/googleDrive/documentUploaders";
 import { queryKeys } from "@/lib/queryKeys";
 
 type OpenDropdown = "type" | "scope" | null;

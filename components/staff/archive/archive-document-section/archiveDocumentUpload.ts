@@ -1,9 +1,11 @@
 import type { FileUploadResponseDto } from "@/api/file/file.dto";
 import { attachPostFile, createPost, publishPost, updatePost } from "@/api/post/post.api";
 import type { PostDetailResponseDto } from "@/api/post/post.dto";
-import { uploadDocumentFormsDocument } from "@/lib/googleDrive/uploadDocumentFormsDocument";
-import { uploadExamMaterialsDocument } from "@/lib/googleDrive/uploadExamMaterialsDocument";
-import { uploadHandoverDocument } from "@/lib/googleDrive/uploadHandoverDocument";
+import {
+  uploadDocumentFormsDocument,
+  uploadExamMaterialsDocument,
+  uploadHandoverDocument,
+} from "@/lib/googleDrive/documentUploaders";
 import type { ArchiveDocumentCategory } from "@/mocks/archiveDocuments";
 
 export type UploadArchiveDocumentFn = (file: File) => Promise<FileUploadResponseDto>;

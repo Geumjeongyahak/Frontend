@@ -28,7 +28,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { boardFileToGoogleDrive } from "@/lib/googleDrive/boardFileToGoogleDrive";
+import { boardFileToGoogleDrive } from "@/lib/googleDrive/driveUpload";
 import { queryKeys } from "@/lib/queryKeys";
 
 type EventFormPageClientProps = {
