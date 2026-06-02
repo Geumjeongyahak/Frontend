@@ -290,7 +290,7 @@ export default function BoardListPageClient({
         toggleAriaLabel="내가 작성한 글만 보기"
         onMineOnlyToggle={() => setMineOnly((current) => !current)}
         showStatusColumn={false}
-        classHeader="부서"
+        classHeader="채널"
         emptyMessage={emptyMessage}
         headerTone="archive"
         writeIcon={<IconEdit aria-hidden="true" size={16} stroke={2} />}
