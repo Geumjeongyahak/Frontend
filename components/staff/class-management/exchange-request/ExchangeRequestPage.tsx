@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import { IconCalendarMonth } from "@tabler/icons-react";
 import styled from "styled-components";
 import { FieldInput, FieldTextarea } from "@/components/common/FormField";
 import { Button } from "@/components/common/VariantButton";
@@ -14,6 +16,31 @@ interface ExchangeRequestPageProps {
 }
 
 export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
+  const lessonDateInputRef = useRef<HTMLInputElement>(null);
+  const lessonDateValue = page.proposalForm.watch("lessonDate");
+
+  const handleOpenDatePicker = (ref: React.RefObject<HTMLInputElement | null>) => {
+    const dateInput = ref.current;
+    if (!dateInput) return;
+
+    if (typeof dateInput.showPicker === "function") {
+      dateInput.showPicker();
+      return;
+    }
+
+    dateInput.click();
+  };
+
+  const handleProposalLessonDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    if (!value) return;
+
+    const [year, month, day] = value.split("-");
+    page.proposalForm.setValue("lessonDate", `${year.slice(-2)}.${month}.${day}`, {
+      shouldDirty: true,
+    });
+  };
+
   return (
     <PageWrapper>
       <ExchangeRequestActionBar
@@ -70,13 +97,29 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
                     value={page.user?.name ?? ""}
                     readOnly
                   />
-                  <FieldInput
-                    $tone="proposal"
-                    aria-label="수업 일자"
-                    placeholder="00.00.00"
-                    type="text"
-                    {...page.proposalForm.register("lessonDate")}
-                  />
+                  <DateRow>
+                    <DateInput
+                      aria-label="수업 일자"
+                      placeholder="00.00.00"
+                      value={lessonDateValue}
+                      readOnly
+                      onClick={() => handleOpenDatePicker(lessonDateInputRef)}
+                    />
+                    <HiddenNativeDateInput
+                      ref={lessonDateInputRef}
+                      type="date"
+                      onChange={handleProposalLessonDateChange}
+                      aria-hidden="true"
+                      tabIndex={-1}
+                    />
+                    <CalendarButton
+                      type="button"
+                      aria-label="수업 일자 달력 열기"
+                      onClick={() => handleOpenDatePicker(lessonDateInputRef)}
+                    >
+                      <IconCalendarMonth size={16} stroke={2} color={colors.white} />
+                    </CalendarButton>
+                  </DateRow>
 
                   <ProposalFormTextarea
                     $tone="proposal"
@@ -199,4 +242,68 @@ const ProposalForm = styled.form`
 const ProposalFormTextarea = styled(FieldTextarea)`
   grid-column: 1 / -1;
   background: #ffffff;
+`;
+
+const DateRow = styled.div`
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  min-height: 2.6875rem;
+  padding: 0.4375rem ${spacing.space12};
+  border: 0.5px solid #c0c0c0;
+  background: #ffffff;
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: 0.625rem ${spacing.space20};
+  }
+`;
+
+const DateInput = styled.input`
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  outline: none;
+
+  &::placeholder {
+    color: #9c9c9c;
+  }
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const HiddenNativeDateInput = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+`;
+
+const CalendarButton = styled.button`
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-left: ${spacing.space8};
+  border: 0;
+  border-radius: 50%;
+  background: ${colors.point};
+  color: ${colors.white};
+  cursor: pointer;
+
+  @media (min-width: 120rem) {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
 `;
