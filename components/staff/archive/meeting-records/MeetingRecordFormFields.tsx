@@ -2,13 +2,14 @@
 
 import type { ChangeEvent, FormEvent } from "react";
 import type { MeetingRecordStatus } from "@/api/meetingRecord/meetingRecord.dto";
+import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import {
+  EditorBox,
   Form,
   Input,
   Label,
   TabButton,
   TabRow,
-  Textarea,
 } from "@/components/staff/archive/meeting-records/MeetingRecordDocument.styles";
 
 export type MeetingRecordFormValues = {
@@ -38,7 +39,7 @@ export default function MeetingRecordFormFields({
 
   function updateField(
     key: keyof MeetingRecordFormValues,
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    event: ChangeEvent<HTMLInputElement>,
   ) {
     onChange({ [key]: event.target.value });
   }
@@ -90,37 +91,31 @@ export default function MeetingRecordFormFields({
       <Label as="label" htmlFor="meeting-agenda">
         안건
       </Label>
-      <Textarea
-        id="meeting-agenda"
-        name="agenda"
-        placeholder="안건"
-        value={values.agenda}
-        onChange={(event) => updateField("agenda", event)}
-      />
+      <EditorBox id="meeting-agenda">
+        <ToastEditorField initialValue={values.agenda} onChange={(agenda) => onChange({ agenda })} />
+      </EditorBox>
 
       {!isBeforeMeeting ? (
         <>
           <Label as="label" htmlFor="meeting-discussion">
             논의 사항
           </Label>
-          <Textarea
-            id="meeting-discussion"
-            name="discussion"
-            placeholder="논의 사항"
-            value={values.discussion}
-            onChange={(event) => updateField("discussion", event)}
-          />
+          <EditorBox id="meeting-discussion">
+            <ToastEditorField
+              initialValue={values.discussion}
+              onChange={(discussion) => onChange({ discussion })}
+            />
+          </EditorBox>
 
           <Label as="label" htmlFor="meeting-suggestion">
             결정 사항
           </Label>
-          <Textarea
-            id="meeting-suggestion"
-            name="suggestion"
-            placeholder="결정 사항"
-            value={values.suggestion}
-            onChange={(event) => updateField("suggestion", event)}
-          />
+          <EditorBox id="meeting-suggestion">
+            <ToastEditorField
+              initialValue={values.suggestion}
+              onChange={(suggestion) => onChange({ suggestion })}
+            />
+          </EditorBox>
         </>
       ) : null}
     </Form>

@@ -7,6 +7,7 @@ import {
   deleteMeetingRecord,
   getMeetingRecord,
 } from "@/api/meetingRecord/meetingRecord.api";
+import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import MeetingRecordAbsenceSection from "@/components/staff/archive/meeting-records/MeetingRecordAbsenceSection";
 import MeetingRecordFormPage from "@/components/staff/archive/meeting-records/MeetingRecordFormPage";
 import {
@@ -22,6 +23,7 @@ import {
   TextBox,
   Toolbar,
   ToolbarRight,
+  ViewerBox,
 } from "@/components/staff/archive/meeting-records/MeetingRecordDocument.styles";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
@@ -108,13 +110,31 @@ export default function MeetingRecordDetailPage({ recordId }: MeetingRecordDetai
           <FieldBox>{meetingRecord.author ?? "-"}</FieldBox>
 
           <Label>안건</Label>
-          <TextBox>{meetingRecord.agenda ?? "-"}</TextBox>
+          {meetingRecord.agenda?.trim() ? (
+            <ViewerBox>
+              <ToastViewerField value={meetingRecord.agenda} />
+            </ViewerBox>
+          ) : (
+            <TextBox>-</TextBox>
+          )}
 
           <Label>논의 사항</Label>
-          <TextBox>{meetingRecord.discussion ?? "-"}</TextBox>
+          {meetingRecord.discussion?.trim() ? (
+            <ViewerBox>
+              <ToastViewerField value={meetingRecord.discussion} />
+            </ViewerBox>
+          ) : (
+            <TextBox>-</TextBox>
+          )}
 
           <Label>결정 사항</Label>
-          <TextBox>{meetingRecord.suggestion ?? "-"}</TextBox>
+          {meetingRecord.suggestion?.trim() ? (
+            <ViewerBox>
+              <ToastViewerField value={meetingRecord.suggestion} />
+            </ViewerBox>
+          ) : (
+            <TextBox>-</TextBox>
+          )}
 
           <Divider />
           <MeetingRecordAbsenceSection

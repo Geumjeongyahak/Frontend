@@ -194,9 +194,36 @@ export const FieldBox = styled.div<{ $isMuted?: boolean }>`
 export const TextBox = styled(FieldBox)`
   align-items: flex-start;
   min-height: 6.875rem;
+  white-space: pre-wrap;
 
   @media (min-width: 120rem) {
     min-height: 9.6875rem;
+  }
+`;
+
+export const ViewerBox = styled.div`
+  min-height: 6.875rem;
+  background-color: ${colors.background};
+  padding: 0.2rem ${spacing.space12};
+
+  .toastui-editor-contents {
+    color: #000000;
+    font-size: ${typography.fontSize14};
+    line-height: ${typography.lineHeight150};
+  }
+
+  .toastui-editor-contents img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 9.6875rem;
+    padding: 0.4rem ${spacing.space20};
+
+    .toastui-editor-contents {
+      font-size: ${typography.fontSize20};
+    }
   }
 `;
 
@@ -431,25 +458,28 @@ export const Input = styled.input`
   }
 `;
 
-export const Textarea = styled.textarea`
+export const EditorBox = styled.div`
   width: 100%;
-  min-height: 2.6875rem;
-  resize: vertical;
   border: 1px solid #c0c0c0;
   background-color: ${colors.white};
-  padding: 0.8125rem ${spacing.space12};
-  color: #000000;
-  font: inherit;
-  font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight130};
 
-  &::placeholder {
-    color: #949494;
+  .toastui-editor-defaultUI {
+    border: 0;
+  }
+
+  .toastui-editor-defaultUI,
+  .toastui-editor-main {
+    font-family: ${typography.fontFamily};
+  }
+
+  .toastui-editor-contents {
+    font-size: ${typography.fontSize14};
+    line-height: ${typography.lineHeight150};
   }
 
   @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20};
-    font-size: ${typography.fontSize20};
+    .toastui-editor-contents {
+      font-size: ${typography.fontSize20};
+    }
   }
 `;
