@@ -20,7 +20,7 @@ import {
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { documentFormsToGoogleDrive } from "@/lib/googleDrive/documentFormsToGoogleDrive";
-import { examMaterialsToGoogleDrive } from "@/lib/googleDrive/examMaterialsToGoogleDrive";
+import { uploadExamMaterialsDocument } from "@/lib/googleDrive/uploadExamMaterialsDocument";
 import { uploadHandoverDocument } from "@/lib/googleDrive/uploadHandoverDocument";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
@@ -91,7 +91,14 @@ export default function ArchiveDocumentFormPage({
       const allowComment = false;
       const publishBody = { title, contentHtml, allowComment };
 
-      if (config.category === "handover" && files.length > 0) {
+      const uploadArchiveDocument =
+        config.category === "handover"
+          ? uploadHandoverDocument
+          : config.category === "exam"
+            ? uploadExamMaterialsDocument
+            : null;
+
+      if (uploadArchiveDocument && files.length > 0) {
         const draftPost = isEditMode
           ? await updatePost(
               { channelId, postId: editPostId },
@@ -103,11 +110,11 @@ export default function ArchiveDocumentFormPage({
           throw new Error(`${config.title} 초안을 저장하지 못했습니다.`);
         }
 
-        const registeredFiles = await Promise.all(files.map((file) => uploadHandoverDocument(file)));
+        const registeredFiles = await Promise.all(files.map((file) => uploadArchiveDocument(file)));
 
         for (const [index, registered] of registeredFiles.entries()) {
           if (!registered.fileId) {
-            throw new Error("인수인계서 파일 메타데이터 등록에 실패했습니다.");
+            throw new Error(`${config.title} 파일 메타데이터 등록에 실패했습니다.`);
           }
 
           await attachPostFile(
@@ -126,11 +133,8 @@ export default function ArchiveDocumentFormPage({
           )
         : await createPost({ channelId }, { title, contentHtml, status: "PUBLISHED", allowComment });
 
-      if (typeof post.id === "number" && files.length > 0) {
-        const uploadToGoogleDrive =
-          config.category === "exam" ? examMaterialsToGoogleDrive : documentFormsToGoogleDrive;
-
-        await Promise.all(files.map((file) => uploadToGoogleDrive(file)));
+      if (typeof post.id === "number" && files.length > 0 && config.category === "forms") {
+        await Promise.all(files.map((file) => documentFormsToGoogleDrive(file)));
       }
 
       return post;
