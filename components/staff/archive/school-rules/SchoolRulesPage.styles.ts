@@ -76,14 +76,15 @@ export const CompleteEditButton = styled.button<{ $variant?: "danger" | "default
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.125rem;
+  min-width: 3.9375rem;
+  min-height: 2.6875rem;
   border: 1px solid
     ${({ $variant }) =>
       $variant === "muted" ? colors.border : $variant === "danger" ? colors.notice : colors.point};
   border-radius: ${radii.radius15};
-  padding: 0.625rem ${spacing.space20};
+  padding: 0.8125rem ${spacing.space20};
   background-color: ${({ $variant }) =>
-    $variant === "muted" || $variant === "danger" ? colors.white : colors.pointSoft};
+    $variant === "muted" ? colors.background : colors.white};
   color: ${({ $variant }) =>
     $variant === "muted" ? colors.text : $variant === "danger" ? colors.notice : colors.point};
   font-size: ${typography.fontSize14};
@@ -95,11 +96,11 @@ export const CompleteEditButton = styled.button<{ $variant?: "danger" | "default
   &:not(:disabled):hover {
     background-color: ${({ $variant }) =>
       $variant === "muted"
-        ? colors.background
+        ? undefined
         : $variant === "danger"
           ? colors.noticeSoft
-          : colors.point};
-    color: ${({ $variant }) => ($variant ? undefined : colors.white)};
+          : colors.pointSoft};
+    filter: ${({ $variant }) => ($variant === "muted" ? "brightness(0.97)" : "none")};
   }
 
   &:disabled {
@@ -108,8 +109,8 @@ export const CompleteEditButton = styled.button<{ $variant?: "danger" | "default
   }
 
   @media (min-width: 120rem) {
+    min-width: 5.9375rem;
     min-height: 4rem;
-    border-radius: ${radii.radius15};
     padding: ${spacing.space20} 1.875rem;
     font-size: ${typography.fontSize20};
   }
@@ -170,6 +171,10 @@ export const RulesEditorBox = styled.div`
     overflow: hidden;
     border-color: ${colors.border};
     border-radius: ${radii.radius12};
+  }
+
+  .toastui-editor-toolbar-divider {
+    background-color: #000000;
   }
 `;
 

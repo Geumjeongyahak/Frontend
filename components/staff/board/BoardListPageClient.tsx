@@ -44,6 +44,10 @@ function isEventPost(post: PostSummaryResponseDto) {
   return post.channelType === "EVENT" || post.postType === "EVENT";
 }
 
+function isSchoolRulesPost(post: PostSummaryResponseDto) {
+  return post.channelType === "GUIDE";
+}
+
 function isPinnedPost(post: PostSummaryResponseDto) {
   return Boolean(post.isPinned);
 }
@@ -197,7 +201,7 @@ export default function BoardListPageClient({
   });
 
   const rawPosts = (data?.content ?? []).filter(
-    (post) => !isArchiveDocumentPost(post) && !isEventPost(post),
+    (post) => !isArchiveDocumentPost(post) && !isEventPost(post) && !isSchoolRulesPost(post),
   );
   const posts = rawPosts.filter((post) => {
     if (!mineOnly) return true;

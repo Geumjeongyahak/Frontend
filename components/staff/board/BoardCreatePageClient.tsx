@@ -142,6 +142,7 @@ export default function BoardCreatePageClient({
   const visibleContentHtml = contentHtml ?? postDetailQuery.data?.contentHtml ?? "";
   const visibleIsPinned = isPinned ?? initialPinned;
   const visibleAllowComment = allowComment ?? postDetailQuery.data?.allowComment ?? true;
+  const isEditorReady = !isEditMode || Boolean(postDetailQuery.data);
   const canManagePost =
     !isEditMode ||
     user?.role === "ADMIN" ||
@@ -318,7 +319,15 @@ export default function BoardCreatePageClient({
           <Label as="label" htmlFor="board-content">
             내용
           </Label>
-          <ToastEditorField initialValue={visibleContentHtml} onChange={setContentHtml} />
+          {isEditorReady ? (
+            <ToastEditorField
+              key={isEditMode ? `${editChannelId}-${editPostId}` : "new-board-post"}
+              initialValue={visibleContentHtml}
+              onChange={setContentHtml}
+            />
+          ) : (
+            <StateMessage>게시글 내용을 불러오는 중입니다.</StateMessage>
+          )}
 
           <Label>자료</Label>
           <FileUploadPanel>
