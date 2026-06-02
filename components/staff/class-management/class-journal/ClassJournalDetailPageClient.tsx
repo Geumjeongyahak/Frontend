@@ -226,31 +226,33 @@ export default function ClassJournalDetailPageClient({
 
         <AttendanceSection>
           <SectionTitle>출석</SectionTitle>
-          <AttendanceGrid>
-            {journal.attendance.map((student, index) => (
-              <AttendanceCell key={`name-${index}`}>{student.name}</AttendanceCell>
-            ))}
-            {journal.attendance.map((student, index) =>
-              isEditing ? (
-                <AttendanceCheckboxCell key={`status-${index}`}>
-                  <ConsentCheckbox
-                    type="checkbox"
-                    checked={editableAttendance[index] ?? false}
-                    onChange={(event) =>
-                      setEditableAttendance((current) =>
-                        current.map((isPresent, attendanceIndex) =>
-                          attendanceIndex === index ? event.target.checked : isPresent,
-                        ),
-                      )
-                    }
-                    aria-label={`${index + 1}번 출석`}
-                  />
-                </AttendanceCheckboxCell>
-              ) : (
-                <AttendanceCell key={`status-${index}`}>{student.status}</AttendanceCell>
-              ),
-            )}
-          </AttendanceGrid>
+          <AttendanceTableWrap>
+            <AttendanceGrid>
+              {journal.attendance.map((student, index) => (
+                <AttendanceColumn key={index}>
+                  <AttendanceCell>{student.name}</AttendanceCell>
+                  {isEditing ? (
+                    <AttendanceCheckboxCell>
+                      <ConsentCheckbox
+                        type="checkbox"
+                        checked={editableAttendance[index] ?? false}
+                        onChange={(event) =>
+                          setEditableAttendance((current) =>
+                            current.map((isPresent, attendanceIndex) =>
+                              attendanceIndex === index ? event.target.checked : isPresent,
+                            ),
+                          )
+                        }
+                        aria-label={`${index + 1}번 출석`}
+                      />
+                    </AttendanceCheckboxCell>
+                  ) : (
+                    <AttendanceCell>{student.status}</AttendanceCell>
+                  )}
+                </AttendanceColumn>
+              ))}
+            </AttendanceGrid>
+          </AttendanceTableWrap>
         </AttendanceSection>
       </ContentColumn>
     </PageSection>
@@ -502,15 +504,30 @@ const AttendanceSection = styled.section`
   }
 `;
 
-const AttendanceGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
+const AttendanceTableWrap = styled.div`
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+`;
+
+const AttendanceGrid = styled.div`
+  display: flex;
+  width: max-content;
+  min-width: 100%;
   border-top: 1px solid #c0c0c0;
   border-left: 1px solid #c0c0c0;
+`;
 
-  @media (max-width: ${layout.breakpointTablet}) {
-    grid-template-columns: repeat(5, minmax(5rem, 1fr));
+const AttendanceColumn = styled.div`
+  display: flex;
+  flex: 1 0 4.5rem;
+  flex-direction: column;
+  min-width: 4.5rem;
+
+  @media (min-width: 120rem) {
+    flex-basis: 6rem;
+    min-width: 6rem;
   }
 `;
 
@@ -553,6 +570,7 @@ const AttendanceCheckboxCell = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
   min-height: 2.75rem;
   padding: ${spacing.space8};
   border: 0;
@@ -569,6 +587,7 @@ const AttendanceCell = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
   min-height: 2.75rem;
   padding: ${spacing.space8};
   border: 0;
@@ -580,6 +599,8 @@ const AttendanceCell = styled.div`
   font-weight: 500;
   line-height: ${typography.lineHeight130};
   text-align: center;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 
   @media (min-width: 120rem) {
     min-height: 3.875rem;
