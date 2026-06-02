@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import { createPost, getPost, updatePost } from "@/api/post/post.api";
+import { attachPostFile, createPost, getPost, publishPost, updatePost } from "@/api/post/post.api";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import {
   ActionButton,
@@ -86,35 +86,51 @@ export default function ArchiveDocumentFormPage({
         throw new Error(`${config.title} 채널을 찾을 수 없습니다.`);
       }
 
+      const title = visibleTitle.trim();
+      const contentHtml = visibleDescription.trim();
+      const allowComment = false;
+      const publishBody = { title, contentHtml, allowComment };
+
+      if (config.category === "handover" && files.length > 0) {
+        const draftPost = isEditMode
+          ? await updatePost(
+              { channelId, postId: editPostId },
+              { title, contentHtml, status: "DRAFT", allowComment },
+            )
+          : await createPost({ channelId }, { title, contentHtml, status: "DRAFT", allowComment });
+
+        if (typeof draftPost.id !== "number") {
+          throw new Error(`${config.title} 초안을 저장하지 못했습니다.`);
+        }
+
+        const registeredFiles = await Promise.all(files.map((file) => uploadHandoverDocument(file)));
+
+        for (const [index, registered] of registeredFiles.entries()) {
+          if (!registered.fileId) {
+            throw new Error("인수인계서 파일 메타데이터 등록에 실패했습니다.");
+          }
+
+          await attachPostFile(
+            { channelId, postId: draftPost.id },
+            { fileId: registered.fileId, sortOrder: index },
+          );
+        }
+
+        return publishPost({ channelId, postId: draftPost.id }, publishBody);
+      }
+
       const post = isEditMode
         ? await updatePost(
             { channelId, postId: editPostId },
-            {
-              title: visibleTitle.trim(),
-              contentHtml: visibleDescription.trim(),
-              status: "PUBLISHED",
-              allowComment: false,
-            },
+            { title, contentHtml, status: "PUBLISHED", allowComment },
           )
-        : await createPost(
-            { channelId },
-            {
-              title: visibleTitle.trim(),
-              contentHtml: visibleDescription.trim(),
-              status: "PUBLISHED",
-              allowComment: false,
-            },
-          );
+        : await createPost({ channelId }, { title, contentHtml, status: "PUBLISHED", allowComment });
 
       if (typeof post.id === "number" && files.length > 0) {
-        if (config.category === "handover") {
-          await Promise.all(files.map((file) => uploadHandoverDocument(file)));
-        } else {
-          const uploadToGoogleDrive =
-            config.category === "exam" ? examMaterialsToGoogleDrive : documentFormsToGoogleDrive;
+        const uploadToGoogleDrive =
+          config.category === "exam" ? examMaterialsToGoogleDrive : documentFormsToGoogleDrive;
 
-          await Promise.all(files.map((file) => uploadToGoogleDrive(file)));
-        }
+        await Promise.all(files.map((file) => uploadToGoogleDrive(file)));
       }
 
       return post;

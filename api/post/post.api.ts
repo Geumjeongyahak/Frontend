@@ -1,6 +1,7 @@
 import authClient from "../client/authClient";
 import type { FileUploadResponseDto } from "../file/file.dto";
 import type {
+  AttachPostFileRequestDto,
   CreatePostRequestDto,
   ChannelPathParamsDto,
   ChannelPostListQueryParamsDto,
@@ -138,6 +139,18 @@ export async function attachPostImage(
         "Content-Type": "multipart/form-data",
       },
     },
+  );
+  return response.data;
+}
+
+// files 테이블에 등록된 파일을 DRAFT 게시글 첨부로 연동하는 요청
+export async function attachPostFile(
+  pathParams: PostPathParamsDto,
+  body: AttachPostFileRequestDto,
+) {
+  const response = await authClient.post<FileUploadResponseDto>(
+    `/api/v1/channels/${pathParams.channelId}/posts/${pathParams.postId}/attachments`,
+    body,
   );
   return response.data;
 }
