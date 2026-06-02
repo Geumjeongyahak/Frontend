@@ -195,6 +195,7 @@ export default function BoardCreatePageClient({
   const visibleContentHtml = contentHtml ?? postDetailQuery.data?.contentHtml ?? "";
   const visibleIsPinned = isPinned ?? initialPinned;
   const visibleAllowComment = allowComment ?? postDetailQuery.data?.allowComment ?? true;
+  const existingAttachments = postDetailQuery.data?.attachments ?? [];
   const isEditorReady = !isEditMode || Boolean(postDetailQuery.data);
   const cancelHref =
     isEditMode && typeof editPostId === "number" && typeof editChannelId === "number"
@@ -249,7 +250,10 @@ export default function BoardCreatePageClient({
 
           await attachPostFile(
             { channelId, postId: draftPost.id },
-            { fileId: registered.fileId, sortOrder: index },
+            {
+              fileId: registered.fileId,
+              sortOrder: (isEditMode ? existingAttachments.length : 0) + index,
+            },
           );
         }
 
@@ -440,13 +444,18 @@ export default function BoardCreatePageClient({
 
           <Label>자료</Label>
           <FileUploadPanel>
+            {existingAttachments.map((file, index) => (
+              <span key={`${file.fileId ?? file.originalName}-${index}`}>
+                {file.originalName ?? file.fileId ?? `자료 ${index + 1}`}
+              </span>
+            ))}
             {selectedFiles.length > 0 ? (
-              selectedFiles.map((file, index) => (
-                <span key={`${file.name}-${index}`}>{file.name}</span>
+              selectedFiles.map((file) => (
+                <span key={`${file.name}-${file.lastModified}`}>{file.name}</span>
               ))
-            ) : (
+            ) : existingAttachments.length === 0 ? (
               <span>선택된 파일이 없습니다.</span>
-            )}
+            ) : null}
             <FileSelectLabel>
               <IconPaperclip aria-hidden="true" size={16} stroke={2.25} />
               <span>파일 선택</span>

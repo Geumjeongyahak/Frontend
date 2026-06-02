@@ -24,6 +24,7 @@ import {
   ViewerBox,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { handlePostDeleteSuccess } from "@/lib/post/postDeleteCache";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
@@ -38,10 +39,33 @@ export default function EventDetailPageClient({ postId, channelId }: EventDetail
   const { user } = useAuthSession();
   const hasChannelId = typeof channelId === "number" && Number.isFinite(channelId);
 
+  const deletePostMutation = useMutation({
+    mutationFn: () => deletePost({ channelId: channelId ?? 0, postId }),
+    onMutate: async () => {
+      if (!hasChannelId) return;
+
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.posts.boardDetail(channelId, postId),
+      });
+    },
+    onSuccess: () => {
+      if (!hasChannelId) return;
+
+      handlePostDeleteSuccess(queryClient, {
+        channelId,
+        postId,
+        redirect: () => router.replace("/info/events"),
+        extraInvalidateKeys: [["info", "events"]],
+      });
+    },
+  });
+
+  const isDeletingPost = deletePostMutation.isPending || deletePostMutation.isSuccess;
+
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.posts.boardDetail(channelId ?? 0, postId),
     queryFn: () => getPost({ channelId: channelId ?? 0, postId }),
-    enabled: hasChannelId,
+    enabled: hasChannelId && !isDeletingPost,
     retry: false,
   });
 
@@ -57,25 +81,18 @@ export default function EventDetailPageClient({ postId, channelId }: EventDetail
       : "/info/events/new";
   const attachments = visiblePost?.attachments ?? [];
 
-  const deletePostMutation = useMutation({
-    mutationFn: () => deletePost({ channelId: channelId ?? 0, postId }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["info", "events"] });
-      await queryClient.invalidateQueries({ queryKey: ["posts"] });
-      router.push("/info/events");
-    },
-  });
-
   const stateMessage =
     !visiblePost && !hasChannelId
       ? "게시글 채널 정보가 없어 상세 내용을 불러오지 못했습니다."
-      : isLoading
-        ? "게시글을 불러오는 중입니다."
-        : isError && !visiblePost
-          ? "게시글을 불러오지 못했습니다."
-          : deletePostMutation.isError
-            ? "게시글 삭제에 실패했습니다."
-            : "";
+      : deletePostMutation.isPending
+        ? "게시글을 삭제하는 중입니다."
+        : isLoading
+          ? "게시글을 불러오는 중입니다."
+          : isError && !visiblePost && !isDeletingPost
+            ? "게시글을 불러오지 못했습니다."
+            : deletePostMutation.isError
+              ? "게시글 삭제에 실패했습니다."
+              : "";
 
   return (
     <EventDocumentLayout>

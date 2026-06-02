@@ -7,7 +7,6 @@ import { useState, type FormEvent } from "react";
 import styled, { css } from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { deletePost, getPost, updatePost } from "@/api/post/post.api";
-import type { PostListResponseDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
@@ -31,6 +30,7 @@ import {
   getUploadArchiveDocument,
   publishArchivePostWithNewFiles,
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
+import { handlePostDeleteSuccess } from "@/lib/post/postDeleteCache";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -67,10 +67,32 @@ export default function ArchiveDocumentDetailPage({
     initialChannelId ?? channel?.id ?? (channelsQuery.isError ? config.channelId : undefined);
   const hasChannelId = typeof channelId === "number" && Number.isFinite(channelId);
 
+  const deletePostMutation = useMutation({
+    mutationFn: () => deletePost({ channelId: channelId ?? 0, postId }),
+    onMutate: async () => {
+      if (!hasChannelId) return;
+
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.posts.boardDetail(channelId, postId),
+      });
+    },
+    onSuccess: () => {
+      if (!hasChannelId) return;
+
+      handlePostDeleteSuccess(queryClient, {
+        channelId,
+        postId,
+        redirect: () => router.replace(config.listPath),
+      });
+    },
+  });
+
+  const isDeletingPost = deletePostMutation.isPending || deletePostMutation.isSuccess;
+
   const postQuery = useQuery({
     queryKey: queryKeys.posts.boardDetail(channelId ?? 0, postId),
     queryFn: () => getPost({ channelId: channelId ?? 0, postId }),
-    enabled: hasChannelId,
+    enabled: hasChannelId && !isDeletingPost,
     retry: false,
   });
 
@@ -90,25 +112,6 @@ export default function ArchiveDocumentDetailPage({
         visiblePost.authorName === user?.email),
     );
 
-  const deletePostMutation = useMutation({
-    mutationFn: () => deletePost({ channelId: channelId ?? 0, postId }),
-    onSuccess: async () => {
-      queryClient.setQueriesData<PostListResponseDto>({ queryKey: ["posts"] }, (current) => {
-        if (!current?.content) return current;
-
-        return {
-          ...current,
-          content: current.content.filter((post) => post.id !== postId),
-          totalElements:
-            typeof current.totalElements === "number"
-              ? Math.max(0, current.totalElements - 1)
-              : current.totalElements,
-        };
-      });
-      await queryClient.invalidateQueries({ queryKey: ["posts"] });
-      router.push(config.listPath);
-    },
-  });
   const updatePostMutation = useMutation({
     mutationFn: async () => {
       if (!hasChannelId) {
@@ -157,15 +160,17 @@ export default function ArchiveDocumentDetailPage({
 
   const stateMessage = !hasChannelId
     ? `${config.title} 채널 정보를 찾지 못했습니다.`
-    : postQuery.isLoading
-      ? `${config.title}를 불러오는 중입니다.`
-      : postQuery.isError && !visiblePost
-        ? `${config.title}를 불러오지 못했습니다.`
-        : deletePostMutation.isError
-          ? `${config.title} 삭제에 실패했습니다.`
-          : updatePostMutation.isError
-            ? `${config.title} 수정에 실패했습니다.`
-            : "";
+    : deletePostMutation.isPending
+      ? `${config.title}를 삭제하는 중입니다.`
+      : postQuery.isLoading
+        ? `${config.title}를 불러오는 중입니다.`
+        : postQuery.isError && !visiblePost && !isDeletingPost
+          ? `${config.title}를 불러오지 못했습니다.`
+          : deletePostMutation.isError
+            ? `${config.title} 삭제에 실패했습니다.`
+            : updatePostMutation.isError
+              ? `${config.title} 수정에 실패했습니다.`
+              : "";
   const canSubmitEdit =
     isEditing &&
     hasChannelId &&
