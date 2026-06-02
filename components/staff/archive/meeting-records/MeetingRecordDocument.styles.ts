@@ -20,7 +20,7 @@ export const DocumentSection = styled.section`
 export const Toolbar = styled.div`
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: ${spacing.space20};
   margin-bottom: 2.1875rem;
 
@@ -37,6 +37,7 @@ export const ToolbarRight = styled.div`
   display: flex;
   align-items: center;
   gap: ${spacing.space20};
+  margin-left: auto;
 
   @media (min-width: 120rem) {
     gap: 1.875rem;
@@ -283,23 +284,22 @@ export const AbsenceBox = styled.div<{
   $height?: "short" | "medium" | "large";
 }>`
   display: flex;
-  flex-direction: column;
-  justify-content: ${({ $height }) => ($height === "short" ? "center" : "flex-start")};
-  gap: ${spacing.space8};
-  min-height: ${({ $height }) =>
-    $height === "large" ? "7.5rem" : $height === "medium" ? "6.75rem" : "2.6875rem"};
-  border: ${({ $tone }) => ($tone === "draft" ? `1px solid ${colors.border}` : 0)};
-  background-color: ${({ $tone }) => ($tone === "draft" ? "#eef9e6" : colors.background)};
-  padding: 0.8125rem ${spacing.space12};
+  flex-direction: ${({ $tone }) => ($tone === "draft" ? "row" : "column")};
+  align-items: ${({ $tone }) => ($tone === "draft" ? "center" : "flex-start")};
+  justify-content: ${({ $tone }) => ($tone === "draft" ? "center" : "flex-start")};
+  gap: ${({ $tone }) => ($tone === "draft" ? spacing.space12 : spacing.space8)};
+  min-height: ${({ $tone }) => ($tone === "draft" ? "2.6875rem" : "auto")};
+  border: 0;
+  background-color: transparent;
+  padding: ${({ $tone }) => ($tone === "draft" ? 0 : `0.8125rem ${spacing.space12}`)};
   color: #000000;
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
-    gap: 0.625rem;
-    min-height: ${({ $height }) =>
-      $height === "large" ? "11.375rem" : $height === "medium" ? "10.0625rem" : "4rem"};
-    padding: ${spacing.space20};
+    gap: ${({ $tone }) => ($tone === "draft" ? "1.25rem" : "0.625rem")};
+    min-height: ${({ $tone }) => ($tone === "draft" ? "4rem" : "auto")};
+    padding: ${({ $tone }) => ($tone === "draft" ? 0 : `${spacing.space20}`)};
     font-size: ${typography.fontSize20};
   }
 `;
@@ -307,12 +307,16 @@ export const AbsenceBox = styled.div<{
 export const AbsenceBoxLabel = styled.strong<{ $draft?: boolean }>`
   color: ${({ $draft }) => ($draft ? "#9c9c9c" : "#a1a1a1")};
   font-weight: 600;
+  flex: ${({ $draft }) => ($draft ? "0 0 4.625rem" : "initial")};
+  white-space: nowrap;
 `;
 
 export const AbsenceInput = styled.input`
   width: 100%;
-  border: 0;
-  background: transparent;
+  min-height: 2.6875rem;
+  border: 1px solid #c0c0c0;
+  background: ${colors.white};
+  padding: 0.8125rem ${spacing.space12};
   color: #000000;
   font: inherit;
   outline: none;
@@ -320,14 +324,22 @@ export const AbsenceInput = styled.input`
   &::placeholder {
     color: #9c9c9c;
   }
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+  }
 `;
 
 export const AbsenceTextarea = styled.textarea`
   width: 100%;
-  min-height: 100%;
+  min-height: 2.6875rem;
+  height: auto;
+  field-sizing: content;
   resize: vertical;
-  border: 0;
-  background: transparent;
+  border: 1px solid #c0c0c0;
+  background: ${colors.white};
+  padding: 0.8125rem ${spacing.space12};
   color: #000000;
   font: inherit;
   line-height: ${typography.lineHeight130};
@@ -336,6 +348,16 @@ export const AbsenceTextarea = styled.textarea`
   &::placeholder {
     color: #9c9c9c;
   }
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+  }
+`;
+
+export const AbsenceValue = styled.span`
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 `;
 
 export const Form = styled.form`
@@ -371,6 +393,10 @@ export const TabButton = styled.button<{ $active?: boolean }>`
   text-align: left;
   cursor: pointer;
 
+  &:not(:disabled):hover {
+    filter: brightness(0.97);
+  }
+
   &:disabled {
     opacity: 0.45;
     cursor: not-allowed;
@@ -386,8 +412,8 @@ export const TabButton = styled.button<{ $active?: boolean }>`
 export const Input = styled.input`
   width: 100%;
   min-height: 2.6875rem;
-  border: 0;
-  background-color: ${colors.background};
+  border: 1px solid #c0c0c0;
+  background-color: ${colors.white};
   padding: 0.8125rem ${spacing.space12};
   color: #000000;
   font: inherit;
@@ -407,10 +433,10 @@ export const Input = styled.input`
 
 export const Textarea = styled.textarea`
   width: 100%;
-  min-height: 6.875rem;
+  min-height: 2.6875rem;
   resize: vertical;
-  border: 0;
-  background-color: ${colors.background};
+  border: 1px solid #c0c0c0;
+  background-color: ${colors.white};
   padding: 0.8125rem ${spacing.space12};
   color: #000000;
   font: inherit;
@@ -422,7 +448,7 @@ export const Textarea = styled.textarea`
   }
 
   @media (min-width: 120rem) {
-    min-height: 9.6875rem;
+    min-height: 4rem;
     padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
   }

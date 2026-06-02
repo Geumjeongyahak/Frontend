@@ -66,10 +66,6 @@ export default function MeetingRecordDetailPage({ recordId }: MeetingRecordDetai
   return (
     <DocumentSection>
       <Toolbar>
-        <ActionLink href="/staff/archive/meeting-records" $variant="muted">
-          목록
-        </ActionLink>
-
         <ToolbarRight>
           <ActionButton
             type="button"
@@ -87,6 +83,9 @@ export default function MeetingRecordDetailPage({ recordId }: MeetingRecordDetai
           >
             수정
           </ActionButton>
+          <ActionLink href="/staff/archive/meeting-records" $variant="muted">
+            목록
+          </ActionLink>
         </ToolbarRight>
       </Toolbar>
 

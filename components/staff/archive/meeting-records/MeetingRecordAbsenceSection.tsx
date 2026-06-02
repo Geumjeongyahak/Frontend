@@ -20,6 +20,7 @@ import {
   AbsenceStack,
   AbsenceTextarea,
   AbsenceTitle,
+  AbsenceValue,
   ActionButton,
   Divider,
   StateMessage,
@@ -154,6 +155,11 @@ export default function MeetingRecordAbsenceSection({
     });
   };
 
+  const cancelEditing = () => {
+    setEditingReportId(null);
+    setEditDraft(initialDraft);
+  };
+
   const handleUpdateSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -173,19 +179,24 @@ export default function MeetingRecordAbsenceSection({
 
       <AbsenceStack as="form" id="absence-report-form" onSubmit={handleSubmit}>
         <AbsenceBox as="label" $tone="draft" $height="short">
+          <AbsenceBoxLabel $draft>작성자</AbsenceBoxLabel>
           <AbsenceInput name="author" value={authorName} readOnly />
         </AbsenceBox>
         <AbsenceBox as="label" $tone="draft" $height="large">
+          <AbsenceBoxLabel $draft>불참 사유</AbsenceBoxLabel>
           <AbsenceTextarea
             name="reason"
+            rows={1}
             value={draft.reason}
             onChange={(event) => updateDraft("reason", event.target.value)}
             placeholder="불참사유"
           />
         </AbsenceBox>
         <AbsenceBox as="label" $tone="draft" $height="medium">
+          <AbsenceBoxLabel $draft>의견</AbsenceBoxLabel>
           <AbsenceTextarea
             name="opinion"
+            rows={1}
             value={draft.opinion}
             onChange={(event) => updateDraft("opinion", event.target.value)}
             placeholder="의견"
@@ -228,7 +239,11 @@ export default function MeetingRecordAbsenceSection({
                   >
                     {isEditing ? "수정 완료" : "수정"}
                   </UnderlineTextButton>
-                  {reportId ? (
+                  {isEditing ? (
+                    <UnderlineTextButton type="button" onClick={cancelEditing}>
+                      취소
+                    </UnderlineTextButton>
+                  ) : reportId ? (
                     <UnderlineTextButton
                       type="button"
                       $tone="danger"
@@ -250,12 +265,13 @@ export default function MeetingRecordAbsenceSection({
               {isEditing ? (
                 <AbsenceTextarea
                   name="reason"
+                  rows={1}
                   value={editDraft.reason}
                   onChange={(event) => updateEditDraft("reason", event.target.value)}
                   placeholder="불참사유"
                 />
               ) : (
-                <span>{report.reason}</span>
+                <AbsenceValue>{report.reason}</AbsenceValue>
               )}
             </AbsenceBox>
             <AbsenceBox $height="medium">
@@ -263,12 +279,13 @@ export default function MeetingRecordAbsenceSection({
               {isEditing ? (
                 <AbsenceTextarea
                   name="opinion"
+                  rows={1}
                   value={editDraft.opinion}
                   onChange={(event) => updateEditDraft("opinion", event.target.value)}
                   placeholder="의견"
                 />
               ) : (
-                <span>{report.opinion}</span>
+                <AbsenceValue>{report.opinion}</AbsenceValue>
               )}
             </AbsenceBox>
           </AbsenceStack>

@@ -171,14 +171,14 @@ export default function MeetingRecordFormPage({
       <Toolbar>
         <PageTitle>{mode === "edit" ? "교학 회의록 수정하기" : "교학 회의록 작성하기"}</PageTitle>
         <ToolbarRight>
+          <ActionButton type="submit" form="meeting-record-form" disabled={!canSubmit}>
+            {saveMutation.isPending ? "저장 중" : mode === "edit" ? "수정 완료" : "작성 완료"}
+          </ActionButton>
           {onCancel ? (
             <ActionButton type="button" $variant="muted" onClick={onCancel}>
               취소
             </ActionButton>
           ) : null}
-          <ActionButton type="submit" form="meeting-record-form" disabled={!canSubmit}>
-            {saveMutation.isPending ? "저장 중" : mode === "edit" ? "수정 완료" : "작성 완료"}
-          </ActionButton>
         </ToolbarRight>
       </Toolbar>
 
