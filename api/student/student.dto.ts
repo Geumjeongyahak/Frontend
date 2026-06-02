@@ -19,7 +19,7 @@ export interface CreateStudentRequestDto {
   name: string;
   phoneNumber?: string;
   description?: string;
-  classroomId: number;
+  classroomIds: number[];
 }
 
 export interface UpdateStudentRequestDto {
@@ -27,7 +27,7 @@ export interface UpdateStudentRequestDto {
   phoneNumber?: string;
   description?: string;
   status?: StudentStatus;
-  classroomId?: number;
+  classroomIds?: number[];
 }
 
 export interface StudentResponseDto {

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { attachPostFile, createPost, getPost, publishPost, updatePost } from "@/api/post/post.api";
+import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import {
   ActionButton,
@@ -75,9 +76,9 @@ export default function ArchiveDocumentFormPage({
     (typeof user?.id === "number" && postDetailQuery.data?.authorId === user.id) ||
     Boolean(
       postDetailQuery.data?.authorName &&
-        (postDetailQuery.data.authorName === user?.name ||
-          postDetailQuery.data.authorName === user?.nickname ||
-          postDetailQuery.data.authorName === user?.email),
+      (postDetailQuery.data.authorName === user?.name ||
+        postDetailQuery.data.authorName === user?.nickname ||
+        postDetailQuery.data.authorName === user?.email),
     );
 
   const { mutate, isPending, isError } = useMutation({
@@ -146,6 +147,11 @@ export default function ArchiveDocumentFormPage({
           : Promise.resolve(),
       ]);
 
+      if (typeof post.id === "number" && typeof post.channelId === "number") {
+        router.push(`${config.listPath}/${post.id}?channelId=${post.channelId}`);
+        return;
+      }
+
       router.push(config.listPath);
     },
   });
@@ -156,6 +162,8 @@ export default function ArchiveDocumentFormPage({
     Boolean(channelId) &&
     canManagePost &&
     !isPending;
+  const canShowDescriptionEditor =
+    !isEditMode || Boolean(postDetailQuery.data) || postDetailQuery.isError;
 
   return (
     <DocumentSection>
@@ -198,13 +206,16 @@ export default function ArchiveDocumentFormPage({
         <Label as="label" htmlFor={`${config.category}-description`}>
           설명
         </Label>
-        <ArchiveTextarea
-          id={`${config.category}-description`}
-          name="description"
-          placeholder="설명"
-          value={visibleDescription}
-          onChange={(event) => setDescription(event.target.value)}
-        />
+        {canShowDescriptionEditor ? (
+          <EditorBox>
+            <ToastEditorField
+              initialValue={visibleDescription}
+              onChange={(contentHtml) => setDescription(contentHtml)}
+            />
+          </EditorBox>
+        ) : (
+          <StateMessage>본문 편집기를 불러오는 중입니다.</StateMessage>
+        )}
 
         <Label>자료</Label>
         <FileUploadPanel>
@@ -235,12 +246,12 @@ export default function ArchiveDocumentFormPage({
         {postDetailQuery.isError ? (
           <StateMessage>수정할 {config.title} 내용을 불러오지 못했습니다.</StateMessage>
         ) : null}
-        {!canManagePost ? (
-          <StateMessage>이 글을 수정할 권한이 없습니다.</StateMessage>
-        ) : null}
+        {!canManagePost ? <StateMessage>이 글을 수정할 권한이 없습니다.</StateMessage> : null}
         {isError ? (
           <StateMessage>
-            {isEditMode ? `${config.title} 수정에 실패했습니다.` : `${config.title} 작성에 실패했습니다.`}
+            {isEditMode
+              ? `${config.title} 수정에 실패했습니다.`
+              : `${config.title} 작성에 실패했습니다.`}
           </StateMessage>
         ) : null}
       </Form>
@@ -275,27 +286,13 @@ const ArchiveInput = styled.input`
   }
 `;
 
-const ArchiveTextarea = styled.textarea`
+const EditorBox = styled.div`
   width: 100%;
-  min-height: 2.6875rem;
-  resize: vertical;
   border: 1px solid ${colors.muted};
   background-color: ${colors.white};
-  padding: 0.8125rem ${spacing.space12};
-  color: ${colors.text};
-  font: inherit;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
 
-  &::placeholder {
-    color: ${colors.placeholder};
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20};
-    font-size: ${typography.fontSize20};
+  .toastui-editor-defaultUI {
+    border: 0;
   }
 `;
 

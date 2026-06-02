@@ -1,271 +1,73 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  createStudent,
-  deleteStudent,
-  getStudents,
-  updateStudent,
-} from "@/api/student/student.api";
-import type { StudentListResponseDto } from "@/api/student/student.dto";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getClassrooms } from "@/api/classroom/classroom.api";
+import { getStudents } from "@/api/student/student.api";
 import { queryKeys } from "@/lib/queryKeys";
-import type {
-  StudentClass,
-  StudentContact,
-} from "@/components/staff/archive/phone-book/PhoneBookPage.types";
+import type { StudentClass } from "@/components/staff/archive/phone-book/PhoneBookPage.types";
 
-const createStudentContact = (): StudentContact => ({
-  id: -Date.now(),
-  name: "",
-  phone: "",
-});
+async function getStudentContactClasses(): Promise<StudentClass[]> {
+  const classroomsResponse = await getClassrooms({ page: 0, size: 100 });
+  const classrooms = classroomsResponse.content ?? [];
 
-function mapStudentsToClasses(students: StudentListResponseDto): StudentClass[] {
-  const grouped = new Map<string, StudentClass>();
+  const classStudentPairs = await Promise.all(
+    classrooms.map(async (classroom, index) => {
+      const classroomId = classroom.id;
+      const students =
+        typeof classroomId === "number"
+          ? await getStudents({ classroomId, status: "ENROLLED" })
+          : [];
 
-  students.forEach((student) => {
-    const classrooms =
-      student.classrooms && student.classrooms.length > 0
-        ? student.classrooms
-        : [{ id: -1, name: "미지정" }];
+      return {
+        id: String(classroomId ?? `unknown-${index}`),
+        name: classroom.name ?? "미지정",
+        isOpen: false,
+        students: students.map((student, studentIndex) => ({
+          id: student.id ?? -(studentIndex + 1),
+          name: student.name ?? "",
+          phone: student.phoneNumber ?? "",
+        })),
+      };
+    }),
+  );
 
-    classrooms.forEach((classroom) => {
-      const classId = String(classroom.id);
-      const className = classroom.name;
-
-      if (!grouped.has(classId)) {
-        grouped.set(classId, {
-          id: classId,
-          name: className,
-          isOpen: grouped.size === 0,
-          students: [],
-        });
-      }
-
-      const classStudents = grouped.get(classId)?.students;
-      const studentId = student.id ?? Date.now();
-
-      if (classStudents?.some((item) => item.id === studentId)) return;
-
-      classStudents?.push({
-        id: studentId,
-        name: student.name ?? "",
-        phone: student.phoneNumber ?? "",
-      });
-    });
-  });
-
-  return Array.from(grouped.values());
+  return classStudentPairs;
 }
 
-export function useStudentContactSection(initialClasses: StudentClass[] = []) {
-  const queryClient = useQueryClient();
-
-  const { data: students = [] } = useQuery({
-    queryKey: queryKeys.students.list(),
-    queryFn: () => getStudents(),
+export function useStudentContactSection() {
+  const {
+    data: apiClasses = [],
+    isError,
+    isLoading,
+  } = useQuery({
+    queryKey: queryKeys.students.contactClasses(),
+    queryFn: getStudentContactClasses,
   });
 
-  const apiClasses = useMemo(() => mapStudentsToClasses(students), [students]);
+  const [openClassIds, setOpenClassIds] = useState<Set<string> | null>(null);
 
-  const [classes, setClasses] = useState<StudentClass[]>(initialClasses);
-  const [draftClasses, setDraftClasses] = useState<StudentClass[]>(initialClasses);
-  const [openClassIds, setOpenClassIds] = useState<Set<string>>(
-    () => new Set(initialClasses.filter((studentClass) => studentClass.isOpen).map(({ id }) => id)),
-  );
-  const [selectedClassId, setSelectedClassId] = useState(initialClasses[0]?.id ?? "");
-  const [isEditing, setIsEditing] = useState(false);
-
-  useEffect(() => {
-    if (apiClasses.length === 0) return;
-
-    setClasses(apiClasses);
-    setDraftClasses(apiClasses);
-    setOpenClassIds(
-      new Set(apiClasses.filter((studentClass) => studentClass.isOpen).map(({ id }) => id)),
-    );
-    setSelectedClassId(apiClasses[0]?.id ?? "");
-  }, [apiClasses]);
-
-  const createStudentMutation = useMutation({
-    mutationFn: ({
-      classroomId,
-      name,
-      phone,
-    }: {
-      classroomId: number;
-      name: string;
-      phone: string;
-    }) =>
-      createStudent({
-        classroomId,
-        name: name.trim(),
-        phoneNumber: phone.trim(),
-      }),
-  });
-
-  const updateStudentMutation = useMutation({
-    mutationFn: ({ studentId, name, phone }: { studentId: number; name: string; phone: string }) =>
-      updateStudent(
-        { studentId },
-        {
-          name: name.trim(),
-          phoneNumber: phone.trim(),
-        },
-      ),
-  });
-
-  const deleteStudentMutation = useMutation({
-    mutationFn: (studentId: number) => deleteStudent({ studentId }),
-  });
+  const classes = apiClasses;
+  const defaultOpenClassIds = new Set<string>();
+  const resolvedOpenClassIds = openClassIds ?? defaultOpenClassIds;
 
   const toggleClass = (classId: string) => {
     setOpenClassIds((currentIds) => {
-      const nextIds = new Set(currentIds);
-      nextIds.has(classId) ? nextIds.delete(classId) : nextIds.add(classId);
+      const nextIds = new Set(currentIds ?? defaultOpenClassIds);
+      if (nextIds.has(classId)) {
+        nextIds.delete(classId);
+      } else {
+        nextIds.add(classId);
+      }
       return nextIds;
     });
   };
 
-  const startEditing = () => {
-    setDraftClasses(classes);
-    setSelectedClassId(classes[0]?.id ?? "");
-    setIsEditing(true);
-  };
-
-  const updateDraftStudent = (
-    classId: string,
-    studentId: number,
-    field: keyof Omit<StudentContact, "id">,
-    value: string,
-  ) => {
-    setDraftClasses((currentClasses) =>
-      currentClasses.map((studentClass) =>
-        studentClass.id === classId
-          ? {
-              ...studentClass,
-              students: studentClass.students.map((student) =>
-                student.id === studentId ? { ...student, [field]: value } : student,
-              ),
-            }
-          : studentClass,
-      ),
-    );
-  };
-
-  const removeDraftStudent = (classId: string, studentId: number) => {
-    setDraftClasses((currentClasses) =>
-      currentClasses.map((studentClass) =>
-        studentClass.id === classId
-          ? {
-              ...studentClass,
-              students: studentClass.students.filter((student) => student.id !== studentId),
-            }
-          : studentClass,
-      ),
-    );
-  };
-
-  const addDraftStudent = (classId: string) => {
-    setDraftClasses((currentClasses) =>
-      currentClasses.map((studentClass) =>
-        studentClass.id === classId
-          ? {
-              ...studentClass,
-              students: [...studentClass.students, createStudentContact()],
-            }
-          : studentClass,
-      ),
-    );
-  };
-
-  const completeEditing = async () => {
-    const cleanedClasses = draftClasses.map((studentClass) => ({
-      ...studentClass,
-      students: studentClass.students.filter((student) =>
-        [student.name, student.phone].some((value) => value.trim()),
-      ),
-    }));
-
-    const originalStudents = classes.flatMap((studentClass) =>
-      studentClass.students.map((student) => ({
-        ...student,
-        classroomId: Number(studentClass.id),
-      })),
-    );
-
-    const draftStudents = cleanedClasses.flatMap((studentClass) =>
-      studentClass.students.map((student) => ({
-        ...student,
-        classroomId: Number(studentClass.id),
-      })),
-    );
-
-    const newStudents = draftStudents.filter((student) => student.id < 0);
-    const existingDraftStudents = draftStudents.filter((student) => student.id > 0);
-
-    const deletedStudents = originalStudents.filter(
-      (originalStudent) =>
-        originalStudent.id > 0 &&
-        !existingDraftStudents.some((draftStudent) => draftStudent.id === originalStudent.id),
-    );
-
-    const updatedStudents = existingDraftStudents.filter((draftStudent) => {
-      const originalStudent = originalStudents.find((student) => student.id === draftStudent.id);
-      if (!originalStudent) return false;
-
-      return (
-        originalStudent.name !== draftStudent.name ||
-        originalStudent.phone !== draftStudent.phone ||
-        originalStudent.classroomId !== draftStudent.classroomId
-      );
-    });
-
-    try {
-      await Promise.all([
-        ...newStudents.map((student) =>
-          createStudentMutation.mutateAsync({
-            classroomId: student.classroomId,
-            name: student.name,
-            phone: student.phone,
-          }),
-        ),
-        ...updatedStudents.map((student) =>
-          updateStudentMutation.mutateAsync({
-            studentId: student.id,
-            name: student.name,
-            phone: student.phone,
-          }),
-        ),
-        ...deletedStudents.map((student) => deleteStudentMutation.mutateAsync(student.id)),
-      ]);
-
-      await queryClient.invalidateQueries({ queryKey: ["students", "list"] });
-
-      setClasses(cleanedClasses);
-      setIsEditing(false);
-      window.alert("학생 연락망이 저장되었습니다.");
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : "학생 연락망 저장에 실패했습니다.");
-    }
-  };
-
-  const selectedClass = draftClasses.find((studentClass) => studentClass.id === selectedClassId);
-
   return {
     classes,
-    draftClasses,
-    openClassIds,
-    selectedClass,
-    selectedClassId,
-    isEditing,
-    setSelectedClassId,
+    openClassIds: resolvedOpenClassIds,
+    isLoading,
+    isError,
     toggleClass,
-    startEditing,
-    updateDraftStudent,
-    removeDraftStudent,
-    addDraftStudent,
-    completeEditing,
   };
 }

@@ -282,8 +282,8 @@ export const CheckboxInput = styled.input`
 export const Input = styled.input`
   width: 100%;
   min-height: 2.6875rem;
-  border: 0;
-  background-color: ${colors.background};
+  border: 1px solid ${colors.muted};
+  background-color: ${colors.white};
   padding: 0.8125rem ${spacing.space12};
   color: ${colors.text};
   font: inherit;

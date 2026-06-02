@@ -23,6 +23,15 @@ export const USER_LIST_RESPONSE = {
 
 export const USER_DETAIL_RESPONSE = USER_LIST_RESPONSE.content[0];
 
+export const TEACHER_CONTACT_LIST_RESPONSE = [
+  {
+    id: 1,
+    name: "Teacher One",
+    classroomName: "벚꽃반",
+    phoneNumber: "010-2222-3333",
+  },
+];
+
 function hasValidAuthorization(request: Request) {
   const authorizationHeader = request.headers.get("authorization");
   return (
@@ -107,5 +116,8 @@ export const userHandlers: RequestHandler[] = [
         (permission) => permission.code !== body.permissionCode,
       ),
     );
+  }),
+  http.get(`${API_BASE_URL}/api/v1/teachers/contact-list`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? HttpResponse.json(TEACHER_CONTACT_LIST_RESPONSE);
   }),
 ];

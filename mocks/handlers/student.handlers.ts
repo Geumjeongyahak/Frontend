@@ -64,19 +64,21 @@ export const studentHandlers: RequestHandler[] = [
       name?: string;
       phoneNumber?: string;
       description?: string;
-      classroomId?: number;
+      classroomIds?: number[];
     };
 
-    if (!body.name || !body.classroomId) {
+    if (!body.name || !body.classroomIds?.length) {
       return HttpResponse.json({ message: "Invalid student payload" }, { status: 400 });
     }
+
+    const classroomId = body.classroomIds[0];
 
     return HttpResponse.json({
       id: 2,
       name: body.name,
       phoneNumber: body.phoneNumber,
       description: body.description,
-      classrooms: [{ id: body.classroomId, name: "벚꽃반" }],
+      classrooms: [{ id: classroomId, name: "벚꽃반" }],
       status: "ENROLLED",
     });
   }),

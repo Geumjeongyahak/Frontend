@@ -2,28 +2,30 @@
 
 import { useState } from "react";
 import { IconEdit, IconSearch } from "@tabler/icons-react";
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { getMeetingRecords } from "@/api/meetingRecord/meetingRecord.api";
+import type { MeetingRecordStatus } from "@/api/meetingRecord/meetingRecord.dto";
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
-import { MEETING_RECORDS_PER_PAGE, type MeetingRecord } from "@/mocks/archiveMeeting";
+import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type MeetingRecordsPageProps = {
   initialPage: number;
-  meetingRecords: MeetingRecord[];
   initialMineOnly: boolean;
 };
 
-function getMeetingRecordTime(date: string) {
-  const [year, month, day] = date.split(".").map(Number);
-  if (!year || !month || !day) return 0;
+const MEETING_RECORDS_PER_PAGE = 10;
 
-  return new Date(2000 + year, month - 1, day).getTime();
+function getStatusLabel(status?: MeetingRecordStatus) {
+  if (status === "AFTER_MEETING") return "회의 후";
+  return "회의 전";
 }
 
 export default function MeetingRecordsPage({
   initialPage,
-  meetingRecords,
   initialMineOnly,
 }: MeetingRecordsPageProps) {
   const router = useRouter();
@@ -38,41 +40,35 @@ export default function MeetingRecordsPage({
     }
   };
 
-  const normalizedKeyword = searchKeyword.trim().toLowerCase();
-  const filteredMeetingRecords = meetingRecords
-    .filter((minute) => {
-      const matchesAuthor = !mineOnly || minute.author === "홍길동";
-      const matchesKeyword =
-        normalizedKeyword.length === 0 ||
-        minute.title.toLowerCase().includes(normalizedKeyword);
+  const queryParams = {
+    page: Math.max(0, requestedPage - 1),
+    size: MEETING_RECORDS_PER_PAGE,
+    keyword: searchKeyword.trim() || undefined,
+    mineOnly,
+  };
+  const { data, isError, isLoading } = useQuery({
+    queryKey: queryKeys.meetingRecords.list(queryParams),
+    queryFn: () => getMeetingRecords(queryParams),
+    retry: false,
+  });
 
-      return matchesAuthor && matchesKeyword;
-    })
-    .sort((a, b) => getMeetingRecordTime(b.date) - getMeetingRecordTime(a.date) || b.id - a.id);
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredMeetingRecords.length / MEETING_RECORDS_PER_PAGE),
-  );
+  const totalElements = data?.totalElements ?? data?.content?.length ?? 0;
+  const totalPages = Math.max(1, data?.totalPages ?? 1);
   const currentPage = requestedPage > totalPages ? 1 : requestedPage;
-  const visibleMeetingRecords = filteredMeetingRecords.slice(
-    (currentPage - 1) * MEETING_RECORDS_PER_PAGE,
-    currentPage * MEETING_RECORDS_PER_PAGE,
-  );
+  const records = data?.content ?? [];
 
-  const rows: ListPanelRow[] = visibleMeetingRecords.map((minute, index) => ({
-    id: minute.id,
-    no: String(
-      Math.max(
-        1,
-        filteredMeetingRecords.length - ((currentPage - 1) * MEETING_RECORDS_PER_PAGE + index),
-      ),
-    ).padStart(2, "0"),
+  const rows: ListPanelRow[] = records.map((minute, index) => ({
+    id: minute.id ?? index,
+    no: String(Math.max(1, totalElements - ((currentPage - 1) * MEETING_RECORDS_PER_PAGE + index))).padStart(
+      2,
+      "0",
+    ),
     className: "",
-    title: minute.title,
-    author: minute.author,
-    date: minute.date,
-    status: minute.status,
+    title: minute.title ?? "-",
+    author: minute.author ?? "-",
+    date: formatUtcToKstShortDate(minute.createdAt),
+    status: getStatusLabel(minute.status),
+    statusType: minute.status,
     detailHref: `/staff/archive/meeting-records/${minute.id}`,
   }));
 
@@ -82,7 +78,7 @@ export default function MeetingRecordsPage({
       writeLabel="교학 회의록 작성하기"
       writeHref="/staff/archive/meeting-records/new"
       listPath="/staff/archive/meeting-records"
-      rows={rows}
+      rows={isLoading || isError ? [] : rows}
       currentPage={currentPage}
       totalPages={totalPages}
       stableTableRows={MEETING_RECORDS_PER_PAGE}
@@ -94,7 +90,13 @@ export default function MeetingRecordsPage({
         resetToFirstPage();
         setMineOnly((current) => !current);
       }}
-      emptyMessage="교학 회의록이 없습니다."
+      emptyMessage={
+        isLoading
+          ? "교학 회의록을 불러오는 중입니다."
+          : isError
+            ? "교학 회의록을 불러오지 못했습니다."
+            : "교학 회의록이 없습니다."
+      }
       headerTone="archive"
       showClassColumn={false}
       statusHeader="구분"

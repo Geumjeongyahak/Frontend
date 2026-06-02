@@ -1,6 +1,7 @@
 "use client";
 
 import { IconChevronDown } from "@tabler/icons-react";
+import { useEffect, useRef } from "react";
 import styled from "styled-components";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
@@ -30,10 +31,26 @@ export default function BoardDropdown<T extends string>({
   onSelect,
   width = "default",
 }: BoardDropdownProps<T>) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const selectedOption = options.find((option) => option.value === value) ?? options[0];
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleDocumentMouseDown(event: MouseEvent) {
+      if (!rootRef.current || rootRef.current.contains(event.target as Node)) {
+        return;
+      }
+
+      onToggle();
+    }
+
+    document.addEventListener("mousedown", handleDocumentMouseDown);
+    return () => document.removeEventListener("mousedown", handleDocumentMouseDown);
+  }, [isOpen, onToggle]);
+
   return (
-    <DropdownControl $width={width}>
+    <DropdownControl ref={rootRef} $width={width}>
       <DropdownLabel>{label}</DropdownLabel>
       <DropdownButton
         type="button"

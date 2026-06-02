@@ -11,7 +11,6 @@ type ToastEditorFieldProps = {
 type ToastEditorInstance = {
   destroy: () => void;
   getHTML: () => string;
-  setHTML: (html: string, cursorToEnd?: boolean) => void;
 };
 
 export default function ToastEditorField({ initialValue, onChange }: ToastEditorFieldProps) {
@@ -21,7 +20,6 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
   const initialValueRef = useRef(initialValue);
   const editorValueRef = useRef(initialValue);
   const isMountedRef = useRef(false);
-  const isApplyingValueRef = useRef(false);
 
   initialValueRef.current = initialValue;
 
@@ -51,7 +49,7 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
 
         toolbarItems: [
           ["heading", "bold", "italic", "strike"],
-          ["hr", "quote"],
+          ["quote"],
           ["ul", "ol"],
           ["image", "link"],
         ],
@@ -76,7 +74,7 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
           change: () => {
             const currentEditor = editorRef.current;
 
-            if (!currentEditor || !isMountedRef.current || isApplyingValueRef.current) {
+            if (!currentEditor || !isMountedRef.current) {
               return;
             }
 
@@ -104,26 +102,9 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
       } catch {
         // Toast UI can schedule DOM updates while React is unmounting the editor.
       }
+      rootRef.current?.replaceChildren();
     };
   }, []);
-
-  useEffect(() => {
-    const editor = editorRef.current;
-
-    if (!editor || !isMountedRef.current || initialValue === editorValueRef.current) {
-      return;
-    }
-
-    isApplyingValueRef.current = true;
-    editorValueRef.current = initialValue;
-    try {
-      editor.setHTML(initialValue, false);
-    } finally {
-      queueMicrotask(() => {
-        isApplyingValueRef.current = false;
-      });
-    }
-  }, [initialValue]);
 
   return <div ref={rootRef} />;
 }

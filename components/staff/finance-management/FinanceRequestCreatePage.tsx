@@ -23,6 +23,12 @@ type FinanceItemForm = {
   paymentType: "PREPAID" | "ACTUAL";
 };
 
+type AffiliationOption = {
+  id: number;
+  label: string;
+  value: string;
+};
+
 const initialItem: FinanceItemForm = {
   id: 1,
   name: "",
@@ -36,7 +42,7 @@ export default function FinanceRequestCreatePage() {
   const queryClient = useQueryClient();
   const { user, status: authStatus } = useAuthSession();
   const [title, setTitle] = useState("");
-  const [classroomId, setClassroomId] = useState("");
+  const [affiliationValue, setAffiliationValue] = useState("");
   const [items, setItems] = useState<FinanceItemForm[]>([initialItem]);
 
   const { data: classroomData } = useQuery({
@@ -51,6 +57,18 @@ export default function FinanceRequestCreatePage() {
   });
 
   const classrooms = useMemo(() => classroomData?.content ?? [], [classroomData]);
+  const affiliationOptions = useMemo<AffiliationOption[]>(
+    () =>
+      classrooms
+        .filter((classroom) => typeof classroom.id === "number")
+        .map((classroom) => ({
+          id: classroom.id as number,
+          label: classroom.name ?? `반 ${classroom.id}`,
+          value: `classroom:${classroom.id}`,
+        })),
+    [classrooms],
+  );
+  const selectedAffiliation = affiliationOptions.find((option) => option.value === affiliationValue);
   const vendorBalances = useMemo(
     () =>
       vendorData?.length
@@ -81,8 +99,7 @@ export default function FinanceRequestCreatePage() {
 
   const canSubmit =
     title.trim().length > 0 &&
-    classroomId.trim().length > 0 &&
-    Number.isInteger(Number(classroomId)) &&
+    Boolean(selectedAffiliation) &&
     authStatus === "authenticated" &&
     normalizedItems.length > 0 &&
     !normalizedItems.some(
@@ -129,7 +146,9 @@ export default function FinanceRequestCreatePage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!canSubmit) {
+    const selectedOption = selectedAffiliation;
+
+    if (!canSubmit || !selectedOption) {
       return;
     }
 
@@ -145,8 +164,8 @@ export default function FinanceRequestCreatePage() {
 
     mutation.mutate({
       title: title.trim(),
-      content: `신청자: ${applicantName}\n\n${itemContent}`,
-      classroomId: Number(classroomId),
+      content: `소속: ${selectedOption.label}\n신청자: ${applicantName}\n\n${itemContent}`,
+      classroomId: selectedOption.id,
       items: normalizedItems.map((item) => ({
         name: item.name,
         quantity: item.quantity ?? 1,
@@ -185,18 +204,18 @@ export default function FinanceRequestCreatePage() {
             <Section>
               <SectionTitle>신청자 정보</SectionTitle>
               <InfoRow>
-                <FieldLabel htmlFor="classroomId">반 이름</FieldLabel>
+                <FieldLabel htmlFor="affiliation">소속</FieldLabel>
                 <InlineSelect
-                  id="classroomId"
-                  name="classroomId"
-                  value={classroomId}
-                  onChange={(event) => setClassroomId(event.target.value)}
+                  id="affiliation"
+                  name="affiliation"
+                  value={affiliationValue}
+                  onChange={(event) => setAffiliationValue(event.target.value)}
                   required
                 >
-                  <option value="">반 선택</option>
-                  {classrooms.map((classroom) => (
-                    <option key={classroom.id} value={classroom.id}>
-                      {classroom.name}
+                  <option value="">소속 선택</option>
+                  {affiliationOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </InlineSelect>
@@ -469,8 +488,8 @@ const SectionTitle = styled.h2`
 const inputBase = `
   min-width: 0;
   min-height: 2.6875rem;
-  border: 0;
-  background-color: ${colors.background};
+  border: 1px solid #c0c0c0;
+  background-color: ${colors.white};
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 400;
@@ -535,10 +554,15 @@ const InlineInput = styled.input`
 
 const InlineSelect = styled.select`
   ${inputBase}
-  padding: 0.8125rem ${spacing.space12};
+  appearance: none;
+  padding: 0.8125rem ${spacing.space32} 0.8125rem ${spacing.space12};
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23000000' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right ${spacing.space12} center;
+  background-repeat: no-repeat;
 
   @media (min-width: 120rem) {
-    padding: ${spacing.space20};
+    padding: ${spacing.space20} 3rem ${spacing.space20} ${spacing.space20};
+    background-position: right ${spacing.space20} center;
   }
 `;
 

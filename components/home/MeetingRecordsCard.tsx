@@ -1,17 +1,33 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
+import { getMeetingRecords } from "@/api/meetingRecord/meetingRecord.api";
 import HomeCard from "@/components/home/HomeCard";
 import { useProtectedHomeNavigation } from "@/components/home/useProtectedHomeNavigation";
+import { queryKeys } from "@/lib/queryKeys";
 import { colors, spacing, typography } from "@/styles/tokens";
-import type { MeetingRecord } from "@/types/home";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
-type MeetingRecordsCardProps = {
-  meetingRecords: MeetingRecord[];
-};
+const RECENT_MEETING_RECORDS_SIZE = 5;
 
-export default function MeetingRecordsCard({ meetingRecords }: MeetingRecordsCardProps) {
+export default function MeetingRecordsCard() {
   const { isAuthenticated, navigateWhenAuthenticated } = useProtectedHomeNavigation();
+  const { data, isLoading, isError } = useQuery({
+    queryKey: queryKeys.meetingRecords.list({
+      page: 0,
+      size: RECENT_MEETING_RECORDS_SIZE,
+    }),
+    queryFn: () =>
+      getMeetingRecords({
+        page: 0,
+        size: RECENT_MEETING_RECORDS_SIZE,
+      }),
+    enabled: isAuthenticated,
+    retry: false,
+  });
+
+  const meetingRecords = data?.content ?? [];
 
   return (
     <Card
@@ -20,16 +36,29 @@ export default function MeetingRecordsCard({ meetingRecords }: MeetingRecordsCar
       onActionClick={() => navigateWhenAuthenticated("/staff/archive/meeting-records")}
     >
       <List>
-        {!isAuthenticated ? (
-          <Fallback>로그인이 필요합니다.</Fallback>
-        ) : (
-          meetingRecords.map((minute) => (
-            <ListItem key={minute.id}>
-              <Title>{minute.title}</Title>
-              <Date>{minute.date}</Date>
-            </ListItem>
-          ))
+        {!isAuthenticated && <Fallback>로그인이 필요합니다.</Fallback>}
+        {isAuthenticated && isLoading && <Fallback>교학 회의록 불러오는 중...</Fallback>}
+        {isAuthenticated && isError && <Fallback>교학 회의록을 불러오지 못했습니다.</Fallback>}
+        {isAuthenticated && !isLoading && !isError && meetingRecords.length === 0 && (
+          <Fallback>교학 회의록이 없습니다.</Fallback>
         )}
+        {isAuthenticated &&
+          !isLoading &&
+          !isError &&
+          meetingRecords.map((minute) => (
+            <ListItem
+              key={minute.id}
+              type="button"
+              onClick={() =>
+                minute.id
+                  ? navigateWhenAuthenticated(`/staff/archive/meeting-records/${minute.id}`)
+                  : undefined
+              }
+            >
+              <Title>{minute.title ?? "제목 없음"}</Title>
+              <Date>{formatUtcToKstShortDate(minute.createdAt)}</Date>
+            </ListItem>
+          ))}
       </List>
     </Card>
   );
@@ -44,19 +73,6 @@ const List = styled.div`
   flex-direction: column;
 `;
 
-const ListItem = styled.article`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: ${spacing.space16};
-  min-height: 2.625rem;
-  border-bottom: 0.0625rem solid ${colors.border};
-
-  @media (min-width: 120rem) {
-    min-height: 3.6875rem;
-  }
-`;
-
 const Title = styled.h3`
   min-width: 0;
   overflow: hidden;
@@ -69,6 +85,29 @@ const Title = styled.h3`
 
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize24};
+  }
+`;
+
+const ListItem = styled.button`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: ${spacing.space16};
+  min-height: 2.625rem;
+  border: 0;
+  border-bottom: 0.0625rem solid ${colors.border};
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover ${Title} {
+    text-decoration: underline;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 3.6875rem;
   }
 `;
 

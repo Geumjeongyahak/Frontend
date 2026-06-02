@@ -1,5 +1,4 @@
 import MeetingRecordsPage from "@/components/staff/archive/meeting-records/MeetingRecordsPage";
-import { meetingRecords } from "@/mocks/archiveMeeting";
 
 type PageProps = {
   searchParams?: Promise<{
@@ -17,7 +16,6 @@ export default async function Page({ searchParams }: PageProps) {
   return (
     <MeetingRecordsPage
       initialPage={parsedPage}
-      meetingRecords={meetingRecords}
       initialMineOnly={mineOnly}
     />
   );
