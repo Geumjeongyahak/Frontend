@@ -130,6 +130,11 @@ export default function ArchiveDocumentFormPage({
           : Promise.resolve(),
       ]);
 
+      if (typeof post.id === "number" && typeof post.channelId === "number") {
+        router.push(`${config.listPath}/${post.id}?channelId=${post.channelId}`);
+        return;
+      }
+
       router.push(config.listPath);
     },
   });

@@ -1,12 +1,13 @@
 "use client";
 
 import { IconDownload } from "@tabler/icons-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styled, { css } from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { deletePost, getPost } from "@/api/post/post.api";
+import type { PostListResponseDto } from "@/api/post/post.dto";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import {
@@ -42,6 +43,7 @@ export default function ArchiveDocumentDetailPage({
   channelId: initialChannelId,
 }: ArchiveDocumentDetailPageProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuthSession();
 
   const channelsQuery = useQuery({
@@ -85,7 +87,20 @@ export default function ArchiveDocumentDetailPage({
 
   const deletePostMutation = useMutation({
     mutationFn: () => deletePost({ channelId: channelId ?? 0, postId }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      queryClient.setQueriesData<PostListResponseDto>({ queryKey: ["posts"] }, (current) => {
+        if (!current?.content) return current;
+
+        return {
+          ...current,
+          content: current.content.filter((post) => post.id !== postId),
+          totalElements:
+            typeof current.totalElements === "number"
+              ? Math.max(0, current.totalElements - 1)
+              : current.totalElements,
+        };
+      });
+      await queryClient.invalidateQueries({ queryKey: ["posts"] });
       router.push(config.listPath);
     },
   });

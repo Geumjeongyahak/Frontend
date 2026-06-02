@@ -219,6 +219,11 @@ export default function BoardCreatePageClient({
           : Promise.resolve(),
       ]);
 
+      if (typeof post.id === "number" && typeof post.channelId === "number") {
+        router.push(`/staff/board/${post.id}?channelId=${post.channelId}`);
+        return;
+      }
+
       router.push("/staff/board");
     },
   });

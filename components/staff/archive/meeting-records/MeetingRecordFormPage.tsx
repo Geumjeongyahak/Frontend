@@ -143,16 +143,14 @@ export default function MeetingRecordFormPage({
         });
       }
 
-      if (mode === "create") {
-        router.push("/staff/archive/meeting-records");
-        return;
-      }
-
       const savedRecordId = savedRecord.id ?? initialRecord?.id;
       if (savedRecordId) {
         onSaved?.(savedRecordId);
         router.push(`/staff/archive/meeting-records/${savedRecordId}`);
+        return;
       }
+
+      router.push("/staff/archive/meeting-records");
     },
   });
 

@@ -1,9 +1,10 @@
 "use client";
 
 import { IconDownload } from "@tabler/icons-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { deletePost, getPost } from "@/api/post/post.api";
+import type { PostListResponseDto } from "@/api/post/post.dto";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import BoardShell from "@/components/staff/board/BoardShell";
 import {
@@ -33,6 +34,7 @@ type BoardDetailPageClientProps = {
 
 export default function BoardDetailPageClient({ postId, channelId }: BoardDetailPageClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuthSession();
   const hasChannelId = typeof channelId === "number" && Number.isFinite(channelId);
 
@@ -64,7 +66,21 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
     );
   const deletePostMutation = useMutation({
     mutationFn: () => deletePost({ channelId: channelId ?? 0, postId }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      queryClient.setQueriesData<PostListResponseDto>({ queryKey: ["posts"] }, (current) => {
+        if (!current?.content) return current;
+
+        return {
+          ...current,
+          content: current.content.filter((post) => post.id !== postId),
+          totalElements:
+            typeof current.totalElements === "number"
+              ? Math.max(0, current.totalElements - 1)
+              : current.totalElements,
+        };
+      });
+      await queryClient.invalidateQueries({ queryKey: ["posts"] });
+      await queryClient.invalidateQueries({ queryKey: ["staff", "board", "notices"] });
       router.push("/staff/board");
     },
   });
