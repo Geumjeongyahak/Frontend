@@ -27,9 +27,10 @@ import {
   ViewerBox,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { documentFormsToGoogleDrive } from "@/lib/googleDrive/documentFormsToGoogleDrive";
-import { examMaterialsToGoogleDrive } from "@/lib/googleDrive/examMaterialsToGoogleDrive";
-import { handoverDocumentToGoogleDrive } from "@/lib/googleDrive/handoverDocumentToGoogleDrive";
+import {
+  getUploadArchiveDocument,
+  publishArchivePostWithNewFiles,
+} from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -110,28 +111,34 @@ export default function ArchiveDocumentDetailPage({
   });
   const updatePostMutation = useMutation({
     mutationFn: async () => {
-      const updatedPost = await updatePost(
-        { channelId: channelId ?? 0, postId },
-        {
-          title: editTitle.trim(),
-          contentHtml: editContent.trim(),
-          status: "PUBLISHED",
-          allowComment: false,
-        },
-      );
-
-      if (editFiles.length > 0) {
-        const uploadToGoogleDrive =
-          config.category === "handover"
-            ? handoverDocumentToGoogleDrive
-            : config.category === "exam"
-              ? examMaterialsToGoogleDrive
-              : documentFormsToGoogleDrive;
-
-        await Promise.all(editFiles.map((file) => uploadToGoogleDrive(file)));
+      if (!hasChannelId) {
+        throw new Error(`${config.title} 채널 정보를 찾지 못했습니다.`);
       }
 
-      return updatedPost;
+      const title = editTitle.trim();
+      const contentHtml = editContent.trim();
+      const allowComment = false;
+      const uploadArchiveDocument = getUploadArchiveDocument(config.category);
+
+      if (uploadArchiveDocument && editFiles.length > 0) {
+        return publishArchivePostWithNewFiles({
+          mode: "update",
+          postId,
+          channelId,
+          title,
+          contentHtml,
+          allowComment,
+          files: editFiles,
+          uploadDocument: uploadArchiveDocument,
+          sortOrderStart: attachments.length,
+          errorLabel: config.title,
+        });
+      }
+
+      return updatePost(
+        { channelId, postId },
+        { title, contentHtml, status: "PUBLISHED", allowComment },
+      );
     },
     onSuccess: async (updatedPost) => {
       setIsEditing(false);

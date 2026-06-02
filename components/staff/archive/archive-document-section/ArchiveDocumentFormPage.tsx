@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import { attachPostFile, createPost, getPost, publishPost, updatePost } from "@/api/post/post.api";
+import { createPost, getPost, updatePost } from "@/api/post/post.api";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import {
@@ -20,9 +20,10 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { uploadDocumentFormsDocument } from "@/lib/googleDrive/uploadDocumentFormsDocument";
-import { uploadExamMaterialsDocument } from "@/lib/googleDrive/uploadExamMaterialsDocument";
-import { uploadHandoverDocument } from "@/lib/googleDrive/uploadHandoverDocument";
+import {
+  getUploadArchiveDocument,
+  publishArchivePostWithNewFiles,
+} from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -90,43 +91,23 @@ export default function ArchiveDocumentFormPage({
       const title = visibleTitle.trim();
       const contentHtml = visibleDescription.trim();
       const allowComment = false;
-      const publishBody = { title, contentHtml, allowComment };
-
-      const uploadArchiveDocument =
-        config.category === "handover"
-          ? uploadHandoverDocument
-          : config.category === "exam"
-            ? uploadExamMaterialsDocument
-            : config.category === "forms"
-              ? uploadDocumentFormsDocument
-              : null;
+      const uploadArchiveDocument = getUploadArchiveDocument(config.category);
+      const sortOrderStart = isEditMode ? existingAttachments.length : 0;
 
       if (uploadArchiveDocument && files.length > 0) {
-        const draftPost = isEditMode
-          ? await updatePost(
-              { channelId, postId: editPostId },
-              { title, contentHtml, status: "DRAFT", allowComment },
-            )
-          : await createPost({ channelId }, { title, contentHtml, status: "DRAFT", allowComment });
-
-        if (typeof draftPost.id !== "number") {
-          throw new Error(`${config.title} 초안을 저장하지 못했습니다.`);
-        }
-
-        const registeredFiles = await Promise.all(files.map((file) => uploadArchiveDocument(file)));
-
-        for (const [index, registered] of registeredFiles.entries()) {
-          if (!registered.fileId) {
-            throw new Error(`${config.title} 파일 메타데이터 등록에 실패했습니다.`);
-          }
-
-          await attachPostFile(
-            { channelId, postId: draftPost.id },
-            { fileId: registered.fileId, sortOrder: index },
-          );
-        }
-
-        return publishPost({ channelId, postId: draftPost.id }, publishBody);
+        return publishArchivePostWithNewFiles({
+          channelId,
+          title,
+          contentHtml,
+          allowComment,
+          files,
+          uploadDocument: uploadArchiveDocument,
+          sortOrderStart,
+          errorLabel: config.title,
+          ...(isEditMode
+            ? { mode: "update", postId: editPostId }
+            : { mode: "create" }),
+        });
       }
 
       return isEditMode
