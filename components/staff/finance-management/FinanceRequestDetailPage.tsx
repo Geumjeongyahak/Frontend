@@ -1523,16 +1523,21 @@ const ReportSelect = styled.select`
   min-height: 2.6875rem;
   border: 1px solid ${colors.muted};
   background-color: ${colors.white};
-  padding: 0.8125rem ${spacing.space12};
+  appearance: none;
+  padding: 0.8125rem ${spacing.space32} 0.8125rem ${spacing.space12};
   color: #000000;
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
   outline: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23000000' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right ${spacing.space12} center;
+  background-repeat: no-repeat;
 
   @media (min-width: 120rem) {
     min-height: 4rem;
-    padding: ${spacing.space20};
+    padding: ${spacing.space20} 3rem ${spacing.space20} ${spacing.space20};
     font-size: ${typography.fontSize20};
+    background-position: right ${spacing.space20} center;
   }
 `;
 

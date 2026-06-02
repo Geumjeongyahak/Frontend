@@ -262,7 +262,7 @@ export default function ArchiveDocumentDetailPage({
         )}
 
         <Label>작성자</Label>
-        <FieldBox>{author}</FieldBox>
+        {isEditing ? <ArchiveInput name="author" value={author} readOnly /> : <FieldBox>{author}</FieldBox>}
 
         <Label>설명</Label>
         {isEditing ? (
