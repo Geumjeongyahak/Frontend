@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { IconDownload, IconFilePlus } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { getClassrooms } from "@/api/classroom/classroom.api";
 import { uploadPurchaseItemImage } from "@/api/file/file.api";
 import {
   deletePurchaseRequest,
@@ -36,6 +37,12 @@ type VendorBalance = {
   vendorId?: number;
   vendorName?: string;
   balance?: number;
+};
+
+type AffiliationOption = {
+  id: number;
+  label: string;
+  value: string;
 };
 
 type ExtendedPurchaseItem = PurchaseRequestItemResponseDto;
@@ -190,7 +197,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const { user, status: authStatus } = useAuthSession();
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
-  const [editClassroomName, setEditClassroomName] = useState("");
+  const [editAffiliationValue, setEditAffiliationValue] = useState("");
   const [editItems, setEditItems] = useState<EditableItem[]>([]);
   const [reportItems, setReportItems] = useState<ReportItem[]>([]);
   const [isReportEditing, setIsReportEditing] = useState(false);
@@ -210,6 +217,11 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
+  const { data: classroomData } = useQuery({
+    queryKey: queryKeys.classrooms.list(),
+    queryFn: () => getClassrooms({ page: 0, size: 100 }),
+    retry: false,
+  });
 
   const deleteMutation = useMutation({
     mutationFn: () => deletePurchaseRequest({ requestId }),
@@ -227,6 +239,38 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   );
   const initialReportItems = useMemo(() => mapPurchaseItemsToReportItems(purchase), [purchase]);
   const activeReportItems = reportItems.length ? reportItems : initialReportItems;
+  const classrooms = useMemo(() => classroomData?.content ?? [], [classroomData]);
+  const affiliationOptions = useMemo<AffiliationOption[]>(
+    () =>
+      classrooms
+        .filter((classroom) => typeof classroom.id === "number")
+        .map((classroom) => ({
+          id: classroom.id as number,
+          label: classroom.name ?? `반 ${classroom.id}`,
+          value: `classroom:${classroom.id}`,
+        })),
+    [classrooms],
+  );
+  const selectedAffiliation = affiliationOptions.find(
+    (option) => option.value === editAffiliationValue,
+  );
+  const requestAffiliationValue = useMemo(() => {
+    const currentAffiliation = affiliationOptions.find((option) =>
+      typeof request?.classroomId === "number"
+        ? option.id === request.classroomId
+        : option.label === request?.classroomName,
+    );
+
+    return currentAffiliation?.value ?? "";
+  }, [affiliationOptions, request?.classroomId, request?.classroomName]);
+
+  useEffect(() => {
+    if (!isEditing || editAffiliationValue || !requestAffiliationValue) {
+      return;
+    }
+
+    setEditAffiliationValue(requestAffiliationValue);
+  }, [editAffiliationValue, isEditing, requestAffiliationValue]);
 
   const reportMutation = useMutation({
     mutationFn: async () => {
@@ -401,7 +445,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     }
 
     setEditTitle(request.title ?? "");
-    setEditClassroomName(request.classroomName ?? "");
+    setEditAffiliationValue(requestAffiliationValue);
     setEditItems(initialEditItems);
     setIsEditing(true);
   }
@@ -433,7 +477,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     const nextRequest = {
       ...request,
       title: editTitle.trim() || request.title,
-      classroomName: editClassroomName.trim() || request.classroomName,
+      classroomId: selectedAffiliation?.id ?? request.classroomId,
+      classroomName: selectedAffiliation?.label ?? request.classroomName,
       items: (editItems.length ? editItems : initialEditItems).map((item) => ({
         id: item.id,
         name: item.name.trim(),
@@ -459,25 +504,38 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
 
         <Content>
           <Actions>
-            <ActionButton
-              type="button"
-              $variant="danger"
-              disabled={!canDeleteRequest || deleteMutation.isPending || isLoading}
-              title={canDeleteRequest ? undefined : "대기 중인 본인 작성 글만 삭제할 수 있습니다."}
-              onClick={() => deleteMutation.mutate()}
-            >
-              {deleteMutation.isPending ? "삭제 중" : "삭제"}
-            </ActionButton>
-            <ActionButton
-              type="button"
-              $variant="edit"
-              disabled={!canEditRequest}
-              title={canEditRequest ? undefined : "대기 중인 본인 작성 글만 수정할 수 있습니다."}
-              onClick={startEditing}
-            >
-              {isEditing ? "수정 중" : "수정"}
-            </ActionButton>
-            <ListButton href="/staff/finance-management">목록</ListButton>
+            {isEditing ? (
+              <>
+                <ActionButton type="submit" form="finance-request-edit-form" $variant="edit">
+                  수정 완료
+                </ActionButton>
+                <CancelTopButton type="button" onClick={() => setIsEditing(false)}>
+                  취소
+                </CancelTopButton>
+              </>
+            ) : (
+              <>
+                <ActionButton
+                  type="button"
+                  $variant="danger"
+                  disabled={!canDeleteRequest || deleteMutation.isPending || isLoading}
+                  title={canDeleteRequest ? undefined : "대기 중인 본인 작성 글만 삭제할 수 있습니다."}
+                  onClick={() => deleteMutation.mutate()}
+                >
+                  {deleteMutation.isPending ? "삭제 중" : "삭제"}
+                </ActionButton>
+                <ActionButton
+                  type="button"
+                  $variant="edit"
+                  disabled={!canEditRequest}
+                  title={canEditRequest ? undefined : "대기 중인 본인 작성 글만 수정할 수 있습니다."}
+                  onClick={startEditing}
+                >
+                  수정
+                </ActionButton>
+                <ListButton href="/staff/finance-management">목록</ListButton>
+              </>
+            )}
           </Actions>
 
           {isLoading ? <StateMessage>결제 신청 정보를 불러오는 중입니다.</StateMessage> : null}
@@ -489,7 +547,11 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
           ) : null}
 
           {request ? (
-            <ContentColumn as={isEditing ? "form" : "article"} onSubmit={handleEditSubmit}>
+            <ContentColumn
+              as={isEditing ? "form" : "article"}
+              id={isEditing ? "finance-request-edit-form" : undefined}
+              onSubmit={handleEditSubmit}
+            >
               <DateBar>{formatUtcToKstShortDate(request.createdAt)}</DateBar>
 
               <Section>
@@ -507,12 +569,24 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
               <Section>
                 <SectionTitle>신청자 정보</SectionTitle>
                 <InfoRow>
-                  <InlineLabel>반 이름</InlineLabel>
+                  <InlineLabel htmlFor="edit-affiliation" as="label">
+                    소속
+                  </InlineLabel>
                   {isEditing ? (
-                    <EditInput
-                      value={editClassroomName}
-                      onChange={(event) => setEditClassroomName(event.target.value)}
-                    />
+                    <EditSelect
+                      id="edit-affiliation"
+                      name="affiliation"
+                      value={editAffiliationValue}
+                      onChange={(event) => setEditAffiliationValue(event.target.value)}
+                      required
+                    >
+                      <option value="">소속 선택</option>
+                      {affiliationOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </EditSelect>
                   ) : (
                     <InlineField>{request.classroomName ?? "-"}</InlineField>
                   )}
@@ -762,14 +836,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                   ) : null}
                 </ReportForm>
               ) : null}
-              {isEditing ? (
-                <EditActionRow>
-                  <ReportSubmitButton type="submit">수정 완료</ReportSubmitButton>
-                  <CancelEditButton type="button" onClick={() => setIsEditing(false)}>
-                    취소
-                  </CancelEditButton>
-                </EditActionRow>
-              ) : null}
             </ContentColumn>
           ) : null}
         </Content>
@@ -843,12 +909,6 @@ const ContentColumn = styled.article`
   @media (min-width: 120rem) {
     gap: 1.875rem;
   }
-`;
-
-const EditActionRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${spacing.space12};
 `;
 
 const DateBar = styled.div`
@@ -931,6 +991,38 @@ const ListButton = styled(Link)`
   font-weight: 500;
   line-height: ${typography.lineHeight130};
   text-decoration: none;
+
+  &:hover {
+    filter: brightness(0.97);
+  }
+
+  @media (min-width: 120rem) {
+    min-width: 5.9375rem;
+    min-height: 4rem;
+    padding: ${spacing.space20} 1.875rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const CancelTopButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.9375rem;
+  min-height: 2.6875rem;
+  border: 1px solid ${colors.border};
+  border-radius: ${radii.radius15};
+  background-color: ${colors.background};
+  padding: 0.8125rem ${spacing.space20};
+  color: ${colors.text};
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  cursor: pointer;
+
+  &:hover {
+    filter: brightness(0.97);
+  }
 
   @media (min-width: 120rem) {
     min-width: 5.9375rem;
@@ -1127,6 +1219,29 @@ const EditInput = styled.input`
     min-height: 4rem;
     padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
+  }
+`;
+
+const EditSelect = styled.select`
+  min-width: 0;
+  min-height: 2.6875rem;
+  border: 1px solid #c0c0c0;
+  background-color: ${colors.white};
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+  outline: none;
+  appearance: none;
+  padding: 0.8125rem ${spacing.space32} 0.8125rem ${spacing.space12};
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23000000' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right ${spacing.space12} center;
+  background-repeat: no-repeat;
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20} 3rem ${spacing.space20} ${spacing.space20};
+    font-size: ${typography.fontSize20};
+    background-position: right ${spacing.space20} center;
   }
 `;
 
