@@ -62,6 +62,7 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
   const visibleTitle = title ?? postDetailQuery.data?.title ?? "";
   const visibleAuthor = postDetailQuery.data?.authorName ?? currentUserName;
   const visibleContentHtml = contentHtml ?? postDetailQuery.data?.contentHtml ?? "";
+  const isEditorReady = !isEditMode || Boolean(postDetailQuery.data);
   const canManagePost =
     !isEditMode ? status === "authenticated" : canManageEventPost(user, postDetailQuery.data);
 
@@ -180,7 +181,15 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
           <Label as="label" htmlFor="event-content">
             내용
           </Label>
-          <ToastEditorField initialValue={visibleContentHtml} onChange={setContentHtml} />
+          {isEditorReady ? (
+            <ToastEditorField
+              key={isEditMode ? `${editChannelId}-${editPostId}` : "new-event-post"}
+              initialValue={visibleContentHtml}
+              onChange={setContentHtml}
+            />
+          ) : (
+            <StateMessage>행사 정보를 불러오는 중입니다.</StateMessage>
+          )}
 
           <Label>자료</Label>
           <FileUploadPanel>

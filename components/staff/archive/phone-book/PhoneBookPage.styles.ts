@@ -82,74 +82,6 @@ export const SectionLabel = styled.h2`
   }
 `;
 
-export const EditText = styled.span`
-  margin-top: 0.625rem;
-  color: #b3b3b3;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  text-decoration: underline;
-  text-underline-offset: 0.125rem;
-  white-space: nowrap;
-
-  @media (min-width: 120rem) {
-    margin-top: 1.0625rem;
-    font-size: ${typography.fontSize20};
-  }
-`;
-
-export const EditTextButton = styled.button`
-  margin-top: 0.625rem;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: #b3b3b3;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  text-decoration: underline;
-  text-underline-offset: 0.125rem;
-  white-space: nowrap;
-  cursor: pointer;
-
-  &:hover {
-    color: ${colors.point};
-  }
-
-  @media (min-width: 120rem) {
-    margin-top: 1.0625rem;
-    font-size: ${typography.fontSize20};
-  }
-`;
-
-export const CompleteEditButton = styled.button`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.125rem;
-  border: 0;
-  border-radius: 0.625rem;
-  padding: 0.625rem ${spacing.space20};
-  background-color: ${colors.point};
-  color: ${colors.white};
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  white-space: nowrap;
-  cursor: pointer;
-
-  &:hover {
-    filter: brightness(0.95);
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 4rem;
-    border-radius: ${radii.radius15};
-    padding: ${spacing.space20} 1.875rem;
-    font-size: ${typography.fontSize20};
-  }
-`;
-
 export const ContactGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -223,124 +155,6 @@ export const StudentClassList = styled.div`
   }
 `;
 
-export const TeacherEditList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: ${spacing.space12};
-
-  @media (min-width: 120rem) {
-    gap: ${spacing.space20};
-  }
-`;
-
-export const StudentEditList = styled(TeacherEditList)`
-  margin-top: ${spacing.space20};
-
-  @media (min-width: 120rem) {
-    margin-top: 1.875rem;
-  }
-`;
-
-export const EditRow = styled.div<{ $columns: 2 | 3 }>`
-  display: grid;
-  grid-template-columns: repeat(${({ $columns }) => $columns}, minmax(0, 1fr)) 1.5rem;
-  align-items: center;
-  gap: ${spacing.space12};
-  width: 100%;
-  padding: ${spacing.space4};
-
-  @media (min-width: 120rem) {
-    grid-template-columns: repeat(${({ $columns }) => $columns}, minmax(0, 1fr)) 2.1875rem;
-    gap: ${spacing.space20};
-    padding: ${spacing.space8};
-  }
-
-  @media (max-width: ${layout.breakpointMobile}) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-export const EditRowInput = styled.input`
-  width: 100%;
-  min-width: 0;
-  min-height: 2.125rem;
-  border: 1px solid ${colors.border};
-  padding: 0.3125rem ${spacing.space12};
-  background-color: ${colors.white};
-  color: #000000;
-  font-size: ${typography.fontSize13};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  text-align: center;
-  outline: none;
-
-  &:focus {
-    border-color: ${colors.point};
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 3.75rem;
-    padding: 0.3125rem ${spacing.space20};
-    font-size: ${typography.fontSize20};
-  }
-`;
-
-export const RemoveRowButton = styled.button`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 0;
-  border-radius: 50%;
-  background-color: #eef9e6;
-  color: ${colors.point};
-  font-size: ${typography.fontSize16};
-  font-weight: 700;
-  line-height: ${typography.lineHeight100};
-  cursor: pointer;
-
-  &:hover {
-    filter: brightness(0.95);
-  }
-
-  @media (min-width: 120rem) {
-    width: 2.1875rem;
-    height: 2.1875rem;
-    font-size: ${typography.fontSize20};
-  }
-`;
-
-export const AddRowButton = styled.button`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: calc(100% - 2.25rem);
-  min-height: 2.125rem;
-  border: 1px solid ${colors.border};
-  padding: 0 ${spacing.space20};
-  background-color: ${colors.background};
-  color: #000000;
-  font-size: ${typography.fontSize13};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  cursor: pointer;
-
-  &:hover {
-    border-color: ${colors.point};
-  }
-
-  @media (min-width: 120rem) {
-    width: calc(100% - 3.4375rem);
-    min-height: 3.125rem;
-    font-size: ${typography.fontSize20};
-  }
-
-  @media (max-width: ${layout.breakpointMobile}) {
-    width: 100%;
-  }
-`;
-
 export const SectionBody = styled.section`
   display: flex;
   flex-direction: column;
@@ -349,13 +163,6 @@ export const SectionBody = styled.section`
   @media (min-width: 120rem) {
     gap: ${spacing.space12};
   }
-`;
-
-export const ClassHeader = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: ${spacing.space12};
-  align-self: flex-start;
 `;
 
 export const ClassHeaderButton = styled.button`
@@ -379,42 +186,6 @@ export const ClassName = styled.span`
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize24};
     line-height: 3.125rem;
-  }
-`;
-
-export const ClassTabList = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: ${spacing.space8};
-  width: 100%;
-
-  @media (min-width: 120rem) {
-    gap: ${spacing.space20};
-  }
-`;
-
-export const ClassTab = styled.button<{ $isActive: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.125rem;
-  border: 1px solid ${colors.point};
-  border-radius: 0.625rem;
-  padding: 0 ${spacing.space8};
-  background-color: ${({ $isActive }) => ($isActive ? colors.point : colors.white)};
-  color: ${({ $isActive }) => ($isActive ? colors.white : "#000000")};
-  font-size: ${typography.fontSize13};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  white-space: nowrap;
-  cursor: pointer;
-
-  @media (min-width: 120rem) {
-    min-height: 3.125rem;
-    border-radius: ${radii.radius15};
-    padding: 0 ${spacing.space12};
-    font-size: ${typography.fontSize20};
   }
 `;
 

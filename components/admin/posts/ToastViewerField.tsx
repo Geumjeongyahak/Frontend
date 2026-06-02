@@ -14,9 +14,6 @@ type ToastViewerInstance = {
 export default function ToastViewerField({ value }: ToastViewerFieldProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<ToastViewerInstance | null>(null);
-  const valueRef = useRef(value);
-
-  valueRef.current = value;
 
   useEffect(() => {
     let mounted = true;
@@ -24,13 +21,21 @@ export default function ToastViewerField({ value }: ToastViewerFieldProps) {
     async function mountViewer() {
       const { default: Viewer } = await import("@toast-ui/editor/dist/toastui-editor-viewer");
 
-      if (!mounted || !rootRef.current || viewerRef.current) {
+      if (!mounted || !rootRef.current) {
         return;
       }
 
+      try {
+        viewerRef.current?.destroy();
+      } catch {
+        // Toast UI may still have queued DOM work from a previous render.
+      }
+
+      rootRef.current.replaceChildren();
+
       const viewer = new Viewer({
         el: rootRef.current,
-        initialValue: valueRef.current,
+        initialValue: value,
       }) as ToastViewerInstance;
 
       viewerRef.current = viewer;
@@ -40,13 +45,13 @@ export default function ToastViewerField({ value }: ToastViewerFieldProps) {
 
     return () => {
       mounted = false;
-      viewerRef.current?.destroy();
+      try {
+        viewerRef.current?.destroy();
+      } catch {
+        // Toast UI may try to remove nodes that React or a previous cleanup already removed.
+      }
       viewerRef.current = null;
     };
-  }, []);
-
-  useEffect(() => {
-    viewerRef.current?.setMarkdown(value);
   }, [value]);
 
   return <div ref={rootRef} />;

@@ -4,7 +4,6 @@ import LoginCard from "@/components/home/LoginCard";
 import MeetingRecordsCard from "@/components/home/MeetingRecordsCard";
 import NoticeCard from "@/components/home/NoticeCard";
 import WeeklySchedulePanel from "@/components/home/WeeklySchedulePanel";
-import { meetingRecords } from "@/mocks/home";
 import { colors, layout, spacing } from "@/styles/tokens";
 
 export default function HomePage() {
@@ -27,7 +26,7 @@ export default function HomePage() {
           </NoticeArea>
 
           <MeetingArea>
-            <MeetingRecordsCard meetingRecords={meetingRecords} />
+            <MeetingRecordsCard />
           </MeetingArea>
 
           <EventArea>

@@ -1,9 +1,11 @@
 "use client";
 
 import { IconDownload } from "@tabler/icons-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import styled from "styled-components";
 import { deletePost, getPost } from "@/api/post/post.api";
+import type { PostListResponseDto } from "@/api/post/post.dto";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import BoardShell from "@/components/staff/board/BoardShell";
 import {
@@ -24,6 +26,7 @@ import {
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
+import { colors, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type BoardDetailPageClientProps = {
@@ -33,6 +36,7 @@ type BoardDetailPageClientProps = {
 
 export default function BoardDetailPageClient({ postId, channelId }: BoardDetailPageClientProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user } = useAuthSession();
   const hasChannelId = typeof channelId === "number" && Number.isFinite(channelId);
 
@@ -49,6 +53,7 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
   const title = visiblePost?.title ?? "제목";
   const author = visiblePost?.authorName ?? "홍길동";
   const content = visiblePost?.contentHtml?.trim() || "내용";
+  const attachments = visiblePost?.attachments ?? [];
   const editHref =
     hasChannelId && visiblePost?.id
       ? `/staff/board/new?postId=${visiblePost.id}&channelId=${channelId}`
@@ -64,7 +69,21 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
     );
   const deletePostMutation = useMutation({
     mutationFn: () => deletePost({ channelId: channelId ?? 0, postId }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      queryClient.setQueriesData<PostListResponseDto>({ queryKey: ["posts"] }, (current) => {
+        if (!current?.content) return current;
+
+        return {
+          ...current,
+          content: current.content.filter((post) => post.id !== postId),
+          totalElements:
+            typeof current.totalElements === "number"
+              ? Math.max(0, current.totalElements - 1)
+              : current.totalElements,
+        };
+      });
+      await queryClient.invalidateQueries({ queryKey: ["posts"] });
+      await queryClient.invalidateQueries({ queryKey: ["staff", "board", "notices"] });
       router.push("/staff/board");
     },
   });
@@ -77,30 +96,33 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
           ? "게시글을 불러오지 못했습니다."
           : deletePostMutation.isError
             ? "게시글 삭제에 실패했습니다."
-          : "";
+            : "";
 
   return (
     <BoardShell>
       <DocumentSection>
-        <Toolbar>
-          <ActionLink href="/staff/board" $variant="muted">
-            목록
-          </ActionLink>
-
-          {canManagePost ? (
-            <ToolbarRight>
-              <ActionButton
-                type="button"
-                $variant="danger"
-                disabled={!hasChannelId || deletePostMutation.isPending}
-                onClick={() => deletePostMutation.mutate()}
-              >
-                삭제
-              </ActionButton>
-              <ActionLink href={editHref} $variant="edit">수정</ActionLink>
-            </ToolbarRight>
-          ) : null}
-        </Toolbar>
+        <ActionToolbar>
+          <ToolbarRight>
+            {canManagePost ? (
+              <>
+                <ActionButton
+                  type="button"
+                  $variant="danger"
+                  disabled={!hasChannelId || deletePostMutation.isPending}
+                  onClick={() => deletePostMutation.mutate()}
+                >
+                  삭제
+                </ActionButton>
+                <ActionLink href={editHref} $variant="edit">
+                  수정
+                </ActionLink>
+              </>
+            ) : null}
+            <ActionLink href="/staff/board" $variant="muted">
+              목록
+            </ActionLink>
+          </ToolbarRight>
+        </ActionToolbar>
 
         {stateMessage ? <StateMessage>{stateMessage}</StateMessage> : null}
 
@@ -123,15 +145,43 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
 
           <Label>자료</Label>
           <FileList>
-            <FileLink href="#" aria-label="자료.pdf 다운로드">
-              <span>자료.pdf</span>
-              <DownloadBadge aria-hidden="true">
-                <IconDownload size={16} stroke={2.25} />
-              </DownloadBadge>
-            </FileLink>
+            {attachments.length > 0 ? (
+              attachments.map((file, index) => {
+                const fileName = file.originalName ?? file.fileId ?? `자료 ${index + 1}`;
+                const fileUrl = file.downloadUrl ?? file.url ?? "#";
+
+                return (
+                  <FileLink key={`${file.fileId ?? fileName}-${index}`} href={fileUrl}>
+                    <span>{fileName}</span>
+                    <DownloadBadge aria-hidden="true">
+                      <IconDownload size={16} stroke={2.25} />
+                    </DownloadBadge>
+                  </FileLink>
+                );
+              })
+            ) : (
+              <EmptyAttachmentText>첨부된 자료가 없습니다.</EmptyAttachmentText>
+            )}
           </FileList>
         </ContentStack>
       </DocumentSection>
     </BoardShell>
   );
 }
+
+const ActionToolbar = styled(Toolbar)`
+  justify-content: flex-end;
+`;
+
+const EmptyAttachmentText = styled.span`
+  color: ${colors.placeholder};
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  cursor: default;
+  user-select: text;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;

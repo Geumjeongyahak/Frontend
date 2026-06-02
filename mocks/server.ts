@@ -8,11 +8,13 @@ import {
   departmentHandlers,
   fileHandlers,
   lessonHandlers,
+  meetingRecordHandlers,
   postHandlers,
   requestHandlers,
   studentHandlers,
   subjectHandlers,
   userHandlers,
+  vendorHandlers,
 } from "./handlers";
 
 export const server = setupServer(
@@ -23,9 +25,11 @@ export const server = setupServer(
   ...departmentHandlers,
   ...fileHandlers,
   ...lessonHandlers,
+  ...meetingRecordHandlers,
   ...postHandlers,
   ...requestHandlers,
   ...studentHandlers,
   ...subjectHandlers,
   ...userHandlers,
+  ...vendorHandlers,
 );

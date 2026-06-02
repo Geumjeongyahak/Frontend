@@ -12,7 +12,14 @@ export type ListPanelRow = {
   author: string;
   date: string;
   status: string;
-  statusType?: "PENDING" | "APPROVED" | "PURCHASED" | "CONFIRMED" | "REJECTED";
+  statusType?:
+    | "PENDING"
+    | "APPROVED"
+    | "PURCHASED"
+    | "CONFIRMED"
+    | "REJECTED"
+    | "BEFORE_MEETING"
+    | "AFTER_MEETING";
   detailHref: string;
   isNotice?: boolean;
   isPinned?: boolean;
@@ -601,7 +608,14 @@ const PageNumber = styled(Link)<{ $isActive?: boolean }>`
 `;
 
 const StatusBadge = styled.span<{
-  $status?: "PENDING" | "APPROVED" | "PURCHASED" | "CONFIRMED" | "REJECTED";
+  $status?:
+    | "PENDING"
+    | "APPROVED"
+    | "PURCHASED"
+    | "CONFIRMED"
+    | "REJECTED"
+    | "BEFORE_MEETING"
+    | "AFTER_MEETING";
 }>`
   display: inline-flex;
   align-items: center;
@@ -613,6 +627,7 @@ const StatusBadge = styled.span<{
   color: ${({ $status }) => {
     switch ($status) {
       case "APPROVED":
+      case "AFTER_MEETING":
         return "#3DA75C";
       case "PURCHASED":
         return "#2F80ED";

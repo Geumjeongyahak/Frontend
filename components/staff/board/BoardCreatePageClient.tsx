@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { IconPaperclip } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
@@ -18,6 +19,7 @@ import {
 import BoardShell from "@/components/staff/board/BoardShell";
 import {
   ActionButton,
+  ActionLink,
   BoardSelectRow,
   CheckboxInput,
   CheckboxLabel,
@@ -83,12 +85,26 @@ export default function BoardCreatePageClient({
     retry: false,
   });
 
-  const editPostChannel = channelsQuery.data?.find((item) => item.id === postDetailQuery.data?.channelId);
+  const editPostChannel = channelsQuery.data?.find(
+    (item) => item.id === (postDetailQuery.data?.channelId ?? editChannelId),
+  );
+  const editChannelType = editPostChannel?.channelType ?? postDetailQuery.data?.channelType;
+  const editChannelName = editPostChannel?.name ?? postDetailQuery.data?.channelName;
   const selectedBoardType: BoardWriteType =
     boardType ??
-    (editPostChannel?.channelType === "DEPARTMENT" ? "DEPARTMENT" : "CLASSROOM");
+    (editChannelType === "NOTICE"
+      ? "NOTICE"
+      : editChannelType === "DEPARTMENT"
+        ? "DEPARTMENT"
+        : "CLASSROOM");
+  const isTypeDisabled = isEditMode;
+  const isScopeDisabled = isEditMode || selectedBoardType === "NOTICE";
 
   const scopeOptions = useMemo<readonly DropdownOption<string>[]>(() => {
+    if (selectedBoardType === "NOTICE") {
+      return [{ label: "공지사항", value: "all" }];
+    }
+
     if (selectedBoardType === "CLASSROOM") {
       const dynamicOptions =
         classroomsQuery.data?.content
@@ -114,14 +130,51 @@ export default function BoardCreatePageClient({
     return dynamicOptions.length > 0 ? dynamicOptions : getBoardWriteScopeOptions(selectedBoardType);
   }, [selectedBoardType, classroomsQuery.data, departmentsQuery.data]);
 
+  const editScopeValue = useMemo(() => {
+    if (selectedBoardType === "NOTICE") {
+      return "all";
+    }
+
+    if (typeof editPostChannel?.refId === "number") {
+      const refIdValue = String(editPostChannel.refId);
+      if (scopeOptions.some((option) => option.value === refIdValue)) {
+        return refIdValue;
+      }
+    }
+
+    const normalizedChannelName = editChannelName?.trim();
+    if (normalizedChannelName) {
+      const matchedOption = scopeOptions.find((option) => {
+        const label = option.label.trim();
+        return (
+          label === normalizedChannelName ||
+          normalizedChannelName.includes(label) ||
+          label.includes(normalizedChannelName)
+        );
+      });
+
+      if (matchedOption) {
+        return matchedOption.value;
+      }
+    }
+
+    return scopeOptions[0]?.value ?? "";
+  }, [editChannelName, editPostChannel?.refId, scopeOptions, selectedBoardType]);
+
   const selectedBoardScope =
-    boardScope && scopeOptions.some((option) => option.value === boardScope)
-      ? boardScope
-      : editPostChannel?.refId
-        ? String(editPostChannel.refId)
-        : (scopeOptions[0]?.value ?? "");
+    selectedBoardType === "NOTICE"
+      ? "all"
+      : boardScope && scopeOptions.some((option) => option.value === boardScope)
+        ? boardScope
+        : isEditMode
+          ? editScopeValue
+          : (scopeOptions[0]?.value ?? "");
 
   const selectedChannelId = useMemo(() => {
+    if (selectedBoardType === "NOTICE") {
+      return channelsQuery.data?.find((channel) => channel.channelType === "NOTICE")?.id;
+    }
+
     const refId = Number(selectedBoardScope);
 
     if (Number.isInteger(refId)) {
@@ -142,6 +195,11 @@ export default function BoardCreatePageClient({
   const visibleContentHtml = contentHtml ?? postDetailQuery.data?.contentHtml ?? "";
   const visibleIsPinned = isPinned ?? initialPinned;
   const visibleAllowComment = allowComment ?? postDetailQuery.data?.allowComment ?? true;
+  const isEditorReady = !isEditMode || Boolean(postDetailQuery.data);
+  const cancelHref =
+    isEditMode && typeof editPostId === "number" && typeof editChannelId === "number"
+      ? `/staff/board/${editPostId}?channelId=${editChannelId}`
+      : "/staff/board";
   const canManagePost =
     !isEditMode ||
     user?.role === "ADMIN" ||
@@ -207,16 +265,29 @@ export default function BoardCreatePageClient({
       return created;
     },
     onSuccess: async (post) => {
+      const savedPostId = post.id ?? editPostId;
+      const savedChannelId = post.channelId ?? (isEditMode ? editChannelId : selectedChannelId);
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["posts"] }),
         queryClient.invalidateQueries({ queryKey: ["staff", "board", "notices"] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) }),
-        typeof post.channelId === "number" && typeof post.id === "number"
+        typeof savedChannelId === "number" && typeof savedPostId === "number"
           ? queryClient.invalidateQueries({
-              queryKey: queryKeys.posts.boardDetail(post.channelId, post.id),
+              queryKey: queryKeys.posts.boardDetail(savedChannelId, savedPostId),
+            })
+          : Promise.resolve(),
+        isEditMode && typeof editChannelId === "number" && typeof editPostId === "number"
+          ? queryClient.invalidateQueries({
+              queryKey: queryKeys.posts.boardDetail(editChannelId, editPostId),
             })
           : Promise.resolve(),
       ]);
+
+      if (typeof savedPostId === "number" && typeof savedChannelId === "number") {
+        router.push(`/staff/board/${savedPostId}?channelId=${savedChannelId}`);
+        return;
+      }
 
       router.push("/staff/board");
     },
@@ -234,9 +305,16 @@ export default function BoardCreatePageClient({
       <DocumentSection>
         <Toolbar>
           <PageTitle>{isEditMode ? "글 수정" : "글쓰기"}</PageTitle>
-          <ActionButton type="submit" form="board-create-form" disabled={!canSubmit}>
-            {isEditMode ? "수정 완료" : "작성 완료"}
-          </ActionButton>
+          <ToolbarActions>
+            <ActionButton type="submit" form="board-create-form" disabled={!canSubmit}>
+              {isEditMode ? "수정 완료" : "작성 완료"}
+            </ActionButton>
+            {isEditMode ? (
+              <ActionLink href={cancelHref} $variant="muted">
+                취소
+              </ActionLink>
+            ) : null}
+          </ToolbarActions>
         </Toolbar>
 
         <Form
@@ -251,9 +329,13 @@ export default function BoardCreatePageClient({
               label="게시판 유형"
               options={BOARD_WRITE_TYPE_OPTIONS}
               value={selectedBoardType}
+              disabled={isTypeDisabled}
               isOpen={openDropdown === "type"}
-              onToggle={() => setOpenDropdown((current) => (current === "type" ? null : "type"))}
+              onToggle={() =>
+                setOpenDropdown((current) => (current === "type" || isTypeDisabled ? null : "type"))
+              }
               onSelect={(nextValue) => {
+                if (isTypeDisabled) return;
                 setBoardType(nextValue);
                 setBoardScope("");
                 setOpenDropdown(null);
@@ -264,9 +346,15 @@ export default function BoardCreatePageClient({
               label="게시판 선택"
               options={scopeOptions}
               value={selectedBoardScope}
+              disabled={isScopeDisabled}
               isOpen={openDropdown === "scope"}
-              onToggle={() => setOpenDropdown((current) => (current === "scope" ? null : "scope"))}
+              onToggle={() =>
+                setOpenDropdown((current) =>
+                  current === "scope" || isScopeDisabled ? null : "scope",
+                )
+              }
               onSelect={(nextValue) => {
+                if (isScopeDisabled) return;
                 setBoardScope(nextValue);
                 setOpenDropdown(null);
               }}
@@ -318,7 +406,15 @@ export default function BoardCreatePageClient({
           <Label as="label" htmlFor="board-content">
             내용
           </Label>
-          <ToastEditorField initialValue={visibleContentHtml} onChange={setContentHtml} />
+          {isEditorReady ? (
+            <ToastEditorField
+              key={isEditMode ? `${editChannelId}-${editPostId}` : "new-board-post"}
+              initialValue={visibleContentHtml}
+              onChange={setContentHtml}
+            />
+          ) : (
+            <StateMessage>게시글 내용을 불러오는 중입니다.</StateMessage>
+          )}
 
           <Label>자료</Label>
           <FileUploadPanel>
@@ -359,3 +455,13 @@ export default function BoardCreatePageClient({
     </BoardShell>
   );
 }
+
+const ToolbarActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+
+  @media (min-width: 120rem) {
+    gap: 1.875rem;
+  }
+`;

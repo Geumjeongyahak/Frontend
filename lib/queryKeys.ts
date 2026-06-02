@@ -30,6 +30,15 @@ export const queryKeys = {
   students: {
     list: (params?: { name?: string; status?: string; classroomId?: number }) =>
       ["students", "list", params ?? {}] as const,
+    contactClasses: () => ["students", "contact-classes"] as const,
+  },
+  teachers: {
+    contactList: () => ["teachers", "contact-list"] as const,
+  },
+  meetingRecords: {
+    list: (params: { page: number; size: number; keyword?: string; mineOnly?: boolean }) =>
+      ["meeting-records", "list", params] as const,
+    detail: (recordId: number) => ["meeting-records", "detail", recordId] as const,
   },
   requests: {
     lessonExchangeList: () => ["lesson-exchange-requests"] as const,

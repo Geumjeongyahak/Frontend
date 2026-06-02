@@ -6,6 +6,7 @@ export const BOARD_TYPE_OPTIONS = [
 ] as const;
 
 export const BOARD_WRITE_TYPE_OPTIONS = [
+  { label: "공지사항", value: "NOTICE" },
   { label: "반별 게시판", value: "CLASSROOM" },
   { label: "부서별 게시판", value: "DEPARTMENT" },
 ] as const;
@@ -56,5 +57,6 @@ export function getBoardScopeOptions(boardType: BoardType | BoardWriteType) {
 }
 
 export function getBoardWriteScopeOptions(boardType: BoardWriteType) {
+  if (boardType === "NOTICE") return EMPTY_SCOPE_OPTIONS;
   return boardType === "CLASSROOM" ? CLASSROOM_WRITE_SCOPE_OPTIONS : DEPARTMENT_WRITE_SCOPE_OPTIONS;
 }

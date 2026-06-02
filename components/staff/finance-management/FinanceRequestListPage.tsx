@@ -65,9 +65,9 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
         !mineOnly ||
         Boolean(
           currentAuthor &&
-            (request.requestedByName === user?.name ||
-              request.requestedByName === user?.nickname ||
-              request.requestedByName === user?.email),
+          (request.requestedByName === user?.name ||
+            request.requestedByName === user?.nickname ||
+            request.requestedByName === user?.email),
         );
       const statusLabel = getStatusLabel(request.status);
       const matchesKeyword =
@@ -127,6 +127,7 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
             totalPages={totalPages}
             stableTableRows={FINANCE_REQUESTS_PER_PAGE}
             mineOnly={mineOnly}
+            classHeader="소속"
             showMineOnlyToggle
             toggleLabel="내가 작성한 글만 보기"
             toggleAriaLabel="내가 작성한 글만 보기"

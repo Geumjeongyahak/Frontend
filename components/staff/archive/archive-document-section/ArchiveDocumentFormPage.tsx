@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { createPost, getPost, updatePost } from "@/api/post/post.api";
+import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import {
   ActionButton,
@@ -130,6 +131,11 @@ export default function ArchiveDocumentFormPage({
           : Promise.resolve(),
       ]);
 
+      if (typeof post.id === "number" && typeof post.channelId === "number") {
+        router.push(`${config.listPath}/${post.id}?channelId=${post.channelId}`);
+        return;
+      }
+
       router.push(config.listPath);
     },
   });
@@ -140,6 +146,7 @@ export default function ArchiveDocumentFormPage({
     Boolean(channelId) &&
     canManagePost &&
     !isPending;
+  const canShowDescriptionEditor = !isEditMode || Boolean(postDetailQuery.data) || postDetailQuery.isError;
 
   return (
     <DocumentSection>
@@ -182,13 +189,16 @@ export default function ArchiveDocumentFormPage({
         <Label as="label" htmlFor={`${config.category}-description`}>
           설명
         </Label>
-        <ArchiveTextarea
-          id={`${config.category}-description`}
-          name="description"
-          placeholder="설명"
-          value={visibleDescription}
-          onChange={(event) => setDescription(event.target.value)}
-        />
+        {canShowDescriptionEditor ? (
+          <EditorBox>
+            <ToastEditorField
+              initialValue={visibleDescription}
+              onChange={(contentHtml) => setDescription(contentHtml)}
+            />
+          </EditorBox>
+        ) : (
+          <StateMessage>본문 편집기를 불러오는 중입니다.</StateMessage>
+        )}
 
         <Label>자료</Label>
         <FileUploadPanel>
@@ -259,27 +269,13 @@ const ArchiveInput = styled.input`
   }
 `;
 
-const ArchiveTextarea = styled.textarea`
+const EditorBox = styled.div`
   width: 100%;
-  min-height: 2.6875rem;
-  resize: vertical;
   border: 1px solid ${colors.muted};
   background-color: ${colors.white};
-  padding: 0.8125rem ${spacing.space12};
-  color: ${colors.text};
-  font: inherit;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
 
-  &::placeholder {
-    color: ${colors.placeholder};
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20};
-    font-size: ${typography.fontSize20};
+  .toastui-editor-defaultUI {
+    border: 0;
   }
 `;
 
