@@ -21,7 +21,7 @@ import {
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { documentFormsToGoogleDrive } from "@/lib/googleDrive/documentFormsToGoogleDrive";
 import { examMaterialsToGoogleDrive } from "@/lib/googleDrive/examMaterialsToGoogleDrive";
-import { handoverDocumentToGoogleDrive } from "@/lib/googleDrive/handoverDocumentToGoogleDrive";
+import { uploadHandoverDocument } from "@/lib/googleDrive/uploadHandoverDocument";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -107,14 +107,14 @@ export default function ArchiveDocumentFormPage({
           );
 
       if (typeof post.id === "number" && files.length > 0) {
-        const uploadToGoogleDrive =
-          config.category === "handover"
-            ? handoverDocumentToGoogleDrive
-            : config.category === "exam"
-              ? examMaterialsToGoogleDrive
-              : documentFormsToGoogleDrive;
+        if (config.category === "handover") {
+          await Promise.all(files.map((file) => uploadHandoverDocument(file)));
+        } else {
+          const uploadToGoogleDrive =
+            config.category === "exam" ? examMaterialsToGoogleDrive : documentFormsToGoogleDrive;
 
-        await Promise.all(files.map((file) => uploadToGoogleDrive(file)));
+          await Promise.all(files.map((file) => uploadToGoogleDrive(file)));
+        }
       }
 
       return post;

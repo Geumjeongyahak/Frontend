@@ -148,7 +148,7 @@ export default function ArchiveDocumentDetailPage({
           {attachments.length > 0 ? (
             attachments.map((file, index) => {
               const fileName = file.originalName ?? file.fileId ?? `자료 ${index + 1}`;
-              const fileUrl = file.downloadUrl ?? file.url ?? "#";
+              const fileUrl = file.downloadUrl ?? "#";
 
               return (
                 <FileLink key={`${file.fileId ?? fileName}-${index}`} href={fileUrl}>

@@ -125,7 +125,7 @@ export default function EventDetailPageClient({ postId, channelId }: EventDetail
           <FileList>
             {attachments.length > 0 ? (
               attachments.map((file) => {
-                const href = file.downloadUrl ?? file.url ?? "#";
+                const href = file.downloadUrl ?? "#";
                 const label = file.originalName ?? file.fileId ?? "첨부파일";
                 return (
                   <FileLink key={`${file.fileId ?? label}-${file.sortOrder ?? 0}`} href={href}>
