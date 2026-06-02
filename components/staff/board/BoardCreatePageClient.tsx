@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
-import { createPost, getPost, pinPost, updatePost } from "@/api/post/post.api";
+import { attachPostFile, createPost, getPost, pinPost, publishPost, updatePost } from "@/api/post/post.api";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import BoardDropdown, { type DropdownOption } from "@/components/staff/board/BoardDropdown";
 import {
@@ -34,7 +34,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { boardFileToGoogleDrive } from "@/lib/googleDrive/boardFileToGoogleDrive";
+import { uploadBoardDocument } from "@/lib/googleDrive/uploadBoardDocument";
 import { queryKeys } from "@/lib/queryKeys";
 
 type OpenDropdown = "type" | "scope" | null;
@@ -153,12 +153,6 @@ export default function BoardCreatePageClient({
           postDetailQuery.data.authorName === user?.email),
     );
 
-  const uploadBoardFiles = async (files: File[]) => {
-    if (files.length === 0) return;
-
-    await Promise.all(files.map((file) => boardFileToGoogleDrive(file)));
-  };
-
   const { mutate, isPending, isError } = useMutation({
     mutationFn: async () => {
       const channelId = isEditMode ? editChannelId : selectedChannelId;
@@ -167,44 +161,72 @@ export default function BoardCreatePageClient({
         throw new Error("게시글을 등록할 채널을 찾을 수 없습니다.");
       }
 
-      if (isEditMode) {
-        if (!canManagePost) {
-          throw new Error("게시글을 수정할 권한이 없습니다.");
+      if (isEditMode && !canManagePost) {
+        throw new Error("게시글을 수정할 권한이 없습니다.");
+      }
+
+      const title = visibleTitle.trim();
+      const contentHtml = visibleContentHtml.trim();
+      const allowComment = visibleAllowComment;
+      const publishBody = { title, contentHtml, allowComment };
+
+      if (selectedFiles.length > 0) {
+        const draftPost = isEditMode
+          ? await updatePost(
+              { channelId, postId: editPostId },
+              { title, contentHtml, status: "DRAFT", allowComment },
+            )
+          : await createPost({ channelId }, { title, contentHtml, status: "DRAFT", allowComment });
+
+        if (typeof draftPost.id !== "number") {
+          throw new Error("게시글 초안을 저장하지 못했습니다.");
         }
 
+        const registeredFiles = await Promise.all(selectedFiles.map((file) => uploadBoardDocument(file)));
+
+        for (const [index, registered] of registeredFiles.entries()) {
+          if (!registered.fileId) {
+            throw new Error("게시판 파일 메타데이터 등록에 실패했습니다.");
+          }
+
+          await attachPostFile(
+            { channelId, postId: draftPost.id },
+            { fileId: registered.fileId, sortOrder: index },
+          );
+        }
+
+        const published = await publishPost({ channelId, postId: draftPost.id }, publishBody);
+
+        if (visibleIsPinned !== (isEditMode ? initialPinned : false)) {
+          await pinPost({ channelId, postId: draftPost.id }, { isPinned: visibleIsPinned });
+        }
+
+        return published;
+      }
+
+      if (isEditMode) {
         const updated = await updatePost(
           { channelId, postId: editPostId },
-          {
-            title: visibleTitle.trim(),
-            contentHtml: visibleContentHtml.trim(),
-            status: "PUBLISHED",
-            allowComment: visibleAllowComment,
-          },
+          { title, contentHtml, status: "PUBLISHED", allowComment },
         );
 
         if (visibleIsPinned !== initialPinned) {
           await pinPost({ channelId, postId: editPostId }, { isPinned: visibleIsPinned });
         }
 
-        await uploadBoardFiles(selectedFiles);
-
         return updated;
       }
 
-      const created = await createPost(
+      return createPost(
         { channelId },
         {
-          title: visibleTitle.trim(),
-          contentHtml: visibleContentHtml.trim(),
+          title,
+          contentHtml,
           status: "PUBLISHED",
           isPinned: visibleIsPinned,
-          allowComment: visibleAllowComment,
+          allowComment,
         },
       );
-
-      await uploadBoardFiles(selectedFiles);
-
-      return created;
     },
     onSuccess: async (post) => {
       await Promise.all([

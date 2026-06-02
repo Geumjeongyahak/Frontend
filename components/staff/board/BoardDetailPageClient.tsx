@@ -49,6 +49,7 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
   const title = visiblePost?.title ?? "제목";
   const author = visiblePost?.authorName ?? "홍길동";
   const content = visiblePost?.contentHtml?.trim() || "내용";
+  const attachments = visiblePost?.attachments ?? [];
   const editHref =
     hasChannelId && visiblePost?.id
       ? `/staff/board/new?postId=${visiblePost.id}&channelId=${channelId}`
@@ -123,12 +124,29 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
 
           <Label>자료</Label>
           <FileList>
-            <FileLink href="#" aria-label="자료.pdf 다운로드">
-              <span>자료.pdf</span>
-              <DownloadBadge aria-hidden="true">
-                <IconDownload size={16} stroke={2.25} />
-              </DownloadBadge>
-            </FileLink>
+            {attachments.length > 0 ? (
+              attachments.map((file, index) => {
+                const fileName = file.originalName ?? file.fileId ?? `자료 ${index + 1}`;
+                const fileUrl = file.downloadUrl ?? "#";
+
+                return (
+                  <FileLink
+                    key={`${file.fileId ?? fileName}-${index}`}
+                    href={fileUrl}
+                    aria-label={`${fileName} 다운로드`}
+                  >
+                    <span>{fileName}</span>
+                    <DownloadBadge aria-hidden="true">
+                      <IconDownload size={16} stroke={2.25} />
+                    </DownloadBadge>
+                  </FileLink>
+                );
+              })
+            ) : (
+              <FileLink href="#" aria-disabled="true">
+                <span>첨부된 자료가 없습니다.</span>
+              </FileLink>
+            )}
           </FileList>
         </ContentStack>
       </DocumentSection>
