@@ -129,11 +129,23 @@ export default function MeetingRecordFormPage({
       return created;
     },
     onSuccess: async (savedRecord) => {
+      const savedRecordId = savedRecord.id ?? initialRecord?.id;
+
       if (mode === "create") {
         queryClient.setQueriesData<MeetingRecordListResponseDto>(
           { queryKey: ["meeting-records", "list"] },
           (current) => addRecordToFirstPageCache(current, savedRecord),
         );
+      }
+
+      if (mode === "edit" && savedRecordId) {
+        queryClient.setQueryData<MeetingRecordDetailResponseDto>(
+          queryKeys.meetingRecords.detail(savedRecordId),
+          (current) => ({ ...current, ...savedRecord }),
+        );
+        await queryClient.invalidateQueries({ queryKey: ["meeting-records"] });
+        onSaved?.(savedRecordId);
+        return;
       }
 
       await queryClient.invalidateQueries({ queryKey: ["meeting-records"] });
@@ -143,7 +155,6 @@ export default function MeetingRecordFormPage({
         });
       }
 
-      const savedRecordId = savedRecord.id ?? initialRecord?.id;
       if (savedRecordId) {
         onSaved?.(savedRecordId);
         router.push(`/staff/archive/meeting-records/${savedRecordId}`);
