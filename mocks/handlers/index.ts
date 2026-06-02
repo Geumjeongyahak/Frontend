@@ -5,6 +5,7 @@ export { fileHandlers } from "./file.handlers";
 export { classroomHandlers } from "./classroom.handlers";
 export { departmentHandlers } from "./department.handlers";
 export { lessonHandlers } from "./lesson.handlers";
+export { meetingRecordHandlers } from "./meetingRecord.handlers";
 export { postHandlers } from "./post.handlers";
 export { requestHandlers } from "./request.handlers";
 export { studentHandlers } from "./student.handlers";

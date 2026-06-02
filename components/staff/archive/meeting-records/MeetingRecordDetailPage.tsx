@@ -1,5 +1,14 @@
-import type { MeetingRecord } from "@/mocks/archiveMeeting";
+"use client";
+
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import {
+  deleteMeetingRecord,
+  getMeetingRecord,
+} from "@/api/meetingRecord/meetingRecord.api";
 import MeetingRecordAbsenceSection from "@/components/staff/archive/meeting-records/MeetingRecordAbsenceSection";
+import MeetingRecordFormPage from "@/components/staff/archive/meeting-records/MeetingRecordFormPage";
 import {
   ActionButton,
   ActionLink,
@@ -9,16 +18,51 @@ import {
   DocumentSection,
   FieldBox,
   Label,
+  StateMessage,
   TextBox,
   Toolbar,
   ToolbarRight,
 } from "@/components/staff/archive/meeting-records/MeetingRecordDocument.styles";
+import { queryKeys } from "@/lib/queryKeys";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type MeetingRecordDetailPageProps = {
-  meetingRecord: MeetingRecord;
+  recordId: number;
 };
 
-export default function MeetingRecordDetailPage({ meetingRecord }: MeetingRecordDetailPageProps) {
+export default function MeetingRecordDetailPage({ recordId }: MeetingRecordDetailPageProps) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
+  const {
+    data: meetingRecord,
+    isError,
+    isLoading,
+  } = useQuery({
+    queryKey: queryKeys.meetingRecords.detail(recordId),
+    queryFn: () => getMeetingRecord({ recordId }),
+    retry: false,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteMeetingRecord({ recordId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["meeting-records"] });
+      router.replace("/staff/archive/meeting-records");
+    },
+  });
+
+  if (isEditing && meetingRecord) {
+    return (
+      <MeetingRecordFormPage
+        mode="edit"
+        initialRecord={meetingRecord}
+        onCancel={() => setIsEditing(false)}
+        onSaved={() => setIsEditing(false)}
+      />
+    );
+  }
+
   return (
     <DocumentSection>
       <Toolbar>
@@ -27,34 +71,60 @@ export default function MeetingRecordDetailPage({ meetingRecord }: MeetingRecord
         </ActionLink>
 
         <ToolbarRight>
-          <ActionButton type="button" $variant="danger">
-            삭제
+          <ActionButton
+            type="button"
+            $variant="danger"
+            disabled={!meetingRecord || deleteMutation.isPending}
+            onClick={() => deleteMutation.mutate()}
+          >
+            {deleteMutation.isPending ? "삭제 중" : "삭제"}
           </ActionButton>
-          <ActionButton type="button" $variant="edit">수정</ActionButton>
+          <ActionButton
+            type="button"
+            $variant="edit"
+            disabled={!meetingRecord}
+            onClick={() => setIsEditing(true)}
+          >
+            수정
+          </ActionButton>
         </ToolbarRight>
       </Toolbar>
 
-      <ContentStack>
-        <DateBar>{meetingRecord.date}</DateBar>
+      {isLoading ? <StateMessage>교학 회의록을 불러오는 중입니다.</StateMessage> : null}
+      {isError ? (
+        <StateMessage role="alert">교학 회의록을 불러오지 못했습니다.</StateMessage>
+      ) : null}
+      {deleteMutation.isError ? (
+        <StateMessage role="alert">교학 회의록 삭제에 실패했습니다.</StateMessage>
+      ) : null}
 
-        <Label>제목</Label>
-        <FieldBox>{meetingRecord.title}</FieldBox>
+      {meetingRecord ? (
+        <ContentStack>
+          <DateBar>{formatUtcToKstShortDate(meetingRecord.createdAt)}</DateBar>
 
-        <Label>작성자</Label>
-        <FieldBox>{meetingRecord.author}</FieldBox>
+          <Label>제목</Label>
+          <FieldBox>{meetingRecord.title ?? "-"}</FieldBox>
 
-        <Label>안건</Label>
-        <TextBox>{meetingRecord.agenda}</TextBox>
+          <Label>작성자</Label>
+          <FieldBox>{meetingRecord.author ?? "-"}</FieldBox>
 
-        <Label>논의 사항</Label>
-        <TextBox $isMuted>{meetingRecord.discussion}</TextBox>
+          <Label>안건</Label>
+          <TextBox>{meetingRecord.agenda ?? "-"}</TextBox>
 
-        <Label>건의 사항</Label>
-        <TextBox $isMuted>{meetingRecord.suggestion}</TextBox>
+          <Label>논의 사항</Label>
+          <TextBox>{meetingRecord.discussion ?? "-"}</TextBox>
 
-        <Divider />
-        <MeetingRecordAbsenceSection initialReports={meetingRecord.absenceReports} />
-      </ContentStack>
+          <Label>결정 사항</Label>
+          <TextBox>{meetingRecord.suggestion ?? "-"}</TextBox>
+
+          <Divider />
+          <MeetingRecordAbsenceSection
+            recordId={recordId}
+            meetingStatus={meetingRecord.status}
+            initialReports={meetingRecord.absenceReports ?? []}
+          />
+        </ContentStack>
+      ) : null}
     </DocumentSection>
   );
 }

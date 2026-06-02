@@ -35,8 +35,10 @@ export const queryKeys = {
   teachers: {
     contactList: () => ["teachers", "contact-list"] as const,
   },
-  vendors: {
-    list: () => ["vendors", "list"] as const,
+  meetingRecords: {
+    list: (params: { page: number; size: number; keyword?: string; mineOnly?: boolean }) =>
+      ["meeting-records", "list", params] as const,
+    detail: (recordId: number) => ["meeting-records", "detail", recordId] as const,
   },
   requests: {
     lessonExchangeList: () => ["lesson-exchange-requests"] as const,

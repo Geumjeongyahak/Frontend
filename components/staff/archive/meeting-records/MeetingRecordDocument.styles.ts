@@ -67,9 +67,9 @@ const actionStyle = css<{ $variant?: "default" | "danger" | "edit" | "muted" }>`
       ? colors.white
       : $variant === "edit"
         ? colors.white
-      : $variant === "muted"
-        ? colors.background
-        : colors.white};
+        : $variant === "muted"
+          ? colors.background
+          : colors.white};
   padding: 0.8125rem ${spacing.space20};
   color: ${({ $variant }) =>
     $variant === "danger"
@@ -137,8 +137,6 @@ export const PageTitle = styled.h1`
 export const DateBar = styled.div`
   display: flex;
   justify-content: flex-end;
-  min-height: 2.6875rem;
-  padding: 0.8125rem ${spacing.space12};
   border-bottom: 1px solid #b4b4b4;
   color: #000000;
   font-size: ${typography.fontSize14};
@@ -146,8 +144,6 @@ export const DateBar = styled.div`
   line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
   }
 `;
@@ -214,6 +210,40 @@ export const Divider = styled.hr`
   }
 `;
 
+export const StateMessage = styled.p`
+  margin: 0;
+  color: ${colors.muted};
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight150};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+export const AbsenceReportTopBar = styled(DateBar)`
+  align-items: center;
+  gap: ${spacing.space12};
+  border-bottom: 0;
+`;
+
+export const UnderlineTextButton = styled.button<{ $tone?: "default" | "danger" }>`
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: ${({ $tone }) => ($tone === "danger" ? colors.notice : colors.muted)};
+  font: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
 export const AbsenceHeader = styled.div`
   display: flex;
   align-items: center;
@@ -248,7 +278,10 @@ export const AbsenceStack = styled.div`
   }
 `;
 
-export const AbsenceBox = styled.div<{ $tone?: "draft" | "submitted"; $height?: "short" | "medium" | "large" }>`
+export const AbsenceBox = styled.div<{
+  $tone?: "draft" | "submitted";
+  $height?: "short" | "medium" | "large";
+}>`
   display: flex;
   flex-direction: column;
   justify-content: ${({ $height }) => ($height === "short" ? "center" : "flex-start")};
@@ -337,6 +370,11 @@ export const TabButton = styled.button<{ $active?: boolean }>`
   line-height: ${typography.lineHeight130};
   text-align: left;
   cursor: pointer;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
 
   @media (min-width: 120rem) {
     min-height: 4rem;
