@@ -5,7 +5,16 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
-import { deleteJournal, getDailySchedule, updateJournal } from "@/api/dailySchedule/dailySchedule.api";
+import {
+  deleteJournal,
+  getDailySchedule,
+  updateJournal,
+  updateStudentAttendances,
+} from "@/api/dailySchedule/dailySchedule.api";
+import type {
+  DailyStudentAttendanceResponseDto,
+  UpdateDailyStudentAttendanceItemRequestDto,
+} from "@/api/dailySchedule/dailySchedule.dto";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { colors, layout, spacing, typography, radii } from "@/styles/tokens";
 import {
@@ -25,6 +34,32 @@ const emptyJournal: ClassJournalDetailView = {
   lessons: ["", "", ""],
   attendance: Array.from({ length: 10 }, () => ({ name: "", status: "" })),
 };
+
+const ATTENDANCE_SLOT_COUNT = 10;
+
+function mapStudentAttendancesToPresentFlags(students?: DailyStudentAttendanceResponseDto[]) {
+  return Array.from({ length: ATTENDANCE_SLOT_COUNT }, (_, index) => {
+    return students?.[index]?.status === "PRESENT";
+  });
+}
+
+function buildEditableStudentAttendances(
+  students: DailyStudentAttendanceResponseDto[] | undefined,
+  presentFlags: boolean[],
+): UpdateDailyStudentAttendanceItemRequestDto[] {
+  return (students ?? []).flatMap((student, index) => {
+    if (typeof student.studentId !== "number") return [];
+
+    const status =
+      index < presentFlags.length
+        ? presentFlags[index]
+          ? "PRESENT"
+          : "ABSENT"
+        : (student.status ?? "ABSENT");
+
+    return [{ studentId: student.studentId, status }];
+  });
+}
 
 const detailFields = [
   { label: "작성자", key: "writer" },
@@ -48,6 +83,9 @@ export default function ClassJournalDetailPageClient({
   const isAuthenticated = authStatus === "authenticated";
   const [isEditing, setIsEditing] = useState(false);
   const [editableNotes, setEditableNotes] = useState(["", "", ""]);
+  const [editableAttendance, setEditableAttendance] = useState<boolean[]>(() =>
+    Array.from({ length: ATTENDANCE_SLOT_COUNT }, () => false),
+  );
 
   const scheduleQuery = useQuery({
     queryKey: ["daily-schedules", "detail", dailyScheduleId] as const,
@@ -72,7 +110,16 @@ export default function ClassJournalDetailPageClient({
     mutationFn: async () => {
       const schedule = scheduleQuery.data;
       if (!schedule) throw new Error("수업 일지 정보를 불러오지 못했습니다.");
-      return updateJournal({ dailyScheduleId }, buildUpdateJournalBody(schedule, editableNotes));
+
+      await updateJournal({ dailyScheduleId }, buildUpdateJournalBody(schedule, editableNotes));
+
+      const attendances = buildEditableStudentAttendances(
+        schedule.studentAttendances,
+        editableAttendance,
+      );
+      if (attendances.length > 0) {
+        await updateStudentAttendances({ dailyScheduleId }, { attendances });
+      }
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({
@@ -94,6 +141,9 @@ export default function ClassJournalDetailPageClient({
   useEffect(() => {
     if (!scheduleQuery.data) return;
     setEditableNotes(mapClassJournalDetailView(scheduleQuery.data).lessons);
+    setEditableAttendance(
+      mapStudentAttendancesToPresentFlags(scheduleQuery.data.studentAttendances),
+    );
   }, [scheduleQuery.data]);
 
   const isSubmitting = updateJournalMutation.isPending || deleteJournalMutation.isPending;
@@ -107,6 +157,9 @@ export default function ClassJournalDetailPageClient({
   const handleEditClick = () => {
     if (!isEditing) {
       setEditableNotes(journal.lessons);
+      setEditableAttendance(
+        mapStudentAttendancesToPresentFlags(scheduleQuery.data?.studentAttendances),
+      );
       setIsEditing(true);
       return;
     }
@@ -177,9 +230,26 @@ export default function ClassJournalDetailPageClient({
             {journal.attendance.map((student, index) => (
               <AttendanceCell key={`name-${index}`}>{student.name}</AttendanceCell>
             ))}
-            {journal.attendance.map((student, index) => (
-              <AttendanceCell key={`status-${index}`}>{student.status}</AttendanceCell>
-            ))}
+            {journal.attendance.map((student, index) =>
+              isEditing ? (
+                <AttendanceCheckboxCell key={`status-${index}`}>
+                  <ConsentCheckbox
+                    type="checkbox"
+                    checked={editableAttendance[index] ?? false}
+                    onChange={(event) =>
+                      setEditableAttendance((current) =>
+                        current.map((isPresent, attendanceIndex) =>
+                          attendanceIndex === index ? event.target.checked : isPresent,
+                        ),
+                      )
+                    }
+                    aria-label={`${index + 1}번 출석`}
+                  />
+                </AttendanceCheckboxCell>
+              ) : (
+                <AttendanceCell key={`status-${index}`}>{student.status}</AttendanceCell>
+              ),
+            )}
           </AttendanceGrid>
         </AttendanceSection>
       </ContentColumn>
@@ -441,6 +511,57 @@ const AttendanceGrid = styled.div`
 
   @media (max-width: ${layout.breakpointTablet}) {
     grid-template-columns: repeat(5, minmax(5rem, 1fr));
+  }
+`;
+
+const ConsentCheckbox = styled.input`
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  appearance: none;
+  border: 1px solid #c8deb8;
+  border-radius: 4px;
+  background-color: #eef9e6;
+  cursor: pointer;
+
+  &:checked {
+    background-color: #eef9e6;
+    border-color: ${colors.point};
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%2388CD5A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2 6l3 3 5-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 0.75rem;
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${colors.point};
+    outline-offset: 2px;
+  }
+
+  @media (min-width: 120rem) {
+    width: 1.5625rem;
+    height: 1.5625rem;
+
+    &:checked {
+      background-size: 1rem;
+    }
+  }
+`;
+
+const AttendanceCheckboxCell = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  padding: ${spacing.space8};
+  border: 0;
+  border-right: 1px solid #c0c0c0;
+  border-bottom: 1px solid #c0c0c0;
+  background-color: transparent;
+
+  @media (min-width: 120rem) {
+    min-height: 3.875rem;
   }
 `;
 
