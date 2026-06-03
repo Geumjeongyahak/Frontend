@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getClassrooms } from "@/api/classroom/classroom.api";
@@ -107,6 +107,7 @@ function getUserId(user: UserListItemDto) {
 }
 
 export function AdminSubjectCreateForm() {
+  const queryClient = useQueryClient();
   const [classroomId, setClassroomId] = useState<number | null>(null);
   const [teacherSelection, setTeacherSelection] = useState<number | typeof TEACHER_UNSELECTED>(
     TEACHER_UNSELECTED,
@@ -137,8 +138,9 @@ export function AdminSubjectCreateForm() {
 
   const createSubjectMutation = useMutation({
     mutationFn: createSubject,
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("과목을 등록했습니다.");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
       setSubmitError(null);
       setClassroomId(null);
       setTeacherSelection(TEACHER_UNSELECTED);
