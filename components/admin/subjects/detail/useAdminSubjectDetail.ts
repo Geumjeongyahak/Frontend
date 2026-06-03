@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { deleteSubject, updateSubject, updateSubjectSchedule } from "@/api/subject/subject.api";
 import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
-import { getSubjectId } from "@/components/admin/subjects/subjectDisplay";
+import { getSubjectId } from "@/components/admin/subjects/shared/subjectDisplay";
 import {
   mapSubjectInfoFormToPayload,
   mapSubjectScheduleFormToPayload,
@@ -16,7 +16,7 @@ import {
   validateSubjectScheduleForm,
   type SubjectInfoFormValues,
   type SubjectScheduleFormValues,
-} from "@/components/admin/subjects/subjectDetailForm";
+} from "@/components/admin/subjects/detail/subjectDetailForm";
 import { queryKeys } from "@/lib/queryKeys";
 
 type UseAdminSubjectDetailParams = {
@@ -193,3 +193,5 @@ export function useAdminSubjectDetail({ subject, onClearSelection }: UseAdminSub
     removeSubject,
   };
 }
+
+export type AdminSubjectDetailViewModel = ReturnType<typeof useAdminSubjectDetail>;

@@ -9,7 +9,7 @@ import {
   formatLessonTimeForDisplay,
   normalizeLessonTimeForApi,
 } from "@/components/admin/lesson-management/lessonCreateError";
-import { compareIsoDates } from "@/components/admin/subjects/subjectCreateForm";
+import { compareIsoDates } from "@/components/admin/subjects/shared/subjectCreateForm";
 
 export type SubjectInfoFormValues = {
   name: string;

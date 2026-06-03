@@ -1,5 +1,5 @@
 import type { SubjectDayOfWeek, SubjectDetailResponseDto } from "@/api/subject/subject.dto";
-import { SUBJECT_DAY_OPTIONS } from "@/components/admin/subjects/subjectCreateForm";
+import { SUBJECT_DAY_OPTIONS } from "@/components/admin/subjects/shared/subjectCreateForm";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 export const SUBJECT_NO_TEACHER_LABEL = "배정된 교사 없음";

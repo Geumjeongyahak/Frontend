@@ -8,7 +8,7 @@ import {
   formatSubjectDayOfWeek,
   formatSubjectTeacherName,
   getSubjectId,
-} from "@/components/admin/subjects/subjectDisplay";
+} from "@/components/admin/subjects/shared/subjectDisplay";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 const ListGrid = styled.div`

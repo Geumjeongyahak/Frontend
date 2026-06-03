@@ -18,14 +18,14 @@ import {
   PrimaryButton,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
-import { SubjectDescriptionTextArea } from "@/components/admin/subjects/subjectFormStyles";
-import { TimeWheelPicker } from "@/components/admin/subjects/TimeWheelPicker";
+import { SubjectDescriptionTextArea } from "@/components/admin/subjects/shared/subjectFormStyles";
+import { TimeWheelPicker } from "@/components/admin/subjects/shared/TimeWheelPicker";
 import {
   formatClassroomTypeLabel,
   mapSubjectCreateFormToPayload,
   SUBJECT_DAY_OPTIONS,
   validateSubjectCreateForm,
-} from "@/components/admin/subjects/subjectCreateForm";
+} from "@/components/admin/subjects/shared/subjectCreateForm";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, spacing, typography } from "@/styles/tokens";
 

@@ -5,11 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
 import { getSubjects } from "@/api/subject/subject.api";
 import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
-import { AdminSubjectCreateForm } from "@/components/admin/subjects/AdminSubjectCreateForm";
-import { AdminSubjectDetailPanel } from "@/components/admin/subjects/AdminSubjectDetailPanel";
-import { AdminSubjectListPanel } from "@/components/admin/subjects/AdminSubjectListPanel";
-import { filterActiveSubjects, getSubjectId } from "@/components/admin/subjects/subjectDisplay";
-import { useAdminSubjectDetail } from "@/components/admin/subjects/useAdminSubjectDetail";
+import { AdminSubjectCreateForm } from "@/components/admin/subjects/create/AdminSubjectCreateForm";
+import { AdminSubjectDetailPanel } from "@/components/admin/subjects/detail/AdminSubjectDetailPanel";
+import { AdminSubjectListPanel } from "@/components/admin/subjects/list/AdminSubjectListPanel";
+import { filterActiveSubjects, getSubjectId } from "@/components/admin/subjects/shared/subjectDisplay";
+import { useAdminSubjectDetail } from "@/components/admin/subjects/detail/useAdminSubjectDetail";
 import {
   SectionCard,
   SectionHeaderRow,
