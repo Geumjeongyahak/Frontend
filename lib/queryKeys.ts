@@ -71,6 +71,7 @@ export const queryKeys = {
     classrooms: () => ["admin", "classrooms"] as const,
     classroomDetail: (classroomId: number) =>
       ["admin", "classrooms", "detail", classroomId] as const,
+    subjects: (classroomId?: number) => ["admin", "subjects", { classroomId }] as const,
     purchaseRequests: (status?: string) => ["admin", "purchase-requests", { status }] as const,
     purchaseRequestDetail: (requestId: number) =>
       ["admin", "purchase-requests", "detail", requestId] as const,
