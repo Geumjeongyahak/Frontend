@@ -12,6 +12,7 @@ type DataStateProps = {
   loadingLabel: string;
   errorLabel: string;
   emptyLabel: string;
+  compact?: boolean;
   children: ReactNode;
 };
 
@@ -22,12 +23,13 @@ export function DataState({
   loadingLabel,
   errorLabel,
   emptyLabel,
+  compact = false,
   children,
 }: DataStateProps) {
   if (isLoading) {
     return (
-      <DataStateBox>
-        <StatePanel>
+      <DataStateBox $compact={compact}>
+        <StatePanel $compact={compact}>
           <LoadingSpinner label={loadingLabel} />
         </StatePanel>
       </DataStateBox>
@@ -36,16 +38,18 @@ export function DataState({
 
   if (isError) {
     return (
-      <DataStateBox>
-        <StatePanel role="alert">{errorLabel}</StatePanel>
+      <DataStateBox $compact={compact}>
+        <StatePanel $compact={compact} role="alert">
+          {errorLabel}
+        </StatePanel>
       </DataStateBox>
     );
   }
 
   if (isEmpty) {
     return (
-      <DataStateBox>
-        <StatePanel>{emptyLabel}</StatePanel>
+      <DataStateBox $compact={compact}>
+        <StatePanel $compact={compact}>{emptyLabel}</StatePanel>
       </DataStateBox>
     );
   }
@@ -202,13 +206,13 @@ export const ActionDescription = styled.p`
   line-height: ${typography.lineHeight130};
 `;
 
-export const StatePanel = styled.div`
+export const StatePanel = styled.div<{ $compact?: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 8rem;
-  padding: ${spacing.space20};
+  min-height: ${({ $compact }) => ($compact ? "5.5rem" : "8rem")};
+  padding: ${({ $compact }) => ($compact ? `${spacing.space8} ${spacing.space12}` : spacing.space20)};
   background-color: ${colors.white};
   border: 1px solid #e6e9e7;
   border-radius: ${radii.radius12};
@@ -216,11 +220,11 @@ export const StatePanel = styled.div`
   font-size: ${typography.fontSize14};
 `;
 
-export const DataStateBox = styled.div`
+export const DataStateBox = styled.div<{ $compact?: boolean }>`
   display: flex;
   width: 100%;
-  min-height: 16rem;
-  margin-bottom: ${spacing.space12};
+  min-height: ${({ $compact }) => ($compact ? "0" : "16rem")};
+  margin-bottom: ${({ $compact }) => ($compact ? "0" : spacing.space12)};
 `;
 
 export const StableListArea = styled.div`

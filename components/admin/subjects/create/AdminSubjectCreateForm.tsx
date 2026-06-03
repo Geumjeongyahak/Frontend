@@ -330,6 +330,7 @@ export function AdminSubjectCreateForm() {
               </ChoiceTitle>
             </ChoiceButton>
             <DataState
+              compact
               isLoading={teachersQuery.isLoading}
               isError={teachersQuery.isError}
               isEmpty={teachers.length === 0}
