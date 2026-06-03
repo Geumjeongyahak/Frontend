@@ -65,8 +65,8 @@ export interface PostAttachmentInfoDto {
   contentType?: string;
   fileSize?: number;
   ext?: string;
+  isGoogleDrive?: boolean;
   downloadUrl?: string;
-  url?: string;
   sortOrder?: number;
 }
 

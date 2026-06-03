@@ -7,7 +7,6 @@ import { useState, type FormEvent } from "react";
 import styled, { css } from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { deletePost, getPost, updatePost } from "@/api/post/post.api";
-import type { PostListResponseDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
@@ -27,9 +26,11 @@ import {
   ViewerBox,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { documentFormsToGoogleDrive } from "@/lib/googleDrive/documentFormsToGoogleDrive";
-import { examMaterialsToGoogleDrive } from "@/lib/googleDrive/examMaterialsToGoogleDrive";
-import { handoverDocumentToGoogleDrive } from "@/lib/googleDrive/handoverDocumentToGoogleDrive";
+import {
+  getUploadArchiveDocument,
+  publishArchivePostWithNewFiles,
+} from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
+import { handlePostDeleteSuccess } from "@/lib/post/postDeleteCache";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -66,10 +67,32 @@ export default function ArchiveDocumentDetailPage({
     initialChannelId ?? channel?.id ?? (channelsQuery.isError ? config.channelId : undefined);
   const hasChannelId = typeof channelId === "number" && Number.isFinite(channelId);
 
+  const deletePostMutation = useMutation({
+    mutationFn: () => deletePost({ channelId: channelId ?? 0, postId }),
+    onMutate: async () => {
+      if (!hasChannelId) return;
+
+      await queryClient.cancelQueries({
+        queryKey: queryKeys.posts.boardDetail(channelId, postId),
+      });
+    },
+    onSuccess: () => {
+      if (!hasChannelId) return;
+
+      handlePostDeleteSuccess(queryClient, {
+        channelId,
+        postId,
+        redirect: () => router.replace(config.listPath),
+      });
+    },
+  });
+
+  const isDeletingPost = deletePostMutation.isPending || deletePostMutation.isSuccess;
+
   const postQuery = useQuery({
     queryKey: queryKeys.posts.boardDetail(channelId ?? 0, postId),
     queryFn: () => getPost({ channelId: channelId ?? 0, postId }),
-    enabled: hasChannelId,
+    enabled: hasChannelId && !isDeletingPost,
     retry: false,
   });
 
@@ -84,54 +107,41 @@ export default function ArchiveDocumentDetailPage({
     (typeof user?.id === "number" && visiblePost?.authorId === user.id) ||
     Boolean(
       visiblePost?.authorName &&
-        (visiblePost.authorName === user?.name ||
-          visiblePost.authorName === user?.nickname ||
-          visiblePost.authorName === user?.email),
+      (visiblePost.authorName === user?.name ||
+        visiblePost.authorName === user?.nickname ||
+        visiblePost.authorName === user?.email),
     );
 
-  const deletePostMutation = useMutation({
-    mutationFn: () => deletePost({ channelId: channelId ?? 0, postId }),
-    onSuccess: async () => {
-      queryClient.setQueriesData<PostListResponseDto>({ queryKey: ["posts"] }, (current) => {
-        if (!current?.content) return current;
-
-        return {
-          ...current,
-          content: current.content.filter((post) => post.id !== postId),
-          totalElements:
-            typeof current.totalElements === "number"
-              ? Math.max(0, current.totalElements - 1)
-              : current.totalElements,
-        };
-      });
-      await queryClient.invalidateQueries({ queryKey: ["posts"] });
-      router.push(config.listPath);
-    },
-  });
   const updatePostMutation = useMutation({
     mutationFn: async () => {
-      const updatedPost = await updatePost(
-        { channelId: channelId ?? 0, postId },
-        {
-          title: editTitle.trim(),
-          contentHtml: editContent.trim(),
-          status: "PUBLISHED",
-          allowComment: false,
-        },
-      );
-
-      if (editFiles.length > 0) {
-        const uploadToGoogleDrive =
-          config.category === "handover"
-            ? handoverDocumentToGoogleDrive
-            : config.category === "exam"
-              ? examMaterialsToGoogleDrive
-              : documentFormsToGoogleDrive;
-
-        await Promise.all(editFiles.map((file) => uploadToGoogleDrive(file)));
+      if (!hasChannelId) {
+        throw new Error(`${config.title} 채널 정보를 찾지 못했습니다.`);
       }
 
-      return updatedPost;
+      const title = editTitle.trim();
+      const contentHtml = editContent.trim();
+      const allowComment = false;
+      const uploadArchiveDocument = getUploadArchiveDocument(config.category);
+
+      if (uploadArchiveDocument && editFiles.length > 0) {
+        return publishArchivePostWithNewFiles({
+          mode: "update",
+          postId,
+          channelId,
+          title,
+          contentHtml,
+          allowComment,
+          files: editFiles,
+          uploadDocument: uploadArchiveDocument,
+          sortOrderStart: attachments.length,
+          errorLabel: config.title,
+        });
+      }
+
+      return updatePost(
+        { channelId, postId },
+        { title, contentHtml, status: "PUBLISHED", allowComment },
+      );
     },
     onSuccess: async (updatedPost) => {
       setIsEditing(false);
@@ -150,10 +160,12 @@ export default function ArchiveDocumentDetailPage({
 
   const stateMessage = !hasChannelId
     ? `${config.title} 채널 정보를 찾지 못했습니다.`
-    : postQuery.isLoading
-      ? `${config.title}를 불러오는 중입니다.`
-      : postQuery.isError && !visiblePost
-        ? `${config.title}를 불러오지 못했습니다.`
+    : deletePostMutation.isPending
+      ? `${config.title}를 삭제하는 중입니다.`
+      : postQuery.isLoading
+        ? `${config.title}를 불러오는 중입니다.`
+        : postQuery.isError && !visiblePost && !isDeletingPost
+          ? `${config.title}를 불러오지 못했습니다.`
           : deletePostMutation.isError
             ? `${config.title} 삭제에 실패했습니다.`
             : updatePostMutation.isError
@@ -262,7 +274,11 @@ export default function ArchiveDocumentDetailPage({
         )}
 
         <Label>작성자</Label>
-        {isEditing ? <ArchiveInput name="author" value={author} readOnly /> : <FieldBox>{author}</FieldBox>}
+        {isEditing ? (
+          <ArchiveInput name="author" value={author} readOnly />
+        ) : (
+          <FieldBox>{author}</FieldBox>
+        )}
 
         <Label>설명</Label>
         {isEditing ? (
@@ -283,6 +299,7 @@ export default function ArchiveDocumentDetailPage({
                 {file.originalName ?? file.fileId ?? `자료 ${index + 1}`}
               </span>
             ))}
+
             {editFiles.length > 0 ? (
               editFiles.map((file) => (
                 <span key={`${file.name}-${file.lastModified}`}>{file.name}</span>
@@ -290,6 +307,7 @@ export default function ArchiveDocumentDetailPage({
             ) : attachments.length === 0 ? (
               <span>선택된 파일이 없습니다.</span>
             ) : null}
+
             <FileSelectLabel>
               <IconPaperclip aria-hidden="true" size={16} stroke={2.25} />
               <span>파일 선택</span>
@@ -308,7 +326,7 @@ export default function ArchiveDocumentDetailPage({
             {attachments.length > 0 ? (
               attachments.map((file, index) => {
                 const fileName = file.originalName ?? file.fileId ?? `자료 ${index + 1}`;
-                const fileUrl = file.downloadUrl ?? file.url ?? "#";
+                const fileUrl = file.downloadUrl ?? "#";
 
                 return (
                   <FileLink key={`${file.fileId ?? fileName}-${index}`} href={fileUrl}>

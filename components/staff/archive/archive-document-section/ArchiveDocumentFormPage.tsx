@@ -20,9 +20,10 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { documentFormsToGoogleDrive } from "@/lib/googleDrive/documentFormsToGoogleDrive";
-import { examMaterialsToGoogleDrive } from "@/lib/googleDrive/examMaterialsToGoogleDrive";
-import { handoverDocumentToGoogleDrive } from "@/lib/googleDrive/handoverDocumentToGoogleDrive";
+import {
+  getUploadArchiveDocument,
+  publishArchivePostWithNewFiles,
+} from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -76,9 +77,9 @@ export default function ArchiveDocumentFormPage({
     (typeof user?.id === "number" && postDetailQuery.data?.authorId === user.id) ||
     Boolean(
       postDetailQuery.data?.authorName &&
-        (postDetailQuery.data.authorName === user?.name ||
-          postDetailQuery.data.authorName === user?.nickname ||
-          postDetailQuery.data.authorName === user?.email),
+      (postDetailQuery.data.authorName === user?.name ||
+        postDetailQuery.data.authorName === user?.nickname ||
+        postDetailQuery.data.authorName === user?.email),
     );
 
   const { mutate, isPending, isError } = useMutation({
@@ -87,38 +88,34 @@ export default function ArchiveDocumentFormPage({
         throw new Error(`${config.title} 채널을 찾을 수 없습니다.`);
       }
 
-      const post = isEditMode
-        ? await updatePost(
-            { channelId, postId: editPostId },
-            {
-              title: visibleTitle.trim(),
-              contentHtml: visibleDescription.trim(),
-              status: "PUBLISHED",
-              allowComment: false,
-            },
-          )
-        : await createPost(
-            { channelId },
-            {
-              title: visibleTitle.trim(),
-              contentHtml: visibleDescription.trim(),
-              status: "PUBLISHED",
-              allowComment: false,
-            },
-          );
+      const title = visibleTitle.trim();
+      const contentHtml = visibleDescription.trim();
+      const allowComment = false;
+      const uploadArchiveDocument = getUploadArchiveDocument(config.category);
+      const sortOrderStart = isEditMode ? existingAttachments.length : 0;
 
-      if (typeof post.id === "number" && files.length > 0) {
-        const uploadToGoogleDrive =
-          config.category === "handover"
-            ? handoverDocumentToGoogleDrive
-            : config.category === "exam"
-              ? examMaterialsToGoogleDrive
-              : documentFormsToGoogleDrive;
-
-        await Promise.all(files.map((file) => uploadToGoogleDrive(file)));
+      if (uploadArchiveDocument && files.length > 0) {
+        return publishArchivePostWithNewFiles({
+          channelId,
+          title,
+          contentHtml,
+          allowComment,
+          files,
+          uploadDocument: uploadArchiveDocument,
+          sortOrderStart,
+          errorLabel: config.title,
+          ...(isEditMode
+            ? { mode: "update", postId: editPostId }
+            : { mode: "create" }),
+        });
       }
 
-      return post;
+      return isEditMode
+        ? updatePost(
+            { channelId, postId: editPostId },
+            { title, contentHtml, status: "PUBLISHED", allowComment },
+          )
+        : createPost({ channelId }, { title, contentHtml, status: "PUBLISHED", allowComment });
     },
     onSuccess: async (post) => {
       await Promise.all([
@@ -146,7 +143,8 @@ export default function ArchiveDocumentFormPage({
     Boolean(channelId) &&
     canManagePost &&
     !isPending;
-  const canShowDescriptionEditor = !isEditMode || Boolean(postDetailQuery.data) || postDetailQuery.isError;
+  const canShowDescriptionEditor =
+    !isEditMode || Boolean(postDetailQuery.data) || postDetailQuery.isError;
 
   return (
     <DocumentSection>
@@ -229,12 +227,12 @@ export default function ArchiveDocumentFormPage({
         {postDetailQuery.isError ? (
           <StateMessage>수정할 {config.title} 내용을 불러오지 못했습니다.</StateMessage>
         ) : null}
-        {!canManagePost ? (
-          <StateMessage>이 글을 수정할 권한이 없습니다.</StateMessage>
-        ) : null}
+        {!canManagePost ? <StateMessage>이 글을 수정할 권한이 없습니다.</StateMessage> : null}
         {isError ? (
           <StateMessage>
-            {isEditMode ? `${config.title} 수정에 실패했습니다.` : `${config.title} 작성에 실패했습니다.`}
+            {isEditMode
+              ? `${config.title} 수정에 실패했습니다.`
+              : `${config.title} 작성에 실패했습니다.`}
           </StateMessage>
         ) : null}
       </Form>

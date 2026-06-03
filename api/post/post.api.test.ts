@@ -10,6 +10,7 @@ import { setAccessToken } from "../client/tokenStorage";
 
 import {
   attachPostAttachment,
+  attachPostFile,
   attachPostImage,
   createPost,
   getChannelPosts,
@@ -84,6 +85,39 @@ describe("post.api", () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     await expect(getPost({ channelId: 1, postId: 1 })).resolves.toEqual(POST_DETAIL_RESPONSE);
+  });
+
+  it("links a registered file id to a draft post attachment", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedBody: unknown;
+    const attachmentResponse = {
+      fileId: "550e8400-e29b-41d4-a716-446655440000",
+      originalName: "handover.pdf",
+      contentType: "application/pdf",
+      fileSize: 204800,
+      ext: "pdf",
+      isGoogleDrive: true,
+      url: "https://drive.google.com/uc?export=download&id=abc123",
+    };
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/channels/1/posts/2/attachments`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json(attachmentResponse);
+      }),
+    );
+
+    const response = await attachPostFile(
+      { channelId: 1, postId: 2 },
+      { fileId: "550e8400-e29b-41d4-a716-446655440000", sortOrder: 0 },
+    );
+
+    expect(response).toEqual(attachmentResponse);
+    expect(observedBody).toEqual({
+      fileId: "550e8400-e29b-41d4-a716-446655440000",
+      sortOrder: 0,
+    });
   });
 
   it("uploads post images and attachments as multipart form data", async () => {

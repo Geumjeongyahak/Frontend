@@ -44,6 +44,9 @@ export const fileHandlers: RequestHandler[] = [
   http.post(`${API_BASE_URL}/api/v1/files/images/posts`, ({ request }) => {
     return unauthorizedWhenNeeded(request) ?? HttpResponse.json(FILE_UPLOAD_RESPONSE);
   }),
+  http.post(`${API_BASE_URL}/api/v1/files/drive`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? HttpResponse.json(FILE_UPLOAD_RESPONSE);
+  }),
   http.post(`${API_BASE_URL}/api/v1/files/attachments`, ({ request }) => {
     return unauthorizedWhenNeeded(request) ?? HttpResponse.json(FILE_UPLOAD_RESPONSE);
   }),
