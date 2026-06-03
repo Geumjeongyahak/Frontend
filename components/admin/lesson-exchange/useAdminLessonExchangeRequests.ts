@@ -13,6 +13,7 @@ import type {
   LessonExchangeRequestListItemDto,
 } from "@/api/lessonExchange/lessonExchange.dto";
 import {
+  canProcessLessonExchangeRequest,
   LESSON_EXCHANGE_ITEMS_PER_PAGE,
   type LessonExchangeStatusFilter,
 } from "@/components/admin/lesson-exchange/lessonExchangeRequestConstants";
@@ -133,12 +134,19 @@ export function useAdminLessonExchangeRequests() {
   };
 
   const handleApprove = () => {
-    if (!selectedRequestId || approveMutation.isPending) return;
+    const detail = lessonExchangeDetailQuery.data;
+    if (!selectedRequestId || approveMutation.isPending || !canProcessLessonExchangeRequest(detail)) {
+      return;
+    }
+
     approveMutation.mutate(selectedRequestId);
   };
 
   const handleReject = () => {
-    if (!selectedRequestId || rejectMutation.isPending) return;
+    const detail = lessonExchangeDetailQuery.data;
+    if (!selectedRequestId || rejectMutation.isPending || !canProcessLessonExchangeRequest(detail)) {
+      return;
+    }
 
     const note = rejectNote.trim();
     if (!note) return;

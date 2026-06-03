@@ -1,8 +1,17 @@
 "use client";
 
 import styled from "styled-components";
-import { formatLessonExchangeDate } from "@/components/admin/lesson-exchange/lessonExchangeRequestConstants";
-import { LessonExchangeStatusBadge } from "@/components/admin/lesson-exchange/LessonExchangeStatusBadge";
+import { LessonExchangeDetailFieldItems } from "@/components/admin/lesson-exchange/LessonExchangeDetailFieldItems";
+import {
+  LESSON_EXCHANGE_BASIC_DETAIL_FIELDS,
+  LESSON_EXCHANGE_PROCESSING_META_FIELDS,
+} from "@/components/admin/lesson-exchange/lessonExchangeDetailFields";
+import {
+  getLessonExchangeDetailActionState,
+  getLessonExchangeRejectionNote,
+  hasLessonExchangeSupplementalContent,
+  shouldShowLessonExchangeProcessingMeta,
+} from "@/components/admin/lesson-exchange/lessonExchangeRequestConstants";
 import type { AdminLessonExchangeRequestsViewModel } from "@/components/admin/lesson-exchange/useAdminLessonExchangeRequests";
 import {
   ButtonRow,
@@ -17,38 +26,30 @@ import {
 } from "@/components/admin/AdminDashboardSectionParts";
 import { spacing, typography } from "@/styles/tokens";
 
-type AdminLessonExchangeRequestsDetailPanelProps = Pick<
-  AdminLessonExchangeRequestsViewModel,
-  | "selectedRequestId"
-  | "lessonExchangeDetailQuery"
-  | "rejectNote"
-  | "setRejectNote"
-  | "handleApprove"
-  | "handleReject"
-  | "isActionPending"
->;
+type AdminLessonExchangeRequestsDetailPanelProps = {
+  viewModel: AdminLessonExchangeRequestsViewModel;
+};
 
 export function AdminLessonExchangeRequestsDetailPanel({
-  selectedRequestId,
-  lessonExchangeDetailQuery,
-  rejectNote,
-  setRejectNote,
-  handleApprove,
-  handleReject,
-  isActionPending,
+  viewModel,
 }: AdminLessonExchangeRequestsDetailPanelProps) {
+  const {
+    selectedRequestId,
+    lessonExchangeDetailQuery,
+    rejectNote,
+    setRejectNote,
+    handleApprove,
+    handleReject,
+    isActionPending,
+  } = viewModel;
+
   const detail = lessonExchangeDetailQuery.data;
   const isLoading = selectedRequestId !== null && lessonExchangeDetailQuery.isLoading;
   const isError = selectedRequestId !== null && lessonExchangeDetailQuery.isError;
-  const rejectionNote = detail?.rejectionNote?.trim();
-  const isProcessed = Boolean(detail?.processedAt);
-  const isExpired = detail?.status === "EXPIRED";
-  const showProcessingMeta =
-    isProcessed ||
-    detail?.status === "APPROVED" ||
-    detail?.status === "REJECTED" ||
-    detail?.status === "COMPLETED" ||
-    detail?.status === "CANCELLED";
+  const actionState = getLessonExchangeDetailActionState(detail);
+  const rejectionNote = getLessonExchangeRejectionNote(detail);
+  const showProcessingMeta = shouldShowLessonExchangeProcessingMeta(detail);
+  const hasSupplementalContent = hasLessonExchangeSupplementalContent(detail);
 
   return (
     <SectionCard>
@@ -67,106 +68,71 @@ export function AdminLessonExchangeRequestsDetailPanel({
       >
         <DetailStack>
           <DetailFields>
-            <DetailField $fullWidth>
-              <DetailFieldLabel>제목</DetailFieldLabel>
-              <DetailFieldValue>{detail?.title ?? "-"}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>분반</DetailFieldLabel>
-              <DetailFieldValue>{detail?.classroomName ?? "-"}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>요청자</DetailFieldLabel>
-              <DetailFieldValue>{detail?.requestedByName ?? "-"}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>수업일</DetailFieldLabel>
-              <DetailFieldValue>{formatLessonExchangeDate(detail?.lessonDate)}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>만료일</DetailFieldLabel>
-              <DetailFieldValue>{formatLessonExchangeDate(detail?.expiresAt)}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>요청일</DetailFieldLabel>
-              <DetailFieldValue>{formatLessonExchangeDate(detail?.createdAt)}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>상태</DetailFieldLabel>
-              <DetailFieldValue>
-                <LessonExchangeStatusBadge status={detail?.status} />
-              </DetailFieldValue>
-            </DetailField>
+            <LessonExchangeDetailFieldItems fields={LESSON_EXCHANGE_BASIC_DETAIL_FIELDS} detail={detail} />
           </DetailFields>
 
-          <ContentSection>
-            <DetailField $fullWidth $compact>
-              <DetailFieldLabel>내용</DetailFieldLabel>
-              <DetailTextBox>{detail?.content?.trim() || "-"}</DetailTextBox>
-            </DetailField>
-
-            {rejectionNote || showProcessingMeta ? <CompactDivider /> : null}
-
-            {rejectionNote ? (
+          <DetailLowerBlock>
+            <ContentSection>
               <DetailField $fullWidth $compact>
-                <DetailFieldLabel>반려 사유</DetailFieldLabel>
-                <DetailNoteBox>{rejectionNote}</DetailNoteBox>
+                <DetailFieldLabel>내용</DetailFieldLabel>
+                <DetailTextBox>{detail?.content?.trim() || "-"}</DetailTextBox>
               </DetailField>
-            ) : null}
 
-            {showProcessingMeta ? (
-              <ProcessingMetaFields $spacedFromRejection={Boolean(rejectionNote)}>
-                  <DetailField>
-                    <DetailFieldLabel>처리자</DetailFieldLabel>
-                    <DetailFieldValue>{detail?.processedByName ?? "-"}</DetailFieldValue>
-                  </DetailField>
-                  <DetailField>
-                    <DetailFieldLabel>처리일</DetailFieldLabel>
-                    <DetailFieldValue>{formatLessonExchangeDate(detail?.processedAt)}</DetailFieldValue>
-                  </DetailField>
-                  <DetailField>
-                    <DetailFieldLabel>완료일</DetailFieldLabel>
-                    <DetailFieldValue>{formatLessonExchangeDate(detail?.completedAt)}</DetailFieldValue>
-                  </DetailField>
-                  <DetailField>
-                    <DetailFieldLabel>취소일</DetailFieldLabel>
-                    <DetailFieldValue>{formatLessonExchangeDate(detail?.cancelledAt)}</DetailFieldValue>
-                  </DetailField>
-              </ProcessingMetaFields>
-            ) : null}
+              {hasSupplementalContent ? (
+                <SupplementalSection>
+                  <CompactDivider />
 
-            <ActionDivider />
-          </ContentSection>
+                  {rejectionNote ? (
+                    <DetailField $fullWidth $compact>
+                      <DetailFieldLabel>반려 사유</DetailFieldLabel>
+                      <DetailNoteBox>{rejectionNote}</DetailNoteBox>
+                    </DetailField>
+                  ) : null}
 
-          <ActionSection>
-            <DetailFieldLabel>처리</DetailFieldLabel>
-            {isExpired ? (
-              <UnavailableBadge>만료된 요청으로 처리불가</UnavailableBadge>
-            ) : isProcessed ? (
-              <ProcessedBadge>처리 완료</ProcessedBadge>
-            ) : (
-              <FormGrid onSubmit={(event) => event.preventDefault()}>
-                <RejectNoteTextArea
-                  value={rejectNote}
-                  placeholder="반려 사유를 입력해 주세요."
-                  disabled={isActionPending}
-                  onChange={(event) => setRejectNote(event.target.value)}
-                />
-                <ButtonRow>
-                  <PrimaryButton type="button" disabled={isActionPending} onClick={handleApprove}>
-                    승인
-                  </PrimaryButton>
-                  <DangerButton
-                    type="button"
-                    disabled={isActionPending || !rejectNote.trim()}
-                    onClick={handleReject}
-                  >
-                    반려
-                  </DangerButton>
-                </ButtonRow>
-              </FormGrid>
-            )}
-          </ActionSection>
+                  {showProcessingMeta ? (
+                    <ProcessingMetaFields>
+                      <LessonExchangeDetailFieldItems
+                        fields={LESSON_EXCHANGE_PROCESSING_META_FIELDS}
+                        detail={detail}
+                      />
+                    </ProcessingMetaFields>
+                  ) : null}
+                </SupplementalSection>
+              ) : null}
+            </ContentSection>
+
+            {hasSupplementalContent ? <CompactDivider /> : null}
+
+            <ActionSection>
+              <DetailFieldLabel>처리</DetailFieldLabel>
+              {actionState === "expired" ? (
+                <UnavailableBadge>만료된 요청으로 처리불가</UnavailableBadge>
+              ) : null}
+              {actionState === "processed" ? <ProcessedBadge>처리 완료</ProcessedBadge> : null}
+              {actionState === "actionable" ? (
+                <FormGrid onSubmit={(event) => event.preventDefault()}>
+                  <RejectNoteTextArea
+                    value={rejectNote}
+                    placeholder="반려 사유를 입력해 주세요."
+                    disabled={isActionPending}
+                    onChange={(event) => setRejectNote(event.target.value)}
+                  />
+                  <ButtonRow>
+                    <PrimaryButton type="button" disabled={isActionPending} onClick={handleApprove}>
+                      승인
+                    </PrimaryButton>
+                    <DangerButton
+                      type="button"
+                      disabled={isActionPending || !rejectNote.trim()}
+                      onClick={handleReject}
+                    >
+                      반려
+                    </DangerButton>
+                  </ButtonRow>
+                </FormGrid>
+              ) : null}
+            </ActionSection>
+          </DetailLowerBlock>
         </DetailStack>
       </DataState>
     </SectionCard>
@@ -198,13 +164,6 @@ const DetailFieldLabel = styled.span`
   line-height: ${typography.lineHeight130};
 `;
 
-const DetailFieldValue = styled.div`
-  color: #1f2b28;
-  font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight150};
-  word-break: break-word;
-`;
-
 const DetailTextBox = styled.div`
   padding: ${spacing.space8} ${spacing.space12};
   border: 1px solid #e6e9e7;
@@ -224,33 +183,36 @@ const DetailNoteBox = styled(DetailTextBox)`
 
 const CompactDivider = styled.hr`
   width: 100%;
-  margin: ${spacing.space8} 0;
+  margin: 0;
   border: 0;
   border-top: 1px solid #e6e9e7;
 `;
 
-const ActionDivider = styled(CompactDivider)`
-  margin-top: ${spacing.space4};
-  margin-bottom: ${spacing.space4};
+const DetailLowerBlock = styled.div`
+  display: grid;
+  gap: ${spacing.space16};
 `;
 
 const ContentSection = styled.section`
   display: grid;
-  gap: ${spacing.space8};
+  gap: ${spacing.space12};
   margin: 0;
 `;
 
-const ProcessingMetaFields = styled.div<{ $spacedFromRejection?: boolean }>`
+const SupplementalSection = styled.div`
+  display: grid;
+  gap: ${spacing.space12};
+`;
+
+const ProcessingMetaFields = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: ${spacing.space16};
-  margin-top: ${({ $spacedFromRejection }) => ($spacedFromRejection ? spacing.space8 : "0")};
 `;
 
 const ActionSection = styled.section`
   display: grid;
   gap: ${spacing.space12};
-  margin-top: -${spacing.space8};
 `;
 
 const RejectNoteTextArea = styled(TextArea)`

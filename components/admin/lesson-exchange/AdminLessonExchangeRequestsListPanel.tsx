@@ -23,38 +23,28 @@ import { colors, spacing, typography } from "@/styles/tokens";
 const TABLE_HEADER_HEIGHT = "2.5rem";
 const TABLE_ROW_HEIGHT = "3.75rem";
 
-type AdminLessonExchangeRequestsListPanelProps = Pick<
-  AdminLessonExchangeRequestsViewModel,
-  | "statusFilter"
-  | "keywordInput"
-  | "setKeywordInput"
-  | "handleSearch"
-  | "handleStatusFilterChange"
-  | "lessonExchangeRequestsQuery"
-  | "sortedRequests"
-  | "selectedRequestId"
-  | "selectLessonExchangeRequest"
-  | "currentPage"
-  | "totalPages"
-  | "goToPrevPage"
-  | "goToNextPage"
->;
+type AdminLessonExchangeRequestsListPanelProps = {
+  viewModel: AdminLessonExchangeRequestsViewModel;
+};
 
 export function AdminLessonExchangeRequestsListPanel({
-  statusFilter,
-  keywordInput,
-  setKeywordInput,
-  handleSearch,
-  handleStatusFilterChange,
-  lessonExchangeRequestsQuery,
-  sortedRequests,
-  selectedRequestId,
-  selectLessonExchangeRequest,
-  currentPage,
-  totalPages,
-  goToPrevPage,
-  goToNextPage,
+  viewModel,
 }: AdminLessonExchangeRequestsListPanelProps) {
+  const {
+    statusFilter,
+    keywordInput,
+    setKeywordInput,
+    handleSearch,
+    handleStatusFilterChange,
+    lessonExchangeRequestsQuery,
+    sortedRequests,
+    selectedRequestId,
+    selectLessonExchangeRequest,
+    currentPage,
+    totalPages,
+    goToPrevPage,
+    goToNextPage,
+  } = viewModel;
   const isLoading = lessonExchangeRequestsQuery.isLoading;
   const isError = lessonExchangeRequestsQuery.isError;
   const isEmpty = !isLoading && !isError && sortedRequests.length === 0;
