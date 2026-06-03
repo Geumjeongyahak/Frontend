@@ -8,7 +8,8 @@ import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
 import { AdminSubjectCreateForm } from "@/components/admin/subjects/AdminSubjectCreateForm";
 import { AdminSubjectDetailPanel } from "@/components/admin/subjects/AdminSubjectDetailPanel";
 import { AdminSubjectListPanel } from "@/components/admin/subjects/AdminSubjectListPanel";
-import { getSubjectId } from "@/components/admin/subjects/subjectDisplay";
+import { filterActiveSubjects, getSubjectId } from "@/components/admin/subjects/subjectDisplay";
+import { useAdminSubjectDetail } from "@/components/admin/subjects/useAdminSubjectDetail";
 import {
   SectionCard,
   SectionHeaderRow,
@@ -39,10 +40,10 @@ export function AdminSubjectsSection() {
     queryFn: () => getSubjects(),
   });
 
-  const subjects = useMemo(
-    () => (Array.isArray(subjectsQuery.data) ? subjectsQuery.data : []),
-    [subjectsQuery.data],
-  );
+  const subjects = useMemo(() => {
+    const items = Array.isArray(subjectsQuery.data) ? subjectsQuery.data : [];
+    return filterActiveSubjects(items);
+  }, [subjectsQuery.data]);
 
   const selectedSubject = useMemo(
     () => subjects.find((subject) => getSubjectId(subject) === selectedSubjectId) ?? null,
@@ -54,6 +55,11 @@ export function AdminSubjectsSection() {
     if (subjectId == null) return;
     setSelectedSubjectId(subjectId);
   };
+
+  const subjectDetail = useAdminSubjectDetail({
+    subject: selectedSubject,
+    onClearSelection: () => setSelectedSubjectId(null),
+  });
 
   return (
     <PageStack>
@@ -81,7 +87,7 @@ export function AdminSubjectsSection() {
           <ListSectionHeader>
             <SectionTitle>과목 상세</SectionTitle>
           </ListSectionHeader>
-          <AdminSubjectDetailPanel subject={selectedSubject} />
+          <AdminSubjectDetailPanel subject={selectedSubject} detail={subjectDetail} />
         </SectionCard>
       </TwoColumnGrid>
     </PageStack>

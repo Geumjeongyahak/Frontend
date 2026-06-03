@@ -18,6 +18,7 @@ import {
   PrimaryButton,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
+import { SubjectDescriptionTextArea } from "@/components/admin/subjects/subjectFormStyles";
 import { TimeWheelPicker } from "@/components/admin/subjects/TimeWheelPicker";
 import {
   formatClassroomTypeLabel,
@@ -364,7 +365,7 @@ export function AdminSubjectCreateForm() {
 
         <SubjectLabel>
           설명
-          <TextInput
+          <SubjectDescriptionTextArea
             value={description}
             onChange={(event) => {
               setSubmitError(null);

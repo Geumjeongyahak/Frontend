@@ -37,3 +37,7 @@ export function formatSubjectTeacherAssignedAt(teacherAssignedAt?: string | null
 export function getSubjectId(subject: SubjectDetailResponseDto) {
   return typeof subject.id === "number" ? subject.id : null;
 }
+
+export function filterActiveSubjects(subjects: SubjectDetailResponseDto[]) {
+  return subjects.filter((subject) => subject.isActive !== false);
+}
