@@ -11,6 +11,7 @@ export type AdminMenu =
   | "departments"
   | "classrooms"
   | "subjects"
+  | "subjectTeachers"
   | "lessons"
   | "purchases"
   | "absenceRequests"
