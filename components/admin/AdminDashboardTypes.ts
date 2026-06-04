@@ -13,7 +13,8 @@ export type AdminMenu =
   | "subjects"
   | "lessons"
   | "purchases"
-  | "absenceRequests";
+  | "absenceRequests"
+  | "lessonExchange";
 
 export type UserFormState = {
   email: string;

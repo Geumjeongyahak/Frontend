@@ -1,7 +1,7 @@
 import type { AbsenceRequestStatus } from "@/api/request/request.dto";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
-export const ABSENCE_ITEMS_PER_PAGE = 10;
+export const ABSENCE_ITEMS_PER_PAGE = 8;
 
 export const ABSENCE_STATUS_OPTIONS = [
   { value: "", label: "전체" },

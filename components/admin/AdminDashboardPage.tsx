@@ -13,6 +13,7 @@ import { AdminClassroomsSection } from "@/components/admin/classes/AdminClassroo
 import { AdminDepartmentsSection } from "@/components/admin/departments/AdminDepartmentsSection";
 import { AdminPostsSection } from "@/components/admin/posts/AdminPostsSection";
 import { AdminAbsenceRequestsSection } from "@/components/admin/absence-requests/AdminAbsenceRequestsSection";
+import { AdminLessonExchangeSection } from "@/components/admin/lesson-exchange/AdminLessonExchangeSection";
 import { AdminPurchasesSection } from "@/components/admin/purchase-requests/AdminPurchasesSection";
 import { AdminLessonManagementSection } from "@/components/admin/lesson-management/AdminLessonManagementSection";
 import { AdminSubjectsSection } from "@/components/admin/subjects/AdminSubjectsSection";
@@ -102,6 +103,7 @@ const navigationItems: { key: AdminMenu; label: string }[] = [
   { key: "posts", label: "게시글" },
   { key: "purchases", label: "구매 요청" },
   { key: "absenceRequests", label: "결석 요청" },
+  { key: "lessonExchange", label: "수업 교환 요청" },
 ];
 
 const fallbackPermissions: PermissionDefinitionDto[] = [
@@ -1037,6 +1039,7 @@ export default function AdminDashboardPage() {
     lessons: "수업 목록을 조회하고 새 수업을 생성합니다.",
     purchases: "구매 요청 작성, 목록/상세 조회, 승인/반려/결재 확인/삭제 처리를 제공합니다.",
     absenceRequests: "결석 요청 목록 조회 및 승인/반려 처리를 제공합니다.",
+    lessonExchange: "수업 교환 요청 목록 조회 및 승인/반려 처리를 제공합니다.",
   }[activeMenu];
 
   return (
@@ -1195,6 +1198,7 @@ export default function AdminDashboardPage() {
           {activeMenu === "subjects" ? <AdminSubjectsSection /> : null}
           {activeMenu === "lessons" ? <AdminLessonManagementSection /> : null}
           {activeMenu === "absenceRequests" ? <AdminAbsenceRequestsSection /> : null}
+          {activeMenu === "lessonExchange" ? <AdminLessonExchangeSection /> : null}
           {activeMenu === "purchases" ? (
             <AdminPurchasesSection
               classrooms={classrooms}

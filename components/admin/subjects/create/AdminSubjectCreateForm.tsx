@@ -44,6 +44,11 @@ const ChoiceGrid = styled.div`
   gap: ${spacing.space8};
 `;
 
+const ChoiceStack = styled.div`
+  display: grid;
+  gap: ${spacing.space8};
+`;
+
 const ChoiceButton = styled.button<{ $selected: boolean }>`
   display: flex;
   flex-direction: column;
@@ -77,6 +82,27 @@ const ChoiceMeta = styled.span`
   font-size: ${typography.fontSize13};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
+`;
+
+const CenteredChoiceButton = styled(ChoiceButton)`
+  position: relative;
+  text-align: center;
+`;
+
+const CenteredChoiceTitle = styled(ChoiceTitle)`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+`;
+
+const ChoiceHeightPlaceholder = styled.div`
+  visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space4};
 `;
 
 const DayChoiceButton = styled(ChoiceButton)`
@@ -129,9 +155,8 @@ export function AdminSubjectCreateForm() {
   });
 
   const teachersQuery = useQuery({
-    queryKey: ["admin", "subjects", "teachers", { role: "VOLUNTEER", currentTeacher: true }],
-    queryFn: () =>
-      getUsers({ role: "VOLUNTEER", currentTeacher: true, page: 0, size: 100 }),
+    queryKey: ["admin", "subjects", "teachers", { role: "VOLUNTEER" }],
+    queryFn: () => getUsers({ role: "VOLUNTEER", page: 0, size: 100 }),
   });
 
   const classrooms = classroomsQuery.data?.content ?? [];
@@ -192,6 +217,18 @@ export function AdminSubjectCreateForm() {
     <form onSubmit={handleSubmit}>
       <SubjectFormGrid>
         <SubjectLabel>
+          과목명
+          <TextInput
+            value={name}
+            onChange={(event) => {
+              setSubmitError(null);
+              setName(event.target.value);
+            }}
+            required
+          />
+        </SubjectLabel>
+
+        <SubjectLabel>
           분반
           <DataState
             isLoading={classroomsQuery.isLoading}
@@ -229,15 +266,62 @@ export function AdminSubjectCreateForm() {
         </SubjectLabel>
 
         <SubjectLabel>
-          과목명
-          <TextInput
-            value={name}
-            onChange={(event) => {
-              setSubmitError(null);
-              setName(event.target.value);
-            }}
-            required
-          />
+          담당 교사
+          <ChoiceStack>
+            <ChoiceGrid>
+              <CenteredChoiceButton
+                type="button"
+                $selected={teacherSelection === TEACHER_UNSELECTED}
+                aria-pressed={teacherSelection === TEACHER_UNSELECTED}
+                onClick={() => {
+                  setSubmitError(null);
+                  setTeacherSelection(TEACHER_UNSELECTED);
+                }}
+              >
+                <ChoiceHeightPlaceholder aria-hidden>
+                  <ChoiceTitle>{"\u00A0"}</ChoiceTitle>
+                  <ChoiceMeta>{"\u00A0"}</ChoiceMeta>
+                </ChoiceHeightPlaceholder>
+                <CenteredChoiceTitle $selected={teacherSelection === TEACHER_UNSELECTED}>
+                  교사 미지정
+                </CenteredChoiceTitle>
+              </CenteredChoiceButton>
+            </ChoiceGrid>
+            <DataState
+              compact
+              isLoading={teachersQuery.isLoading}
+              isError={teachersQuery.isError}
+              isEmpty={teachers.length === 0}
+              loadingLabel="교사 목록 불러오는 중"
+              errorLabel="교사 목록을 불러오지 못했습니다."
+              emptyLabel="활동 중인 교사가 없습니다."
+            >
+              <ChoiceGrid>
+                {teachers.map((teacher) => {
+                  const id = getUserId(teacher);
+                  if (id == null) return null;
+
+                  const isSelected = teacherSelection === id;
+
+                  return (
+                    <ChoiceButton
+                      key={id}
+                      type="button"
+                      $selected={isSelected}
+                      aria-pressed={isSelected}
+                      onClick={() => {
+                        setSubmitError(null);
+                        setTeacherSelection(id);
+                      }}
+                    >
+                      <ChoiceTitle $selected={isSelected}>{teacher.name ?? "—"}</ChoiceTitle>
+                      {teacher.email ? <ChoiceMeta>{teacher.email}</ChoiceMeta> : null}
+                    </ChoiceButton>
+                  );
+                })}
+              </ChoiceGrid>
+            </DataState>
+          </ChoiceStack>
         </SubjectLabel>
 
         <DateRow>
@@ -311,57 +395,6 @@ export function AdminSubjectCreateForm() {
             }}
             required
           />
-        </SubjectLabel>
-
-        <SubjectLabel>
-          담당 교사
-          <ChoiceGrid>
-            <ChoiceButton
-              type="button"
-              $selected={teacherSelection === TEACHER_UNSELECTED}
-              aria-pressed={teacherSelection === TEACHER_UNSELECTED}
-              onClick={() => {
-                setSubmitError(null);
-                setTeacherSelection(TEACHER_UNSELECTED);
-              }}
-            >
-              <ChoiceTitle $selected={teacherSelection === TEACHER_UNSELECTED}>
-                교사 미선택
-              </ChoiceTitle>
-            </ChoiceButton>
-            <DataState
-              compact
-              isLoading={teachersQuery.isLoading}
-              isError={teachersQuery.isError}
-              isEmpty={teachers.length === 0}
-              loadingLabel="교사 목록 불러오는 중"
-              errorLabel="교사 목록을 불러오지 못했습니다."
-              emptyLabel="활동 중인 교사가 없습니다."
-            >
-              {teachers.map((teacher) => {
-                const id = getUserId(teacher);
-                if (id == null) return null;
-
-                const isSelected = teacherSelection === id;
-
-                return (
-                  <ChoiceButton
-                    key={id}
-                    type="button"
-                    $selected={isSelected}
-                    aria-pressed={isSelected}
-                    onClick={() => {
-                      setSubmitError(null);
-                      setTeacherSelection(id);
-                    }}
-                  >
-                    <ChoiceTitle $selected={isSelected}>{teacher.name ?? "—"}</ChoiceTitle>
-                    {teacher.email ? <ChoiceMeta>{teacher.email}</ChoiceMeta> : null}
-                  </ChoiceButton>
-                );
-              })}
-            </DataState>
-          </ChoiceGrid>
         </SubjectLabel>
 
         <SubjectLabel>
