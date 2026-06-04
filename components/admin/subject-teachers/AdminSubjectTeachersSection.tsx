@@ -1,5 +1,7 @@
 "use client";
 
+import { AdminSubjectsListDetailBlock } from "@/components/admin/subjects/AdminSubjectsListDetailBlock";
+
 export function AdminSubjectTeachersSection() {
-  return null;
+  return <AdminSubjectsListDetailBlock readOnly />;
 }

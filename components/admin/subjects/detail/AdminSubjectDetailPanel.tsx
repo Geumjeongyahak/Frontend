@@ -11,9 +11,14 @@ import type { AdminSubjectDetailViewModel } from "@/components/admin/subjects/de
 type AdminSubjectDetailPanelProps = {
   subject: SubjectDetailResponseDto | null;
   detail: AdminSubjectDetailViewModel;
+  readOnly?: boolean;
 };
 
-export function AdminSubjectDetailPanel({ subject, detail }: AdminSubjectDetailPanelProps) {
+export function AdminSubjectDetailPanel({
+  subject,
+  detail,
+  readOnly = false,
+}: AdminSubjectDetailPanelProps) {
   return (
     <DataState
       isLoading={false}
@@ -30,7 +35,7 @@ export function AdminSubjectDetailPanel({ subject, detail }: AdminSubjectDetailP
             <AdminSubjectDetailDescription subject={subject} detail={detail} />
           </>
         ) : null}
-        <AdminSubjectDetailActions subject={subject} detail={detail} />
+        {readOnly ? null : <AdminSubjectDetailActions subject={subject} detail={detail} />}
       </DetailStack>
     </DataState>
   );
