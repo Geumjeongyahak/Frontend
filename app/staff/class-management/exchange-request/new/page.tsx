@@ -3,9 +3,11 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IconCalendarMonth } from "@tabler/icons-react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
 import { createLessonExchangeRequest } from "@/api/lessonExchange/lessonExchange.api";
+import { getCurrentUser } from "@/api/user/user.api";
+import { queryKeys } from "@/lib/queryKeys";
 import {
   koreanShortDateToLocalDateTime,
   parseKoreanShortDateToIsoDate,
@@ -20,6 +22,24 @@ export default function Page() {
   const expireDateInputRef = useRef<HTMLInputElement>(null);
 
   const router = useRouter();
+  const currentUserQuery = useQuery({
+    queryKey: queryKeys.user.me(),
+    queryFn: getCurrentUser,
+    retry: false,
+    refetchOnMount: "always",
+  });
+  const currentUser = currentUserQuery.isFetchedAfterMount ? currentUserQuery.data : undefined;
+  const teacherAssignments = currentUser?.teacherAssignments ?? [];
+  const assignmentClassNames = Array.from(
+    new Set(
+      teacherAssignments
+        .map((assignment) => assignment.classroomName?.trim() ?? "")
+        .filter((name) => name.length > 0),
+    ),
+  );
+  const hasMultipleClassNames = assignmentClassNames.length > 1;
+  const className = assignmentClassNames.length === 1 ? assignmentClassNames[0] : "";
+  const writerName = currentUser?.name ?? "";
 
   const createLessonExchangeMutation = useMutation({
     mutationFn: createLessonExchangeRequest,
@@ -110,9 +130,28 @@ export default function Page() {
           <InfoStack>
             <InfoPairRow>
               <FieldLabel htmlFor="className">반 이름</FieldLabel>
-              <InlineInput id="className" name="className" placeholder="반 이름" />
+              {hasMultipleClassNames ? (
+                <InlineSelect id="className" name="className" defaultValue="">
+                  <option value="" disabled>
+                    반 이름을 선택해 주세요
+                  </option>
+                  {assignmentClassNames.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </InlineSelect>
+              ) : (
+                <InlineInput
+                  id="className"
+                  name="className"
+                  placeholder="반 이름"
+                  value={className}
+                  readOnly
+                />
+              )}
               <FieldLabel htmlFor="writer">작성자</FieldLabel>
-              <InlineInput id="writer" name="writer" placeholder="홍길동" />
+              <InlineInput id="writer" name="writer" placeholder="홍길동" value={writerName} readOnly />
               <FieldLabel htmlFor="lessonDate">수업 일자</FieldLabel>
               <DateRow>
                 <DateInput
@@ -367,6 +406,34 @@ const InlineInput = styled.input`
     color: #4f4f4f;
     cursor: not-allowed;
   }
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const InlineSelect = styled.select`
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  padding-right: 2rem;
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+  border: 1px solid #c0c0c0;
+  outline: none;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #8c8c8c 50%),
+    linear-gradient(135deg, #8c8c8c 50%, transparent 50%);
+  background-position:
+    calc(100% - 1rem) calc(50% - 2px),
+    calc(100% - 0.6875rem) calc(50% - 2px);
+  background-size:
+    0.375rem 0.375rem,
+    0.375rem 0.375rem;
+  background-repeat: no-repeat;
 
   @media (min-width: 120rem) {
     min-height: 4rem;
