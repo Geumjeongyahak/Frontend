@@ -10,6 +10,7 @@ import { setAccessToken } from "../client/tokenStorage";
 import {
   createJournal,
   getDailyScheduleDetail,
+  getDailyScheduleDetailIfExists,
   getDailySchedules,
   getVolunteerHours,
   updateStudentAttendances,
@@ -96,6 +97,26 @@ describe("dailySchedule.api", () => {
     expect(observedVolunteerQueryString).toContain("teacherId=3");
     expect(observedVolunteerQueryString).toContain("from=2026-06-01");
     expect(observedVolunteerQueryString).toContain("to=2026-06-30");
+  });
+
+  it("returns null when no daily schedule exists", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedDetailQueryString = "";
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/daily-schedules/detail`, ({ request }) => {
+        observedDetailQueryString = new URL(request.url).search;
+        return HttpResponse.json({ message: "Not found" }, { status: 404 });
+      }),
+    );
+
+    await expect(
+      getDailyScheduleDetailIfExists({ classroomId: 2, lessonDate: "2026-06-01" }),
+    ).resolves.toBeNull();
+
+    expect(observedDetailQueryString).toContain("classroomId=2");
+    expect(observedDetailQueryString).toContain("lessonDate=2026-06-01");
   });
 
   it("creates a journal with the expected request body", async () => {

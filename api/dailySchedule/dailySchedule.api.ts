@@ -1,3 +1,4 @@
+import { isAxiosError } from "axios";
 import authClient from "../client/authClient";
 import type {
   CreateDailyScheduleJournalRequestDto,
@@ -40,6 +41,18 @@ export async function getDailyScheduleDetail(query: DailyScheduleDetailQueryPara
   );
 
   return response.data;
+}
+
+// 날짜/분반 기준으로 일정 존재 여부를 확인한 뒤 상세를 조회하는 요청
+export async function getDailyScheduleDetailIfExists(query: DailyScheduleDetailQueryParamsDto) {
+  try {
+    return await getDailyScheduleDetail(query);
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 404) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 // 봉사 인정 시간을 조회하는 요청

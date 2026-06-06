@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import styled from "styled-components";
@@ -11,11 +11,12 @@ import type {
 } from "@/api/dailySchedule/dailySchedule.dto";
 import {
   createJournal,
-  getDailyScheduleDetail,
+  getDailyScheduleDetailIfExists,
   updateStudentAttendances,
 } from "@/api/dailySchedule/dailySchedule.api";
 import type { StudentListResponseDto } from "@/api/student/student.dto";
 import { getStudents } from "@/api/student/student.api";
+import type { UserTeacherAssignmentResponseDto } from "@/api/user/user.dto";
 import { getCurrentUser } from "@/api/user/user.api";
 import { buildClassAttendanceSheetPayload } from "@/lib/googleSheet/classAttendance/classAttendanceSheetPayload";
 import { sendClassAttendanceToGoogleSheet } from "@/lib/googleSheet/classAttendance/sendClassAttendanceToGoogleSheet";
@@ -37,6 +38,32 @@ const CLASS_JOURNAL_DEFAULT_CLASSROOM_ID = 1;
 
 function buildAttendanceNameKey(rowIndex: number, column: number) {
   return `${rowIndex}-${column}`;
+}
+
+interface ResolvedTeacherAssignment {
+  subjectName: string;
+  classroomId: number;
+  classroomName: string;
+}
+
+function resolveTeacherAssignmentClassroomId(assignment: UserTeacherAssignmentResponseDto) {
+  const rawClassroomId = assignment.classroomId ?? assignment.classNameId;
+  const parsedClassroomId = Number.parseInt(String(rawClassroomId ?? ""), 10);
+
+  if (!Number.isFinite(parsedClassroomId) || parsedClassroomId <= 0) return null;
+  return parsedClassroomId;
+}
+
+function normalizeTeacherAssignments(teacherAssignments: UserTeacherAssignmentResponseDto[]) {
+  return teacherAssignments.flatMap((assignment, index) => {
+    const classroomId = resolveTeacherAssignmentClassroomId(assignment);
+    if (!classroomId) return [];
+
+    const classroomName = assignment.classroomName?.trim() ?? "";
+    const subjectName = assignment.subjectName?.trim() || classroomName || `수업 ${index + 1}`;
+
+    return [{ subjectName, classroomId, classroomName }];
+  });
 }
 
 function resolveClassroomName(
@@ -133,12 +160,43 @@ export default function ClassJournalCreatePage() {
 
   const currentUser = currentUserQuery.isFetchedAfterMount ? currentUserQuery.data : undefined;
   const teacherAssignments = currentUser?.teacherAssignments ?? [];
-  const singleTeacherAssignment = teacherAssignments.length === 1 ? teacherAssignments[0] : undefined;
-  const parsedClassroomId = Number.parseInt(String(singleTeacherAssignment?.classroomId ?? ""), 10);
-  const enrollmentClassroomId =
-    Number.isFinite(parsedClassroomId) && parsedClassroomId > 0
-      ? parsedClassroomId
-      : CLASS_JOURNAL_DEFAULT_CLASSROOM_ID;
+  const resolvedTeacherAssignments = useMemo(
+    () => normalizeTeacherAssignments(teacherAssignments),
+    [teacherAssignments],
+  );
+  const hasMultipleTeacherAssignments = resolvedTeacherAssignments.length > 1;
+  const [selectedAssignmentClassroomId, setSelectedAssignmentClassroomId] = useState<number | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!hasMultipleTeacherAssignments) {
+      if (selectedAssignmentClassroomId !== null) setSelectedAssignmentClassroomId(null);
+      return;
+    }
+
+    const hasSelectedAssignment = resolvedTeacherAssignments.some(
+      (assignment) => assignment.classroomId === selectedAssignmentClassroomId,
+    );
+
+    if (!hasSelectedAssignment) {
+      setSelectedAssignmentClassroomId(resolvedTeacherAssignments[0]?.classroomId ?? null);
+    }
+  }, [hasMultipleTeacherAssignments, resolvedTeacherAssignments, selectedAssignmentClassroomId]);
+
+  const selectedTeacherAssignment = useMemo(() => {
+    if (hasMultipleTeacherAssignments) {
+      return (
+        resolvedTeacherAssignments.find(
+          (assignment) => assignment.classroomId === selectedAssignmentClassroomId,
+        ) ?? resolvedTeacherAssignments[0]
+      );
+    }
+
+    return resolvedTeacherAssignments[0];
+  }, [hasMultipleTeacherAssignments, resolvedTeacherAssignments, selectedAssignmentClassroomId]);
+
+  const enrollmentClassroomId = selectedTeacherAssignment?.classroomId ?? CLASS_JOURNAL_DEFAULT_CLASSROOM_ID;
 
   const studentsQuery = useQuery({
     queryKey: queryKeys.students.list({
@@ -164,10 +222,13 @@ export default function ClassJournalCreatePage() {
   const dailyScheduleDetailQuery = useQuery({
     queryKey: ["daily-schedules", "detail", enrollmentClassroomId, todayIsoDate] as const,
     queryFn: () =>
-      getDailyScheduleDetail({
+      getDailyScheduleDetailIfExists({
         classroomId: enrollmentClassroomId,
         lessonDate: todayIsoDate,
       }),
+    enabled:
+      enrollmentClassroomId > 0 &&
+      (!hasMultipleTeacherAssignments || selectedAssignmentClassroomId !== null),
     retry: false,
   });
 
@@ -248,7 +309,7 @@ export default function ClassJournalCreatePage() {
       ),
     [enrollmentClassroomId, enrolledStudents, scheduleDetail?.classroomName],
   );
-  const assignedClassroomName = singleTeacherAssignment?.classroomName?.trim() ?? "";
+  const assignedClassroomName = selectedTeacherAssignment?.classroomName?.trim() ?? "";
 
   const lessonDateValue = lessonDateText || resolvedLessonDate;
   const classroomNameValue = classroomNameText || assignedClassroomName || resolvedClassroomName;
@@ -366,7 +427,6 @@ export default function ClassJournalCreatePage() {
               type="text"
               value={writerName}
               placeholder="작성자"
-              disabled
               readOnly
             />
           </InfoField>
@@ -391,13 +451,50 @@ export default function ClassJournalCreatePage() {
               type="text"
               value={formatPhone(phoneNumber)}
               placeholder="010-0000-0000"
-              disabled
               readOnly
             />
           </InfoField>
 
           <InfoField>
-            <FieldLabel htmlFor="classroomName">담당 수업</FieldLabel>
+            <FieldLabel htmlFor="subjectName">과목</FieldLabel>
+            {hasMultipleTeacherAssignments ? (
+              <SubjectSelect
+                id="subjectName"
+                name="subjectName"
+                value={String(selectedAssignmentClassroomId ?? "")}
+                onChange={(event) => {
+                  const nextClassroomId = Number.parseInt(event.target.value, 10);
+                  setSelectedAssignmentClassroomId(
+                    Number.isFinite(nextClassroomId) && nextClassroomId > 0
+                      ? nextClassroomId
+                      : null,
+                  );
+                }}
+              >
+                {resolvedTeacherAssignments.map((assignment) => (
+                  <option
+                    key={`${assignment.classroomId}-${assignment.subjectName}`}
+                    value={assignment.classroomId}
+                  >
+                    {assignment.subjectName}
+                  </option>
+                ))}
+              </SubjectSelect>
+            ) : (
+              <ReadOnlyFieldInput
+                id="subjectName"
+                name="subjectName"
+                type="text"
+                value={resolvedTeacherAssignments[0]?.subjectName ?? ""}
+                placeholder="과목"
+                disabled
+                readOnly
+              />
+            )}
+          </InfoField>
+
+          <InfoField>
+            <FieldLabel htmlFor="classroomName">담당 반</FieldLabel>
             <EditableFieldInput
               id="classroomName"
               name="classroomName"
@@ -740,6 +837,13 @@ const ReadOnlyFieldInput = styled(FieldInput)`
 
 const EditableFieldInput = styled(FieldInput)`
   color: #000000;
+`;
+
+const SubjectSelect = styled.select`
+  ${fieldBaseStyle}
+  color: #000000;
+  appearance: none;
+  cursor: pointer;
 `;
 
 const LessonSection = styled.section`
