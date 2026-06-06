@@ -39,7 +39,9 @@ export interface UserClassroomResponseDto {
 
 export interface UserTeacherAssignmentResponseDto {
   classroomId?: number;
+  classNameId?: number;
   classroomName?: string;
+  subjectName?: string;
 }
 
 export interface UserResponseDto {

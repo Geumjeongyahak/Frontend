@@ -26,7 +26,7 @@ export const USER_ME_RESPONSE = {
   ...USER_DETAIL_RESPONSE,
   residentRegistrationNumberPrefix: "900101",
   phoneNumber: "010-2222-3333",
-  teacherAssignments: [{ classroomId: 1, classroomName: "벚꽃반" }],
+  teacherAssignments: [{ classroomId: 1, classroomName: "벚꽃반", subjectName: "국어" }],
 };
 
 export const TEACHER_CONTACT_LIST_RESPONSE = [
