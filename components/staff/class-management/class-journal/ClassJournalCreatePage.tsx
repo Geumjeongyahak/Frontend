@@ -427,7 +427,6 @@ export default function ClassJournalCreatePage() {
               type="text"
               value={writerName}
               placeholder="작성자"
-              disabled
               readOnly
             />
           </InfoField>
@@ -452,7 +451,6 @@ export default function ClassJournalCreatePage() {
               type="text"
               value={formatPhone(phoneNumber)}
               placeholder="010-0000-0000"
-              disabled
               readOnly
             />
           </InfoField>
