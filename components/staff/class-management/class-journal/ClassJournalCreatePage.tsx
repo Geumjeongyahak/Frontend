@@ -32,13 +32,8 @@ import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 const lessonPeriods = [1, 2, 3] as const;
 const attendanceColumns = Array.from({ length: 10 }, (_, index) => index);
 
-/** TODO: users/me classroomId 필드가 고정 될 때까지 테스트를 위해 기본값으로 설정 */
-const CLASS_JOURNAL_FORM_DEFAULTS = {
-  classroomId: 1,
-  classroomName: "벚꽃반",
-  residentRegistrationNumberPrefix: "900101",
-  phoneNumber: "01012345678",
-} as const;
+/** TODO: users/me에서 classroomId를 안정적으로 내려주기 전까지 조회 기본값으로 사용 */
+const CLASS_JOURNAL_DEFAULT_CLASSROOM_ID = 1;
 
 function buildAttendanceNameKey(rowIndex: number, column: number) {
   return `${rowIndex}-${column}`;
@@ -55,7 +50,7 @@ function resolveClassroomName(
     .flatMap((student) => student.classrooms ?? [])
     .find((classroom) => classroom.id === classroomId)?.name;
 
-  return fromStudents?.trim() ? fromStudents : CLASS_JOURNAL_FORM_DEFAULTS.classroomName;
+  return fromStudents?.trim() ? fromStudents : "";
 }
 
 function trimTrailingClockSeconds(time?: string) {
@@ -129,21 +124,21 @@ export default function ClassJournalCreatePage() {
   const [attendanceNameOverrides, setAttendanceNameOverrides] = useState<Record<string, string>>({});
   const [additionalAttendanceRows, setAdditionalAttendanceRows] = useState(0);
 
-  const classroomId = String(CLASS_JOURNAL_FORM_DEFAULTS.classroomId);
-  const birthPrefix = CLASS_JOURNAL_FORM_DEFAULTS.residentRegistrationNumberPrefix;
-  const phoneNumber = CLASS_JOURNAL_FORM_DEFAULTS.phoneNumber;
-
   const currentUserQuery = useQuery({
     queryKey: queryKeys.user.me(),
     queryFn: getCurrentUser,
     retry: false,
+    refetchOnMount: "always",
   });
 
-  const parsedClassroomId = Number.parseInt(classroomId, 10);
+  const currentUser = currentUserQuery.isFetchedAfterMount ? currentUserQuery.data : undefined;
+  const teacherAssignments = currentUser?.teacherAssignments ?? [];
+  const singleTeacherAssignment = teacherAssignments.length === 1 ? teacherAssignments[0] : undefined;
+  const parsedClassroomId = Number.parseInt(String(singleTeacherAssignment?.classroomId ?? ""), 10);
   const enrollmentClassroomId =
     Number.isFinite(parsedClassroomId) && parsedClassroomId > 0
       ? parsedClassroomId
-      : CLASS_JOURNAL_FORM_DEFAULTS.classroomId;
+      : CLASS_JOURNAL_DEFAULT_CLASSROOM_ID;
 
   const studentsQuery = useQuery({
     queryKey: queryKeys.students.list({
@@ -229,10 +224,10 @@ export default function ClassJournalCreatePage() {
   });
 
   const isSubmitting = submitMutation.isPending;
-  const currentUser = currentUserQuery.data;
   const scheduleDetail = dailyScheduleDetailQuery.data;
-
-  const writerName = scheduleDetail?.teacherName ?? currentUser?.name ?? "";
+  const writerName = currentUser?.name ?? "";
+  const birthPrefix = currentUser?.residentRegistrationNumberPrefix ?? "";
+  const phoneNumber = currentUser?.phoneNumber ?? "";
 
   const resolvedLessonDate = useMemo(() => {
     if (!scheduleDetail?.lessonDate) return "";
@@ -253,9 +248,10 @@ export default function ClassJournalCreatePage() {
       ),
     [enrollmentClassroomId, enrolledStudents, scheduleDetail?.classroomName],
   );
+  const assignedClassroomName = singleTeacherAssignment?.classroomName?.trim() ?? "";
 
   const lessonDateValue = lessonDateText || resolvedLessonDate;
-  const classroomNameValue = classroomNameText || resolvedClassroomName;
+  const classroomNameValue = classroomNameText || assignedClassroomName || resolvedClassroomName;
   const activityTimeValue = activityTimeText || resolvedActivityTime;
 
   const apiAttendanceNames = useMemo(() => {
@@ -316,7 +312,7 @@ export default function ClassJournalCreatePage() {
     }
 
     const residentRegistrationNumberPrefix =
-      birthPrefix.trim() || CLASS_JOURNAL_FORM_DEFAULTS.residentRegistrationNumberPrefix;
+      birthPrefix.trim();
 
     submitMutation.mutate({
       dailyScheduleId,

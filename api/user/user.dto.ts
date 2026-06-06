@@ -37,6 +37,11 @@ export interface UserClassroomResponseDto {
   type?: ClassroomType;
 }
 
+export interface UserTeacherAssignmentResponseDto {
+  classroomId?: number;
+  classroomName?: string;
+}
+
 export interface UserResponseDto {
   id?: number;
   name?: string;
@@ -47,6 +52,7 @@ export interface UserResponseDto {
   departmentId?: number | null;
   department?: DepartmentResponseDto;
   classroom?: UserClassroomResponseDto;
+  teacherAssignments?: UserTeacherAssignmentResponseDto[];
   residentRegistrationNumberPrefix?: string;
   teacherStartAt?: string;
   teacherEndAt?: string;

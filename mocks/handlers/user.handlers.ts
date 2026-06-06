@@ -22,6 +22,12 @@ export const USER_LIST_RESPONSE = {
 };
 
 export const USER_DETAIL_RESPONSE = USER_LIST_RESPONSE.content[0];
+export const USER_ME_RESPONSE = {
+  ...USER_DETAIL_RESPONSE,
+  residentRegistrationNumberPrefix: "900101",
+  phoneNumber: "010-2222-3333",
+  teacherAssignments: [{ classroomId: 1, classroomName: "벚꽃반" }],
+};
 
 export const TEACHER_CONTACT_LIST_RESPONSE = [
   {
@@ -68,7 +74,7 @@ export const userHandlers: RequestHandler[] = [
     return HttpResponse.json({ ...USER_DETAIL_RESPONSE, ...body, id: 2 });
   }),
   http.get(`${API_BASE_URL}/api/v1/users/me`, ({ request }) => {
-    return unauthorizedWhenNeeded(request) ?? HttpResponse.json(USER_DETAIL_RESPONSE);
+    return unauthorizedWhenNeeded(request) ?? HttpResponse.json(USER_ME_RESPONSE);
   }),
   http.patch(`${API_BASE_URL}/api/v1/users/me`, async ({ request }) => {
     const unauthorizedResponse = unauthorizedWhenNeeded(request);
