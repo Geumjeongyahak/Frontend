@@ -4,7 +4,7 @@ export interface SignupRequestDto {
   email: string;
   profileImageUrl?: string;
   phoneNumber?: string;
-  residentRegistrationNumberPrefix?: string;
+  residentRegistrationNumberPrefix: string;
 }
 
 export interface LoginRequestDto {
