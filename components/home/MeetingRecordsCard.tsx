@@ -102,8 +102,9 @@ const ListItem = styled.button`
   text-align: left;
   cursor: pointer;
 
-  &:hover ${Title} {
-    text-decoration: underline;
+  &:hover ${Title},
+  &:focus-visible ${Title} {
+    color: ${colors.point};
   }
 
   @media (min-width: 120rem) {
