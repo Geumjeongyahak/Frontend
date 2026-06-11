@@ -421,14 +421,6 @@ export function AdminLessonScheduleTables() {
         <div>
           <SectionTitle>시간표</SectionTitle>
         </div>
-        <PeriodLegend aria-label="교시별 과목 색상">
-          {DISPLAY_PERIODS.map((period) => (
-            <LegendItem key={period}>
-              <LegendSwatch $color={periodColors[period]} />
-              <LegendText>{period}교시</LegendText>
-            </LegendItem>
-          ))}
-        </PeriodLegend>
         <IconButton
           type="button"
           aria-label="교시별 색상 설정"
