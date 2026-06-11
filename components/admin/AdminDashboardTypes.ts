@@ -10,8 +10,6 @@ export type AdminMenu =
   | "posts"
   | "departments"
   | "classrooms"
-  | "subjects"
-  | "subjectTeachers"
   | "lessons"
   | "purchases"
   | "absenceRequests"
