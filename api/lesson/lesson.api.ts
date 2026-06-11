@@ -2,16 +2,11 @@ import authClient from "../client/authClient";
 import type {
   CreateLessonRequestDto,
   LessonDetailResponseDto,
-  LessonNoteResponseDto,
   LessonPathParamsDto,
   LessonRangeQueryParamsDto,
   LessonSummaryResponseDto,
-  StudentAttendanceResponseDto,
-  UpdateLessonNoteRequestDto,
   UpdateLessonRequestDto,
   UpdateLessonStatusRequestDto,
-  UpdateStudentAttendancesRequestDto,
-  UpdateTeacherAttendanceRequestDto,
 } from "./lesson.dto";
 
 // 기간 조건에 맞는 수업 목록을 조회하는 요청
@@ -58,26 +53,6 @@ export async function deleteLesson(pathParams: LessonPathParamsDto) {
   await authClient.delete(`/api/v1/lessons/${pathParams.lessonId}`);
 }
 
-// 특정 수업의 수업 노트를 조회하는 요청
-export async function getLessonNote(pathParams: LessonPathParamsDto) {
-  const response = await authClient.get<LessonNoteResponseDto>(
-    `/api/v1/lessons/${pathParams.lessonId}/note`,
-  );
-  return response.data;
-}
-
-// 특정 수업의 수업 노트를 저장하는 요청
-export async function upsertLessonNote(
-  pathParams: LessonPathParamsDto,
-  body: UpdateLessonNoteRequestDto,
-) {
-  const response = await authClient.put<LessonNoteResponseDto>(
-    `/api/v1/lessons/${pathParams.lessonId}/note`,
-    body,
-  );
-  return response.data;
-}
-
 // 특정 수업의 상태를 변경하는 요청
 export async function updateLessonStatus(
   pathParams: LessonPathParamsDto,
@@ -85,38 +60,6 @@ export async function updateLessonStatus(
 ) {
   const response = await authClient.patch<LessonDetailResponseDto>(
     `/api/v1/lessons/${pathParams.lessonId}/status`,
-    body,
-  );
-  return response.data;
-}
-
-// 특정 수업의 교사 출결을 수정하는 요청
-export async function updateTeacherAttendance(
-  pathParams: LessonPathParamsDto,
-  body: UpdateTeacherAttendanceRequestDto,
-) {
-  const response = await authClient.patch<LessonDetailResponseDto>(
-    `/api/v1/lessons/${pathParams.lessonId}/teacher-attendance`,
-    body,
-  );
-  return response.data;
-}
-
-// 특정 수업의 학생 출결 목록을 조회하는 요청
-export async function getStudentAttendances(pathParams: LessonPathParamsDto) {
-  const response = await authClient.get<StudentAttendanceResponseDto[]>(
-    `/api/v1/lessons/${pathParams.lessonId}/student-attendances`,
-  );
-  return response.data;
-}
-
-// 특정 수업의 학생 출결 정보를 수정하는 요청
-export async function updateStudentAttendances(
-  pathParams: LessonPathParamsDto,
-  body: UpdateStudentAttendancesRequestDto,
-) {
-  const response = await authClient.patch<StudentAttendanceResponseDto[]>(
-    `/api/v1/lessons/${pathParams.lessonId}/student-attendances`,
     body,
   );
   return response.data;

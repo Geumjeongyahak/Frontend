@@ -19,6 +19,7 @@ type RegisterFormState = {
   password: string;
   name: string;
   email: string;
+  birthDate: string;
   phoneNumber: string;
 };
 
@@ -26,8 +27,19 @@ const initialState: RegisterFormState = {
   password: "",
   name: "",
   email: "",
+  birthDate: "",
   phoneNumber: "",
 };
+
+function toResidentRegistrationNumberPrefix(date: string) {
+  const [year, month, day] = date.split("-");
+
+  if (!year || !month || !day) {
+    return "";
+  }
+
+  return `${year.slice(-2)}${month}${day}`;
+}
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -38,7 +50,8 @@ export default function RegisterForm() {
   const canSubmit =
     form.email.trim().length > 0 &&
     form.password.length >= 8 &&
-    form.name.trim().length > 0;
+    form.name.trim().length > 0 &&
+    form.birthDate.length > 0;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,6 +68,7 @@ export default function RegisterForm() {
         password: form.password,
         name: form.name.trim(),
         email: form.email.trim(),
+        residentRegistrationNumberPrefix: toResidentRegistrationNumberPrefix(form.birthDate),
         phoneNumber: form.phoneNumber.trim() || undefined,
       });
       setStatusMessage("회원가입이 완료되었습니다. 잠시 후 메인으로 이동합니다.");
@@ -67,7 +81,12 @@ export default function RegisterForm() {
   }
 
   return (
-    <AuthShell switchText="이미 계정이 있나요?" switchLabel="로그인" switchHref="/login">
+    <AuthShell
+      switchText="이미 계정이 있나요?"
+      switchLabel="로그인"
+      switchHref="/login"
+      panelSize="wide"
+    >
       <Form onSubmit={handleSubmit} aria-label="회원가입 폼">
         <FieldGroup>
           <Field>
@@ -113,6 +132,21 @@ export default function RegisterForm() {
               placeholder="이름"
               value={form.name}
               onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+              required
+            />
+          </Field>
+
+          <Field>
+            <Label htmlFor="register-birth-date">생년월일</Label>
+            <Input
+              id="register-birth-date"
+              name="birthDate"
+              type="date"
+              autoComplete="bday"
+              value={form.birthDate}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, birthDate: event.target.value }))
+              }
               required
             />
           </Field>

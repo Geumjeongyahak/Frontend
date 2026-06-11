@@ -1,19 +1,37 @@
-export interface PushSubscriptionKeysDto {
-  p256dh: string;
-  auth: string;
-}
+export type PushDeviceType = "WEB" | "ANDROID" | "IOS";
 
 export interface SubscribePushRequestDto {
-  endpoint: string;
-  keys: PushSubscriptionKeysDto;
+  token: string;
+  deviceType: PushDeviceType;
 }
 
 export interface PushSubscriptionResponseDto {
   id?: number;
-  endpoint?: string;
-  createdAt?: string;
+  userId?: number;
+  deviceType?: PushDeviceType;
+  active?: boolean;
+  subscribedAt?: string;
+  unsubscribedAt?: string | null;
+  lastUsedAt?: string | null;
+  failureCount?: number;
 }
 
 export interface PushSubscriptionPathParamsDto {
   subscriptionId: number;
+}
+
+export interface AdminPushConfigResponseDto {
+  enabled?: boolean;
+  apiKey?: string;
+  authDomain?: string;
+  projectId?: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId?: string;
+  vapidKey?: string;
+}
+
+export interface AdminPushDiagnosticRequestDto {
+  step?: string;
+  message?: string;
 }

@@ -124,6 +124,7 @@ export interface UpdateSelfRequestDto {
   phoneNumber?: string;
   email?: string;
   password?: string;
+  residentRegistrationNumberPrefix?: string;
 }
 
 export interface UserPermissionRequestDto {

@@ -28,6 +28,35 @@ export interface TeacherApplicationRequestDto {
 export type CreateTeacherApplicationRequestDto = TeacherApplicationRequestDto;
 export type UpdateTeacherApplicationRequestDto = TeacherApplicationRequestDto;
 
+export interface AssignedSubjectResponseDto {
+  subjectId?: number;
+  subjectName?: string;
+  period?: number;
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface AvailableTeacherScheduleSubjectResponseDto {
+  subjectId?: number;
+  subjectName?: string;
+  period?: number;
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface AvailableTeacherScheduleResponseDto {
+  scheduleKey?: string;
+  classroomId?: number;
+  classroomName?: string;
+  dayOfWeek?: SubjectDayOfWeek;
+  startAt?: string;
+  endAt?: string;
+  startTime?: string;
+  endTime?: string;
+  subjectIds?: number[];
+  subjects?: AvailableTeacherScheduleSubjectResponseDto[];
+}
+
 export interface TeacherApplicationResponseDto {
   id?: number;
   applicantId?: number;
@@ -43,6 +72,12 @@ export interface TeacherApplicationResponseDto {
   preferredDayOfWeek?: SubjectDayOfWeek;
   preferredStartTime?: string;
   preferredEndTime?: string;
+  assignedSubjects?: AssignedSubjectResponseDto[];
+  assignedClassroomId?: number | null;
+  assignedClassroomName?: string | null;
+  assignedDayOfWeek?: SubjectDayOfWeek | null;
+  assignedStartTime?: string | null;
+  assignedEndTime?: string | null;
   motivation?: string;
   desiredTeacherImage?: string;
   meaningOfSharing?: string;
@@ -68,7 +103,7 @@ export interface TeacherApplicationListResponseDto {
 }
 
 export interface ApproveTeacherApplicationRequestDto {
-  classroomId: number;
+  assignedSubjectIds: number[];
   teacherStartAt: string;
   teacherEndAt: string;
   note?: string;

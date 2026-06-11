@@ -1,6 +1,4 @@
 export type LessonStatus = "SCHEDULED" | "COMPLETED" | "CANCELED";
-export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
-export type TeacherAttendanceStatus = AttendanceStatus;
 
 export interface LessonRangeQueryParamsDto {
   from: string;
@@ -25,26 +23,8 @@ export interface UpdateLessonRequestDto {
   period?: number;
 }
 
-export interface UpdateLessonNoteRequestDto {
-  note: string;
-}
-
 export interface UpdateLessonStatusRequestDto {
   status: LessonStatus;
-}
-
-export interface UpdateTeacherAttendanceRequestDto {
-  status: AttendanceStatus;
-}
-
-export interface UpdateStudentAttendanceItemRequestDto {
-  studentId: number;
-  status: AttendanceStatus;
-  memo?: string;
-}
-
-export interface UpdateStudentAttendancesRequestDto {
-  attendances: UpdateStudentAttendanceItemRequestDto[];
 }
 
 export interface LessonSummaryResponseDto {
@@ -55,33 +35,25 @@ export interface LessonSummaryResponseDto {
   endTime?: string;
   teacherName?: string;
   subjectName?: string;
+  classroomId?: number;
+  classroomName?: string;
 }
 
 export type LessonListItemDto = LessonSummaryResponseDto;
 
 export interface LessonDetailResponseDto {
   lessonId?: number;
+  dailyScheduleId?: number | null;
   date?: string;
   period?: number;
   startTime?: string;
   endTime?: string;
   status?: LessonStatus;
-  teacherAttendance?: TeacherAttendanceStatus;
   teacherName?: string;
   subjectName?: string;
-  note?: string;
-}
-
-export interface LessonNoteResponseDto {
-  lessonId?: number;
-  note?: string;
-}
-
-export interface StudentAttendanceResponseDto {
-  studentId?: number;
-  studentName?: string;
-  status?: AttendanceStatus;
-  memo?: string;
+  classroomId?: number;
+  classroomName?: string;
+  note?: string | null;
 }
 
 export interface LessonPathParamsDto {
