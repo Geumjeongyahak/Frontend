@@ -8,6 +8,8 @@ import { getLessons } from "@/api/lesson/lesson.api";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
 import { AdminLessonCreateForm } from "@/components/admin/lesson-management/AdminLessonCreateForm";
 import { AdminLessonDetailPanel } from "@/components/admin/lesson-management/AdminLessonDetailPanel";
+import { AdminLessonScheduleTables } from "@/components/admin/lesson-management/AdminLessonScheduleTables";
+import { AdminSubjectCreateForm } from "@/components/admin/subjects/create/AdminSubjectCreateForm";
 import { formatLessonTimeRange } from "@/components/admin/lesson-management/lessonCreateError";
 import {
   getLessonMonthRange,
@@ -96,8 +98,15 @@ export function AdminLessonManagementSection() {
 
   return (
     <PageStack>
+      <AdminLessonScheduleTables />
+
       <SectionCard>
-        <SectionTitle>수업 생성</SectionTitle>
+        <SectionTitle>시간표 항목 생성</SectionTitle>
+        <AdminSubjectCreateForm />
+      </SectionCard>
+
+      <SectionCard>
+        <SectionTitle>날짜별 수업 생성</SectionTitle>
         <AdminLessonCreateForm />
       </SectionCard>
 
