@@ -9,9 +9,12 @@ import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
 import {
+  attachAdminPostAttachment,
+  attachAdminPostImage,
   attachPostAttachment,
   attachPostFile,
   attachPostImage,
+  detachAdminPostAttachment,
   createPost,
   getChannelPosts,
   getPost,
@@ -149,5 +152,48 @@ describe("post.api", () => {
 
     expect(observedImageContentType).toContain("multipart/form-data");
     expect(observedAttachmentContentType).toContain("multipart/form-data");
+  });
+
+  it("supports legacy admin post upload and attachment delete routes", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    const uploadedFile = { fileId: "file-1", originalName: "notice.png" };
+    const observedPaths: string[] = [];
+    const observedContentTypes: string[] = [];
+
+    server.use(
+      http.post(`${API_BASE_URL}/admin/channel/1/posts/2/images`, ({ request }) => {
+        observedPaths.push(new URL(request.url).pathname);
+        observedContentTypes.push(request.headers.get("content-type") ?? "");
+        return HttpResponse.json(uploadedFile);
+      }),
+      http.post(`${API_BASE_URL}/admin/channel/1/posts/2/attachments`, ({ request }) => {
+        observedPaths.push(new URL(request.url).pathname);
+        observedContentTypes.push(request.headers.get("content-type") ?? "");
+        return HttpResponse.json(uploadedFile);
+      }),
+      http.delete(`${API_BASE_URL}/admin/channel/1/posts/2/attachments/file-1`, ({ request }) => {
+        observedPaths.push(new URL(request.url).pathname);
+        return new HttpResponse(null, { status: 200 });
+      }),
+    );
+
+    const file = new Blob(["file-content"], { type: "image/png" });
+
+    await expect(
+      attachAdminPostImage({ channelId: 1, postId: 2 }, file, "notice.png"),
+    ).resolves.toEqual(uploadedFile);
+    await expect(
+      attachAdminPostAttachment({ channelId: 1, postId: 2 }, file, "notice.png"),
+    ).resolves.toEqual(uploadedFile);
+    await detachAdminPostAttachment({ channelId: 1, postId: 2, fileId: "file-1" });
+
+    expect(observedPaths).toEqual([
+      "/admin/channel/1/posts/2/images",
+      "/admin/channel/1/posts/2/attachments",
+      "/admin/channel/1/posts/2/attachments/file-1",
+    ]);
+    expect(observedContentTypes.every((contentType) => contentType.includes("multipart/form-data")))
+      .toBe(true);
   });
 });

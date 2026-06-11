@@ -33,6 +33,16 @@ export interface AssignSubjectTeacherRequestDto {
   teacherId?: number | null;
 }
 
+export interface AssignTeacherToScheduleRequestDto {
+  teacherId: number;
+  subjectIds: number[];
+  confirmTeacherReplacement?: boolean;
+}
+
+export interface UnassignTeacherScheduleRequestDto {
+  subjectIds: number[];
+}
+
 export interface UpdateSubjectScheduleRequestDto {
   startAt?: string;
   endAt?: string;

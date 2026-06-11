@@ -10,6 +10,7 @@ import { setAccessToken } from "../client/tokenStorage";
 import {
   approveTeacherApplication,
   createTeacherApplication,
+  getAvailableTeacherSchedules,
   getTeacherApplications,
   rejectTeacherApplication,
 } from "./teacherApplication.api";
@@ -71,6 +72,33 @@ describe("teacherApplication.api", () => {
     expect(observedQueryString).toContain("status=PENDING");
   });
 
+  it("returns available teacher schedules for application choices", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedPathname = "";
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/teacher-applications/available-schedules`, ({ request }) => {
+        observedPathname = new URL(request.url).pathname;
+        return HttpResponse.json([
+          {
+            scheduleKey: "1:FRIDAY:2026-03-01:2026-06-30",
+            classroomId: 1,
+            classroomName: "벚꽃반",
+            dayOfWeek: "FRIDAY",
+            subjectIds: [100, 101],
+            subjects: [{ subjectId: 100, subjectName: "국어", period: 1 }],
+          },
+        ]);
+      }),
+    );
+
+    const response = await getAvailableTeacherSchedules();
+
+    expect(response[0]).toMatchObject({ classroomName: "벚꽃반", subjectIds: [100, 101] });
+    expect(observedPathname).toBe("/api/v1/teacher-applications/available-schedules");
+  });
+
   it("approves and rejects teacher applications through admin endpoints", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
@@ -97,7 +125,7 @@ describe("teacherApplication.api", () => {
     await approveTeacherApplication(
       { applicationId: 1 },
       {
-        classroomId: 1,
+        assignedSubjectIds: [1, 2],
         teacherStartAt: "2026-06-01",
         teacherEndAt: "2026-12-31",
         note: "승인",
@@ -106,7 +134,7 @@ describe("teacherApplication.api", () => {
     await rejectTeacherApplication({ applicationId: 2 }, { note: "반려" });
 
     expect(observedApproveBody).toEqual({
-      classroomId: 1,
+      assignedSubjectIds: [1, 2],
       teacherStartAt: "2026-06-01",
       teacherEndAt: "2026-12-31",
       note: "승인",

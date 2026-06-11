@@ -27,6 +27,20 @@ function createMultipartFormData(file: Blob, filename?: string) {
   return formData;
 }
 
+async function uploadPostMultipart(endpoint: string, file: Blob, filename?: string) {
+  const response = await authClient.post<FileUploadResponseDto>(
+    endpoint,
+    createMultipartFormData(file, filename),
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  );
+
+  return response.data;
+}
+
 // 전체 게시글 목록을 통합 조회하는 요청
 export async function getPosts(query?: PostListQueryParamsDto) {
   const response = await authClient.get<PostListResponseDto>("/api/v1/posts", {
@@ -131,16 +145,11 @@ export async function attachPostImage(
   file: Blob,
   filename?: string,
 ) {
-  const response = await authClient.post<FileUploadResponseDto>(
+  return uploadPostMultipart(
     `/api/v1/channels/${pathParams.channelId}/posts/${pathParams.postId}/images`,
-    createMultipartFormData(file, filename),
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    },
+    file,
+    filename,
   );
-  return response.data;
 }
 
 // files 테이블에 등록된 파일을 DRAFT 게시글 첨부로 연동하는 요청
@@ -161,21 +170,51 @@ export async function attachPostAttachment(
   file: Blob,
   filename?: string,
 ) {
-  const response = await authClient.post<FileUploadResponseDto>(
+  return uploadPostMultipart(
     `/api/v1/channels/${pathParams.channelId}/posts/${pathParams.postId}/attachments`,
-    createMultipartFormData(file, filename),
-    {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    },
+    file,
+    filename,
   );
-  return response.data;
 }
 
 // 특정 게시글에서 첨부파일 연결을 제거하는 요청
 export async function detachPostAttachment(pathParams: PostPathParamsDto & { fileId: string }) {
   await authClient.delete(
     `/api/v1/channels/${pathParams.channelId}/posts/${pathParams.postId}/attachments/${pathParams.fileId}`,
+  );
+}
+
+// 기존 관리자 게시글 본문 이미지 업로드 경로를 호출하는 요청
+export async function attachAdminPostImage(
+  pathParams: PostPathParamsDto,
+  file: Blob,
+  filename?: string,
+) {
+  return uploadPostMultipart(
+    `/admin/channel/${pathParams.channelId}/posts/${pathParams.postId}/images`,
+    file,
+    filename,
+  );
+}
+
+// 기존 관리자 게시글 첨부파일 업로드 경로를 호출하는 요청
+export async function attachAdminPostAttachment(
+  pathParams: PostPathParamsDto,
+  file: Blob,
+  filename?: string,
+) {
+  return uploadPostMultipart(
+    `/admin/channel/${pathParams.channelId}/posts/${pathParams.postId}/attachments`,
+    file,
+    filename,
+  );
+}
+
+// 기존 관리자 게시글 첨부파일 연결 제거 경로를 호출하는 요청
+export async function detachAdminPostAttachment(
+  pathParams: PostPathParamsDto & { fileId: string },
+) {
+  await authClient.delete(
+    `/admin/channel/${pathParams.channelId}/posts/${pathParams.postId}/attachments/${pathParams.fileId}`,
   );
 }

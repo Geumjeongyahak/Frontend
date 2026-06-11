@@ -7,7 +7,14 @@ import { API_BASE_URL, VALID_ACCESS_TOKEN } from "../../mocks/handlers/auth.hand
 import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
-import { subscribePush, unsubscribePush } from "./push.api";
+import {
+  getAdminPushConfig,
+  sendAdminPushDiagnostics,
+  subscribeAdminPush,
+  subscribePush,
+  unsubscribeAdminPush,
+  unsubscribePush,
+} from "./push.api";
 
 describe("push.api", () => {
   it("subscribes push notifications with expected body and auth header", async () => {
@@ -22,23 +29,23 @@ describe("push.api", () => {
         observedBody = await request.json();
         return HttpResponse.json({
           id: 1,
-          endpoint: "https://push.example.com/subscription",
-          createdAt: "2026-06-01T10:00:00",
+          userId: 10,
+          deviceType: "WEB",
+          active: true,
+          subscribedAt: "2026-06-01T10:00:00",
+          failureCount: 0,
         });
       }),
     );
 
     const body = {
-      endpoint: "https://push.example.com/subscription",
-      keys: {
-        p256dh: "p256dh-key",
-        auth: "auth-key",
-      },
+      token: "fcm-token",
+      deviceType: "WEB" as const,
     };
 
     const response = await subscribePush(body);
 
-    expect(response).toMatchObject({ id: 1, endpoint: body.endpoint });
+    expect(response).toMatchObject({ id: 1, deviceType: "WEB", active: true });
     expect(observedAuthorizationHeader).toBe(`Bearer ${VALID_ACCESS_TOKEN}`);
     expect(observedBody).toEqual(body);
   });
@@ -58,5 +65,50 @@ describe("push.api", () => {
     await unsubscribePush({ subscriptionId: 1 });
 
     expect(observedPathname).toBe("/api/v1/push/subscriptions/1");
+  });
+
+  it("supports admin push config, diagnostics, subscription and unsubscribe routes", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    const observedPaths: string[] = [];
+    let observedDiagnosticBody: unknown;
+    let observedSubscribeBody: unknown;
+
+    server.use(
+      http.get(`${API_BASE_URL}/admin/push/config`, ({ request }) => {
+        observedPaths.push(new URL(request.url).pathname);
+        return HttpResponse.json({ enabled: true, projectId: "geumjeong" });
+      }),
+      http.post(`${API_BASE_URL}/admin/push/diagnostics`, async ({ request }) => {
+        observedPaths.push(new URL(request.url).pathname);
+        observedDiagnosticBody = await request.json();
+        return new HttpResponse(null, { status: 200 });
+      }),
+      http.post(`${API_BASE_URL}/admin/push/subscriptions`, async ({ request }) => {
+        observedPaths.push(new URL(request.url).pathname);
+        observedSubscribeBody = await request.json();
+        return HttpResponse.json({ id: 2, userId: 10, deviceType: "WEB", active: true });
+      }),
+      http.delete(`${API_BASE_URL}/admin/push/subscriptions/2`, ({ request }) => {
+        observedPaths.push(new URL(request.url).pathname);
+        return new HttpResponse(null, { status: 200 });
+      }),
+    );
+
+    await expect(getAdminPushConfig()).resolves.toMatchObject({ enabled: true });
+    await sendAdminPushDiagnostics({ step: "register", message: "ok" });
+    await expect(
+      subscribeAdminPush({ token: "admin-fcm-token", deviceType: "WEB" }),
+    ).resolves.toMatchObject({ id: 2 });
+    await unsubscribeAdminPush({ subscriptionId: 2 });
+
+    expect(observedPaths).toEqual([
+      "/admin/push/config",
+      "/admin/push/diagnostics",
+      "/admin/push/subscriptions",
+      "/admin/push/subscriptions/2",
+    ]);
+    expect(observedDiagnosticBody).toEqual({ step: "register", message: "ok" });
+    expect(observedSubscribeBody).toEqual({ token: "admin-fcm-token", deviceType: "WEB" });
   });
 });

@@ -1,6 +1,7 @@
 import authClient from "../client/authClient";
 import type {
   ApproveTeacherApplicationRequestDto,
+  AvailableTeacherScheduleResponseDto,
   CreateTeacherApplicationRequestDto,
   MyTeacherApplicationResponseDto,
   RejectTeacherApplicationRequestDto,
@@ -24,6 +25,14 @@ export async function createTeacherApplication(body: CreateTeacherApplicationReq
 export async function getMyTeacherApplication() {
   const response = await authClient.get<MyTeacherApplicationResponseDto>(
     "/api/v1/teacher-applications/me",
+  );
+  return response.data;
+}
+
+// 교원 신청 화면에서 선택할 수 있는 미배정 시간표 후보 목록을 조회하는 요청
+export async function getAvailableTeacherSchedules() {
+  const response = await authClient.get<AvailableTeacherScheduleResponseDto[]>(
+    "/api/v1/teacher-applications/available-schedules",
   );
   return response.data;
 }

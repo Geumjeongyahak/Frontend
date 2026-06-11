@@ -1,10 +1,12 @@
 import authClient from "../client/authClient";
 import type {
+  AssignTeacherToScheduleRequestDto,
   AssignSubjectTeacherRequestDto,
   CreateSubjectRequestDto,
   SubjectDetailResponseDto,
   SubjectListQueryParamsDto,
   SubjectPathParamsDto,
+  UnassignTeacherScheduleRequestDto,
   UpdateSubjectScheduleRequestDto,
   UpdateSubjectRequestDto,
 } from "./subject.dto";
@@ -22,6 +24,12 @@ export async function getUnassignedSubjects() {
   const response = await authClient.get<SubjectDetailResponseDto[]>(
     "/api/v1/subjects/unassigned",
   );
+  return response.data;
+}
+
+// 현재 로그인한 교원이 담당하는 과목 목록을 조회하는 요청
+export async function getMyAssignedSubjects() {
+  const response = await authClient.get<SubjectDetailResponseDto[]>("/api/v1/subjects/me");
   return response.data;
 }
 
@@ -71,6 +79,24 @@ export async function updateSubjectSchedule(
   const response = await authClient.patch<SubjectDetailResponseDto>(
     `/api/v1/subjects/${pathParams.subjectId}/schedule`,
     body,
+  );
+  return response.data;
+}
+
+// 관리자 권한으로 시간표 담당 교사를 임의 배정하는 요청
+export async function assignTeacherToSchedule(body: AssignTeacherToScheduleRequestDto) {
+  const response = await authClient.patch<SubjectDetailResponseDto[]>(
+    "/api/v1/admin/teacher-schedule-assignments",
+    body,
+  );
+  return response.data;
+}
+
+// 관리자 권한으로 시간표 담당 교사 배정을 해제하는 요청
+export async function unassignTeacherSchedule(body: UnassignTeacherScheduleRequestDto) {
+  const response = await authClient.delete<SubjectDetailResponseDto[]>(
+    "/api/v1/admin/teacher-schedule-assignments",
+    { data: body },
   );
   return response.data;
 }

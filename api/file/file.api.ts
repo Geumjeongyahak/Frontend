@@ -52,6 +52,16 @@ export async function uploadSiteContentImage(file: Blob, filename?: string) {
   return uploadImage("/api/v1/files/images/site-contents", file, filename);
 }
 
+// 기존 관리자 구매처 영수증 이미지 업로드 경로를 호출하는 요청
+export async function uploadAdminVendorReceiptImage(file: Blob, filename?: string) {
+  return uploadImage("/admin/request/purchase/vendors/receipt-images", file, filename);
+}
+
+// 기존 관리자 구매 요청 영수증 이미지 업로드 경로를 호출하는 요청
+export async function uploadAdminPurchaseRequestReceiptImage(file: Blob, filename?: string) {
+  return uploadImage("/admin/request/purchase/purchase-requests/receipt-images", file, filename);
+}
+
 // 프론트에서 Google Drive에 업로드한 파일 메타데이터를 등록하는 요청
 export async function registerDriveFile(body: RegisterDriveFileRequestDto) {
   const response = await authClient.post<FileUploadResponseDto>("/api/v1/files/drive", body);

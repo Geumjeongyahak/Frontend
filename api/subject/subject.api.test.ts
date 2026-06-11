@@ -14,9 +14,12 @@ import { setAccessToken } from "../client/tokenStorage";
 
 import {
   assignSubjectTeacher,
+  assignTeacherToSchedule,
   createSubject,
+  getMyAssignedSubjects,
   getSubjects,
   getUnassignedSubjects,
+  unassignTeacherSchedule,
   updateSubject,
   updateSubjectSchedule,
 } from "./subject.api";
@@ -105,6 +108,24 @@ describe("subject.api", () => {
     expect(observedPathname).toBe("/api/v1/subjects/unassigned");
   });
 
+  it("returns my assigned subjects from the dedicated endpoint", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedPathname = "";
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/subjects/me`, ({ request }) => {
+        observedPathname = new URL(request.url).pathname;
+        return HttpResponse.json(SUBJECT_LIST_RESPONSE);
+      }),
+    );
+
+    const response = await getMyAssignedSubjects();
+
+    expect(response).toEqual(SUBJECT_LIST_RESPONSE);
+    expect(observedPathname).toBe("/api/v1/subjects/me");
+  });
+
   it("updates subject teacher and schedule through dedicated Swagger routes", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
@@ -131,6 +152,48 @@ describe("subject.api", () => {
 
     expect(observedTeacherBody).toEqual({ teacherId: 5 });
     expect(observedScheduleBody).toEqual({ dayOfWeek: "TUESDAY", period: 2 });
+  });
+
+  it("assigns and unassigns teacher schedule groups through admin routes", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedAssignBody: unknown;
+    let observedUnassignBody: unknown;
+
+    server.use(
+      http.patch(
+        `${API_BASE_URL}/api/v1/admin/teacher-schedule-assignments`,
+        async ({ request }) => {
+          observedAssignBody = await request.json();
+          return HttpResponse.json(SUBJECT_LIST_RESPONSE);
+        },
+      ),
+      http.delete(
+        `${API_BASE_URL}/api/v1/admin/teacher-schedule-assignments`,
+        async ({ request }) => {
+          observedUnassignBody = await request.json();
+          return HttpResponse.json(SUBJECT_LIST_RESPONSE);
+        },
+      ),
+    );
+
+    await expect(
+      assignTeacherToSchedule({
+        teacherId: 4,
+        subjectIds: [1, 2],
+        confirmTeacherReplacement: true,
+      }),
+    ).resolves.toEqual(SUBJECT_LIST_RESPONSE);
+    await expect(unassignTeacherSchedule({ subjectIds: [1, 2] })).resolves.toEqual(
+      SUBJECT_LIST_RESPONSE,
+    );
+
+    expect(observedAssignBody).toEqual({
+      teacherId: 4,
+      subjectIds: [1, 2],
+      confirmTeacherReplacement: true,
+    });
+    expect(observedUnassignBody).toEqual({ subjectIds: [1, 2] });
   });
 
   it("throws when updating a missing subject fails", async () => {
