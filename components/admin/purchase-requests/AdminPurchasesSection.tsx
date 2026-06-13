@@ -286,10 +286,7 @@ export function AdminPurchasesSection({
           </DataState>
         </SectionCard>
         <SectionCard>
-          <SectionTitle>구매 요청 상세/처리</SectionTitle>
-          <SectionDescription>
-            선택한 구매 요청의 품목을 확인하고 승인, 반려, 결재 확인, 삭제 처리를 수행합니다.
-          </SectionDescription>
+          <SectionTitle>구매 요청 상세</SectionTitle>
           <DataState
             isLoading={purchaseDetailQuery.isLoading}
             isError={purchaseDetailQuery.isError}

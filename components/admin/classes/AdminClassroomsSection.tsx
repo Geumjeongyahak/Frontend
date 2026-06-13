@@ -123,9 +123,6 @@ export function AdminClassroomsSection({
       </SectionCard>
       <SectionCard>
         <SectionTitle>{selectedClassroomId ? "분반 상세/수정" : "분반 생성"}</SectionTitle>
-        <SectionDescription>
-          분반 이름, 유형, 설명을 생성하거나 수정하고 삭제할 수 있습니다.
-        </SectionDescription>
         {classroomDetailQuery.isLoading ? (
           <InlineStatus>분반 상세를 불러오는 중입니다.</InlineStatus>
         ) : null}

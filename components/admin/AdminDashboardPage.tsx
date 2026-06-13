@@ -63,6 +63,7 @@ import {
   confirmPurchase,
   createPurchaseRequest,
   deleteAdminPurchaseRequest,
+  getAbsenceRequests,
   getAdminPurchaseRequestDetail,
   getAllPurchaseRequests,
   rejectAdminPurchaseRequest,
@@ -84,6 +85,7 @@ import {
   updateUser,
 } from "@/api/user/user.api";
 import type { PermissionDefinitionDto } from "@/api/user/user.dto";
+import { getLessonExchangeRequests } from "@/api/lessonExchange/lessonExchange.api";
 import { chargeVendor, getVendors } from "@/api/vendor/vendor.api";
 import type { VendorResponseDto } from "@/api/vendor/vendor.dto";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
@@ -93,15 +95,15 @@ import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const navigationItems: { key: AdminMenu; label: string }[] = [
   { key: "dashboard", label: "대시보드" },
-  { key: "users", label: "사용자" },
-  { key: "departments", label: "부서" },
-  { key: "classrooms", label: "분반" },
+  { key: "users", label: "사용자 관리" },
+  { key: "departments", label: "부서 관리" },
+  { key: "classrooms", label: "분반 관리" },
   { key: "lessons", label: "수업 관리" },
-  { key: "channels", label: "채널" },
-  { key: "posts", label: "게시글" },
-  { key: "purchases", label: "구매 요청" },
-  { key: "absenceRequests", label: "결석 요청" },
-  { key: "lessonExchange", label: "수업 교환 요청" },
+  { key: "channels", label: "채널 관리" },
+  { key: "posts", label: "게시글 관리" },
+  { key: "purchases", label: "결제 요청 관리" },
+  { key: "absenceRequests", label: "결강 요청 관리" },
+  { key: "lessonExchange", label: "수업 교환 요청 관리" },
 ];
 
 const fallbackPermissions: PermissionDefinitionDto[] = [
@@ -406,6 +408,16 @@ export default function AdminDashboardPage() {
     queryFn: () => getAllPurchaseRequests({ status: "PENDING" }),
     enabled: isAdmin,
   });
+  const pendingAbsenceRequestsQuery = useQuery({
+    queryKey: [...queryKeys.requests.absenceList(), "dashboard", "PENDING"],
+    queryFn: () => getAbsenceRequests({ status: "PENDING", page: 0, size: 1 }),
+    enabled: isAdmin,
+  });
+  const pendingLessonExchangeRequestsQuery = useQuery({
+    queryKey: [...queryKeys.requests.lessonExchangeList(), "dashboard", "PENDING"],
+    queryFn: () => getLessonExchangeRequests({ status: "PENDING", page: 0, size: 1 }),
+    enabled: isAdmin,
+  });
   const channelsQuery = useQuery({
     queryKey: queryKeys.admin.channels(),
     queryFn: () => getChannels({ name: channelSearch || undefined }),
@@ -525,7 +537,31 @@ export default function AdminDashboardPage() {
       label: "분반",
       value: getTotalFromPage(classrooms.length, classroomsQuery.data?.totalElements),
     },
-    { label: "대기 중 구매 요청", value: pendingPurchasesQuery.data?.length ?? 0 },
+  ];
+  const pendingPurchaseCount = pendingPurchasesQuery.data?.length ?? 0;
+  const pendingAbsenceRequestCount = pendingAbsenceRequestsQuery.data?.totalElements ?? 0;
+  const pendingLessonExchangeRequestCount =
+    pendingLessonExchangeRequestsQuery.data?.totalElements ?? 0;
+  const requestSummaries = [
+    {
+      label: "대기 중인 결제 요청",
+      count: pendingPurchaseCount,
+      description: `${pendingPurchaseCount}건의 검토가 필요합니다.`,
+      menu: "purchases" as const,
+      onClick: () => setPurchaseStatus("PENDING"),
+    },
+    {
+      label: "대기 중인 결강 요청",
+      count: pendingAbsenceRequestCount,
+      description: `${pendingAbsenceRequestCount}건의 검토가 필요합니다.`,
+      menu: "absenceRequests" as const,
+    },
+    {
+      label: "대기 중인 수업 교환 요청",
+      count: pendingLessonExchangeRequestCount,
+      description: `${pendingLessonExchangeRequestCount}건의 검토가 필요합니다.`,
+      menu: "lessonExchange" as const,
+    },
   ];
 
   function notifySuccess(message: string) {
@@ -931,9 +967,7 @@ export default function AdminDashboardPage() {
               {
                 amount: transaction.amount as number,
                 memo: `${purchase?.title ?? "구매 요청"} 선금 결제 충전`,
-                ...(transaction.receiptFileId
-                  ? { receiptFileId: transaction.receiptFileId }
-                  : {}),
+                ...(transaction.receiptFileId ? { receiptFileId: transaction.receiptFileId } : {}),
               },
             );
             prepaidTargetBalances.set(vendorId, chargedVendor.balance ?? 0);
@@ -1022,21 +1056,23 @@ export default function AdminDashboardPage() {
 
   const currentTitle = navigationItems.find((item) => item.key === activeMenu)?.label ?? "대시보드";
   const currentDescription = {
-    dashboard:
-      "전체 사용자, 부서, 분반, 승인 대기 구매 요청을 요약하고 주요 관리 화면으로 이동합니다.",
+    dashboard: "전체 운영 현황과 대기 중인 요청을 확인하고, 주요 관리 메뉴로 이동할 수 있습니다.",
     users:
-      "사용자 목록 조회, 역할 확인, 사용자 생성/수정/삭제, 직접 권한 조회와 권한 부여를 제공합니다.",
-    channels:
-      "채널 목록 조회, 유형과 연결 대상 확인, 채널 생성/수정/삭제 및 활성 상태 관리를 제공합니다.",
-    posts:
-      "공지/부서/반별 채널 게시글 작성, 이미지 첨부, 게시글 조회/수정/삭제/고정 관리를 제공합니다.",
+      "사이트에 가입된 계정 목록을 조회하고, 계정별 상세 정보와 권한을 수정하거나 계정을 생성/삭제할 수 있습니다.",
     departments:
-      "부서 목록과 상세 정보를 조회하고 부서 생성/수정/삭제, 소속 사용자와 권한 정보를 확인합니다.",
-    classrooms: "분반 목록과 상세 정보를 조회하고 분반 생성/수정/삭제 및 이름 검색을 제공합니다.",
-    lessons: "분반별 시간표를 확인하고 시간표 칸에서 수업 정보를 관리합니다.",
-    purchases: "구매 요청 작성, 목록/상세 조회, 승인/반려/결재 확인/삭제 처리를 제공합니다.",
-    absenceRequests: "결석 요청 목록 조회 및 승인/반려 처리를 제공합니다.",
-    lessonExchange: "수업 교환 요청 목록 조회 및 승인/반려 처리를 제공합니다.",
+      "사이트에 등록된 부서 목록과 상세 정보를 조회하고, 부서를 생성/수정/삭제할 수 있습니다.",
+    classrooms:
+      "사이트에 등록된 분반 목록과 상세 정보를 조회하고, 분반을 생성/수정/삭제할 수 있습니다.",
+    lessons:
+      "반별 시간표를 확인하고, 시간표의 각 칸을 선택하여 반별·요일별 수업 정보를 관리할 수 있습니다.",
+    channels:
+      "게시물 분류를 위한 채널 목록을 조회하고, 채널별 상태를 관리하거나 채널을 생성/수정/삭제할 수 있습니다.",
+    posts: "채널별 게시물 목록을 조회하고, 게시물을 생성/수정/삭제할 수 있습니다.",
+    purchases:
+      "물품 구매 요청 목록을 조회하고, 각 요청건에 대한 승인/반려 및 결제 확정 처리를 할 수 있습니다.",
+    absenceRequests: "결강 요청 목록을 조회하고, 각 요청건에 대한 승인/반려 처리를 할 수 있습니다.",
+    lessonExchange:
+      "수업 교환 요청 목록을 조회하고, 각 요청건에 대한 승인/반려 처리를 할 수 있습니다.",
   }[activeMenu];
 
   return (
@@ -1079,12 +1115,14 @@ export default function AdminDashboardPage() {
           {activeMenu === "dashboard" ? (
             <AdminMainDashboardSection
               stats={stats}
+              requestSummaries={requestSummaries}
               usersQuery={usersQuery}
               departmentsQuery={departmentsQuery}
               classroomsQuery={classroomsQuery}
               pendingPurchasesQuery={pendingPurchasesQuery}
+              pendingAbsenceRequestsQuery={pendingAbsenceRequestsQuery}
+              pendingLessonExchangeRequestsQuery={pendingLessonExchangeRequestsQuery}
               setActiveMenu={setActiveMenu}
-              setPurchaseStatus={setPurchaseStatus}
             />
           ) : null}
           {activeMenu === "users" ? (

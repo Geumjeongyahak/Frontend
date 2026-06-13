@@ -1,7 +1,6 @@
 "use client";
 
 import type { Dispatch, SetStateAction } from "react";
-import type { PurchaseRequestStatus } from "@/api/request/request.dto";
 import type { AdminMenu } from "@/components/admin/AdminDashboardTypes";
 import {
   ActionCardButton,
@@ -10,13 +9,15 @@ import {
   ActionTitle,
   DataState,
   DashboardGrid,
+  DashboardStack,
+  RequestSummaryGrid,
   SectionCard,
   SectionTitle,
+  SingleActionGrid,
   StatCard,
   StatLabel,
   StatsGrid,
   StatValue,
-  SupportGrid,
 } from "@/components/admin/AdminDashboardSectionParts";
 
 type QueryState = {
@@ -29,30 +30,136 @@ type StatItem = {
   value: number;
 };
 
+type RequestSummaryItem = {
+  label: string;
+  description: string;
+  count: number;
+  menu: AdminMenu;
+  onClick?: () => void;
+};
+
+type ManagementGroup = {
+  title: string;
+  columns?: "single" | "double";
+  actions: {
+    title: string;
+    description: string;
+    menu: AdminMenu;
+  }[];
+};
+
 type AdminMainDashboardSectionProps = {
   stats: StatItem[];
+  requestSummaries: RequestSummaryItem[];
   usersQuery: QueryState;
   departmentsQuery: QueryState;
   classroomsQuery: QueryState;
   pendingPurchasesQuery: QueryState;
+  pendingAbsenceRequestsQuery: QueryState;
+  pendingLessonExchangeRequestsQuery: QueryState;
   setActiveMenu: Dispatch<SetStateAction<AdminMenu>>;
-  setPurchaseStatus: Dispatch<SetStateAction<PurchaseRequestStatus | "">>;
 };
 
 export function AdminMainDashboardSection({
   stats,
+  requestSummaries,
   usersQuery,
   departmentsQuery,
   classroomsQuery,
   pendingPurchasesQuery,
+  pendingAbsenceRequestsQuery,
+  pendingLessonExchangeRequestsQuery,
   setActiveMenu,
-  setPurchaseStatus,
 }: AdminMainDashboardSectionProps) {
+  const isDashboardLoading =
+    usersQuery.isLoading ||
+    departmentsQuery.isLoading ||
+    classroomsQuery.isLoading ||
+    pendingPurchasesQuery.isLoading ||
+    pendingAbsenceRequestsQuery.isLoading ||
+    pendingLessonExchangeRequestsQuery.isLoading;
+  const isDashboardError =
+    usersQuery.isError ||
+    departmentsQuery.isError ||
+    classroomsQuery.isError ||
+    pendingPurchasesQuery.isError ||
+    pendingAbsenceRequestsQuery.isError ||
+    pendingLessonExchangeRequestsQuery.isError;
+
+  const managementGroups: ManagementGroup[] = [
+    {
+      title: "사용자 및 소속 관리",
+      actions: [
+        {
+          title: "사용자 관리",
+          description: "사이트 내 가입된 계정 관리",
+          menu: "users",
+        },
+        {
+          title: "부서 관리",
+          description: "기관 산하 부서 조직 관리",
+          menu: "departments",
+        },
+        {
+          title: "분반 관리",
+          description: "기관 내 수업 분반 관리",
+          menu: "classrooms",
+        },
+      ],
+    },
+    {
+      title: "교육 운영",
+      columns: "single",
+      actions: [
+        {
+          title: "수업 관리",
+          description: "반별 시간표와 수업 정보 관리",
+          menu: "lessons",
+        },
+      ],
+    },
+    {
+      title: "게시판 관리",
+      actions: [
+        {
+          title: "채널 관리",
+          description: "게시물 분류를 위한 채널 관리",
+          menu: "channels",
+        },
+        {
+          title: "게시글 관리",
+          description: "모든 채널의 게시물 관리",
+          menu: "posts",
+        },
+      ],
+    },
+    {
+      title: "요청 관리",
+      actions: [
+        {
+          title: "결제 요청 관리",
+          description: "물품 구매 요청 처리",
+          menu: "purchases",
+        },
+        {
+          title: "결강 요청 관리",
+          description: "결강 요청 승인/반려 처리",
+          menu: "absenceRequests",
+        },
+        {
+          title: "수업 교환 요청 관리",
+          description: "수업 교환 요청 승인/반려 처리",
+          menu: "lessonExchange",
+        },
+      ],
+    },
+  ];
+
   return (
-    <>
+    <DashboardStack>
       <DataState
-        isLoading={usersQuery.isLoading || departmentsQuery.isLoading || classroomsQuery.isLoading || pendingPurchasesQuery.isLoading}
-        isError={usersQuery.isError || departmentsQuery.isError || classroomsQuery.isError || pendingPurchasesQuery.isError}
+        isLoading={isDashboardLoading}
+        isError={isDashboardError}
         isEmpty={false}
         loadingLabel="관리자 데이터 불러오는 중"
         errorLabel="대시보드 데이터를 불러오지 못했습니다."
@@ -68,59 +175,49 @@ export function AdminMainDashboardSection({
         </StatsGrid>
       </DataState>
 
+      <RequestSummaryGrid>
+        {requestSummaries.map((item) => {
+          const hasPendingRequests = item.count > 0;
+
+          return (
+            <ActionCardButton
+              key={item.label}
+              type="button"
+              onClick={() => {
+                item.onClick?.();
+                setActiveMenu(item.menu);
+              }}
+            >
+              <ActionTitle $accent>{item.label}</ActionTitle>
+              <ActionDescription $alert={hasPendingRequests}>{item.description}</ActionDescription>
+            </ActionCardButton>
+          );
+        })}
+      </RequestSummaryGrid>
+
       <DashboardGrid>
-        <SectionCard>
-          <SectionTitle>사용자 및 권한 관리</SectionTitle>
-          <ActionGrid>
-            <ActionCardButton type="button" onClick={() => setActiveMenu("users")}>
-              <ActionTitle>사용자 관리</ActionTitle>
-              <ActionDescription>전체 사용자 및 권한 조회/수정</ActionDescription>
-            </ActionCardButton>
-            <ActionCardButton type="button" onClick={() => setActiveMenu("departments")}>
-              <ActionTitle>부서 관리</ActionTitle>
-              <ActionDescription>기관 산하 부서 조직 구성</ActionDescription>
-            </ActionCardButton>
-          </ActionGrid>
-        </SectionCard>
+        {managementGroups.map((group) => {
+          const GridComponent = group.columns === "single" ? SingleActionGrid : ActionGrid;
 
-        <SectionCard>
-          <SectionTitle>게시판 및 교육 운영</SectionTitle>
-          <ActionGrid>
-            <ActionCardButton type="button" onClick={() => setActiveMenu("channels")}>
-              <ActionTitle>채널 관리</ActionTitle>
-              <ActionDescription>소통 채널 및 게시판 설정</ActionDescription>
-            </ActionCardButton>
-            <ActionCardButton type="button" onClick={() => setActiveMenu("posts")}>
-              <ActionTitle>게시글 관리</ActionTitle>
-              <ActionDescription>모든 채널의 게시물 모니터링</ActionDescription>
-            </ActionCardButton>
-            <ActionCardButton type="button" onClick={() => setActiveMenu("classrooms")}>
-              <ActionTitle>분반 관리</ActionTitle>
-              <ActionDescription>분반 및 교육 과정 운영</ActionDescription>
-            </ActionCardButton>
-          </ActionGrid>
-        </SectionCard>
+          return (
+            <SectionCard key={group.title}>
+              <SectionTitle>{group.title}</SectionTitle>
+              <GridComponent>
+                {group.actions.map((action) => (
+                  <ActionCardButton
+                    key={action.title}
+                    type="button"
+                    onClick={() => setActiveMenu(action.menu)}
+                  >
+                    <ActionTitle>{action.title}</ActionTitle>
+                    <ActionDescription>{action.description}</ActionDescription>
+                  </ActionCardButton>
+                ))}
+              </GridComponent>
+            </SectionCard>
+          );
+        })}
       </DashboardGrid>
-
-      <SectionCard>
-        <SectionTitle>결재 및 행정 지원</SectionTitle>
-        <SupportGrid>
-          <ActionCardButton type="button" onClick={() => setActiveMenu("purchases")}>
-            <ActionTitle>전체 구매 요청</ActionTitle>
-            <ActionDescription>물품 구매 요청 이력 확인</ActionDescription>
-          </ActionCardButton>
-          <ActionCardButton
-            type="button"
-            onClick={() => {
-              setPurchaseStatus("PENDING");
-              setActiveMenu("purchases");
-            }}
-          >
-            <ActionTitle $accent>승인 대기 중</ActionTitle>
-            <ActionDescription>검토가 필요한 신규 구매 요청</ActionDescription>
-          </ActionCardButton>
-        </SupportGrid>
-      </SectionCard>
-    </>
+    </DashboardStack>
   );
 }

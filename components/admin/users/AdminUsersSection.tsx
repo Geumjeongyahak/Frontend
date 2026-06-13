@@ -21,7 +21,6 @@ import {
   ListItem,
   PrimaryButton,
   SectionCard,
-  SectionDescription,
   SectionHeaderRow,
   SectionTitle,
   Select,
@@ -153,7 +152,7 @@ export function AdminUsersSection({
         </DataState>
       </SectionCard>
       <SectionCard>
-        <SectionTitle>{selectedUserId ? "사용자 상세/수정" : "사용자 생성"}</SectionTitle>
+        <SectionTitle>{selectedUserId ? "사용자 상세" : "사용자 생성"}</SectionTitle>
         {userDetailQuery.isLoading ? (
           <InlineStatus>사용자 상세를 불러오는 중입니다.</InlineStatus>
         ) : null}

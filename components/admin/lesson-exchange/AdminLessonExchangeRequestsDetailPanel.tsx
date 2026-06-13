@@ -53,10 +53,7 @@ export function AdminLessonExchangeRequestsDetailPanel({
 
   return (
     <SectionCard>
-      <SectionTitle>수업 교환 요청 상세/처리</SectionTitle>
-      <SectionDescription>
-        선택한 수업 교환 요청의 상세 정보를 확인하고 승인 또는 반려 처리를 수행합니다.
-      </SectionDescription>
+      <SectionTitle>수업 교환 요청 상세</SectionTitle>
 
       <DataState
         isLoading={isLoading}
@@ -68,7 +65,10 @@ export function AdminLessonExchangeRequestsDetailPanel({
       >
         <DetailStack>
           <DetailFields>
-            <LessonExchangeDetailFieldItems fields={LESSON_EXCHANGE_BASIC_DETAIL_FIELDS} detail={detail} />
+            <LessonExchangeDetailFieldItems
+              fields={LESSON_EXCHANGE_BASIC_DETAIL_FIELDS}
+              detail={detail}
+            />
           </DetailFields>
 
           <DetailLowerBlock>

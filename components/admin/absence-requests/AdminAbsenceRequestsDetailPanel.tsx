@@ -11,7 +11,6 @@ import {
   FormGrid,
   PrimaryButton,
   SectionCard,
-  SectionDescription,
   SectionTitle,
   TextArea,
 } from "@/components/admin/AdminDashboardSectionParts";
@@ -37,10 +36,7 @@ export function AdminAbsenceRequestsDetailPanel({
 }: AdminAbsenceRequestsDetailPanelProps) {
   return (
     <SectionCard>
-      <SectionTitle>결석 요청 상세/처리</SectionTitle>
-      <SectionDescription>
-        선택한 결석 요청의 상세 정보를 확인하고 승인 또는 반려 처리를 수행합니다.
-      </SectionDescription>
+      <SectionTitle>결강 요청 상세/처리</SectionTitle>
 
       <DataState
         isLoading={false}
@@ -48,7 +44,7 @@ export function AdminAbsenceRequestsDetailPanel({
         isEmpty={!selectedAbsence}
         loadingLabel=""
         errorLabel=""
-        emptyLabel="결석 요청을 선택하세요."
+        emptyLabel="결강 요청을 선택하세요."
       >
         <DetailStack>
           <DetailFields>

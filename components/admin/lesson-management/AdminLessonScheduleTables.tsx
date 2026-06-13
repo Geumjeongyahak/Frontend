@@ -430,8 +430,8 @@ export function AdminLessonScheduleTables() {
         </IconButton>
       </ScheduleHeaderRow>
       <SectionDescription>
-        분반 목록을 기준으로 주중/주말 시간표 행을 구성하고, 각 칸에는 1~3교시 과목과 담당 교사를
-        표시합니다.
+        사이트에 등록된 주중/주말 분반 목록을 기준으로 시간표의 행을 구성하고, 각 칸에는 요일별 담당
+        교사와 교시별 과목을 표시합니다.
       </SectionDescription>
       <DataState
         isLoading={classroomsQuery.isLoading || subjectsQuery.isLoading}
@@ -474,9 +474,7 @@ export function AdminLessonScheduleTables() {
                 <ModalTitle id="schedule-cell-modal-title">
                   {selectedCell.classroom.name ?? "분반"} {selectedCell.dayLabel}요일 시간표
                 </ModalTitle>
-                <ModalDescription>
-                  담당 교사는 한 칸의 1~3교시에 동일하게 적용됩니다.
-                </ModalDescription>
+                <ModalDescription>담당 교사는 1~3교시에 동일하게 적용됩니다.</ModalDescription>
               </div>
               <SmallButton type="button" onClick={closeModal}>
                 닫기

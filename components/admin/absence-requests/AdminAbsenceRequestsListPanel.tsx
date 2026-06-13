@@ -62,7 +62,7 @@ export function AdminAbsenceRequestsListPanel({
 
   return (
     <SectionCard>
-      <SectionTitle>결석 요청 목록</SectionTitle>
+      <SectionTitle>결강 요청 목록</SectionTitle>
       <ControlRow
         as="form"
         onSubmit={(event) => {
@@ -92,52 +92,52 @@ export function AdminAbsenceRequestsListPanel({
         <TableViewport>
           {isLoading ? (
             <ListOverlay>
-              <LoadingSpinner label="결석 요청 목록 불러오는 중" />
+              <LoadingSpinner label="결강 요청 목록 불러오는 중" />
             </ListOverlay>
           ) : null}
           {isError ? (
             <ListOverlay role="alert">
-              <ListOverlayMessage>결석 요청 목록을 불러오지 못했습니다.</ListOverlayMessage>
+              <ListOverlayMessage>결강 요청 목록을 불러오지 못했습니다.</ListOverlayMessage>
             </ListOverlay>
           ) : null}
           {isEmpty ? (
             <ListOverlay>
-              <ListOverlayMessage>결석 요청이 없습니다.</ListOverlayMessage>
+              <ListOverlayMessage>결강 요청이 없습니다.</ListOverlayMessage>
             </ListOverlay>
           ) : null}
 
           <AbsenceListTable>
-          <thead>
-            <tr>
-              <th>제목</th>
-              <th>분반</th>
-              <th>요청자</th>
-              <th>상태</th>
-              <th>일자</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedRequests.map((item) => (
-              <AbsenceTableRow
-                key={item.id ?? `${item.title}-${item.createdAt}`}
-                $selected={item.id === selectedAbsenceId}
-                onClick={() => selectAbsence(item)}
-              >
-                <td>{item.title ?? "-"}</td>
-                <td>{item.classroomName ?? "-"}</td>
-                <td>{item.requestedByName ?? "-"}</td>
-                <td>
-                  <AbsenceStatusBadge status={item.status} />
-                </td>
-                <td>
-                  <ScheduleCell>
-                    <ScheduleLine>수업일 {formatAbsenceDate(item.lessonDate)}</ScheduleLine>
-                    <ScheduleLine $muted>요청일 {formatAbsenceDate(item.createdAt)}</ScheduleLine>
-                  </ScheduleCell>
-                </td>
-              </AbsenceTableRow>
-            ))}
-          </tbody>
+            <thead>
+              <tr>
+                <th>제목</th>
+                <th>분반</th>
+                <th>요청자</th>
+                <th>상태</th>
+                <th>일자</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedRequests.map((item) => (
+                <AbsenceTableRow
+                  key={item.id ?? `${item.title}-${item.createdAt}`}
+                  $selected={item.id === selectedAbsenceId}
+                  onClick={() => selectAbsence(item)}
+                >
+                  <td>{item.title ?? "-"}</td>
+                  <td>{item.classroomName ?? "-"}</td>
+                  <td>{item.requestedByName ?? "-"}</td>
+                  <td>
+                    <AbsenceStatusBadge status={item.status} />
+                  </td>
+                  <td>
+                    <ScheduleCell>
+                      <ScheduleLine>수업일 {formatAbsenceDate(item.lessonDate)}</ScheduleLine>
+                      <ScheduleLine $muted>요청일 {formatAbsenceDate(item.createdAt)}</ScheduleLine>
+                    </ScheduleCell>
+                  </td>
+                </AbsenceTableRow>
+              ))}
+            </tbody>
           </AbsenceListTable>
         </TableViewport>
 
@@ -171,8 +171,8 @@ const ListTableArea = styled.div`
   display: flex;
   flex-direction: column;
   min-height: calc(
-    ${ABSENCE_TABLE_HEADER_HEIGHT} +
-      ${ABSENCE_ITEMS_PER_PAGE} * ${ABSENCE_TABLE_ROW_HEIGHT} + 2.75rem
+    ${ABSENCE_TABLE_HEADER_HEIGHT} + ${ABSENCE_ITEMS_PER_PAGE} * ${ABSENCE_TABLE_ROW_HEIGHT} +
+      2.75rem
   );
 `;
 

@@ -417,9 +417,6 @@ export function AdminPostsSection({
                 </ClosePanelButton>
                 <SectionTitle>{isPostEditing ? "게시글 수정" : "게시글 상세"}</SectionTitle>
               </PanelHeader>
-              <SectionDescription>
-                선택한 게시글을 먼저 읽기 전용으로 확인하고, 수정 버튼을 누르면 편집합니다.
-              </SectionDescription>
 
               <DataState
                 isLoading={postDetailQuery.isLoading}
