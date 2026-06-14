@@ -16,7 +16,6 @@ import {
   ControlRow,
   DangerButton,
   DataState,
-  Divider,
   FormGrid,
   Label,
   List,
@@ -71,6 +70,13 @@ function getDefaultPermissionScope(definition?: PermissionDefinitionDto) {
   const canUseGlobal = definition?.globalAllowed ?? definition?.scope !== "TARGET_ONLY";
 
   return canUseGlobal ? "GLOBAL" : "TARGET";
+}
+
+function getPermissionDescription(permission: PermissionResponseDto) {
+  const code = permission.permissionCode ?? permission.code ?? "";
+  const description = permission.description ?? permission.label ?? permission.name ?? "";
+
+  return description && description !== code ? description : "";
 }
 
 type QueryState<TData> = {
@@ -134,8 +140,6 @@ export function AdminUsersSection({
   permissionForm,
   permissionOptions,
   availableActions,
-  canUseGlobalPermission,
-  canUseTargetPermission,
   usersQuery,
   userDetailQuery,
   userPermissionsQuery,
@@ -336,211 +340,235 @@ export function AdminUsersSection({
                 errorLabel="사용자 상세를 불러오지 못했습니다."
                 emptyLabel="사용자를 선택하세요."
               >
-                {isUserEditing ? (
-                  <FormGrid
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      updateUserMutation.mutate();
-                    }}
-                  >
-                    <UserFields
-                      form={userForm}
-                      departments={departments}
-                      disabled={updateUserMutation.isPending}
-                      setUserForm={setUserForm}
-                    />
-
-                    <ButtonRow>
-                      <UserActionButton
-                        disabled={
-                          updateUserMutation.isPending ||
-                          !userForm.name.trim() ||
-                          !userForm.email.trim()
-                        }
-                      >
-                        저장
-                      </UserActionButton>
-                      <SmallButton
-                        type="button"
+                <PanelContent>
+                  {isUserEditing ? (
+                    <DetailFormView>
+                      <UserFields
+                        form={userForm}
+                        departments={departments}
                         disabled={updateUserMutation.isPending}
-                        onClick={cancelEditing}
+                        setUserForm={setUserForm}
+                      />
+                    </DetailFormView>
+                  ) : (
+                    <DetailFormView>
+                      <UserFields
+                        form={userForm}
+                        departments={departments}
+                        disabled
+                        setUserForm={setUserForm}
+                      />
+                    </DetailFormView>
+                  )}
+
+                  <PermissionBlock>
+                    <PermissionTitle>직접 권한</PermissionTitle>
+                    {userPermissionsQuery.isLoading || userPermissionsQuery.isError ? (
+                      <DataState
+                        compact
+                        isLoading={userPermissionsQuery.isLoading}
+                        isError={userPermissionsQuery.isError}
+                        isEmpty={false}
+                        loadingLabel="권한 목록 불러오는 중"
+                        errorLabel="권한 목록을 불러오지 못했습니다."
+                        emptyLabel=""
                       >
-                        취소
-                      </SmallButton>
-                    </ButtonRow>
-                  </FormGrid>
-                ) : (
-                  <DetailFormView>
-                    <UserFields
-                      form={userForm}
-                      departments={departments}
-                      disabled
-                      setUserForm={setUserForm}
-                    />
+                        <span />
+                      </DataState>
+                    ) : (
+                      <List>
+                        {userPermissionsQuery.data?.length ? (
+                          userPermissionsQuery.data.map((permission) => {
+                            const code = permission.permissionCode ?? permission.code ?? "";
+                            return (
+                              <ListItem key={code || permission.id}>
+                                <PermissionItemContent>
+                                  <PermissionCode>{code || permission.label || "-"}</PermissionCode>
+                                  {getPermissionDescription(permission) ? (
+                                    <PermissionDescription>
+                                      {getPermissionDescription(permission)}
+                                    </PermissionDescription>
+                                  ) : null}
+                                </PermissionItemContent>
+                                {code ? (
+                                  <SmallButton
+                                    type="button"
+                                    disabled={removePermissionMutation.isPending}
+                                    onClick={() => removePermissionMutation.mutate(code)}
+                                  >
+                                    제거
+                                  </SmallButton>
+                                ) : null}
+                              </ListItem>
+                            );
+                          })
+                        ) : (
+                          <EmptyPermissionItem>직접 부여된 권한이 없습니다.</EmptyPermissionItem>
+                        )}
+                      </List>
+                    )}
 
-                    <ButtonRow>
-                      <UserActionButton
-                        type="button"
-                        disabled={!selectedUserId}
-                        onClick={() => setIsUserEditing(true)}
+                    {isUserEditing ? (
+                      <PermissionAddForm
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          addPermissionMutation.mutate();
+                        }}
                       >
-                        수정
-                      </UserActionButton>
-                      <DangerButton
-                        type="button"
-                        disabled={deleteUserMutation.isPending}
-                        onClick={() => setIsUserDeleteConfirmOpen(true)}
-                      >
-                        삭제
-                      </DangerButton>
-                    </ButtonRow>
-                  </DetailFormView>
-                )}
+                        <PermissionAddHeader>
+                          <PermissionAddTitle>권한 추가</PermissionAddTitle>
+                        </PermissionAddHeader>
+                        <Label>
+                          리소스
+                          <UserSelect
+                            value={permissionForm.resourceType}
+                            onChange={(event) => {
+                              const resourceType = event.target.value;
+                              const actions = getPermissionActions(permissionOptions, resourceType);
+                              const actionType = actions[0] ?? "";
+                              const definition = getPermissionDefinition(
+                                permissionOptions,
+                                resourceType,
+                                actionType,
+                              );
+                              const scope = getDefaultPermissionScope(definition);
 
-                <Divider />
-                <SectionTitle>직접 권한</SectionTitle>
-                <DataState
-                  isLoading={userPermissionsQuery.isLoading}
-                  isError={userPermissionsQuery.isError}
-                  isEmpty={!selectedUserId || (userPermissionsQuery.data?.length ?? 0) === 0}
-                  loadingLabel="권한 목록 불러오는 중"
-                  errorLabel="권한 목록을 불러오지 못했습니다."
-                  emptyLabel={
-                    selectedUserId ? "직접 부여된 권한이 없습니다." : "사용자를 선택하세요."
-                  }
-                >
-                  <List>
-                    {userPermissionsQuery.data?.map((permission) => {
-                      const code = permission.permissionCode ?? permission.code ?? "";
-                      return (
-                        <ListItem key={code || permission.id}>
-                          <span>{code || permission.label || "-"}</span>
-                          {code ? (
-                            <SmallButton
-                              type="button"
-                              disabled={removePermissionMutation.isPending}
-                              onClick={() => removePermissionMutation.mutate(code)}
-                            >
-                              제거
-                            </SmallButton>
-                          ) : null}
-                        </ListItem>
-                      );
-                    })}
-                  </List>
-                </DataState>
+                              setPermissionForm((current) => ({
+                                ...current,
+                                resourceType,
+                                actionType,
+                                scope,
+                                target: scope === "GLOBAL" ? "" : current.target,
+                              }));
+                            }}
+                          >
+                            {permissionResources.map((resource) => (
+                              <option key={resource} value={resource}>
+                                {resource}
+                              </option>
+                            ))}
+                          </UserSelect>
+                        </Label>
+                        <Label>
+                          액션
+                          <UserSelect
+                            value={permissionForm.actionType}
+                            disabled={availableActions.length === 0}
+                            onChange={(event) => {
+                              const actionType = event.target.value;
+                              const definition = getPermissionDefinition(
+                                permissionOptions,
+                                permissionForm.resourceType,
+                                actionType,
+                              );
+                              const scope = getDefaultPermissionScope(definition);
 
-                <FormGrid
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    addPermissionMutation.mutate();
-                  }}
-                >
-                  <Label>
-                    리소스
-                    <UserSelect
-                      value={permissionForm.resourceType}
-                      onChange={(event) => {
-                        const resourceType = event.target.value;
-                        const actions = getPermissionActions(permissionOptions, resourceType);
-                        const actionType = actions[0] ?? "";
-                        const definition = getPermissionDefinition(
-                          permissionOptions,
-                          resourceType,
-                          actionType,
-                        );
-                        const scope = getDefaultPermissionScope(definition);
+                              setPermissionForm((current) => ({
+                                ...current,
+                                actionType,
+                                scope,
+                                target: scope === "GLOBAL" ? "" : current.target,
+                              }));
+                            }}
+                          >
+                            {availableActions.map((action) => (
+                              <option key={action} value={action}>
+                                {action}
+                              </option>
+                            ))}
+                          </UserSelect>
+                        </Label>
+                        <Label>
+                          범위
+                          <UserSelect
+                            value={permissionForm.scope}
+                            onChange={(event) =>
+                              setPermissionForm((current) => ({
+                                ...current,
+                                scope: event.target.value as PermissionFormState["scope"],
+                                target: event.target.value === "GLOBAL" ? "" : current.target,
+                              }))
+                            }
+                          >
+                            <option value="GLOBAL">전체 권한</option>
+                            <option value="TARGET">특정 대상 권한</option>
+                          </UserSelect>
+                        </Label>
+                        <Label>
+                          대상 ID
+                          <TextInput
+                            value={permissionForm.target}
+                            disabled={permissionForm.scope === "GLOBAL"}
+                            onChange={(event) =>
+                              setPermissionForm((current) => ({
+                                ...current,
+                                target: event.target.value,
+                              }))
+                            }
+                          />
+                        </Label>
+                        <UserActionButton
+                          type="submit"
+                          disabled={
+                            !selectedUserId ||
+                            addPermissionMutation.isPending ||
+                            !permissionForm.resourceType ||
+                            !permissionForm.actionType ||
+                            (permissionForm.scope === "TARGET" && !permissionForm.target.trim())
+                          }
+                        >
+                          권한 추가
+                        </UserActionButton>
+                      </PermissionAddForm>
+                    ) : null}
+                  </PermissionBlock>
 
-                        setPermissionForm((current) => ({
-                          ...current,
-                          resourceType,
-                          actionType,
-                          scope,
-                          target: scope === "GLOBAL" ? "" : current.target,
-                        }));
-                      }}
-                    >
-                      {permissionResources.map((resource) => (
-                        <option key={resource} value={resource}>
-                          {resource}
-                        </option>
-                      ))}
-                    </UserSelect>
-                  </Label>
-                  <Label>
-                    액션
-                    <UserSelect
-                      value={permissionForm.actionType}
-                      disabled={availableActions.length === 0}
-                      onChange={(event) => {
-                        const actionType = event.target.value;
-                        const definition = getPermissionDefinition(
-                          permissionOptions,
-                          permissionForm.resourceType,
-                          actionType,
-                        );
-                        const scope = getDefaultPermissionScope(definition);
-
-                        setPermissionForm((current) => ({
-                          ...current,
-                          actionType,
-                          scope,
-                          target: scope === "GLOBAL" ? "" : current.target,
-                        }));
-                      }}
-                    >
-                      {availableActions.map((action) => (
-                        <option key={action} value={action}>
-                          {action}
-                        </option>
-                      ))}
-                    </UserSelect>
-                  </Label>
-                  <Label>
-                    범위
-                    <UserSelect
-                      value={permissionForm.scope}
-                      onChange={(event) =>
-                        setPermissionForm((current) => ({
-                          ...current,
-                          scope: event.target.value as PermissionFormState["scope"],
-                          target: event.target.value === "GLOBAL" ? "" : current.target,
-                        }))
-                      }
-                    >
-                      <option value="GLOBAL" disabled={!canUseGlobalPermission}>
-                        전체 권한
-                      </option>
-                      <option value="TARGET" disabled={!canUseTargetPermission}>
-                        특정 대상 권한
-                      </option>
-                    </UserSelect>
-                  </Label>
-                  <Label>
-                    대상 ID
-                    <TextInput
-                      value={permissionForm.target}
-                      disabled={permissionForm.scope === "GLOBAL"}
-                      onChange={(event) =>
-                        setPermissionForm((current) => ({
-                          ...current,
-                          target: event.target.value,
-                        }))
-                      }
-                    />
-                  </Label>
-                  <UserActionButton
-                    disabled={
-                      !selectedUserId ||
-                      addPermissionMutation.isPending ||
-                      !permissionForm.resourceType ||
-                      !permissionForm.actionType ||
-                      (permissionForm.scope === "TARGET" && !permissionForm.target.trim())
-                    }
-                  >
-                    권한 추가
-                  </UserActionButton>
-                </FormGrid>
+                  <ButtonRow>
+                    {isUserEditing ? (
+                      <>
+                        <UserActionButton
+                          type="button"
+                          onClick={() => updateUserMutation.mutate()}
+                          disabled={
+                            updateUserMutation.isPending ||
+                            !userForm.name.trim() ||
+                            !userForm.email.trim()
+                          }
+                        >
+                          저장
+                        </UserActionButton>
+                        <SmallButton
+                          type="button"
+                          disabled={updateUserMutation.isPending}
+                          onClick={cancelEditing}
+                        >
+                          취소
+                        </SmallButton>
+                      </>
+                    ) : (
+                      <>
+                        <UserActionButton
+                          type="button"
+                          disabled={!selectedUserId}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setIsUserEditing(true);
+                          }}
+                        >
+                          수정
+                        </UserActionButton>
+                        <DangerButton
+                          type="button"
+                          disabled={deleteUserMutation.isPending}
+                          onClick={() => setIsUserDeleteConfirmOpen(true)}
+                        >
+                          삭제
+                        </DangerButton>
+                      </>
+                    )}
+                  </ButtonRow>
+                </PanelContent>
               </DataState>
             </SlidePanel>
           </>
@@ -580,6 +608,7 @@ export function AdminUsersSection({
               />
               <ButtonRow>
                 <UserActionButton
+                  type="submit"
                   disabled={
                     createUserMutation.isPending ||
                     !userForm.name.trim() ||
@@ -897,6 +926,78 @@ const DetailFormView = styled.div`
   gap: ${spacing.space12};
 `;
 
+const PanelContent = styled.div`
+  display: grid;
+  gap: ${spacing.space12};
+`;
+
+const PermissionBlock = styled.div`
+  display: grid;
+  gap: ${spacing.space4};
+
+  ${List} {
+    margin: 0;
+  }
+`;
+
+const PermissionTitle = styled.h3`
+  margin: 0;
+  color: #64706c;
+  font-size: ${typography.fontSize13};
+  font-weight: 800;
+  line-height: ${typography.lineHeight130};
+`;
+
+const PermissionAddForm = styled(FormGrid)`
+  margin-top: ${spacing.space12};
+`;
+
+const PermissionAddHeader = styled.div`
+  padding-top: ${spacing.space12};
+  border-top: 1px solid #e6e9e7;
+`;
+
+const PermissionAddTitle = styled.h4`
+  margin: 0;
+  color: #000000;
+  font-size: ${typography.fontSize16};
+  font-weight: 800;
+  line-height: ${typography.lineHeight130};
+`;
+
+const PermissionItemContent = styled.span`
+  display: grid;
+  gap: ${spacing.space4};
+  min-width: 0;
+`;
+
+const PermissionCode = styled.span`
+  color: #1f2b28;
+  font-size: ${typography.fontSize13};
+  font-weight: 700;
+  line-height: ${typography.lineHeight130};
+  word-break: break-word;
+`;
+
+const PermissionDescription = styled.span`
+  color: #64706c;
+  font-size: ${typography.fontSize13};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  word-break: keep-all;
+`;
+
+const EmptyPermissionItem = styled.li`
+  display: flex;
+  align-items: center;
+  min-height: 2.375rem;
+  padding: ${spacing.space8};
+  border: 1px solid #e6e9e7;
+  border-radius: 0.375rem;
+  color: #64706c;
+  font-size: ${typography.fontSize13};
+`;
+
 const UserSelect = styled.select`
   width: 100%;
   min-height: 2.375rem;
@@ -977,7 +1078,11 @@ const ConfirmMessage = styled.p`
   line-height: ${typography.lineHeight130};
 `;
 
-const UserActionButton = styled.button`
+const UserActionButton = styled.button.attrs<{ type?: "button" | "submit" | "reset" }>(
+  ({ type }) => ({
+    type: type ?? "button",
+  }),
+)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
