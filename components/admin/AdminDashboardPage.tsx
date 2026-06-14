@@ -43,10 +43,12 @@ import {
   updateClassroom,
 } from "@/api/classroom/classroom.api";
 import {
+  addDepartmentPermission,
   createDepartment,
   deleteDepartment,
   getDepartmentDetail,
   getDepartments,
+  removeDepartmentPermission,
   updateDepartment,
 } from "@/api/department/department.api";
 import {
@@ -367,6 +369,7 @@ export default function AdminDashboardPage() {
   const [selectedClassroomId, setSelectedClassroomId] = useState<number | null>(null);
   const [selectedPurchaseId, setSelectedPurchaseId] = useState<number | null>(null);
   const [userSearch, setUserSearch] = useState("");
+  const [departmentSearch, setDepartmentSearch] = useState("");
   const [channelSearch, setChannelSearch] = useState("");
   const [postTitleSearch, setPostTitleSearch] = useState("");
   const [classroomSearch, setClassroomSearch] = useState("");
@@ -380,6 +383,9 @@ export default function AdminDashboardPage() {
   const [isUserEditing, setIsUserEditing] = useState(false);
   const [isUserCreateModalOpen, setIsUserCreateModalOpen] = useState(false);
   const [isUserDeleteConfirmOpen, setIsUserDeleteConfirmOpen] = useState(false);
+  const [isDepartmentEditing, setIsDepartmentEditing] = useState(false);
+  const [isDepartmentCreateModalOpen, setIsDepartmentCreateModalOpen] = useState(false);
+  const [isDepartmentDeleteConfirmOpen, setIsDepartmentDeleteConfirmOpen] = useState(false);
   const [postCreate, setPostCreate] = useState<PostCreateState>(emptyPostCreate);
   const [purchaseCreate, setPurchaseCreate] = useState<PurchaseCreateState>(emptyPurchaseCreate);
   const [permissionForm, setPermissionForm] = useState<PermissionFormState>(emptyPermissionForm);
@@ -514,7 +520,28 @@ export default function AdminDashboardPage() {
       ),
     );
   }, [userSearch, users]);
-  const departments = departmentsQuery.data?.departments ?? [];
+  const departments = useMemo(
+    () => departmentsQuery.data?.departments ?? [],
+    [departmentsQuery.data?.departments],
+  );
+  const filteredDepartments = useMemo(() => {
+    const keyword = departmentSearch.trim().toLowerCase();
+    const collator = new Intl.Collator(["ko-KR", "en-US"], {
+      numeric: true,
+      sensitivity: "base",
+    });
+    const searchedDepartments = keyword
+      ? departments.filter((item) =>
+          [item.name, item.description, item.id ? String(item.id) : ""].some((value) =>
+            value?.toLowerCase().includes(keyword),
+          ),
+        )
+      : departments;
+
+    return [...searchedDepartments].sort((first, second) =>
+      collator.compare(first.name ?? "", second.name ?? ""),
+    );
+  }, [departmentSearch, departments]);
   const classrooms = classroomsQuery.data?.content ?? [];
   const channels = channelsQuery.data ?? [];
   const posts = postsQuery.data?.content ?? [];
@@ -648,6 +675,8 @@ export default function AdminDashboardPage() {
       return;
     }
     setSelectedDepartmentId(item.id);
+    setIsDepartmentEditing(false);
+    setIsDepartmentDeleteConfirmOpen(false);
     setDepartmentForm({
       name: item.name ?? "",
       description: item.description ?? "",
@@ -670,6 +699,11 @@ export default function AdminDashboardPage() {
     queryClient.invalidateQueries({ queryKey: ["admin"] });
   };
 
+  function invalidateDepartmentMembershipQueries() {
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.departments() });
+    queryClient.invalidateQueries({ queryKey: ["admin", "departments", "detail"] });
+  }
+
   const createUserMutation = useMutation({
     mutationFn: () => createUser(mapCreateUserFormToPayload(userForm)),
     onSuccess: () => {
@@ -677,6 +711,7 @@ export default function AdminDashboardPage() {
       setIsUserCreateModalOpen(false);
       setUserForm(emptyUserForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
+      invalidateDepartmentMembershipQueries();
     },
     onError: (error) => notifyError(getErrorMessage(error, "사용자 생성에 실패했습니다.")),
   });
@@ -687,6 +722,7 @@ export default function AdminDashboardPage() {
       notifySuccess("사용자를 수정했습니다.");
       setIsUserEditing(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
+      invalidateDepartmentMembershipQueries();
       if (selectedUserId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.admin.userDetail(selectedUserId) });
       }
@@ -702,6 +738,7 @@ export default function AdminDashboardPage() {
       setIsUserDeleteConfirmOpen(false);
       setUserForm(emptyUserForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
+      invalidateDepartmentMembershipQueries();
     },
     onError: (error) => notifyError(getErrorMessage(error, "사용자 삭제에 실패했습니다.")),
   });
@@ -854,6 +891,7 @@ export default function AdminDashboardPage() {
     mutationFn: () => createDepartment(departmentForm),
     onSuccess: () => {
       notifySuccess("부서를 생성했습니다.");
+      setIsDepartmentCreateModalOpen(false);
       setDepartmentForm(emptyDepartmentForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.departments() });
     },
@@ -863,6 +901,7 @@ export default function AdminDashboardPage() {
     mutationFn: () => updateDepartment({ id: selectedDepartmentId ?? 0 }, departmentForm),
     onSuccess: () => {
       notifySuccess("부서를 수정했습니다.");
+      setIsDepartmentEditing(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.departments() });
       if (selectedDepartmentId) {
         queryClient.invalidateQueries({
@@ -877,6 +916,8 @@ export default function AdminDashboardPage() {
     onSuccess: () => {
       notifySuccess("부서를 삭제했습니다.");
       setSelectedDepartmentId(null);
+      setIsDepartmentEditing(false);
+      setIsDepartmentDeleteConfirmOpen(false);
       setDepartmentForm(emptyDepartmentForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.departments() });
     },
@@ -887,6 +928,35 @@ export default function AdminDashboardPage() {
           "부서 삭제에 실패했습니다. 할당된 역할이나 멤버가 있으면 삭제할 수 없습니다.",
         ),
       ),
+  });
+  const addDepartmentPermissionMutation = useMutation({
+    mutationFn: () =>
+      addDepartmentPermission(
+        { id: selectedDepartmentId ?? 0 },
+        { permissionCode: generatedPermissionCode },
+      ),
+    onSuccess: () => {
+      notifySuccess("부서 권한을 추가했습니다.");
+      if (selectedDepartmentId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.departmentDetail(selectedDepartmentId),
+        });
+      }
+    },
+    onError: (error) => notifyError(getErrorMessage(error, "부서 권한 추가에 실패했습니다.")),
+  });
+  const removeDepartmentPermissionMutation = useMutation({
+    mutationFn: (permissionCode: string) =>
+      removeDepartmentPermission({ id: selectedDepartmentId ?? 0 }, { permissionCode }),
+    onSuccess: () => {
+      notifySuccess("부서 권한을 제거했습니다.");
+      if (selectedDepartmentId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.departmentDetail(selectedDepartmentId),
+        });
+      }
+    },
+    onError: (error) => notifyError(getErrorMessage(error, "부서 권한 제거에 실패했습니다.")),
   });
 
   const createClassroomMutation = useMutation({
@@ -1070,7 +1140,7 @@ export default function AdminDashboardPage() {
   if (!isAdmin) {
     return (
       <Main>
-        <AdminContent $compact={activeMenu === "users"}>
+        <AdminContent $compact={activeMenu === "users" || activeMenu === "departments"}>
           <StatePanel>
             <LoadingSpinner label="관리자 권한 확인 중" />
           </StatePanel>
@@ -1131,7 +1201,7 @@ export default function AdminDashboardPage() {
       </Sidebar>
 
       <Main>
-        <AdminContent $compact={activeMenu === "users"}>
+        <AdminContent $compact={activeMenu === "users" || activeMenu === "departments"}>
           <AccountText>{user?.email}</AccountText>
           <PageHeader>
             <Title>{currentTitle}</Title>
@@ -1229,16 +1299,30 @@ export default function AdminDashboardPage() {
           ) : null}
           {activeMenu === "departments" ? (
             <AdminDepartmentsSection
-              departments={departments}
+              departments={filteredDepartments}
               selectedDepartmentId={selectedDepartmentId}
+              isDepartmentEditing={isDepartmentEditing}
+              isDepartmentCreateModalOpen={isDepartmentCreateModalOpen}
+              isDepartmentDeleteConfirmOpen={isDepartmentDeleteConfirmOpen}
+              departmentSearch={departmentSearch}
               departmentForm={departmentForm}
+              permissionForm={permissionForm}
+              permissionOptions={permissionOptions}
+              availableActions={availableActions}
               departmentsQuery={departmentsQuery}
               departmentDetailQuery={departmentDetailQuery}
               createDepartmentMutation={createDepartmentMutation}
               updateDepartmentMutation={updateDepartmentMutation}
               deleteDepartmentMutation={deleteDepartmentMutation}
+              addDepartmentPermissionMutation={addDepartmentPermissionMutation}
+              removeDepartmentPermissionMutation={removeDepartmentPermissionMutation}
               setSelectedDepartmentId={setSelectedDepartmentId}
+              setIsDepartmentEditing={setIsDepartmentEditing}
+              setIsDepartmentCreateModalOpen={setIsDepartmentCreateModalOpen}
+              setIsDepartmentDeleteConfirmOpen={setIsDepartmentDeleteConfirmOpen}
+              setDepartmentSearch={setDepartmentSearch}
               setDepartmentForm={setDepartmentForm}
+              setPermissionForm={setPermissionForm}
               selectDepartment={selectDepartment}
               emptyDepartmentForm={emptyDepartmentForm}
             />
