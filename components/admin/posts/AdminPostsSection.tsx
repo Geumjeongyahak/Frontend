@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import styled from "styled-components";
 import type { ChannelListItemDto } from "@/api/channel/channel.dto";
@@ -22,11 +22,9 @@ import {
   EditorFieldTitle,
   FormGrid,
   Label,
-  PrimaryButton,
   SectionCard,
-  SectionDescription,
+  SectionHeaderRow,
   SectionTitle,
-  Select,
   SmallButton,
   Table,
   TextInput,
@@ -34,8 +32,8 @@ import {
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
-import Image from "next/image";
-import chevronRight from "@/assets/chevron_right.svg";
+
+const POSTS_PER_PAGE = 11;
 
 type QueryState<TData> = {
   data?: TData;
@@ -60,9 +58,12 @@ type AdminPostsSectionProps = {
   posts: PostSummaryResponseDto[];
   selectedPost: { channelId: number; postId: number } | null;
   postTitleSearch: string;
+  postChannelTypeFilter: string;
+  postScopeFilter: string;
   postCreate: PostCreateState;
   postEdit: PostEditState;
   isPostEditing: boolean;
+  isPostCreateModalOpen: boolean;
   postsQuery: QueryState<unknown>;
   postDetailQuery: QueryState<PostDetailResponseDto>;
   createPostMutation: VoidMutationAction;
@@ -70,9 +71,12 @@ type AdminPostsSectionProps = {
   pinPostMutation: ValueMutationAction<boolean>;
   deletePostMutation: VoidMutationAction;
   setPostTitleSearch: Dispatch<SetStateAction<string>>;
+  setPostChannelTypeFilter: Dispatch<SetStateAction<string>>;
+  setPostScopeFilter: Dispatch<SetStateAction<string>>;
   setPostCreate: Dispatch<SetStateAction<PostCreateState>>;
   setPostEdit: Dispatch<SetStateAction<PostEditState>>;
   setIsPostEditing: Dispatch<SetStateAction<boolean>>;
+  setIsPostCreateModalOpen: Dispatch<SetStateAction<boolean>>;
   selectPost: (item: PostSummaryResponseDto) => void;
   closePostDetail: () => void;
 };
@@ -84,9 +88,12 @@ export function AdminPostsSection({
   posts,
   selectedPost,
   postTitleSearch,
+  postChannelTypeFilter,
+  postScopeFilter,
   postCreate,
   postEdit,
   isPostEditing,
+  isPostCreateModalOpen,
   postsQuery,
   postDetailQuery,
   createPostMutation,
@@ -94,12 +101,17 @@ export function AdminPostsSection({
   pinPostMutation,
   deletePostMutation,
   setPostTitleSearch,
+  setPostChannelTypeFilter,
+  setPostScopeFilter,
   setPostCreate,
   setPostEdit,
   setIsPostEditing,
+  setIsPostCreateModalOpen,
   selectPost,
   closePostDetail,
 }: AdminPostsSectionProps) {
+  const [pagination, setPagination] = useState({ page: 1, search: "" });
+  const [isPostDeleteConfirmOpen, setIsPostDeleteConfirmOpen] = useState(false);
   const noticeChannelId =
     channels.find((channel) => channel.channelType === "NOTICE" && typeof channel.id === "number")
       ?.id ?? "";
@@ -143,7 +155,47 @@ export function AdminPostsSection({
     .filter((item): item is { targetId: string; channelId: string; label: string } =>
       Boolean(item),
     );
+  const postScopeOptions =
+    postChannelTypeFilter === "CLASSROOM"
+      ? [
+          { value: "all", label: "전체" },
+          ...classrooms
+            .filter((classroom) => typeof classroom.id === "number")
+            .map((classroom) => ({
+              value: String(classroom.id),
+              label: classroom.name ?? `분반 ${classroom.id}`,
+            })),
+        ]
+      : postChannelTypeFilter === "DEPARTMENT"
+        ? [
+            { value: "all", label: "전체" },
+            ...departments
+              .filter((department) => typeof department.id === "number")
+              .map((department) => ({
+                value: String(department.id),
+                label: department.name ?? `부서 ${department.id}`,
+              })),
+          ]
+        : [{ value: "all", label: "전체" }];
+  const isPostScopeDisabled =
+    postChannelTypeFilter === "all" || postChannelTypeFilter === "NOTICE";
   const postView = postDetailQuery.data ? mapPostDetailToEditState(postDetailQuery.data) : postEdit;
+  const paginationKey = `${postTitleSearch}|${postChannelTypeFilter}|${postScopeFilter}`;
+  const totalPages = Math.max(1, Math.ceil(posts.length / POSTS_PER_PAGE));
+  const requestedPage = pagination.search === paginationKey ? pagination.page : 1;
+  const safeCurrentPage = Math.min(requestedPage, totalPages);
+  const pagedPosts = posts.slice(
+    (safeCurrentPage - 1) * POSTS_PER_PAGE,
+    safeCurrentPage * POSTS_PER_PAGE,
+  );
+
+  function closeCreateModal() {
+    if (createPostMutation.isPending) {
+      return;
+    }
+
+    setIsPostCreateModalOpen(false);
+  }
 
   useEffect(() => {
     if (postCreate.channelScope === "NOTICE" && noticeChannelId) {
@@ -175,24 +227,41 @@ export function AdminPostsSection({
     const clickedPostRow = (event.target as HTMLElement).closest("tbody tr");
 
     if (isLeftVisibleArea && !clickedPostRow) {
+      setIsPostDeleteConfirmOpen(false);
       closePostDetail();
     }
   }
 
   return (
     <>
-      <SectionCard>
-        <SectionTitle>게시글 작성</SectionTitle>
+      {isPostCreateModalOpen ? (
+        <ModalBackdrop onMouseDown={closeCreateModal}>
+          <PostCreateModalDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="post-create-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <ModalHeader>
+              <SectionTitle id="post-create-modal-title">게시글 작성</SectionTitle>
+              <SmallButton
+                type="button"
+                disabled={createPostMutation.isPending}
+                onClick={closeCreateModal}
+              >
+                닫기
+              </SmallButton>
+            </ModalHeader>
 
-        <FormGrid
-          onSubmit={(event) => {
-            event.preventDefault();
-            createPostMutation.mutate();
-          }}
-        >
+            <FormGrid
+              onSubmit={(event) => {
+                event.preventDefault();
+                createPostMutation.mutate();
+              }}
+            >
           <Label>
             채널 구분
-            <Select
+            <PostSelect
               value={postCreate.channelScope}
               onChange={(event) =>
                 setPostCreate((current) => {
@@ -211,13 +280,13 @@ export function AdminPostsSection({
               <option value="NOTICE">공지</option>
               <option value="CLASSROOM">반별</option>
               <option value="DEPARTMENT">부서별</option>
-            </Select>
+            </PostSelect>
           </Label>
 
           {postCreate.channelScope === "CLASSROOM" ? (
             <Label>
               반/부서 선택
-              <Select
+              <PostSelect
                 value={postCreate.channelTargetId}
                 onChange={(event) => {
                   const selectedOption = classroomChannelOptions.find(
@@ -237,14 +306,14 @@ export function AdminPostsSection({
                     {option.label}
                   </option>
                 ))}
-              </Select>
+              </PostSelect>
             </Label>
           ) : null}
 
           {postCreate.channelScope === "DEPARTMENT" ? (
             <Label>
               반/부서 선택
-              <Select
+              <PostSelect
                 value={postCreate.channelTargetId}
                 onChange={(event) => {
                   const selectedOption = departmentChannelOptions.find(
@@ -264,7 +333,7 @@ export function AdminPostsSection({
                     {option.label}
                   </option>
                 ))}
-              </Select>
+              </PostSelect>
             </Label>
           ) : null}
 
@@ -284,7 +353,7 @@ export function AdminPostsSection({
 
           <Label>
             상태
-            <Select
+            <PostSelect
               value={postCreate.status}
               onChange={(event) =>
                 setPostCreate((current) => ({
@@ -295,7 +364,7 @@ export function AdminPostsSection({
             >
               <option value="PUBLISHED">PUBLISHED</option>
               <option value="DRAFT">DRAFT</option>
-            </Select>
+            </PostSelect>
           </Label>
 
           <Label>
@@ -352,22 +421,66 @@ export function AdminPostsSection({
             />
           </EditorField>
 
-          <PrimaryButton disabled={createPostMutation.isPending || !postCreate.channelId}>
-            게시글 작성
-          </PrimaryButton>
-        </FormGrid>
-      </SectionCard>
+              <ButtonRow>
+                <PostActionButton
+                  type="submit"
+                  disabled={createPostMutation.isPending || !postCreate.channelId}
+                >
+                  게시글 작성
+                </PostActionButton>
+                <SmallButton
+                  type="button"
+                  disabled={createPostMutation.isPending}
+                  onClick={closeCreateModal}
+                >
+                  취소
+                </SmallButton>
+              </ButtonRow>
+            </FormGrid>
+          </PostCreateModalDialog>
+        </ModalBackdrop>
+      ) : null}
 
       <PostListSection $isPanelOpen={Boolean(selectedPost)} onClick={handlePostListSectionClick}>
-        <SectionTitle>게시글 목록</SectionTitle>
+        <SectionHeaderRow>
+          <SectionTitle>게시글 목록</SectionTitle>
+          <SmallButton type="button" onClick={() => setIsPostCreateModalOpen(true)}>
+            게시글 작성
+          </SmallButton>
+        </SectionHeaderRow>
 
-        <ControlRow>
+        <PostControlRow>
+          <FilterSelect
+            value={postChannelTypeFilter}
+            aria-label="게시판 유형"
+            onChange={(event) => {
+              setPostChannelTypeFilter(event.target.value);
+              setPostScopeFilter("all");
+            }}
+          >
+            <option value="all">전체</option>
+            <option value="NOTICE">공지사항</option>
+            <option value="CLASSROOM">반별</option>
+            <option value="DEPARTMENT">부서별</option>
+          </FilterSelect>
+          <FilterSelect
+            value={postScopeFilter}
+            aria-label="게시판 선택"
+            disabled={isPostScopeDisabled}
+            onChange={(event) => setPostScopeFilter(event.target.value)}
+          >
+            {postScopeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </FilterSelect>
           <TextInput
             value={postTitleSearch}
             onChange={(event) => setPostTitleSearch(event.target.value)}
             placeholder="제목 검색"
           />
-        </ControlRow>
+        </PostControlRow>
 
         <PostListFrame>
           <DataState
@@ -389,7 +502,7 @@ export function AdminPostsSection({
                 </tr>
               </thead>
               <tbody>
-                {posts.map((item) => (
+                {pagedPosts.map((item) => (
                   <tr key={item.id} onClick={() => selectPost(item)}>
                     <td>{item.title}</td>
                     <td>{item.channelName ?? item.channelId}</td>
@@ -403,6 +516,47 @@ export function AdminPostsSection({
           </DataState>
         </PostListFrame>
 
+        <Pagination aria-label="페이지 이동">
+          <PageArrowButton
+            type="button"
+            aria-label="이전 페이지"
+            disabled={safeCurrentPage === 1}
+            onClick={() =>
+              setPagination({ page: Math.max(1, safeCurrentPage - 1), search: paginationKey })
+            }
+          >
+            ◀
+          </PageArrowButton>
+          {Array.from({ length: totalPages }, (_, index) => {
+            const pageNumber = index + 1;
+
+            return (
+              <PageNumberButton
+                key={pageNumber}
+                type="button"
+                $isActive={pageNumber === safeCurrentPage}
+                aria-current={pageNumber === safeCurrentPage ? "page" : undefined}
+                onClick={() => setPagination({ page: pageNumber, search: paginationKey })}
+              >
+                {pageNumber}
+              </PageNumberButton>
+            );
+          })}
+          <PageArrowButton
+            type="button"
+            aria-label="다음 페이지"
+            disabled={safeCurrentPage === totalPages}
+            onClick={() =>
+              setPagination({
+                page: Math.min(totalPages, safeCurrentPage + 1),
+                search: paginationKey,
+              })
+            }
+          >
+            ▶
+          </PageArrowButton>
+        </Pagination>
+
         {selectedPost ? (
           <>
             <PanelBackdrop aria-hidden="true" />
@@ -411,7 +565,10 @@ export function AdminPostsSection({
                 <ClosePanelButton
                   type="button"
                   aria-label="게시글 상세 닫기"
-                  onClick={closePostDetail}
+                  onClick={() => {
+                    setIsPostDeleteConfirmOpen(false);
+                    closePostDetail();
+                  }}
                 >
                   <CloseIcon aria-hidden="true" />
                 </ClosePanelButton>
@@ -426,181 +583,218 @@ export function AdminPostsSection({
                 errorLabel="게시글 상세를 불러오지 못했습니다."
                 emptyLabel="게시글을 선택하세요."
               >
-                {isPostEditing ? (
-                  <FormGrid
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      updatePostMutation.mutate();
-                    }}
-                  >
-                    <Label>
-                      제목
-                      <TextInput
-                        value={postEdit.title}
-                        onChange={(event) =>
-                          setPostEdit((current) => ({
-                            ...current,
-                            title: event.target.value,
-                          }))
-                        }
-                      />
-                    </Label>
+                <PanelContent>
+                  {isPostEditing ? (
+                    <FormGrid
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        updatePostMutation.mutate();
+                      }}
+                    >
+                      <Label>
+                        제목
+                        <TextInput
+                          value={postEdit.title}
+                          onChange={(event) =>
+                            setPostEdit((current) => ({
+                              ...current,
+                              title: event.target.value,
+                            }))
+                          }
+                        />
+                      </Label>
 
-                    <Label>
-                      상태
-                      <Select
-                        value={postEdit.status}
-                        onChange={(event) =>
-                          setPostEdit((current) => ({
-                            ...current,
-                            status: event.target.value as PostStatus,
-                          }))
-                        }
-                      >
-                        <option value="PUBLISHED">PUBLISHED</option>
-                        <option value="DRAFT">DRAFT</option>
-                        <option value="ARCHIVED">ARCHIVED</option>
-                      </Select>
-                    </Label>
+                      <Label>
+                        상태
+                        <PostSelect
+                          value={postEdit.status}
+                          onChange={(event) =>
+                            setPostEdit((current) => ({
+                              ...current,
+                              status: event.target.value as PostStatus,
+                            }))
+                          }
+                        >
+                          <option value="PUBLISHED">PUBLISHED</option>
+                          <option value="DRAFT">DRAFT</option>
+                          <option value="ARCHIVED">ARCHIVED</option>
+                        </PostSelect>
+                      </Label>
 
-                    <Label>
-                      썸네일 URL
-                      <TextInput
-                        value={postEdit.thumbnailUrl}
-                        onChange={(event) =>
-                          setPostEdit((current) => ({
-                            ...current,
-                            thumbnailUrl: event.target.value,
-                          }))
-                        }
-                      />
-                    </Label>
+                      <Label>
+                        썸네일 URL
+                        <TextInput
+                          value={postEdit.thumbnailUrl}
+                          onChange={(event) =>
+                            setPostEdit((current) => ({
+                              ...current,
+                              thumbnailUrl: event.target.value,
+                            }))
+                          }
+                        />
+                      </Label>
 
-                    <CheckLabel>
-                      <input
-                        type="checkbox"
-                        checked={postEdit.allowComment}
-                        onChange={(event) =>
-                          setPostEdit((current) => ({
-                            ...current,
-                            allowComment: event.target.checked,
-                          }))
-                        }
-                      />
-                      댓글 허용
-                    </CheckLabel>
+                      <CheckLabel>
+                        <input
+                          type="checkbox"
+                          checked={postEdit.allowComment}
+                          onChange={(event) =>
+                            setPostEdit((current) => ({
+                              ...current,
+                              allowComment: event.target.checked,
+                            }))
+                          }
+                        />
+                        댓글 허용
+                      </CheckLabel>
 
-                    <CheckLabel>
-                      <input
-                        type="checkbox"
-                        checked={postEdit.isPinned}
-                        onChange={(event) =>
-                          setPostEdit((current) => ({
-                            ...current,
-                            isPinned: event.target.checked,
-                          }))
-                        }
-                      />
-                      상단 고정
-                    </CheckLabel>
+                      <CheckLabel>
+                        <input
+                          type="checkbox"
+                          checked={postEdit.isPinned}
+                          onChange={(event) =>
+                            setPostEdit((current) => ({
+                              ...current,
+                              isPinned: event.target.checked,
+                            }))
+                          }
+                        />
+                        상단 고정
+                      </CheckLabel>
 
-                    <PanelEditorField>
-                      <EditorFieldTitle>본문</EditorFieldTitle>
-                      <ToastEditorField
-                        initialValue={postEdit.contentHtml}
-                        onChange={(contentHtml) =>
-                          setPostEdit((current) => ({
-                            ...current,
-                            contentHtml,
-                          }))
-                        }
-                      />
-                    </PanelEditorField>
+                      <PanelEditorField>
+                        <EditorFieldTitle>본문</EditorFieldTitle>
+                        <ToastEditorField
+                          initialValue={postEdit.contentHtml}
+                          onChange={(contentHtml) =>
+                            setPostEdit((current) => ({
+                              ...current,
+                              contentHtml,
+                            }))
+                          }
+                        />
+                      </PanelEditorField>
 
-                    <ButtonRow>
-                      <PrimaryButton disabled={updatePostMutation.isPending || !selectedPost}>
-                        저장
-                      </PrimaryButton>
-                      <SmallButton
-                        type="button"
-                        disabled={updatePostMutation.isPending}
-                        onClick={() => {
-                          setPostEdit(postView);
-                          setIsPostEditing(false);
-                        }}
-                      >
-                        취소
-                      </SmallButton>
-                    </ButtonRow>
-                  </FormGrid>
-                ) : (
-                  <ReadonlyDetail>
-                    <ReadonlyItem>
-                      <ReadonlyLabel>제목</ReadonlyLabel>
-                      <ReadonlyValue>{postView.title || "-"}</ReadonlyValue>
-                    </ReadonlyItem>
-                    <ReadonlyItem>
-                      <ReadonlyLabel>상태</ReadonlyLabel>
-                      <ReadonlyValue>{postView.status || "-"}</ReadonlyValue>
-                    </ReadonlyItem>
-                    <ReadonlyItem>
-                      <ReadonlyLabel>댓글</ReadonlyLabel>
-                      <ReadonlyValue>{postView.allowComment ? "허용" : "허용 안 함"}</ReadonlyValue>
-                    </ReadonlyItem>
-                    <ReadonlyItem>
-                      <ReadonlyLabel>고정</ReadonlyLabel>
-                      <ReadonlyValue>{postView.isPinned ? "고정" : "고정 안 함"}</ReadonlyValue>
-                    </ReadonlyItem>
-                    <ReadonlyItem>
-                      <ReadonlyLabel>썸네일 URL</ReadonlyLabel>
-                      <ReadonlyValue>{postView.thumbnailUrl || "-"}</ReadonlyValue>
-                    </ReadonlyItem>
-                    <ReadonlyItem>
-                      <ReadonlyLabel>본문</ReadonlyLabel>
-                      <ReadonlyContent>
-                        {postView.contentHtml ? (
-                          <ToastViewerField value={postView.contentHtml} />
-                        ) : (
-                          <ReadonlyEmpty>본문이 없습니다.</ReadonlyEmpty>
-                        )}
-                      </ReadonlyContent>
-                    </ReadonlyItem>
+                      <ButtonRow>
+                        <PostActionButton
+                          type="submit"
+                          disabled={updatePostMutation.isPending || !selectedPost}
+                        >
+                          저장
+                        </PostActionButton>
+                        <SmallButton
+                          type="button"
+                          disabled={updatePostMutation.isPending}
+                          onClick={() => {
+                            setPostEdit(postView);
+                            setIsPostEditing(false);
+                          }}
+                        >
+                          취소
+                        </SmallButton>
+                      </ButtonRow>
+                    </FormGrid>
+                  ) : (
+                    <ReadonlyDetail>
+                      <ReadonlyItem>
+                        <ReadonlyLabel>제목</ReadonlyLabel>
+                        <ReadonlyValue>{postView.title || "-"}</ReadonlyValue>
+                      </ReadonlyItem>
+                      <ReadonlyItem>
+                        <ReadonlyLabel>상태</ReadonlyLabel>
+                        <ReadonlyValue>{postView.status || "-"}</ReadonlyValue>
+                      </ReadonlyItem>
+                      <ReadonlyItem>
+                        <ReadonlyLabel>댓글</ReadonlyLabel>
+                        <ReadonlyValue>
+                          {postView.allowComment ? "허용" : "허용 안 함"}
+                        </ReadonlyValue>
+                      </ReadonlyItem>
+                      <ReadonlyItem>
+                        <ReadonlyLabel>고정</ReadonlyLabel>
+                        <ReadonlyValue>{postView.isPinned ? "고정" : "고정 안 함"}</ReadonlyValue>
+                      </ReadonlyItem>
+                      <ReadonlyItem>
+                        <ReadonlyLabel>썸네일 URL</ReadonlyLabel>
+                        <ReadonlyValue>{postView.thumbnailUrl || "-"}</ReadonlyValue>
+                      </ReadonlyItem>
+                      <ReadonlyItem>
+                        <ReadonlyLabel>본문</ReadonlyLabel>
+                        <ReadonlyContent>
+                          {postView.contentHtml ? (
+                            <ToastViewerField value={postView.contentHtml} />
+                          ) : (
+                            <ReadonlyEmpty>본문이 없습니다.</ReadonlyEmpty>
+                          )}
+                        </ReadonlyContent>
+                      </ReadonlyItem>
 
-                    <ButtonRow>
-                      <PrimaryButton
-                        type="button"
-                        disabled={!selectedPost}
-                        onClick={() => {
-                          setPostEdit(postView);
-                          setIsPostEditing(true);
-                        }}
-                      >
-                        수정
-                      </PrimaryButton>
-                      <SmallButton
-                        type="button"
-                        disabled={pinPostMutation.isPending}
-                        onClick={() =>
-                          pinPostMutation.mutate(!(postDetailQuery.data?.isPinned ?? false))
-                        }
-                      >
-                        {postDetailQuery.data?.isPinned ? "고정 해제" : "고정"}
-                      </SmallButton>
-                      <DangerButton
-                        type="button"
-                        disabled={deletePostMutation.isPending}
-                        onClick={() => deletePostMutation.mutate()}
-                      >
-                        삭제
-                      </DangerButton>
-                    </ButtonRow>
-                  </ReadonlyDetail>
-                )}
+                      <ButtonRow>
+                        <PostActionButton
+                          type="button"
+                          disabled={!selectedPost}
+                          onClick={() => {
+                            setPostEdit(postView);
+                            setIsPostEditing(true);
+                          }}
+                        >
+                          수정
+                        </PostActionButton>
+                        <SmallButton
+                          type="button"
+                          disabled={pinPostMutation.isPending}
+                          onClick={() =>
+                            pinPostMutation.mutate(!(postDetailQuery.data?.isPinned ?? false))
+                          }
+                        >
+                          {postDetailQuery.data?.isPinned ? "고정 해제" : "고정"}
+                        </SmallButton>
+                        <DangerButton
+                          type="button"
+                          disabled={deletePostMutation.isPending}
+                          onClick={() => setIsPostDeleteConfirmOpen(true)}
+                        >
+                          삭제
+                        </DangerButton>
+                      </ButtonRow>
+                    </ReadonlyDetail>
+                  )}
+                </PanelContent>
               </DataState>
             </SlidePanel>
           </>
         ) : null}
       </PostListSection>
+
+      {selectedPost && isPostDeleteConfirmOpen ? (
+        <ModalBackdrop onMouseDown={() => setIsPostDeleteConfirmOpen(false)}>
+          <ConfirmDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="post-delete-confirm-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <ConfirmTitle id="post-delete-confirm-title">게시글 삭제</ConfirmTitle>
+            <ConfirmMessage>삭제하시겠습니까?</ConfirmMessage>
+            <ButtonRow>
+              <DangerButton
+                type="button"
+                disabled={deletePostMutation.isPending}
+                onClick={() => deletePostMutation.mutate()}
+              >
+                확인
+              </DangerButton>
+              <SmallButton
+                type="button"
+                disabled={deletePostMutation.isPending}
+                onClick={() => setIsPostDeleteConfirmOpen(false)}
+              >
+                취소
+              </SmallButton>
+            </ButtonRow>
+          </ConfirmDialog>
+        </ModalBackdrop>
+      ) : null}
     </>
   );
 }
@@ -616,26 +810,224 @@ function mapPostDetailToEditState(post?: PostDetailResponseDto): PostEditState {
   };
 }
 
-const PostListSection = styled.section<{ $isPanelOpen: boolean }>`
+const PostListSection = styled(SectionCard)<{ $isPanelOpen: boolean }>`
   position: relative;
-  min-width: 0;
-  min-height: 44rem;
+  display: grid;
+  align-content: start;
   overflow: hidden;
-  padding: 1.25rem 1rem;
-  background-color: ${colors.white};
-  border: 1px solid #e6e9e7;
-  border-radius: ${radii.radius12};
   box-shadow: ${({ $isPanelOpen }) => ($isPanelOpen ? "inset 0 0 0 1px #e6e9e7" : "none")};
-
-  @media (min-width: 120rem) {
-    padding: 2rem 1.75rem;
-  }
 `;
 
 const PostListFrame = styled.div`
   position: relative;
-  min-height: 32rem;
+  min-height: 22.35rem;
   border-radius: 0.5rem;
+
+  @media (min-width: 120rem) {
+    min-height: 22.5rem;
+  }
+`;
+
+const PostControlRow = styled(ControlRow)`
+  align-items: center;
+
+  ${TextInput} {
+    flex: 1;
+    min-width: 12rem;
+  }
+
+  @media (max-width: ${layout.breakpointTablet}) {
+    flex-wrap: wrap;
+
+    ${TextInput} {
+      flex-basis: 100%;
+    }
+  }
+`;
+
+const FilterSelect = styled.select`
+  width: 9.5rem;
+  min-height: 2.375rem;
+  border: 1px solid ${colors.border};
+  border-radius: 0.375rem;
+  padding: 0 2.5rem 0 ${spacing.space12};
+  background-color: ${colors.white};
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2364706C' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 0.875rem center;
+  background-repeat: no-repeat;
+  background-size: 1rem;
+  color: #1f2b28;
+  font-family: inherit;
+  font-size: ${typography.fontSize14};
+  appearance: none;
+  outline: none;
+
+  &:focus {
+    border-color: ${colors.point};
+  }
+
+  &:disabled {
+    opacity: 1;
+    color: #64706c;
+    background-color: ${colors.white};
+  }
+`;
+
+const PostSelect = styled.select`
+  width: 100%;
+  min-height: 2.375rem;
+  border: 1px solid ${colors.border};
+  border-radius: 0.375rem;
+  padding: 0 2.5rem 0 ${spacing.space12};
+  background-color: ${colors.white};
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2364706C' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 0.875rem center;
+  background-repeat: no-repeat;
+  background-size: 1rem;
+  color: #1f2b28;
+  font-family: inherit;
+  font-size: ${typography.fontSize14};
+  appearance: none;
+  outline: none;
+
+  &:focus {
+    border-color: ${colors.point};
+  }
+
+  &:disabled {
+    opacity: 1;
+    color: #64706c;
+    background-color: ${colors.white};
+  }
+`;
+
+const Pagination = styled.nav`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: ${spacing.space16};
+  font-size: ${typography.fontSize16};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space16};
+    margin-top: ${spacing.space28};
+    font-size: ${typography.fontSize16};
+  }
+`;
+
+const PageArrowButton = styled.button`
+  border: none;
+  background: transparent;
+  color: #666;
+  font: inherit;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+`;
+
+const PageNumberButton = styled.button<{ $isActive?: boolean }>`
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: ${({ $isActive }) => ($isActive ? "#111" : "#9a9a9a")};
+  font: inherit;
+  font-size: ${typography.fontSize16};
+  font-weight: ${({ $isActive }) => ($isActive ? 700 : 400)};
+  cursor: pointer;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize16};
+  }
+`;
+
+const ModalBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: ${spacing.space20};
+  background-color: rgb(0 0 0 / 42%);
+`;
+
+const PostCreateModalDialog = styled.div`
+  display: grid;
+  gap: ${spacing.space16};
+  width: min(100%, 56rem);
+  max-height: calc(100vh - 2.5rem);
+  overflow-y: auto;
+  padding: ${spacing.space20};
+  border-radius: ${radii.radius12};
+  background-color: ${colors.white};
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 18%);
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: ${spacing.space16};
+
+  ${SectionTitle} {
+    margin-bottom: 0;
+  }
+`;
+
+const ConfirmDialog = styled(PostCreateModalDialog)`
+  width: min(100%, 24rem);
+`;
+
+const ConfirmTitle = styled.h3`
+  margin: 0;
+  color: ${colors.text};
+  font-size: ${typography.fontSize16};
+  font-weight: 700;
+`;
+
+const ConfirmMessage = styled.p`
+  margin: 0;
+  color: #64706c;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+`;
+
+const PostActionButton = styled.button.attrs<{ type?: "button" | "submit" | "reset" }>(
+  ({ type }) => ({
+    type: type ?? "button",
+  }),
+)`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.375rem;
+  border: 1px solid ${colors.point};
+  border-radius: 0.375rem;
+  background-color: ${colors.white};
+  padding: 0 ${spacing.space16};
+  color: ${colors.point};
+  font-family: inherit;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const PanelBackdrop = styled.div`
@@ -709,9 +1101,9 @@ const PanelHeader = styled.div`
 `;
 
 const CloseIcon = styled.span`
-  width: 1rem;
-  height: 1rem;
   display: block;
+  width: 1.5rem;
+  height: 1.5rem;
   background-color: currentColor;
   mask: url("/chevron_right.svg") center / contain no-repeat;
   -webkit-mask: url("/chevron_right.svg") center / contain no-repeat;
@@ -721,19 +1113,23 @@ const ClosePanelButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  border: 1px solid ${colors.border};
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
   border-radius: 0.375rem;
-  background-color: ${colors.white};
+  background-color: transparent;
   color: #1f2b28;
   cursor: pointer;
 
   &:hover {
-    border-color: #88cd5a;
     background-color: #f5fff0;
     color: #5eb63a;
   }
+`;
+
+const PanelContent = styled.div`
+  display: grid;
+  gap: ${spacing.space12};
 `;
 
 const PanelEditorField = styled.div`

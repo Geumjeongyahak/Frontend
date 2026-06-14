@@ -25,7 +25,6 @@ import {
   SectionCard,
   SectionDescription,
   SectionTitle,
-  Select,
   SmallButton,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
@@ -483,7 +482,7 @@ export function AdminLessonScheduleTables() {
             <ModalBody>
               <Label>
                 담당 교사
-                <Select
+                <ScheduleSelect
                   value={cellForm.teacherId}
                   disabled={teachersQuery.isLoading || saveCellMutation.isPending}
                   onChange={(event) =>
@@ -500,7 +499,7 @@ export function AdminLessonScheduleTables() {
                       </option>
                     ) : null,
                   )}
-                </Select>
+                </ScheduleSelect>
               </Label>
 
               <DateFields>
@@ -1038,6 +1037,34 @@ const ModalDescription = styled.p`
 const ModalBody = styled.div`
   display: grid;
   gap: ${spacing.space12};
+`;
+
+const ScheduleSelect = styled.select`
+  width: 100%;
+  min-height: 2.375rem;
+  border: 1px solid ${colors.border};
+  border-radius: 0.375rem;
+  padding: 0 2.5rem 0 ${spacing.space12};
+  background-color: ${colors.white};
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2364706C' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 0.875rem center;
+  background-repeat: no-repeat;
+  background-size: 1rem;
+  color: #1f2b28;
+  font-family: inherit;
+  font-size: ${typography.fontSize14};
+  appearance: none;
+  outline: none;
+
+  &:focus {
+    border-color: ${colors.point};
+  }
+
+  &:disabled {
+    opacity: 1;
+    color: #64706c;
+    background-color: ${colors.white};
+  }
 `;
 
 const DateFields = styled.div`

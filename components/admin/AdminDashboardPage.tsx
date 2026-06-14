@@ -372,6 +372,8 @@ export default function AdminDashboardPage() {
   const [departmentSearch, setDepartmentSearch] = useState("");
   const [channelSearch, setChannelSearch] = useState("");
   const [postTitleSearch, setPostTitleSearch] = useState("");
+  const [postChannelTypeFilter, setPostChannelTypeFilter] = useState("all");
+  const [postScopeFilter, setPostScopeFilter] = useState("all");
   const [classroomSearch, setClassroomSearch] = useState("");
   const [purchaseStatus, setPurchaseStatus] = useState<PurchaseRequestStatus | "">("");
   const [userForm, setUserForm] = useState<UserFormState>(emptyUserForm);
@@ -392,6 +394,7 @@ export default function AdminDashboardPage() {
   const [isClassroomEditing, setIsClassroomEditing] = useState(false);
   const [isClassroomCreateModalOpen, setIsClassroomCreateModalOpen] = useState(false);
   const [isClassroomDeleteConfirmOpen, setIsClassroomDeleteConfirmOpen] = useState(false);
+  const [isPostCreateModalOpen, setIsPostCreateModalOpen] = useState(false);
   const [postCreate, setPostCreate] = useState<PostCreateState>(emptyPostCreate);
   const [purchaseCreate, setPurchaseCreate] = useState<PurchaseCreateState>(emptyPurchaseCreate);
   const [permissionForm, setPermissionForm] = useState<PermissionFormState>(emptyPermissionForm);
@@ -440,8 +443,32 @@ export default function AdminDashboardPage() {
     enabled: isAdmin,
   });
   const postsQuery = useQuery({
-    queryKey: queryKeys.admin.posts(0, 50),
-    queryFn: () => getPosts({ page: 0, size: 50, title: postTitleSearch || undefined }),
+    queryKey: [
+      "admin",
+      "posts",
+      {
+        page: 0,
+        size: 50,
+        title: postTitleSearch || undefined,
+        channelType: postChannelTypeFilter === "all" ? undefined : postChannelTypeFilter,
+        scope: postScopeFilter,
+      },
+    ],
+    queryFn: () =>
+      getPosts({
+        page: 0,
+        size: 50,
+        title: postTitleSearch || undefined,
+        channelType: postChannelTypeFilter === "all" ? undefined : postChannelTypeFilter,
+        classroomId:
+          postChannelTypeFilter === "CLASSROOM" && postScopeFilter !== "all"
+            ? (toNumber(postScopeFilter) ?? undefined)
+            : undefined,
+        departmentId:
+          postChannelTypeFilter === "DEPARTMENT" && postScopeFilter !== "all"
+            ? (toNumber(postScopeFilter) ?? undefined)
+            : undefined,
+      }),
     enabled: isAdmin,
   });
   const purchasesQuery = useQuery({
@@ -879,8 +906,9 @@ export default function AdminDashboardPage() {
       ),
     onSuccess: () => {
       notifySuccess("게시글을 작성했습니다.");
+      setIsPostCreateModalOpen(false);
       setPostCreate(emptyPostCreate);
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) });
+      queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
     },
     onError: (error) => notifyError(getErrorMessage(error, "게시글 작성에 실패했습니다.")),
   });
@@ -906,7 +934,7 @@ export default function AdminDashboardPage() {
     onSuccess: (updatedPost) => {
       notifySuccess("게시글을 수정했습니다.");
       setIsPostEditing(false);
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) });
+      queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
       if (selectedPost) {
         queryClient.setQueryData(
           queryKeys.admin.postDetail(selectedPost.channelId, selectedPost.postId),
@@ -926,7 +954,7 @@ export default function AdminDashboardPage() {
       setSelectedPost(null);
       setIsPostEditing(false);
       setPostEdit(emptyPostEdit);
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) });
+      queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
     },
     onError: (error) => notifyError(getErrorMessage(error, "게시글 삭제에 실패했습니다.")),
   });
@@ -935,7 +963,7 @@ export default function AdminDashboardPage() {
       pinPost(selectedPost ?? { channelId: 0, postId: 0 }, { isPinned }),
     onSuccess: () => {
       notifySuccess("게시글 고정 상태를 변경했습니다.");
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) });
+      queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
       if (selectedPost) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.admin.postDetail(selectedPost.channelId, selectedPost.postId),
@@ -1206,6 +1234,7 @@ export default function AdminDashboardPage() {
           $compact={
             activeMenu === "users" ||
             activeMenu === "channels" ||
+            activeMenu === "posts" ||
             activeMenu === "departments" ||
             activeMenu === "classrooms"
           }
@@ -1274,6 +1303,7 @@ export default function AdminDashboardPage() {
           $compact={
             activeMenu === "users" ||
             activeMenu === "channels" ||
+            activeMenu === "posts" ||
             activeMenu === "departments" ||
             activeMenu === "classrooms"
           }
@@ -1362,9 +1392,12 @@ export default function AdminDashboardPage() {
               posts={posts}
               selectedPost={selectedPost}
               postTitleSearch={postTitleSearch}
+              postChannelTypeFilter={postChannelTypeFilter}
+              postScopeFilter={postScopeFilter}
               postCreate={postCreate}
               postEdit={postEdit}
               isPostEditing={isPostEditing}
+              isPostCreateModalOpen={isPostCreateModalOpen}
               postsQuery={postsQuery}
               postDetailQuery={postDetailQuery}
               createPostMutation={createPostMutation}
@@ -1372,9 +1405,12 @@ export default function AdminDashboardPage() {
               pinPostMutation={pinPostMutation}
               deletePostMutation={deletePostMutation}
               setPostTitleSearch={setPostTitleSearch}
+              setPostChannelTypeFilter={setPostChannelTypeFilter}
+              setPostScopeFilter={setPostScopeFilter}
               setPostCreate={setPostCreate}
               setPostEdit={setPostEdit}
               setIsPostEditing={setIsPostEditing}
+              setIsPostCreateModalOpen={setIsPostCreateModalOpen}
               selectPost={selectPost}
               closePostDetail={closePostDetail}
             />
