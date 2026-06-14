@@ -734,7 +734,15 @@ function UserFields({
         <UserSelect
           value={form.role}
           disabled={disabled}
-          onChange={(event) => setUserForm((current) => ({ ...current, role: event.target.value }))}
+          onChange={(event) => {
+            const role = event.target.value;
+
+            setUserForm((current) => ({
+              ...current,
+              role,
+              departmentId: role === "GUEST" ? "" : current.departmentId,
+            }));
+          }}
         >
           <option value="ADMIN">ADMIN</option>
           <option value="MANAGER">MANAGER</option>
@@ -748,7 +756,11 @@ function UserFields({
           value={form.departmentId}
           disabled={disabled}
           onChange={(event) =>
-            setUserForm((current) => ({ ...current, departmentId: event.target.value }))
+            setUserForm((current) => ({
+              ...current,
+              departmentId: event.target.value,
+              role: event.target.value && current.role === "GUEST" ? "VOLUNTEER" : current.role,
+            }))
           }
         >
           <option value="">부서 없음</option>
