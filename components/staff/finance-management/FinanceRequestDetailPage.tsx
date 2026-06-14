@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { IconDownload, IconFilePlus } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -262,15 +262,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     );
 
     return currentAffiliation?.value ?? "";
-  }, [affiliationOptions, request?.classroomId, request?.classroomName]);
-
-  useEffect(() => {
-    if (!isEditing || editAffiliationValue || !requestAffiliationValue) {
-      return;
-    }
-
-    setEditAffiliationValue(requestAffiliationValue);
-  }, [editAffiliationValue, isEditing, requestAffiliationValue]);
+  }, [affiliationOptions, request]);
 
   const reportMutation = useMutation({
     mutationFn: async () => {

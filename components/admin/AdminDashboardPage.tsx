@@ -218,12 +218,16 @@ const emptyPostCreate: PostCreateState = {
 
 const emptyPurchaseCreate: PurchaseCreateState = {
   title: "",
-  content: "",
   classroomId: "",
-  itemName: "",
-  itemQuantity: "1",
-  itemReason: "",
-  itemPaymentType: "ACTUAL",
+  items: [
+    {
+      id: "purchase-item-1",
+      itemName: "",
+      itemQuantity: "1",
+      itemReason: "",
+      itemPaymentType: "ACTUAL",
+    },
+  ],
 };
 
 const emptyPermissionForm: PermissionFormState = {
@@ -375,6 +379,7 @@ export default function AdminDashboardPage() {
   const [postChannelTypeFilter, setPostChannelTypeFilter] = useState("all");
   const [postScopeFilter, setPostScopeFilter] = useState("all");
   const [classroomSearch, setClassroomSearch] = useState("");
+  const [purchaseSearch, setPurchaseSearch] = useState("");
   const [purchaseStatus, setPurchaseStatus] = useState<PurchaseRequestStatus | "">("");
   const [userForm, setUserForm] = useState<UserFormState>(emptyUserForm);
   const [channelForm, setChannelForm] = useState<ChannelFormState>(emptyChannelForm);
@@ -395,6 +400,7 @@ export default function AdminDashboardPage() {
   const [isClassroomCreateModalOpen, setIsClassroomCreateModalOpen] = useState(false);
   const [isClassroomDeleteConfirmOpen, setIsClassroomDeleteConfirmOpen] = useState(false);
   const [isPostCreateModalOpen, setIsPostCreateModalOpen] = useState(false);
+  const [isPurchaseCreateModalOpen, setIsPurchaseCreateModalOpen] = useState(false);
   const [postCreate, setPostCreate] = useState<PostCreateState>(emptyPostCreate);
   const [purchaseCreate, setPurchaseCreate] = useState<PurchaseCreateState>(emptyPurchaseCreate);
   const [permissionForm, setPermissionForm] = useState<PermissionFormState>(emptyPermissionForm);
@@ -474,6 +480,11 @@ export default function AdminDashboardPage() {
   const purchasesQuery = useQuery({
     queryKey: queryKeys.admin.purchaseRequests(purchaseStatus || undefined),
     queryFn: () => getAllPurchaseRequests(purchaseStatus ? { status: purchaseStatus } : undefined),
+    enabled: isAdmin,
+  });
+  const vendorsQuery = useQuery({
+    queryKey: queryKeys.vendors.list(),
+    queryFn: () => getVendors(),
     enabled: isAdmin,
   });
   const permissionRegistryQuery = useQuery({
@@ -622,7 +633,25 @@ export default function AdminDashboardPage() {
     );
   }, [channelSearch, channels]);
   const posts = postsQuery.data?.content ?? [];
-  const purchases = purchasesQuery.data ?? [];
+  const purchases = useMemo(() => {
+    const rawPurchases = purchasesQuery.data ?? [];
+    const keyword = purchaseSearch.trim().toLowerCase();
+
+    if (!keyword) {
+      return rawPurchases;
+    }
+
+    return rawPurchases.filter((item) =>
+      [
+        item.id ? String(item.id) : "",
+        item.title,
+        item.classroomName,
+        item.requestedByName,
+        item.status,
+        item.totalPrice !== undefined && item.totalPrice !== null ? String(item.totalPrice) : "",
+      ].some((value) => value?.toLowerCase().includes(keyword)),
+    );
+  }, [purchaseSearch, purchasesQuery.data]);
   const registry = permissionRegistryQuery.data?.length
     ? permissionRegistryQuery.data
     : fallbackPermissions;
@@ -1086,20 +1115,23 @@ export default function AdminDashboardPage() {
     mutationFn: () =>
       createPurchaseRequest({
         title: purchaseCreate.title.trim(),
-        content: purchaseCreate.content.trim(),
+        content:
+          purchaseCreate.items
+            .map((item) => item.itemReason.trim())
+            .filter(Boolean)
+            .join("\n") || `${purchaseCreate.title.trim()} 결제 요청`,
         classroomId: toNumber(purchaseCreate.classroomId) ?? 0,
-        items: [
-          {
-            name: purchaseCreate.itemName.trim(),
-            quantity: Math.max(1, Math.trunc(toNumber(purchaseCreate.itemQuantity) ?? 1)),
-            reason: purchaseCreate.itemReason.trim() || undefined,
-            paymentType: purchaseCreate.itemPaymentType,
-          },
-        ],
+        items: purchaseCreate.items.map((item) => ({
+          name: item.itemName.trim(),
+          quantity: Math.max(1, Math.trunc(toNumber(item.itemQuantity) ?? 1)),
+          reason: item.itemReason.trim() || undefined,
+          paymentType: item.itemPaymentType,
+        })),
       }),
     onSuccess: () => {
       notifySuccess("구매 요청을 작성했습니다.");
       setPurchaseCreate(emptyPurchaseCreate);
+      setIsPurchaseCreateModalOpen(false);
       invalidateDashboard();
     },
     onError: (error) => notifyError(getErrorMessage(error, "구매 요청 작성에 실패했습니다.")),
@@ -1201,7 +1233,7 @@ export default function AdminDashboardPage() {
       return confirmedPurchase;
     },
     onSuccess: () => {
-      notifySuccess("구매 요청을 결재 확인했습니다.");
+      notifySuccess("구매 요청을 결제 확인했습니다.");
       invalidateDashboard();
       queryClient.invalidateQueries({ queryKey: queryKeys.vendors.list() });
       if (selectedPurchaseId) {
@@ -1210,7 +1242,7 @@ export default function AdminDashboardPage() {
         });
       }
     },
-    onError: (error) => notifyError(getErrorMessage(error, "결재 확인에 실패했습니다.")),
+    onError: (error) => notifyError(getErrorMessage(error, "결제 확인에 실패했습니다.")),
   });
   const deletePurchaseMutation = useMutation({
     mutationFn: () => deleteAdminPurchaseRequest({ requestId: selectedPurchaseId ?? 0 }),
@@ -1236,7 +1268,8 @@ export default function AdminDashboardPage() {
             activeMenu === "channels" ||
             activeMenu === "posts" ||
             activeMenu === "departments" ||
-            activeMenu === "classrooms"
+            activeMenu === "classrooms" ||
+            activeMenu === "purchases"
           }
         >
           <StatePanel>
@@ -1305,7 +1338,8 @@ export default function AdminDashboardPage() {
             activeMenu === "channels" ||
             activeMenu === "posts" ||
             activeMenu === "departments" ||
-            activeMenu === "classrooms"
+            activeMenu === "classrooms" ||
+            activeMenu === "purchases"
           }
         >
           <AccountText>{user?.email}</AccountText>
@@ -1478,19 +1512,25 @@ export default function AdminDashboardPage() {
               purchases={purchases}
               selectedPurchaseId={selectedPurchaseId}
               purchaseStatus={purchaseStatus}
+              purchaseSearch={purchaseSearch}
+              isPurchaseCreateModalOpen={isPurchaseCreateModalOpen}
               purchaseCreate={purchaseCreate}
               reviewNote={reviewNote}
               purchasesQuery={purchasesQuery}
               purchaseDetailQuery={purchaseDetailQuery}
+              vendorsQuery={vendorsQuery}
               createPurchaseMutation={createPurchaseMutation}
               approvePurchaseMutation={approvePurchaseMutation}
               rejectPurchaseMutation={rejectPurchaseMutation}
               confirmPurchaseMutation={confirmPurchaseMutation}
               deletePurchaseMutation={deletePurchaseMutation}
               setPurchaseStatus={setPurchaseStatus}
+              setPurchaseSearch={setPurchaseSearch}
+              setIsPurchaseCreateModalOpen={setIsPurchaseCreateModalOpen}
               setPurchaseCreate={setPurchaseCreate}
               setSelectedPurchaseId={setSelectedPurchaseId}
               setReviewNote={setReviewNote}
+              emptyPurchaseCreate={emptyPurchaseCreate}
             />
           ) : null}
           <ToastContainer position="top-right" autoClose={2400} newestOnTop pauseOnHover />
