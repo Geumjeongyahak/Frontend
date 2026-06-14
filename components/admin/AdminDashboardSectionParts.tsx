@@ -257,6 +257,7 @@ export const StatePanel = styled.div<{ $compact?: boolean }>`
 export const DataStateBox = styled.div<{ $compact?: boolean }>`
   display: flex;
   width: 100%;
+  height: 100%;
   min-height: ${({ $compact }) => ($compact ? "0" : "16rem")};
   margin-bottom: ${({ $compact }) => ($compact ? "0" : spacing.space12)};
 `;

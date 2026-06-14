@@ -256,11 +256,14 @@ function buildPermissionCode(form: PermissionFormState) {
 }
 
 function mapCreateUserFormToPayload(form: UserFormState) {
+  const name = form.name.trim();
+  const email = form.email.trim();
+
   return {
-    email: form.email.trim(),
-    nickname: form.nickname.trim(),
+    email,
+    nickname: form.nickname.trim() || name || email,
     password: form.password,
-    name: form.name.trim(),
+    name,
     phoneNumber: form.phoneNumber.trim() || undefined,
     role: form.role,
     departmentId: form.departmentId ? (toNumber(form.departmentId) ?? null) : null,
@@ -270,8 +273,6 @@ function mapCreateUserFormToPayload(form: UserFormState) {
 function mapUpdateUserFormToPayload(form: UserFormState) {
   return {
     email: form.email.trim(),
-    nickname: form.nickname.trim(),
-    ...(form.password ? { password: form.password } : {}),
     name: form.name.trim(),
     phoneNumber: form.phoneNumber.trim() || undefined,
     role: form.role,
@@ -376,6 +377,9 @@ export default function AdminDashboardPage() {
   const [classroomForm, setClassroomForm] = useState<ClassroomFormState>(emptyClassroomForm);
   const [postEdit, setPostEdit] = useState<PostEditState>(emptyPostEdit);
   const [isPostEditing, setIsPostEditing] = useState(false);
+  const [isUserEditing, setIsUserEditing] = useState(false);
+  const [isUserCreateModalOpen, setIsUserCreateModalOpen] = useState(false);
+  const [isUserDeleteConfirmOpen, setIsUserDeleteConfirmOpen] = useState(false);
   const [postCreate, setPostCreate] = useState<PostCreateState>(emptyPostCreate);
   const [purchaseCreate, setPurchaseCreate] = useState<PurchaseCreateState>(emptyPurchaseCreate);
   const [permissionForm, setPermissionForm] = useState<PermissionFormState>(emptyPermissionForm);
@@ -491,12 +495,22 @@ export default function AdminDashboardPage() {
   const users = useMemo(() => usersQuery.data?.content ?? [], [usersQuery.data?.content]);
   const filteredUsers = useMemo(() => {
     const keyword = userSearch.trim().toLowerCase();
-    if (!keyword) {
-      return users;
-    }
-    return users.filter((item) =>
-      [item.name, item.nickname, item.email, item.role].some((value) =>
-        value?.toLowerCase().includes(keyword),
+    const collator = new Intl.Collator(["ko-KR", "en-US"], {
+      numeric: true,
+      sensitivity: "base",
+    });
+    const searchedUsers = keyword
+      ? users.filter((item) =>
+          [item.name, item.nickname, item.email, item.role].some((value) =>
+            value?.toLowerCase().includes(keyword),
+          ),
+        )
+      : users;
+
+    return [...searchedUsers].sort((first, second) =>
+      collator.compare(
+        first.name ?? first.nickname ?? first.email ?? "",
+        second.name ?? second.nickname ?? second.email ?? "",
       ),
     );
   }, [userSearch, users]);
@@ -577,6 +591,8 @@ export default function AdminDashboardPage() {
       return;
     }
     setSelectedUserId(item.id);
+    setIsUserEditing(false);
+    setIsUserDeleteConfirmOpen(false);
     setUserForm({
       email: item.email ?? "",
       nickname: item.nickname ?? "",
@@ -584,7 +600,12 @@ export default function AdminDashboardPage() {
       name: item.name ?? "",
       phoneNumber: item.phoneNumber ?? "",
       role: item.role ?? "VOLUNTEER",
-      departmentId: item.departmentId ? String(item.departmentId) : "",
+      departmentId:
+        item.departmentId !== null && item.departmentId !== undefined
+          ? String(item.departmentId)
+          : typeof item.department?.id === "number"
+            ? String(item.department.id)
+            : "",
     });
   }
 
@@ -653,6 +674,7 @@ export default function AdminDashboardPage() {
     mutationFn: () => createUser(mapCreateUserFormToPayload(userForm)),
     onSuccess: () => {
       notifySuccess("사용자를 생성했습니다.");
+      setIsUserCreateModalOpen(false);
       setUserForm(emptyUserForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
     },
@@ -663,6 +685,7 @@ export default function AdminDashboardPage() {
       updateUser({ userId: selectedUserId ?? 0 }, mapUpdateUserFormToPayload(userForm)),
     onSuccess: () => {
       notifySuccess("사용자를 수정했습니다.");
+      setIsUserEditing(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
       if (selectedUserId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.admin.userDetail(selectedUserId) });
@@ -675,6 +698,8 @@ export default function AdminDashboardPage() {
     onSuccess: () => {
       notifySuccess("사용자를 삭제했습니다.");
       setSelectedUserId(null);
+      setIsUserEditing(false);
+      setIsUserDeleteConfirmOpen(false);
       setUserForm(emptyUserForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
     },
@@ -1045,7 +1070,7 @@ export default function AdminDashboardPage() {
   if (!isAdmin) {
     return (
       <Main>
-        <AdminContent>
+        <AdminContent $compact={activeMenu === "users"}>
           <StatePanel>
             <LoadingSpinner label="관리자 권한 확인 중" />
           </StatePanel>
@@ -1106,7 +1131,7 @@ export default function AdminDashboardPage() {
       </Sidebar>
 
       <Main>
-        <AdminContent>
+        <AdminContent $compact={activeMenu === "users"}>
           <AccountText>{user?.email}</AccountText>
           <PageHeader>
             <Title>{currentTitle}</Title>
@@ -1128,7 +1153,11 @@ export default function AdminDashboardPage() {
           {activeMenu === "users" ? (
             <AdminUsersSection
               filteredUsers={filteredUsers}
+              departments={departments}
               selectedUserId={selectedUserId}
+              isUserEditing={isUserEditing}
+              isUserCreateModalOpen={isUserCreateModalOpen}
+              isUserDeleteConfirmOpen={isUserDeleteConfirmOpen}
               userSearch={userSearch}
               userForm={userForm}
               permissionForm={permissionForm}
@@ -1136,7 +1165,6 @@ export default function AdminDashboardPage() {
               availableActions={availableActions}
               canUseGlobalPermission={canUseGlobalPermission}
               canUseTargetPermission={canUseTargetPermission}
-              generatedPermissionCode={generatedPermissionCode}
               usersQuery={usersQuery}
               userDetailQuery={userDetailQuery}
               userPermissionsQuery={userPermissionsQuery}
@@ -1146,6 +1174,9 @@ export default function AdminDashboardPage() {
               addPermissionMutation={addPermissionMutation}
               removePermissionMutation={removePermissionMutation}
               setSelectedUserId={setSelectedUserId}
+              setIsUserEditing={setIsUserEditing}
+              setIsUserCreateModalOpen={setIsUserCreateModalOpen}
+              setIsUserDeleteConfirmOpen={setIsUserDeleteConfirmOpen}
               setUserSearch={setUserSearch}
               setUserForm={setUserForm}
               setPermissionForm={setPermissionForm}
@@ -1448,19 +1479,25 @@ const Main = styled.main`
   background-color: #f4f6f5;
 `;
 
-const AdminContent = styled.div`
+const AdminContent = styled.div<{ $compact?: boolean }>`
   position: relative;
   display: grid;
-  gap: ${spacing.space16};
+  gap: ${({ $compact }) => ($compact ? spacing.space12 : spacing.space16)};
   width: 100%;
   max-width: ${layout.adminMaxWidth};
   margin: 0 auto;
-  padding: 3.25rem ${spacing.space20} ${spacing.space32};
+  padding: ${({ $compact }) =>
+    $compact
+      ? `2.75rem ${spacing.space20} ${spacing.space20}`
+      : `3.25rem ${spacing.space20} ${spacing.space32}`};
 
   @media (min-width: 120rem) {
-    gap: ${spacing.space24};
+    gap: ${({ $compact }) => ($compact ? spacing.space16 : spacing.space24)};
     max-width: ${layout.adminMaxWidthLarge};
-    padding: 5.625rem ${spacing.space24} 4.125rem;
+    padding: ${({ $compact }) =>
+      $compact
+        ? `3.75rem ${spacing.space24} ${spacing.space20}`
+        : `5.625rem ${spacing.space24} 4.125rem`};
   }
 `;
 
