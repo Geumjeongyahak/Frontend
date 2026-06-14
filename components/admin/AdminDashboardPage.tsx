@@ -383,6 +383,9 @@ export default function AdminDashboardPage() {
   const [isUserEditing, setIsUserEditing] = useState(false);
   const [isUserCreateModalOpen, setIsUserCreateModalOpen] = useState(false);
   const [isUserDeleteConfirmOpen, setIsUserDeleteConfirmOpen] = useState(false);
+  const [isChannelEditing, setIsChannelEditing] = useState(false);
+  const [isChannelCreateModalOpen, setIsChannelCreateModalOpen] = useState(false);
+  const [isChannelDeleteConfirmOpen, setIsChannelDeleteConfirmOpen] = useState(false);
   const [isDepartmentEditing, setIsDepartmentEditing] = useState(false);
   const [isDepartmentCreateModalOpen, setIsDepartmentCreateModalOpen] = useState(false);
   const [isDepartmentDeleteConfirmOpen, setIsDepartmentDeleteConfirmOpen] = useState(false);
@@ -567,7 +570,30 @@ export default function AdminDashboardPage() {
       collator.compare(first.name ?? "", second.name ?? ""),
     );
   }, [classroomSearch, classrooms]);
-  const channels = channelsQuery.data ?? [];
+  const channels = useMemo(() => channelsQuery.data ?? [], [channelsQuery.data]);
+  const filteredChannels = useMemo(() => {
+    const keyword = channelSearch.trim().toLowerCase();
+    const collator = new Intl.Collator(["ko-KR", "en-US"], {
+      numeric: true,
+      sensitivity: "base",
+    });
+    const searchedChannels = keyword
+      ? channels.filter((item) =>
+          [
+            item.name,
+            item.description,
+            item.channelType,
+            item.bindingType,
+            item.refId ? String(item.refId) : "",
+            item.id ? String(item.id) : "",
+          ].some((value) => value?.toLowerCase().includes(keyword)),
+        )
+      : channels;
+
+    return [...searchedChannels].sort((first, second) =>
+      collator.compare(first.name ?? "", second.name ?? ""),
+    );
+  }, [channelSearch, channels]);
   const posts = postsQuery.data?.content ?? [];
   const purchases = purchasesQuery.data ?? [];
   const registry = permissionRegistryQuery.data?.length
@@ -665,6 +691,8 @@ export default function AdminDashboardPage() {
       return;
     }
     setSelectedChannelId(item.id);
+    setIsChannelEditing(false);
+    setIsChannelDeleteConfirmOpen(false);
     setChannelForm({
       name: item.name ?? "",
       description: item.description ?? "",
@@ -802,6 +830,7 @@ export default function AdminDashboardPage() {
     mutationFn: () => createChannel(mapChannelFormToPayload(channelForm)),
     onSuccess: () => {
       notifySuccess("채널을 생성했습니다.");
+      setIsChannelCreateModalOpen(false);
       setChannelForm(emptyChannelForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.channels() });
     },
@@ -812,6 +841,7 @@ export default function AdminDashboardPage() {
       updateChannel({ id: selectedChannelId ?? 0 }, mapChannelFormToPayload(channelForm)),
     onSuccess: () => {
       notifySuccess("채널을 수정했습니다.");
+      setIsChannelEditing(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.channels() });
       if (selectedChannelId) {
         queryClient.invalidateQueries({
@@ -826,6 +856,8 @@ export default function AdminDashboardPage() {
     onSuccess: () => {
       notifySuccess("채널을 삭제했습니다.");
       setSelectedChannelId(null);
+      setIsChannelEditing(false);
+      setIsChannelDeleteConfirmOpen(false);
       setChannelForm(emptyChannelForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.channels() });
     },
@@ -1173,6 +1205,7 @@ export default function AdminDashboardPage() {
         <AdminContent
           $compact={
             activeMenu === "users" ||
+            activeMenu === "channels" ||
             activeMenu === "departments" ||
             activeMenu === "classrooms"
           }
@@ -1240,6 +1273,7 @@ export default function AdminDashboardPage() {
         <AdminContent
           $compact={
             activeMenu === "users" ||
+            activeMenu === "channels" ||
             activeMenu === "departments" ||
             activeMenu === "classrooms"
           }
@@ -1298,8 +1332,11 @@ export default function AdminDashboardPage() {
           ) : null}
           {activeMenu === "channels" ? (
             <AdminChannelsSection
-              channels={channels}
+              channels={filteredChannels}
               selectedChannelId={selectedChannelId}
+              isChannelEditing={isChannelEditing}
+              isChannelCreateModalOpen={isChannelCreateModalOpen}
+              isChannelDeleteConfirmOpen={isChannelDeleteConfirmOpen}
               channelSearch={channelSearch}
               channelForm={channelForm}
               channelsQuery={channelsQuery}
@@ -1308,6 +1345,9 @@ export default function AdminDashboardPage() {
               updateChannelMutation={updateChannelMutation}
               deleteChannelMutation={deleteChannelMutation}
               setSelectedChannelId={setSelectedChannelId}
+              setIsChannelEditing={setIsChannelEditing}
+              setIsChannelCreateModalOpen={setIsChannelCreateModalOpen}
+              setIsChannelDeleteConfirmOpen={setIsChannelDeleteConfirmOpen}
               setChannelSearch={setChannelSearch}
               setChannelForm={setChannelForm}
               selectChannel={selectChannel}
