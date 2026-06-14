@@ -22,7 +22,6 @@ import {
   DataState,
   InlineStatus,
   Label,
-  PrimaryButton,
   SectionCard,
   SectionDescription,
   SectionTitle,
@@ -603,13 +602,13 @@ export function AdminLessonScheduleTables() {
 
             <ModalActions>
               <ButtonRow>
-                <PrimaryButton
+                <LessonActionButton
                   type="button"
                   disabled={saveCellMutation.isPending}
                   onClick={handleSaveCell}
                 >
                   {saveCellMutation.isPending ? "저장 중..." : "저장"}
-                </PrimaryButton>
+                </LessonActionButton>
                 <SmallButton
                   type="button"
                   disabled={saveCellMutation.isPending}
@@ -666,9 +665,9 @@ export function AdminLessonScheduleTables() {
                 <SmallButton type="button" onClick={() => setPeriodColors(DEFAULT_PERIOD_COLORS)}>
                   기본값
                 </SmallButton>
-                <PrimaryButton type="button" onClick={() => setIsColorSettingsOpen(false)}>
+                <LessonActionButton type="button" onClick={() => setIsColorSettingsOpen(false)}>
                   적용
-                </PrimaryButton>
+                </LessonActionButton>
               </ButtonRow>
             </ModalActions>
           </ColorModalDialog>
@@ -744,7 +743,9 @@ const IconButton = styled.button`
   position: absolute;
   top: -0.375rem;
   right: -0.375rem;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 1.75rem;
   height: 1.75rem;
   border: 0;
@@ -752,8 +753,10 @@ const IconButton = styled.button`
   background-color: transparent;
   color: #64706c;
   cursor: pointer;
+  line-height: 0;
 
   svg {
+    display: block;
     width: 1rem;
     height: 1rem;
   }
@@ -1082,6 +1085,38 @@ const TimeFields = styled.div`
 const ModalActions = styled.div`
   display: flex;
   justify-content: flex-end;
+`;
+
+const LessonActionButton = styled.button.attrs<{ type?: "button" | "submit" | "reset" }>(
+  ({ type }) => ({
+    type: type ?? "button",
+  }),
+)`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  border: 1px solid ${colors.point};
+  border-radius: 0.375rem;
+  background-color: ${colors.white};
+  padding: 0 ${spacing.space16};
+  color: ${colors.point};
+  font-family: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const ColorModalDialog = styled(ModalDialog)`
