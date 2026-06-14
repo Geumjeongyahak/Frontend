@@ -386,6 +386,9 @@ export default function AdminDashboardPage() {
   const [isDepartmentEditing, setIsDepartmentEditing] = useState(false);
   const [isDepartmentCreateModalOpen, setIsDepartmentCreateModalOpen] = useState(false);
   const [isDepartmentDeleteConfirmOpen, setIsDepartmentDeleteConfirmOpen] = useState(false);
+  const [isClassroomEditing, setIsClassroomEditing] = useState(false);
+  const [isClassroomCreateModalOpen, setIsClassroomCreateModalOpen] = useState(false);
+  const [isClassroomDeleteConfirmOpen, setIsClassroomDeleteConfirmOpen] = useState(false);
   const [postCreate, setPostCreate] = useState<PostCreateState>(emptyPostCreate);
   const [purchaseCreate, setPurchaseCreate] = useState<PurchaseCreateState>(emptyPurchaseCreate);
   const [permissionForm, setPermissionForm] = useState<PermissionFormState>(emptyPermissionForm);
@@ -542,7 +545,28 @@ export default function AdminDashboardPage() {
       collator.compare(first.name ?? "", second.name ?? ""),
     );
   }, [departmentSearch, departments]);
-  const classrooms = classroomsQuery.data?.content ?? [];
+  const classrooms = useMemo(
+    () => classroomsQuery.data?.content ?? [],
+    [classroomsQuery.data?.content],
+  );
+  const filteredClassrooms = useMemo(() => {
+    const keyword = classroomSearch.trim().toLowerCase();
+    const collator = new Intl.Collator(["ko-KR", "en-US"], {
+      numeric: true,
+      sensitivity: "base",
+    });
+    const searchedClassrooms = keyword
+      ? classrooms.filter((item) =>
+          [item.name, item.type, item.description, item.id ? String(item.id) : ""].some((value) =>
+            value?.toLowerCase().includes(keyword),
+          ),
+        )
+      : classrooms;
+
+    return [...searchedClassrooms].sort((first, second) =>
+      collator.compare(first.name ?? "", second.name ?? ""),
+    );
+  }, [classroomSearch, classrooms]);
   const channels = channelsQuery.data ?? [];
   const posts = postsQuery.data?.content ?? [];
   const purchases = purchasesQuery.data ?? [];
@@ -688,6 +712,8 @@ export default function AdminDashboardPage() {
       return;
     }
     setSelectedClassroomId(item.id);
+    setIsClassroomEditing(false);
+    setIsClassroomDeleteConfirmOpen(false);
     setClassroomForm({
       name: item.name ?? "",
       type: item.type ?? "WEEKDAY",
@@ -963,6 +989,7 @@ export default function AdminDashboardPage() {
     mutationFn: () => createClassroom(classroomForm),
     onSuccess: () => {
       notifySuccess("분반을 생성했습니다.");
+      setIsClassroomCreateModalOpen(false);
       setClassroomForm(emptyClassroomForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.classrooms() });
     },
@@ -972,6 +999,7 @@ export default function AdminDashboardPage() {
     mutationFn: () => updateClassroom({ id: selectedClassroomId ?? 0 }, classroomForm),
     onSuccess: () => {
       notifySuccess("분반을 수정했습니다.");
+      setIsClassroomEditing(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.classrooms() });
       if (selectedClassroomId) {
         queryClient.invalidateQueries({
@@ -986,6 +1014,8 @@ export default function AdminDashboardPage() {
     onSuccess: () => {
       notifySuccess("분반을 삭제했습니다.");
       setSelectedClassroomId(null);
+      setIsClassroomEditing(false);
+      setIsClassroomDeleteConfirmOpen(false);
       setClassroomForm(emptyClassroomForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.classrooms() });
     },
@@ -1140,7 +1170,13 @@ export default function AdminDashboardPage() {
   if (!isAdmin) {
     return (
       <Main>
-        <AdminContent $compact={activeMenu === "users" || activeMenu === "departments"}>
+        <AdminContent
+          $compact={
+            activeMenu === "users" ||
+            activeMenu === "departments" ||
+            activeMenu === "classrooms"
+          }
+        >
           <StatePanel>
             <LoadingSpinner label="관리자 권한 확인 중" />
           </StatePanel>
@@ -1201,7 +1237,13 @@ export default function AdminDashboardPage() {
       </Sidebar>
 
       <Main>
-        <AdminContent $compact={activeMenu === "users" || activeMenu === "departments"}>
+        <AdminContent
+          $compact={
+            activeMenu === "users" ||
+            activeMenu === "departments" ||
+            activeMenu === "classrooms"
+          }
+        >
           <AccountText>{user?.email}</AccountText>
           <PageHeader>
             <Title>{currentTitle}</Title>
@@ -1329,8 +1371,11 @@ export default function AdminDashboardPage() {
           ) : null}
           {activeMenu === "classrooms" ? (
             <AdminClassroomsSection
-              classrooms={classrooms}
+              classrooms={filteredClassrooms}
               selectedClassroomId={selectedClassroomId}
+              isClassroomEditing={isClassroomEditing}
+              isClassroomCreateModalOpen={isClassroomCreateModalOpen}
+              isClassroomDeleteConfirmOpen={isClassroomDeleteConfirmOpen}
               classroomSearch={classroomSearch}
               classroomForm={classroomForm}
               classroomsQuery={classroomsQuery}
@@ -1339,6 +1384,9 @@ export default function AdminDashboardPage() {
               updateClassroomMutation={updateClassroomMutation}
               deleteClassroomMutation={deleteClassroomMutation}
               setSelectedClassroomId={setSelectedClassroomId}
+              setIsClassroomEditing={setIsClassroomEditing}
+              setIsClassroomCreateModalOpen={setIsClassroomCreateModalOpen}
+              setIsClassroomDeleteConfirmOpen={setIsClassroomDeleteConfirmOpen}
               setClassroomSearch={setClassroomSearch}
               setClassroomForm={setClassroomForm}
               selectClassroom={selectClassroom}
