@@ -108,6 +108,12 @@ const navigationItems: { key: AdminMenu; label: string }[] = [
   { key: "purchases", label: "결제 요청 관리" },
 ];
 
+const ADMIN_ACTIVE_MENU_STORAGE_KEY = "admin-active-menu";
+
+function isAdminMenu(value: string | null): value is AdminMenu {
+  return Boolean(value && navigationItems.some((item) => item.key === value));
+}
+
 const fallbackPermissions: PermissionDefinitionDto[] = [
   {
     permissionCode: "user:manage:*",
@@ -363,7 +369,14 @@ export default function AdminDashboardPage() {
   const queryClient = useQueryClient();
   const { status, user, signOut } = useAuthSession();
   const isAdmin = status === "authenticated" && user?.role === "ADMIN";
-  const [activeMenu, setActiveMenu] = useState<AdminMenu>("dashboard");
+  const [activeMenu, setActiveMenu] = useState<AdminMenu>(() => {
+    if (typeof window === "undefined") {
+      return "dashboard";
+    }
+
+    const storedMenu = window.localStorage.getItem(ADMIN_ACTIVE_MENU_STORAGE_KEY);
+    return isAdminMenu(storedMenu) ? storedMenu : "dashboard";
+  });
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const [selectedPost, setSelectedPost] = useState<{ channelId: number; postId: number } | null>(
@@ -405,6 +418,32 @@ export default function AdminDashboardPage() {
   const [purchaseCreate, setPurchaseCreate] = useState<PurchaseCreateState>(emptyPurchaseCreate);
   const [permissionForm, setPermissionForm] = useState<PermissionFormState>(emptyPermissionForm);
   const [reviewNote, setReviewNote] = useState("");
+
+  function resetTransientPanels() {
+    setSelectedUserId(null);
+    setSelectedChannelId(null);
+    setSelectedPost(null);
+    setSelectedDepartmentId(null);
+    setSelectedClassroomId(null);
+    setSelectedPurchaseId(null);
+    setIsUserEditing(false);
+    setIsChannelEditing(false);
+    setIsPostEditing(false);
+    setIsDepartmentEditing(false);
+    setIsClassroomEditing(false);
+    setIsUserDeleteConfirmOpen(false);
+    setIsChannelDeleteConfirmOpen(false);
+    setIsDepartmentDeleteConfirmOpen(false);
+    setIsClassroomDeleteConfirmOpen(false);
+    setPostEdit(emptyPostEdit);
+    setReviewNote("");
+  }
+
+  function handleActiveMenuChange(menu: AdminMenu) {
+    resetTransientPanels();
+    setActiveMenu(menu);
+    window.localStorage.setItem(ADMIN_ACTIVE_MENU_STORAGE_KEY, menu);
+  }
 
   useEffect(() => {
     if (status === "unauthenticated" || (status === "authenticated" && user?.role !== "ADMIN")) {
@@ -1328,7 +1367,7 @@ export default function AdminDashboardPage() {
               key={item.key}
               type="button"
               $active={activeMenu === item.key}
-              onClick={() => setActiveMenu(item.key)}
+              onClick={() => handleActiveMenuChange(item.key)}
             >
               {item.label}
             </SidebarItem>
@@ -1368,7 +1407,7 @@ export default function AdminDashboardPage() {
               pendingPurchasesQuery={pendingPurchasesQuery}
               pendingAbsenceRequestsQuery={pendingAbsenceRequestsQuery}
               pendingLessonExchangeRequestsQuery={pendingLessonExchangeRequestsQuery}
-              setActiveMenu={setActiveMenu}
+              setActiveMenu={handleActiveMenuChange}
             />
           ) : null}
           {activeMenu === "users" ? (

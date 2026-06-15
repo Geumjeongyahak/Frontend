@@ -1,6 +1,5 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
 import type { AdminMenu } from "@/components/admin/AdminDashboardTypes";
 import {
   ActionCardButton,
@@ -57,7 +56,7 @@ type AdminMainDashboardSectionProps = {
   pendingPurchasesQuery: QueryState;
   pendingAbsenceRequestsQuery: QueryState;
   pendingLessonExchangeRequestsQuery: QueryState;
-  setActiveMenu: Dispatch<SetStateAction<AdminMenu>>;
+  setActiveMenu: (menu: AdminMenu) => void;
 };
 
 export function AdminMainDashboardSection({
