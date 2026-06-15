@@ -73,6 +73,7 @@ export interface LessonExchangeRequestListItemDto {
   classroomName: string;
   requestedByName: string;
   title: string;
+  lessonDate?: string;
   status: LessonExchangeRequestStatus;
   createdAt: string;
 }

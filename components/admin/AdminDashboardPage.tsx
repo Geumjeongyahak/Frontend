@@ -1277,7 +1277,8 @@ export default function AdminDashboardPage() {
             activeMenu === "departments" ||
             activeMenu === "classrooms" ||
             activeMenu === "purchases" ||
-            activeMenu === "absenceRequests"
+            activeMenu === "absenceRequests" ||
+            activeMenu === "lessonExchange"
           }
         >
           <StatePanel>
@@ -1348,7 +1349,8 @@ export default function AdminDashboardPage() {
             activeMenu === "departments" ||
             activeMenu === "classrooms" ||
             activeMenu === "purchases" ||
-            activeMenu === "absenceRequests"
+            activeMenu === "absenceRequests" ||
+            activeMenu === "lessonExchange"
           }
         >
           <AccountText>{user?.email}</AccountText>

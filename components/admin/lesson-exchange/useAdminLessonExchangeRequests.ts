@@ -53,7 +53,6 @@ export function useAdminLessonExchangeRequests() {
     },
   });
 
-  const lessonExchangeRequests = lessonExchangeRequestsQuery.data?.content ?? [];
   const totalPages = Math.max(1, lessonExchangeRequestsQuery.data?.totalPages ?? 1);
   const currentPage = page <= totalPages ? page : totalPages;
 
@@ -102,13 +101,16 @@ export function useAdminLessonExchangeRequests() {
   });
 
   const sortedRequests = useMemo(
-    () =>
-      [...lessonExchangeRequests].sort((a, b) => {
+    () => {
+      const lessonExchangeRequests = lessonExchangeRequestsQuery.data?.content ?? [];
+
+      return [...lessonExchangeRequests].sort((a, b) => {
         const aTime = new Date(a.createdAt ?? 0).getTime();
         const bTime = new Date(b.createdAt ?? 0).getTime();
         return bTime - aTime;
-      }),
-    [lessonExchangeRequests],
+      });
+    },
+    [lessonExchangeRequestsQuery.data?.content],
   );
 
   const resetSelection = () => {
@@ -118,6 +120,13 @@ export function useAdminLessonExchangeRequests() {
 
   const handleSearch = () => {
     setKeyword(keywordInput);
+    setPage(1);
+    resetSelection();
+  };
+
+  const handleKeywordInputChange = (value: string) => {
+    setKeywordInput(value);
+    setKeyword(value);
     setPage(1);
     resetSelection();
   };
@@ -168,10 +177,15 @@ export function useAdminLessonExchangeRequests() {
     resetSelection();
   };
 
+  const goToPage = (nextPage: number) => {
+    setPage(Math.min(totalPages, Math.max(1, nextPage)));
+    resetSelection();
+  };
+
   return {
     statusFilter,
     keywordInput,
-    setKeywordInput,
+    handleKeywordInputChange,
     handleSearch,
     handleStatusFilterChange,
     lessonExchangeRequestsQuery,
@@ -179,10 +193,12 @@ export function useAdminLessonExchangeRequests() {
     selectedRequestId,
     lessonExchangeDetailQuery,
     selectLessonExchangeRequest,
+    resetSelection,
     currentPage,
     totalPages,
     goToPrevPage,
     goToNextPage,
+    goToPage,
     rejectNote,
     setRejectNote,
     handleApprove,
