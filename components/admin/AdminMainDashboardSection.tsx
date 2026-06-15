@@ -137,9 +137,9 @@ export function AdminMainDashboardSection({
       title: "요청 관리",
       actions: [
         {
-          title: "결제 요청 관리",
-          description: "물품 구매 요청 처리",
-          menu: "purchases",
+          title: "수업 교환 요청 관리",
+          description: "수업 교환 요청 승인/반려 처리",
+          menu: "lessonExchange",
         },
         {
           title: "결강 요청 관리",
@@ -147,9 +147,9 @@ export function AdminMainDashboardSection({
           menu: "absenceRequests",
         },
         {
-          title: "수업 교환 요청 관리",
-          description: "수업 교환 요청 승인/반려 처리",
-          menu: "lessonExchange",
+          title: "결제 요청 관리",
+          description: "물품 구매 요청 처리",
+          menu: "purchases",
         },
       ],
     },

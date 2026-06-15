@@ -41,7 +41,6 @@ export function useAdminAbsenceRequests() {
     },
   });
 
-  const absenceRequests = absenceRequestsQuery.data?.content ?? [];
   const totalPages = Math.max(1, absenceRequestsQuery.data?.totalPages ?? 1);
   const currentPage = page <= totalPages ? page : totalPages;
 
@@ -79,13 +78,16 @@ export function useAdminAbsenceRequests() {
   });
 
   const sortedRequests = useMemo(
-    () =>
-      [...absenceRequests].sort((a, b) => {
+    () => {
+      const absenceRequests = absenceRequestsQuery.data?.content ?? [];
+
+      return [...absenceRequests].sort((a, b) => {
         const aTime = new Date(a.createdAt ?? a.lessonDate ?? 0).getTime();
         const bTime = new Date(b.createdAt ?? b.lessonDate ?? 0).getTime();
         return bTime - aTime;
-      }),
-    [absenceRequests],
+      });
+    },
+    [absenceRequestsQuery.data?.content],
   );
 
   const selectedAbsence = useMemo(
@@ -100,6 +102,13 @@ export function useAdminAbsenceRequests() {
 
   const handleSearch = () => {
     setKeyword(keywordInput);
+    setPage(1);
+    resetSelection();
+  };
+
+  const handleKeywordInputChange = (value: string) => {
+    setKeywordInput(value);
+    setKeyword(value);
     setPage(1);
     resetSelection();
   };
@@ -126,6 +135,11 @@ export function useAdminAbsenceRequests() {
     resetSelection();
   };
 
+  const goToPage = (nextPage: number) => {
+    setPage(Math.min(totalPages, Math.max(1, nextPage)));
+    resetSelection();
+  };
+
   const handleApprove = () => {
     const requestId = selectedAbsence?.id;
     if (!requestId || approveMutation.isPending) return;
@@ -148,7 +162,7 @@ export function useAdminAbsenceRequests() {
   return {
     statusFilter,
     keywordInput,
-    setKeywordInput,
+    handleKeywordInputChange,
     handleSearch,
     handleStatusFilterChange,
     absenceRequestsQuery,
@@ -156,10 +170,12 @@ export function useAdminAbsenceRequests() {
     selectedAbsenceId,
     selectedAbsence,
     selectAbsence,
+    resetSelection,
     currentPage,
     totalPages,
     goToPrevPage,
     goToNextPage,
+    goToPage,
     rejectNote,
     setRejectNote,
     handleApprove,

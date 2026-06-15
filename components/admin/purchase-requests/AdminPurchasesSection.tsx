@@ -181,9 +181,9 @@ export function AdminPurchasesSection({
     isRejecting && reviewNote.trim().length > 0 && !rejectPurchaseMutation.isPending;
   const canSubmitPurchase = Boolean(
     purchaseCreate.title.trim().length > 0 &&
-      purchaseCreate.classroomId &&
-      purchaseCreate.items.length > 0 &&
-      purchaseCreate.items.every((item) => item.itemName.trim().length > 0),
+    purchaseCreate.classroomId &&
+    purchaseCreate.items.length > 0 &&
+    purchaseCreate.items.every((item) => item.itemName.trim().length > 0),
   );
   const confirmMessage = {
     approve: "승인하시겠습니까?",
@@ -335,6 +335,15 @@ export function AdminPurchasesSection({
     }
   }
 
+  function handlePurchaseSearchChange(value: string) {
+    setPurchaseSearch(value);
+    setPagination({ page: 1, search: `${purchaseStatus}:${value}` });
+
+    if (isDetailOpen) {
+      closePurchaseDetail();
+    }
+  }
+
   return (
     <>
       <PurchaseListSection $isPanelOpen={isDetailOpen} onClick={handlePurchaseListSectionClick}>
@@ -358,7 +367,7 @@ export function AdminPurchasesSection({
             }
             aria-label="결제 요청 상태 필터"
           >
-            <option value="">전체 상태</option>
+            <option value="">전체</option>
             <option value="PENDING">대기</option>
             <option value="APPROVED">승인</option>
             <option value="PURCHASED">구매 완료</option>
@@ -367,7 +376,7 @@ export function AdminPurchasesSection({
           </FilterSelect>
           <TextInput
             value={purchaseSearch}
-            onChange={(event) => setPurchaseSearch(event.target.value)}
+            onChange={(event) => handlePurchaseSearchChange(event.target.value)}
             placeholder="제목, 소속, 요청자, ID 검색"
           />
         </ControlRow>
@@ -484,16 +493,16 @@ export function AdminPurchasesSection({
                         <span>{purchaseDetailQuery.data?.title ?? "-"}</span>
                       </ListItem>
                       <ListItem>
-                        <span>상태</span>
-                        <span>{formatPurchaseStatus(purchaseDetailQuery.data?.status)}</span>
-                      </ListItem>
-                      <ListItem>
                         <span>요청자</span>
                         <span>{purchaseDetailQuery.data?.requestedByName ?? "-"}</span>
                       </ListItem>
                       <ListItem>
                         <span>소속</span>
                         <span>{purchaseDetailQuery.data?.classroomName ?? "-"}</span>
+                      </ListItem>
+                      <ListItem>
+                        <span>상태</span>
+                        <span>{formatPurchaseStatus(purchaseDetailQuery.data?.status)}</span>
                       </ListItem>
                     </List>
                   </DetailBlock>
@@ -1159,7 +1168,12 @@ const selectBase = `
 
 const FilterSelect = styled.select`
   ${selectBase}
-  flex: 0 0 10rem;
+  width: 9.5rem;
+  min-width: 9.5rem;
+  max-width: 9.5rem;
+  flex: 0 0 9.5rem;
+  height: 2.375rem;
+  min-height: 2.375rem;
 `;
 
 const PurchaseSelect = styled.select`

@@ -847,6 +847,7 @@ const PostControlRow = styled(ControlRow)`
 
 const FilterSelect = styled.select`
   width: 9.5rem;
+  height: 2.375rem;
   min-height: 2.375rem;
   border: 1px solid ${colors.border};
   border-radius: 0.375rem;
@@ -875,6 +876,7 @@ const FilterSelect = styled.select`
 
 const PostSelect = styled.select`
   width: 100%;
+  height: 2.375rem;
   min-height: 2.375rem;
   border: 1px solid ${colors.border};
   border-radius: 0.375rem;

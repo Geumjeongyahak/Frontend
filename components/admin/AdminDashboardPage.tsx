@@ -103,9 +103,9 @@ const navigationItems: { key: AdminMenu; label: string }[] = [
   { key: "lessons", label: "수업 관리" },
   { key: "channels", label: "채널 관리" },
   { key: "posts", label: "게시글 관리" },
-  { key: "purchases", label: "결제 요청 관리" },
-  { key: "absenceRequests", label: "결강 요청 관리" },
   { key: "lessonExchange", label: "수업 교환 요청 관리" },
+  { key: "absenceRequests", label: "결강 요청 관리" },
+  { key: "purchases", label: "결제 요청 관리" },
 ];
 
 const fallbackPermissions: PermissionDefinitionDto[] = [
@@ -429,7 +429,7 @@ export default function AdminDashboardPage() {
     placeholderData: (previousData) => previousData,
   });
   const pendingPurchasesQuery = useQuery({
-    queryKey: queryKeys.admin.purchaseRequests("PENDING"),
+    queryKey: queryKeys.admin.purchaseRequests({ status: "PENDING" }),
     queryFn: () => getAllPurchaseRequests({ status: "PENDING" }),
     enabled: isAdmin,
   });
@@ -478,8 +478,15 @@ export default function AdminDashboardPage() {
     enabled: isAdmin,
   });
   const purchasesQuery = useQuery({
-    queryKey: queryKeys.admin.purchaseRequests(purchaseStatus || undefined),
-    queryFn: () => getAllPurchaseRequests(purchaseStatus ? { status: purchaseStatus } : undefined),
+    queryKey: queryKeys.admin.purchaseRequests({
+      status: purchaseStatus || undefined,
+      keyword: purchaseSearch.trim() || undefined,
+    }),
+    queryFn: () =>
+      getAllPurchaseRequests({
+        status: purchaseStatus || undefined,
+        keyword: purchaseSearch.trim() || undefined,
+      }),
     enabled: isAdmin,
   });
   const vendorsQuery = useQuery({
@@ -691,11 +698,10 @@ export default function AdminDashboardPage() {
     pendingLessonExchangeRequestsQuery.data?.totalElements ?? 0;
   const requestSummaries = [
     {
-      label: "대기 중인 결제 요청",
-      count: pendingPurchaseCount,
-      description: `${pendingPurchaseCount}건의 검토가 필요합니다.`,
-      menu: "purchases" as const,
-      onClick: () => setPurchaseStatus("PENDING"),
+      label: "대기 중인 수업 교환 요청",
+      count: pendingLessonExchangeRequestCount,
+      description: `${pendingLessonExchangeRequestCount}건의 검토가 필요합니다.`,
+      menu: "lessonExchange" as const,
     },
     {
       label: "대기 중인 결강 요청",
@@ -704,10 +710,11 @@ export default function AdminDashboardPage() {
       menu: "absenceRequests" as const,
     },
     {
-      label: "대기 중인 수업 교환 요청",
-      count: pendingLessonExchangeRequestCount,
-      description: `${pendingLessonExchangeRequestCount}건의 검토가 필요합니다.`,
-      menu: "lessonExchange" as const,
+      label: "대기 중인 결제 요청",
+      count: pendingPurchaseCount,
+      description: `${pendingPurchaseCount}건의 검토가 필요합니다.`,
+      menu: "purchases" as const,
+      onClick: () => setPurchaseStatus("PENDING"),
     },
   ];
 
@@ -1269,7 +1276,8 @@ export default function AdminDashboardPage() {
             activeMenu === "posts" ||
             activeMenu === "departments" ||
             activeMenu === "classrooms" ||
-            activeMenu === "purchases"
+            activeMenu === "purchases" ||
+            activeMenu === "absenceRequests"
           }
         >
           <StatePanel>
@@ -1339,7 +1347,8 @@ export default function AdminDashboardPage() {
             activeMenu === "posts" ||
             activeMenu === "departments" ||
             activeMenu === "classrooms" ||
-            activeMenu === "purchases"
+            activeMenu === "purchases" ||
+            activeMenu === "absenceRequests"
           }
         >
           <AccountText>{user?.email}</AccountText>
@@ -1504,8 +1513,8 @@ export default function AdminDashboardPage() {
             />
           ) : null}
           {activeMenu === "lessons" ? <AdminLessonManagementSection /> : null}
-          {activeMenu === "absenceRequests" ? <AdminAbsenceRequestsSection /> : null}
           {activeMenu === "lessonExchange" ? <AdminLessonExchangeSection /> : null}
+          {activeMenu === "absenceRequests" ? <AdminAbsenceRequestsSection /> : null}
           {activeMenu === "purchases" ? (
             <AdminPurchasesSection
               classrooms={classrooms}

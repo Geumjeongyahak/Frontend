@@ -73,7 +73,11 @@ export const queryKeys = {
       ["admin", "classrooms", "detail", classroomId] as const,
     subjects: (classroomId?: number) => ["admin", "subjects", { classroomId }] as const,
     activeVolunteerTeachers: () => ["admin", "users", "active-volunteer-teachers"] as const,
-    purchaseRequests: (status?: string) => ["admin", "purchase-requests", { status }] as const,
+    purchaseRequests: (params?: string | { status?: string; keyword?: string }) => {
+      const normalizedParams = typeof params === "string" ? { status: params } : (params ?? {});
+
+      return ["admin", "purchase-requests", normalizedParams] as const;
+    },
     purchaseRequestDetail: (requestId: number) =>
       ["admin", "purchase-requests", "detail", requestId] as const,
   },

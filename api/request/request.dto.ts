@@ -18,6 +18,7 @@ export interface RequestStatusQueryParamsDto {
 
 export interface PurchaseRequestStatusQueryParamsDto {
   status?: PurchaseRequestStatus;
+  keyword?: string;
 }
 
 export interface RequestPathParamsDto {
