@@ -43,10 +43,12 @@ import {
   updateClassroom,
 } from "@/api/classroom/classroom.api";
 import {
+  addDepartmentPermission,
   createDepartment,
   deleteDepartment,
   getDepartmentDetail,
   getDepartments,
+  removeDepartmentPermission,
   updateDepartment,
 } from "@/api/department/department.api";
 import {
@@ -63,6 +65,7 @@ import {
   confirmPurchase,
   createPurchaseRequest,
   deleteAdminPurchaseRequest,
+  getAbsenceRequests,
   getAdminPurchaseRequestDetail,
   getAllPurchaseRequests,
   rejectAdminPurchaseRequest,
@@ -84,6 +87,7 @@ import {
   updateUser,
 } from "@/api/user/user.api";
 import type { PermissionDefinitionDto } from "@/api/user/user.dto";
+import { getLessonExchangeRequests } from "@/api/lessonExchange/lessonExchange.api";
 import { chargeVendor, getVendors } from "@/api/vendor/vendor.api";
 import type { VendorResponseDto } from "@/api/vendor/vendor.dto";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
@@ -93,16 +97,22 @@ import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const navigationItems: { key: AdminMenu; label: string }[] = [
   { key: "dashboard", label: "대시보드" },
-  { key: "users", label: "사용자" },
-  { key: "departments", label: "부서" },
-  { key: "classrooms", label: "분반" },
+  { key: "users", label: "사용자 관리" },
+  { key: "departments", label: "부서 관리" },
+  { key: "classrooms", label: "분반 관리" },
   { key: "lessons", label: "수업 관리" },
-  { key: "channels", label: "채널" },
-  { key: "posts", label: "게시글" },
-  { key: "purchases", label: "구매 요청" },
-  { key: "absenceRequests", label: "결석 요청" },
-  { key: "lessonExchange", label: "수업 교환 요청" },
+  { key: "channels", label: "채널 관리" },
+  { key: "posts", label: "게시글 관리" },
+  { key: "lessonExchange", label: "수업 교환 요청 관리" },
+  { key: "absenceRequests", label: "결강 요청 관리" },
+  { key: "purchases", label: "결제 요청 관리" },
 ];
+
+const ADMIN_ACTIVE_MENU_STORAGE_KEY = "admin-active-menu";
+
+function isAdminMenu(value: string | null): value is AdminMenu {
+  return Boolean(value && navigationItems.some((item) => item.key === value));
+}
 
 const fallbackPermissions: PermissionDefinitionDto[] = [
   {
@@ -214,12 +224,16 @@ const emptyPostCreate: PostCreateState = {
 
 const emptyPurchaseCreate: PurchaseCreateState = {
   title: "",
-  content: "",
   classroomId: "",
-  itemName: "",
-  itemQuantity: "1",
-  itemReason: "",
-  itemPaymentType: "ACTUAL",
+  items: [
+    {
+      id: "purchase-item-1",
+      itemName: "",
+      itemQuantity: "1",
+      itemReason: "",
+      itemPaymentType: "ACTUAL",
+    },
+  ],
 };
 
 const emptyPermissionForm: PermissionFormState = {
@@ -254,11 +268,14 @@ function buildPermissionCode(form: PermissionFormState) {
 }
 
 function mapCreateUserFormToPayload(form: UserFormState) {
+  const name = form.name.trim();
+  const email = form.email.trim();
+
   return {
-    email: form.email.trim(),
-    nickname: form.nickname.trim(),
+    email,
+    nickname: form.nickname.trim() || name || email,
     password: form.password,
-    name: form.name.trim(),
+    name,
     phoneNumber: form.phoneNumber.trim() || undefined,
     role: form.role,
     departmentId: form.departmentId ? (toNumber(form.departmentId) ?? null) : null,
@@ -268,8 +285,6 @@ function mapCreateUserFormToPayload(form: UserFormState) {
 function mapUpdateUserFormToPayload(form: UserFormState) {
   return {
     email: form.email.trim(),
-    nickname: form.nickname.trim(),
-    ...(form.password ? { password: form.password } : {}),
     name: form.name.trim(),
     phoneNumber: form.phoneNumber.trim() || undefined,
     role: form.role,
@@ -354,7 +369,14 @@ export default function AdminDashboardPage() {
   const queryClient = useQueryClient();
   const { status, user, signOut } = useAuthSession();
   const isAdmin = status === "authenticated" && user?.role === "ADMIN";
-  const [activeMenu, setActiveMenu] = useState<AdminMenu>("dashboard");
+  const [activeMenu, setActiveMenu] = useState<AdminMenu>(() => {
+    if (typeof window === "undefined") {
+      return "dashboard";
+    }
+
+    const storedMenu = window.localStorage.getItem(ADMIN_ACTIVE_MENU_STORAGE_KEY);
+    return isAdminMenu(storedMenu) ? storedMenu : "dashboard";
+  });
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const [selectedPost, setSelectedPost] = useState<{ channelId: number; postId: number } | null>(
@@ -364,9 +386,13 @@ export default function AdminDashboardPage() {
   const [selectedClassroomId, setSelectedClassroomId] = useState<number | null>(null);
   const [selectedPurchaseId, setSelectedPurchaseId] = useState<number | null>(null);
   const [userSearch, setUserSearch] = useState("");
+  const [departmentSearch, setDepartmentSearch] = useState("");
   const [channelSearch, setChannelSearch] = useState("");
   const [postTitleSearch, setPostTitleSearch] = useState("");
+  const [postChannelTypeFilter, setPostChannelTypeFilter] = useState("all");
+  const [postScopeFilter, setPostScopeFilter] = useState("all");
   const [classroomSearch, setClassroomSearch] = useState("");
+  const [purchaseSearch, setPurchaseSearch] = useState("");
   const [purchaseStatus, setPurchaseStatus] = useState<PurchaseRequestStatus | "">("");
   const [userForm, setUserForm] = useState<UserFormState>(emptyUserForm);
   const [channelForm, setChannelForm] = useState<ChannelFormState>(emptyChannelForm);
@@ -374,10 +400,50 @@ export default function AdminDashboardPage() {
   const [classroomForm, setClassroomForm] = useState<ClassroomFormState>(emptyClassroomForm);
   const [postEdit, setPostEdit] = useState<PostEditState>(emptyPostEdit);
   const [isPostEditing, setIsPostEditing] = useState(false);
+  const [isUserEditing, setIsUserEditing] = useState(false);
+  const [isUserCreateModalOpen, setIsUserCreateModalOpen] = useState(false);
+  const [isUserDeleteConfirmOpen, setIsUserDeleteConfirmOpen] = useState(false);
+  const [isChannelEditing, setIsChannelEditing] = useState(false);
+  const [isChannelCreateModalOpen, setIsChannelCreateModalOpen] = useState(false);
+  const [isChannelDeleteConfirmOpen, setIsChannelDeleteConfirmOpen] = useState(false);
+  const [isDepartmentEditing, setIsDepartmentEditing] = useState(false);
+  const [isDepartmentCreateModalOpen, setIsDepartmentCreateModalOpen] = useState(false);
+  const [isDepartmentDeleteConfirmOpen, setIsDepartmentDeleteConfirmOpen] = useState(false);
+  const [isClassroomEditing, setIsClassroomEditing] = useState(false);
+  const [isClassroomCreateModalOpen, setIsClassroomCreateModalOpen] = useState(false);
+  const [isClassroomDeleteConfirmOpen, setIsClassroomDeleteConfirmOpen] = useState(false);
+  const [isPostCreateModalOpen, setIsPostCreateModalOpen] = useState(false);
+  const [isPurchaseCreateModalOpen, setIsPurchaseCreateModalOpen] = useState(false);
   const [postCreate, setPostCreate] = useState<PostCreateState>(emptyPostCreate);
   const [purchaseCreate, setPurchaseCreate] = useState<PurchaseCreateState>(emptyPurchaseCreate);
   const [permissionForm, setPermissionForm] = useState<PermissionFormState>(emptyPermissionForm);
   const [reviewNote, setReviewNote] = useState("");
+
+  function resetTransientPanels() {
+    setSelectedUserId(null);
+    setSelectedChannelId(null);
+    setSelectedPost(null);
+    setSelectedDepartmentId(null);
+    setSelectedClassroomId(null);
+    setSelectedPurchaseId(null);
+    setIsUserEditing(false);
+    setIsChannelEditing(false);
+    setIsPostEditing(false);
+    setIsDepartmentEditing(false);
+    setIsClassroomEditing(false);
+    setIsUserDeleteConfirmOpen(false);
+    setIsChannelDeleteConfirmOpen(false);
+    setIsDepartmentDeleteConfirmOpen(false);
+    setIsClassroomDeleteConfirmOpen(false);
+    setPostEdit(emptyPostEdit);
+    setReviewNote("");
+  }
+
+  function handleActiveMenuChange(menu: AdminMenu) {
+    resetTransientPanels();
+    setActiveMenu(menu);
+    window.localStorage.setItem(ADMIN_ACTIVE_MENU_STORAGE_KEY, menu);
+  }
 
   useEffect(() => {
     if (status === "unauthenticated" || (status === "authenticated" && user?.role !== "ADMIN")) {
@@ -402,8 +468,18 @@ export default function AdminDashboardPage() {
     placeholderData: (previousData) => previousData,
   });
   const pendingPurchasesQuery = useQuery({
-    queryKey: queryKeys.admin.purchaseRequests("PENDING"),
+    queryKey: queryKeys.admin.purchaseRequests({ status: "PENDING" }),
     queryFn: () => getAllPurchaseRequests({ status: "PENDING" }),
+    enabled: isAdmin,
+  });
+  const pendingAbsenceRequestsQuery = useQuery({
+    queryKey: [...queryKeys.requests.absenceList(), "dashboard", "PENDING"],
+    queryFn: () => getAbsenceRequests({ status: "PENDING", page: 0, size: 1 }),
+    enabled: isAdmin,
+  });
+  const pendingLessonExchangeRequestsQuery = useQuery({
+    queryKey: [...queryKeys.requests.lessonExchangeList(), "dashboard", "PENDING"],
+    queryFn: () => getLessonExchangeRequests({ status: "PENDING", page: 0, size: 1 }),
     enabled: isAdmin,
   });
   const channelsQuery = useQuery({
@@ -412,13 +488,49 @@ export default function AdminDashboardPage() {
     enabled: isAdmin,
   });
   const postsQuery = useQuery({
-    queryKey: queryKeys.admin.posts(0, 50),
-    queryFn: () => getPosts({ page: 0, size: 50, title: postTitleSearch || undefined }),
+    queryKey: [
+      "admin",
+      "posts",
+      {
+        page: 0,
+        size: 50,
+        title: postTitleSearch || undefined,
+        channelType: postChannelTypeFilter === "all" ? undefined : postChannelTypeFilter,
+        scope: postScopeFilter,
+      },
+    ],
+    queryFn: () =>
+      getPosts({
+        page: 0,
+        size: 50,
+        title: postTitleSearch || undefined,
+        channelType: postChannelTypeFilter === "all" ? undefined : postChannelTypeFilter,
+        classroomId:
+          postChannelTypeFilter === "CLASSROOM" && postScopeFilter !== "all"
+            ? (toNumber(postScopeFilter) ?? undefined)
+            : undefined,
+        departmentId:
+          postChannelTypeFilter === "DEPARTMENT" && postScopeFilter !== "all"
+            ? (toNumber(postScopeFilter) ?? undefined)
+            : undefined,
+      }),
     enabled: isAdmin,
   });
   const purchasesQuery = useQuery({
-    queryKey: queryKeys.admin.purchaseRequests(purchaseStatus || undefined),
-    queryFn: () => getAllPurchaseRequests(purchaseStatus ? { status: purchaseStatus } : undefined),
+    queryKey: queryKeys.admin.purchaseRequests({
+      status: purchaseStatus || undefined,
+      keyword: purchaseSearch.trim() || undefined,
+    }),
+    queryFn: () =>
+      getAllPurchaseRequests({
+        status: purchaseStatus || undefined,
+        keyword: purchaseSearch.trim() || undefined,
+      }),
+    enabled: isAdmin,
+  });
+  const vendorsQuery = useQuery({
+    queryKey: queryKeys.vendors.list(),
+    queryFn: () => getVendors(),
     enabled: isAdmin,
   });
   const permissionRegistryQuery = useQuery({
@@ -479,20 +591,113 @@ export default function AdminDashboardPage() {
   const users = useMemo(() => usersQuery.data?.content ?? [], [usersQuery.data?.content]);
   const filteredUsers = useMemo(() => {
     const keyword = userSearch.trim().toLowerCase();
-    if (!keyword) {
-      return users;
-    }
-    return users.filter((item) =>
-      [item.name, item.nickname, item.email, item.role].some((value) =>
-        value?.toLowerCase().includes(keyword),
+    const collator = new Intl.Collator(["ko-KR", "en-US"], {
+      numeric: true,
+      sensitivity: "base",
+    });
+    const searchedUsers = keyword
+      ? users.filter((item) =>
+          [item.name, item.nickname, item.email, item.role].some((value) =>
+            value?.toLowerCase().includes(keyword),
+          ),
+        )
+      : users;
+
+    return [...searchedUsers].sort((first, second) =>
+      collator.compare(
+        first.name ?? first.nickname ?? first.email ?? "",
+        second.name ?? second.nickname ?? second.email ?? "",
       ),
     );
   }, [userSearch, users]);
-  const departments = departmentsQuery.data?.departments ?? [];
-  const classrooms = classroomsQuery.data?.content ?? [];
-  const channels = channelsQuery.data ?? [];
+  const departments = useMemo(
+    () => departmentsQuery.data?.departments ?? [],
+    [departmentsQuery.data?.departments],
+  );
+  const filteredDepartments = useMemo(() => {
+    const keyword = departmentSearch.trim().toLowerCase();
+    const collator = new Intl.Collator(["ko-KR", "en-US"], {
+      numeric: true,
+      sensitivity: "base",
+    });
+    const searchedDepartments = keyword
+      ? departments.filter((item) =>
+          [item.name, item.description, item.id ? String(item.id) : ""].some((value) =>
+            value?.toLowerCase().includes(keyword),
+          ),
+        )
+      : departments;
+
+    return [...searchedDepartments].sort((first, second) =>
+      collator.compare(first.name ?? "", second.name ?? ""),
+    );
+  }, [departmentSearch, departments]);
+  const classrooms = useMemo(
+    () => classroomsQuery.data?.content ?? [],
+    [classroomsQuery.data?.content],
+  );
+  const filteredClassrooms = useMemo(() => {
+    const keyword = classroomSearch.trim().toLowerCase();
+    const collator = new Intl.Collator(["ko-KR", "en-US"], {
+      numeric: true,
+      sensitivity: "base",
+    });
+    const searchedClassrooms = keyword
+      ? classrooms.filter((item) =>
+          [item.name, item.type, item.description, item.id ? String(item.id) : ""].some((value) =>
+            value?.toLowerCase().includes(keyword),
+          ),
+        )
+      : classrooms;
+
+    return [...searchedClassrooms].sort((first, second) =>
+      collator.compare(first.name ?? "", second.name ?? ""),
+    );
+  }, [classroomSearch, classrooms]);
+  const channels = useMemo(() => channelsQuery.data ?? [], [channelsQuery.data]);
+  const filteredChannels = useMemo(() => {
+    const keyword = channelSearch.trim().toLowerCase();
+    const collator = new Intl.Collator(["ko-KR", "en-US"], {
+      numeric: true,
+      sensitivity: "base",
+    });
+    const searchedChannels = keyword
+      ? channels.filter((item) =>
+          [
+            item.name,
+            item.description,
+            item.channelType,
+            item.bindingType,
+            item.refId ? String(item.refId) : "",
+            item.id ? String(item.id) : "",
+          ].some((value) => value?.toLowerCase().includes(keyword)),
+        )
+      : channels;
+
+    return [...searchedChannels].sort((first, second) =>
+      collator.compare(first.name ?? "", second.name ?? ""),
+    );
+  }, [channelSearch, channels]);
   const posts = postsQuery.data?.content ?? [];
-  const purchases = purchasesQuery.data ?? [];
+  const purchases = useMemo(() => {
+    const rawPurchases = purchasesQuery.data ?? [];
+    const keyword = purchaseSearch.trim().toLowerCase();
+
+    if (!keyword) {
+      return rawPurchases;
+    }
+
+    return rawPurchases.filter((item) =>
+      [
+        item.id ? String(item.id) : "",
+        item.title,
+        item.classroomName,
+        item.requestedByName,
+        item.status,
+        item.totalPrice !== undefined && item.totalPrice !== null ? String(item.totalPrice) : "",
+      ].some((value) => value?.toLowerCase().includes(keyword)),
+    );
+  }, [purchaseSearch, purchasesQuery.data]);
   const registry = permissionRegistryQuery.data?.length
     ? permissionRegistryQuery.data
     : fallbackPermissions;
@@ -525,7 +730,31 @@ export default function AdminDashboardPage() {
       label: "분반",
       value: getTotalFromPage(classrooms.length, classroomsQuery.data?.totalElements),
     },
-    { label: "대기 중 구매 요청", value: pendingPurchasesQuery.data?.length ?? 0 },
+  ];
+  const pendingPurchaseCount = pendingPurchasesQuery.data?.length ?? 0;
+  const pendingAbsenceRequestCount = pendingAbsenceRequestsQuery.data?.totalElements ?? 0;
+  const pendingLessonExchangeRequestCount =
+    pendingLessonExchangeRequestsQuery.data?.totalElements ?? 0;
+  const requestSummaries = [
+    {
+      label: "대기 중인 수업 교환 요청",
+      count: pendingLessonExchangeRequestCount,
+      description: `${pendingLessonExchangeRequestCount}건의 검토가 필요합니다.`,
+      menu: "lessonExchange" as const,
+    },
+    {
+      label: "대기 중인 결강 요청",
+      count: pendingAbsenceRequestCount,
+      description: `${pendingAbsenceRequestCount}건의 검토가 필요합니다.`,
+      menu: "absenceRequests" as const,
+    },
+    {
+      label: "대기 중인 결제 요청",
+      count: pendingPurchaseCount,
+      description: `${pendingPurchaseCount}건의 검토가 필요합니다.`,
+      menu: "purchases" as const,
+      onClick: () => setPurchaseStatus("PENDING"),
+    },
   ];
 
   function notifySuccess(message: string) {
@@ -541,6 +770,8 @@ export default function AdminDashboardPage() {
       return;
     }
     setSelectedUserId(item.id);
+    setIsUserEditing(false);
+    setIsUserDeleteConfirmOpen(false);
     setUserForm({
       email: item.email ?? "",
       nickname: item.nickname ?? "",
@@ -548,7 +779,12 @@ export default function AdminDashboardPage() {
       name: item.name ?? "",
       phoneNumber: item.phoneNumber ?? "",
       role: item.role ?? "VOLUNTEER",
-      departmentId: item.departmentId ? String(item.departmentId) : "",
+      departmentId:
+        item.departmentId !== null && item.departmentId !== undefined
+          ? String(item.departmentId)
+          : typeof item.department?.id === "number"
+            ? String(item.department.id)
+            : "",
     });
   }
 
@@ -557,6 +793,8 @@ export default function AdminDashboardPage() {
       return;
     }
     setSelectedChannelId(item.id);
+    setIsChannelEditing(false);
+    setIsChannelDeleteConfirmOpen(false);
     setChannelForm({
       name: item.name ?? "",
       description: item.description ?? "",
@@ -591,6 +829,8 @@ export default function AdminDashboardPage() {
       return;
     }
     setSelectedDepartmentId(item.id);
+    setIsDepartmentEditing(false);
+    setIsDepartmentDeleteConfirmOpen(false);
     setDepartmentForm({
       name: item.name ?? "",
       description: item.description ?? "",
@@ -602,6 +842,8 @@ export default function AdminDashboardPage() {
       return;
     }
     setSelectedClassroomId(item.id);
+    setIsClassroomEditing(false);
+    setIsClassroomDeleteConfirmOpen(false);
     setClassroomForm({
       name: item.name ?? "",
       type: item.type ?? "WEEKDAY",
@@ -613,12 +855,19 @@ export default function AdminDashboardPage() {
     queryClient.invalidateQueries({ queryKey: ["admin"] });
   };
 
+  function invalidateDepartmentMembershipQueries() {
+    queryClient.invalidateQueries({ queryKey: queryKeys.admin.departments() });
+    queryClient.invalidateQueries({ queryKey: ["admin", "departments", "detail"] });
+  }
+
   const createUserMutation = useMutation({
     mutationFn: () => createUser(mapCreateUserFormToPayload(userForm)),
     onSuccess: () => {
       notifySuccess("사용자를 생성했습니다.");
+      setIsUserCreateModalOpen(false);
       setUserForm(emptyUserForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
+      invalidateDepartmentMembershipQueries();
     },
     onError: (error) => notifyError(getErrorMessage(error, "사용자 생성에 실패했습니다.")),
   });
@@ -627,7 +876,9 @@ export default function AdminDashboardPage() {
       updateUser({ userId: selectedUserId ?? 0 }, mapUpdateUserFormToPayload(userForm)),
     onSuccess: () => {
       notifySuccess("사용자를 수정했습니다.");
+      setIsUserEditing(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
+      invalidateDepartmentMembershipQueries();
       if (selectedUserId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.admin.userDetail(selectedUserId) });
       }
@@ -639,8 +890,11 @@ export default function AdminDashboardPage() {
     onSuccess: () => {
       notifySuccess("사용자를 삭제했습니다.");
       setSelectedUserId(null);
+      setIsUserEditing(false);
+      setIsUserDeleteConfirmOpen(false);
       setUserForm(emptyUserForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
+      invalidateDepartmentMembershipQueries();
     },
     onError: (error) => notifyError(getErrorMessage(error, "사용자 삭제에 실패했습니다.")),
   });
@@ -678,6 +932,7 @@ export default function AdminDashboardPage() {
     mutationFn: () => createChannel(mapChannelFormToPayload(channelForm)),
     onSuccess: () => {
       notifySuccess("채널을 생성했습니다.");
+      setIsChannelCreateModalOpen(false);
       setChannelForm(emptyChannelForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.channels() });
     },
@@ -688,6 +943,7 @@ export default function AdminDashboardPage() {
       updateChannel({ id: selectedChannelId ?? 0 }, mapChannelFormToPayload(channelForm)),
     onSuccess: () => {
       notifySuccess("채널을 수정했습니다.");
+      setIsChannelEditing(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.channels() });
       if (selectedChannelId) {
         queryClient.invalidateQueries({
@@ -702,6 +958,8 @@ export default function AdminDashboardPage() {
     onSuccess: () => {
       notifySuccess("채널을 삭제했습니다.");
       setSelectedChannelId(null);
+      setIsChannelEditing(false);
+      setIsChannelDeleteConfirmOpen(false);
       setChannelForm(emptyChannelForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.channels() });
     },
@@ -723,8 +981,9 @@ export default function AdminDashboardPage() {
       ),
     onSuccess: () => {
       notifySuccess("게시글을 작성했습니다.");
+      setIsPostCreateModalOpen(false);
       setPostCreate(emptyPostCreate);
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) });
+      queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
     },
     onError: (error) => notifyError(getErrorMessage(error, "게시글 작성에 실패했습니다.")),
   });
@@ -750,7 +1009,7 @@ export default function AdminDashboardPage() {
     onSuccess: (updatedPost) => {
       notifySuccess("게시글을 수정했습니다.");
       setIsPostEditing(false);
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) });
+      queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
       if (selectedPost) {
         queryClient.setQueryData(
           queryKeys.admin.postDetail(selectedPost.channelId, selectedPost.postId),
@@ -770,7 +1029,7 @@ export default function AdminDashboardPage() {
       setSelectedPost(null);
       setIsPostEditing(false);
       setPostEdit(emptyPostEdit);
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) });
+      queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
     },
     onError: (error) => notifyError(getErrorMessage(error, "게시글 삭제에 실패했습니다.")),
   });
@@ -779,7 +1038,7 @@ export default function AdminDashboardPage() {
       pinPost(selectedPost ?? { channelId: 0, postId: 0 }, { isPinned }),
     onSuccess: () => {
       notifySuccess("게시글 고정 상태를 변경했습니다.");
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) });
+      queryClient.invalidateQueries({ queryKey: ["admin", "posts"] });
       if (selectedPost) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.admin.postDetail(selectedPost.channelId, selectedPost.postId),
@@ -793,6 +1052,7 @@ export default function AdminDashboardPage() {
     mutationFn: () => createDepartment(departmentForm),
     onSuccess: () => {
       notifySuccess("부서를 생성했습니다.");
+      setIsDepartmentCreateModalOpen(false);
       setDepartmentForm(emptyDepartmentForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.departments() });
     },
@@ -802,6 +1062,7 @@ export default function AdminDashboardPage() {
     mutationFn: () => updateDepartment({ id: selectedDepartmentId ?? 0 }, departmentForm),
     onSuccess: () => {
       notifySuccess("부서를 수정했습니다.");
+      setIsDepartmentEditing(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.departments() });
       if (selectedDepartmentId) {
         queryClient.invalidateQueries({
@@ -816,6 +1077,8 @@ export default function AdminDashboardPage() {
     onSuccess: () => {
       notifySuccess("부서를 삭제했습니다.");
       setSelectedDepartmentId(null);
+      setIsDepartmentEditing(false);
+      setIsDepartmentDeleteConfirmOpen(false);
       setDepartmentForm(emptyDepartmentForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.departments() });
     },
@@ -827,11 +1090,41 @@ export default function AdminDashboardPage() {
         ),
       ),
   });
+  const addDepartmentPermissionMutation = useMutation({
+    mutationFn: () =>
+      addDepartmentPermission(
+        { id: selectedDepartmentId ?? 0 },
+        { permissionCode: generatedPermissionCode },
+      ),
+    onSuccess: () => {
+      notifySuccess("부서 권한을 추가했습니다.");
+      if (selectedDepartmentId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.departmentDetail(selectedDepartmentId),
+        });
+      }
+    },
+    onError: (error) => notifyError(getErrorMessage(error, "부서 권한 추가에 실패했습니다.")),
+  });
+  const removeDepartmentPermissionMutation = useMutation({
+    mutationFn: (permissionCode: string) =>
+      removeDepartmentPermission({ id: selectedDepartmentId ?? 0 }, { permissionCode }),
+    onSuccess: () => {
+      notifySuccess("부서 권한을 제거했습니다.");
+      if (selectedDepartmentId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.departmentDetail(selectedDepartmentId),
+        });
+      }
+    },
+    onError: (error) => notifyError(getErrorMessage(error, "부서 권한 제거에 실패했습니다.")),
+  });
 
   const createClassroomMutation = useMutation({
     mutationFn: () => createClassroom(classroomForm),
     onSuccess: () => {
       notifySuccess("분반을 생성했습니다.");
+      setIsClassroomCreateModalOpen(false);
       setClassroomForm(emptyClassroomForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.classrooms() });
     },
@@ -841,6 +1134,7 @@ export default function AdminDashboardPage() {
     mutationFn: () => updateClassroom({ id: selectedClassroomId ?? 0 }, classroomForm),
     onSuccess: () => {
       notifySuccess("분반을 수정했습니다.");
+      setIsClassroomEditing(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.classrooms() });
       if (selectedClassroomId) {
         queryClient.invalidateQueries({
@@ -855,6 +1149,8 @@ export default function AdminDashboardPage() {
     onSuccess: () => {
       notifySuccess("분반을 삭제했습니다.");
       setSelectedClassroomId(null);
+      setIsClassroomEditing(false);
+      setIsClassroomDeleteConfirmOpen(false);
       setClassroomForm(emptyClassroomForm);
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.classrooms() });
     },
@@ -865,20 +1161,23 @@ export default function AdminDashboardPage() {
     mutationFn: () =>
       createPurchaseRequest({
         title: purchaseCreate.title.trim(),
-        content: purchaseCreate.content.trim(),
+        content:
+          purchaseCreate.items
+            .map((item) => item.itemReason.trim())
+            .filter(Boolean)
+            .join("\n") || `${purchaseCreate.title.trim()} 결제 요청`,
         classroomId: toNumber(purchaseCreate.classroomId) ?? 0,
-        items: [
-          {
-            name: purchaseCreate.itemName.trim(),
-            quantity: Math.max(1, Math.trunc(toNumber(purchaseCreate.itemQuantity) ?? 1)),
-            reason: purchaseCreate.itemReason.trim() || undefined,
-            paymentType: purchaseCreate.itemPaymentType,
-          },
-        ],
+        items: purchaseCreate.items.map((item) => ({
+          name: item.itemName.trim(),
+          quantity: Math.max(1, Math.trunc(toNumber(item.itemQuantity) ?? 1)),
+          reason: item.itemReason.trim() || undefined,
+          paymentType: item.itemPaymentType,
+        })),
       }),
     onSuccess: () => {
       notifySuccess("구매 요청을 작성했습니다.");
       setPurchaseCreate(emptyPurchaseCreate);
+      setIsPurchaseCreateModalOpen(false);
       invalidateDashboard();
     },
     onError: (error) => notifyError(getErrorMessage(error, "구매 요청 작성에 실패했습니다.")),
@@ -931,9 +1230,7 @@ export default function AdminDashboardPage() {
               {
                 amount: transaction.amount as number,
                 memo: `${purchase?.title ?? "구매 요청"} 선금 결제 충전`,
-                ...(transaction.receiptFileId
-                  ? { receiptFileId: transaction.receiptFileId }
-                  : {}),
+                ...(transaction.receiptFileId ? { receiptFileId: transaction.receiptFileId } : {}),
               },
             );
             prepaidTargetBalances.set(vendorId, chargedVendor.balance ?? 0);
@@ -982,7 +1279,7 @@ export default function AdminDashboardPage() {
       return confirmedPurchase;
     },
     onSuccess: () => {
-      notifySuccess("구매 요청을 결재 확인했습니다.");
+      notifySuccess("구매 요청을 결제 확인했습니다.");
       invalidateDashboard();
       queryClient.invalidateQueries({ queryKey: queryKeys.vendors.list() });
       if (selectedPurchaseId) {
@@ -991,7 +1288,7 @@ export default function AdminDashboardPage() {
         });
       }
     },
-    onError: (error) => notifyError(getErrorMessage(error, "결재 확인에 실패했습니다.")),
+    onError: (error) => notifyError(getErrorMessage(error, "결제 확인에 실패했습니다.")),
   });
   const deletePurchaseMutation = useMutation({
     mutationFn: () => deleteAdminPurchaseRequest({ requestId: selectedPurchaseId ?? 0 }),
@@ -1011,7 +1308,18 @@ export default function AdminDashboardPage() {
   if (!isAdmin) {
     return (
       <Main>
-        <AdminContent>
+        <AdminContent
+          $compact={
+            activeMenu === "users" ||
+            activeMenu === "channels" ||
+            activeMenu === "posts" ||
+            activeMenu === "departments" ||
+            activeMenu === "classrooms" ||
+            activeMenu === "purchases" ||
+            activeMenu === "absenceRequests" ||
+            activeMenu === "lessonExchange"
+          }
+        >
           <StatePanel>
             <LoadingSpinner label="관리자 권한 확인 중" />
           </StatePanel>
@@ -1022,21 +1330,23 @@ export default function AdminDashboardPage() {
 
   const currentTitle = navigationItems.find((item) => item.key === activeMenu)?.label ?? "대시보드";
   const currentDescription = {
-    dashboard:
-      "전체 사용자, 부서, 분반, 승인 대기 구매 요청을 요약하고 주요 관리 화면으로 이동합니다.",
+    dashboard: "전체 운영 현황과 대기 중인 요청을 확인하고, 주요 관리 메뉴로 이동할 수 있습니다.",
     users:
-      "사용자 목록 조회, 역할 확인, 사용자 생성/수정/삭제, 직접 권한 조회와 권한 부여를 제공합니다.",
-    channels:
-      "채널 목록 조회, 유형과 연결 대상 확인, 채널 생성/수정/삭제 및 활성 상태 관리를 제공합니다.",
-    posts:
-      "공지/부서/반별 채널 게시글 작성, 이미지 첨부, 게시글 조회/수정/삭제/고정 관리를 제공합니다.",
+      "사이트에 가입된 계정 목록을 조회하고, 계정별 상세 정보와 권한을 수정하거나 계정을 생성/삭제할 수 있습니다.",
     departments:
-      "부서 목록과 상세 정보를 조회하고 부서 생성/수정/삭제, 소속 사용자와 권한 정보를 확인합니다.",
-    classrooms: "분반 목록과 상세 정보를 조회하고 분반 생성/수정/삭제 및 이름 검색을 제공합니다.",
-    lessons: "분반별 시간표를 확인하고 시간표 칸에서 수업 정보를 관리합니다.",
-    purchases: "구매 요청 작성, 목록/상세 조회, 승인/반려/결재 확인/삭제 처리를 제공합니다.",
-    absenceRequests: "결석 요청 목록 조회 및 승인/반려 처리를 제공합니다.",
-    lessonExchange: "수업 교환 요청 목록 조회 및 승인/반려 처리를 제공합니다.",
+      "사이트에 등록된 부서 목록과 상세 정보를 조회하고, 부서를 생성/수정/삭제할 수 있습니다.",
+    classrooms:
+      "사이트에 등록된 분반 목록과 상세 정보를 조회하고, 분반을 생성/수정/삭제할 수 있습니다.",
+    lessons:
+      "반별 시간표를 확인하고, 시간표의 각 칸을 선택하여 반별·요일별 수업 정보를 관리할 수 있습니다.",
+    channels:
+      "게시물 분류를 위한 채널 목록을 조회하고, 채널별 상태를 관리하거나 채널을 생성/수정/삭제할 수 있습니다.",
+    posts: "채널별 게시물 목록을 조회하고, 게시물을 생성/수정/삭제할 수 있습니다.",
+    purchases:
+      "물품 구매 요청 목록을 조회하고, 각 요청건에 대한 승인/반려 및 결제 확정 처리를 할 수 있습니다.",
+    absenceRequests: "결강 요청 목록을 조회하고, 각 요청건에 대한 승인/반려 처리를 할 수 있습니다.",
+    lessonExchange:
+      "수업 교환 요청 목록을 조회하고, 각 요청건에 대한 승인/반려 처리를 할 수 있습니다.",
   }[activeMenu];
 
   return (
@@ -1057,7 +1367,7 @@ export default function AdminDashboardPage() {
               key={item.key}
               type="button"
               $active={activeMenu === item.key}
-              onClick={() => setActiveMenu(item.key)}
+              onClick={() => handleActiveMenuChange(item.key)}
             >
               {item.label}
             </SidebarItem>
@@ -1070,7 +1380,18 @@ export default function AdminDashboardPage() {
       </Sidebar>
 
       <Main>
-        <AdminContent>
+        <AdminContent
+          $compact={
+            activeMenu === "users" ||
+            activeMenu === "channels" ||
+            activeMenu === "posts" ||
+            activeMenu === "departments" ||
+            activeMenu === "classrooms" ||
+            activeMenu === "purchases" ||
+            activeMenu === "absenceRequests" ||
+            activeMenu === "lessonExchange"
+          }
+        >
           <AccountText>{user?.email}</AccountText>
           <PageHeader>
             <Title>{currentTitle}</Title>
@@ -1079,18 +1400,24 @@ export default function AdminDashboardPage() {
           {activeMenu === "dashboard" ? (
             <AdminMainDashboardSection
               stats={stats}
+              requestSummaries={requestSummaries}
               usersQuery={usersQuery}
               departmentsQuery={departmentsQuery}
               classroomsQuery={classroomsQuery}
               pendingPurchasesQuery={pendingPurchasesQuery}
-              setActiveMenu={setActiveMenu}
-              setPurchaseStatus={setPurchaseStatus}
+              pendingAbsenceRequestsQuery={pendingAbsenceRequestsQuery}
+              pendingLessonExchangeRequestsQuery={pendingLessonExchangeRequestsQuery}
+              setActiveMenu={handleActiveMenuChange}
             />
           ) : null}
           {activeMenu === "users" ? (
             <AdminUsersSection
               filteredUsers={filteredUsers}
+              departments={departments}
               selectedUserId={selectedUserId}
+              isUserEditing={isUserEditing}
+              isUserCreateModalOpen={isUserCreateModalOpen}
+              isUserDeleteConfirmOpen={isUserDeleteConfirmOpen}
               userSearch={userSearch}
               userForm={userForm}
               permissionForm={permissionForm}
@@ -1098,7 +1425,6 @@ export default function AdminDashboardPage() {
               availableActions={availableActions}
               canUseGlobalPermission={canUseGlobalPermission}
               canUseTargetPermission={canUseTargetPermission}
-              generatedPermissionCode={generatedPermissionCode}
               usersQuery={usersQuery}
               userDetailQuery={userDetailQuery}
               userPermissionsQuery={userPermissionsQuery}
@@ -1108,6 +1434,9 @@ export default function AdminDashboardPage() {
               addPermissionMutation={addPermissionMutation}
               removePermissionMutation={removePermissionMutation}
               setSelectedUserId={setSelectedUserId}
+              setIsUserEditing={setIsUserEditing}
+              setIsUserCreateModalOpen={setIsUserCreateModalOpen}
+              setIsUserDeleteConfirmOpen={setIsUserDeleteConfirmOpen}
               setUserSearch={setUserSearch}
               setUserForm={setUserForm}
               setPermissionForm={setPermissionForm}
@@ -1117,8 +1446,11 @@ export default function AdminDashboardPage() {
           ) : null}
           {activeMenu === "channels" ? (
             <AdminChannelsSection
-              channels={channels}
+              channels={filteredChannels}
               selectedChannelId={selectedChannelId}
+              isChannelEditing={isChannelEditing}
+              isChannelCreateModalOpen={isChannelCreateModalOpen}
+              isChannelDeleteConfirmOpen={isChannelDeleteConfirmOpen}
               channelSearch={channelSearch}
               channelForm={channelForm}
               channelsQuery={channelsQuery}
@@ -1127,6 +1459,9 @@ export default function AdminDashboardPage() {
               updateChannelMutation={updateChannelMutation}
               deleteChannelMutation={deleteChannelMutation}
               setSelectedChannelId={setSelectedChannelId}
+              setIsChannelEditing={setIsChannelEditing}
+              setIsChannelCreateModalOpen={setIsChannelCreateModalOpen}
+              setIsChannelDeleteConfirmOpen={setIsChannelDeleteConfirmOpen}
               setChannelSearch={setChannelSearch}
               setChannelForm={setChannelForm}
               selectChannel={selectChannel}
@@ -1141,9 +1476,12 @@ export default function AdminDashboardPage() {
               posts={posts}
               selectedPost={selectedPost}
               postTitleSearch={postTitleSearch}
+              postChannelTypeFilter={postChannelTypeFilter}
+              postScopeFilter={postScopeFilter}
               postCreate={postCreate}
               postEdit={postEdit}
               isPostEditing={isPostEditing}
+              isPostCreateModalOpen={isPostCreateModalOpen}
               postsQuery={postsQuery}
               postDetailQuery={postDetailQuery}
               createPostMutation={createPostMutation}
@@ -1151,33 +1489,53 @@ export default function AdminDashboardPage() {
               pinPostMutation={pinPostMutation}
               deletePostMutation={deletePostMutation}
               setPostTitleSearch={setPostTitleSearch}
+              setPostChannelTypeFilter={setPostChannelTypeFilter}
+              setPostScopeFilter={setPostScopeFilter}
               setPostCreate={setPostCreate}
               setPostEdit={setPostEdit}
               setIsPostEditing={setIsPostEditing}
+              setIsPostCreateModalOpen={setIsPostCreateModalOpen}
               selectPost={selectPost}
               closePostDetail={closePostDetail}
             />
           ) : null}
           {activeMenu === "departments" ? (
             <AdminDepartmentsSection
-              departments={departments}
+              departments={filteredDepartments}
               selectedDepartmentId={selectedDepartmentId}
+              isDepartmentEditing={isDepartmentEditing}
+              isDepartmentCreateModalOpen={isDepartmentCreateModalOpen}
+              isDepartmentDeleteConfirmOpen={isDepartmentDeleteConfirmOpen}
+              departmentSearch={departmentSearch}
               departmentForm={departmentForm}
+              permissionForm={permissionForm}
+              permissionOptions={permissionOptions}
+              availableActions={availableActions}
               departmentsQuery={departmentsQuery}
               departmentDetailQuery={departmentDetailQuery}
               createDepartmentMutation={createDepartmentMutation}
               updateDepartmentMutation={updateDepartmentMutation}
               deleteDepartmentMutation={deleteDepartmentMutation}
+              addDepartmentPermissionMutation={addDepartmentPermissionMutation}
+              removeDepartmentPermissionMutation={removeDepartmentPermissionMutation}
               setSelectedDepartmentId={setSelectedDepartmentId}
+              setIsDepartmentEditing={setIsDepartmentEditing}
+              setIsDepartmentCreateModalOpen={setIsDepartmentCreateModalOpen}
+              setIsDepartmentDeleteConfirmOpen={setIsDepartmentDeleteConfirmOpen}
+              setDepartmentSearch={setDepartmentSearch}
               setDepartmentForm={setDepartmentForm}
+              setPermissionForm={setPermissionForm}
               selectDepartment={selectDepartment}
               emptyDepartmentForm={emptyDepartmentForm}
             />
           ) : null}
           {activeMenu === "classrooms" ? (
             <AdminClassroomsSection
-              classrooms={classrooms}
+              classrooms={filteredClassrooms}
               selectedClassroomId={selectedClassroomId}
+              isClassroomEditing={isClassroomEditing}
+              isClassroomCreateModalOpen={isClassroomCreateModalOpen}
+              isClassroomDeleteConfirmOpen={isClassroomDeleteConfirmOpen}
               classroomSearch={classroomSearch}
               classroomForm={classroomForm}
               classroomsQuery={classroomsQuery}
@@ -1186,6 +1544,9 @@ export default function AdminDashboardPage() {
               updateClassroomMutation={updateClassroomMutation}
               deleteClassroomMutation={deleteClassroomMutation}
               setSelectedClassroomId={setSelectedClassroomId}
+              setIsClassroomEditing={setIsClassroomEditing}
+              setIsClassroomCreateModalOpen={setIsClassroomCreateModalOpen}
+              setIsClassroomDeleteConfirmOpen={setIsClassroomDeleteConfirmOpen}
               setClassroomSearch={setClassroomSearch}
               setClassroomForm={setClassroomForm}
               selectClassroom={selectClassroom}
@@ -1193,27 +1554,33 @@ export default function AdminDashboardPage() {
             />
           ) : null}
           {activeMenu === "lessons" ? <AdminLessonManagementSection /> : null}
-          {activeMenu === "absenceRequests" ? <AdminAbsenceRequestsSection /> : null}
           {activeMenu === "lessonExchange" ? <AdminLessonExchangeSection /> : null}
+          {activeMenu === "absenceRequests" ? <AdminAbsenceRequestsSection /> : null}
           {activeMenu === "purchases" ? (
             <AdminPurchasesSection
               classrooms={classrooms}
               purchases={purchases}
               selectedPurchaseId={selectedPurchaseId}
               purchaseStatus={purchaseStatus}
+              purchaseSearch={purchaseSearch}
+              isPurchaseCreateModalOpen={isPurchaseCreateModalOpen}
               purchaseCreate={purchaseCreate}
               reviewNote={reviewNote}
               purchasesQuery={purchasesQuery}
               purchaseDetailQuery={purchaseDetailQuery}
+              vendorsQuery={vendorsQuery}
               createPurchaseMutation={createPurchaseMutation}
               approvePurchaseMutation={approvePurchaseMutation}
               rejectPurchaseMutation={rejectPurchaseMutation}
               confirmPurchaseMutation={confirmPurchaseMutation}
               deletePurchaseMutation={deletePurchaseMutation}
               setPurchaseStatus={setPurchaseStatus}
+              setPurchaseSearch={setPurchaseSearch}
+              setIsPurchaseCreateModalOpen={setIsPurchaseCreateModalOpen}
               setPurchaseCreate={setPurchaseCreate}
               setSelectedPurchaseId={setSelectedPurchaseId}
               setReviewNote={setReviewNote}
+              emptyPurchaseCreate={emptyPurchaseCreate}
             />
           ) : null}
           <ToastContainer position="top-right" autoClose={2400} newestOnTop pauseOnHover />
@@ -1410,19 +1777,25 @@ const Main = styled.main`
   background-color: #f4f6f5;
 `;
 
-const AdminContent = styled.div`
+const AdminContent = styled.div<{ $compact?: boolean }>`
   position: relative;
   display: grid;
-  gap: ${spacing.space16};
+  gap: ${({ $compact }) => ($compact ? spacing.space12 : spacing.space16)};
   width: 100%;
   max-width: ${layout.adminMaxWidth};
   margin: 0 auto;
-  padding: 3.25rem ${spacing.space20} ${spacing.space32};
+  padding: ${({ $compact }) =>
+    $compact
+      ? `2.75rem ${spacing.space20} ${spacing.space20}`
+      : `3.25rem ${spacing.space20} ${spacing.space32}`};
 
   @media (min-width: 120rem) {
-    gap: ${spacing.space24};
+    gap: ${({ $compact }) => ($compact ? spacing.space16 : spacing.space24)};
     max-width: ${layout.adminMaxWidthLarge};
-    padding: 5.625rem ${spacing.space24} 4.125rem;
+    padding: ${({ $compact }) =>
+      $compact
+        ? `3.75rem ${spacing.space24} ${spacing.space20}`
+        : `5.625rem ${spacing.space24} 4.125rem`};
   }
 `;
 

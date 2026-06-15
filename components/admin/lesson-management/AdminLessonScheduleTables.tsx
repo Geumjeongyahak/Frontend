@@ -22,11 +22,9 @@ import {
   DataState,
   InlineStatus,
   Label,
-  PrimaryButton,
   SectionCard,
   SectionDescription,
   SectionTitle,
-  Select,
   SmallButton,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
@@ -430,8 +428,8 @@ export function AdminLessonScheduleTables() {
         </IconButton>
       </ScheduleHeaderRow>
       <SectionDescription>
-        분반 목록을 기준으로 주중/주말 시간표 행을 구성하고, 각 칸에는 1~3교시 과목과 담당 교사를
-        표시합니다.
+        사이트에 등록된 주중/주말 분반 목록을 기준으로 시간표의 행을 구성하고, 각 칸에는 요일별 담당
+        교사와 교시별 과목을 표시합니다.
       </SectionDescription>
       <DataState
         isLoading={classroomsQuery.isLoading || subjectsQuery.isLoading}
@@ -474,9 +472,7 @@ export function AdminLessonScheduleTables() {
                 <ModalTitle id="schedule-cell-modal-title">
                   {selectedCell.classroom.name ?? "분반"} {selectedCell.dayLabel}요일 시간표
                 </ModalTitle>
-                <ModalDescription>
-                  담당 교사는 한 칸의 1~3교시에 동일하게 적용됩니다.
-                </ModalDescription>
+                <ModalDescription>담당 교사는 1~3교시에 동일하게 적용됩니다.</ModalDescription>
               </div>
               <SmallButton type="button" onClick={closeModal}>
                 닫기
@@ -486,7 +482,7 @@ export function AdminLessonScheduleTables() {
             <ModalBody>
               <Label>
                 담당 교사
-                <Select
+                <ScheduleSelect
                   value={cellForm.teacherId}
                   disabled={teachersQuery.isLoading || saveCellMutation.isPending}
                   onChange={(event) =>
@@ -503,7 +499,7 @@ export function AdminLessonScheduleTables() {
                       </option>
                     ) : null,
                   )}
-                </Select>
+                </ScheduleSelect>
               </Label>
 
               <DateFields>
@@ -605,13 +601,13 @@ export function AdminLessonScheduleTables() {
 
             <ModalActions>
               <ButtonRow>
-                <PrimaryButton
+                <LessonActionButton
                   type="button"
                   disabled={saveCellMutation.isPending}
                   onClick={handleSaveCell}
                 >
                   {saveCellMutation.isPending ? "저장 중..." : "저장"}
-                </PrimaryButton>
+                </LessonActionButton>
                 <SmallButton
                   type="button"
                   disabled={saveCellMutation.isPending}
@@ -668,9 +664,9 @@ export function AdminLessonScheduleTables() {
                 <SmallButton type="button" onClick={() => setPeriodColors(DEFAULT_PERIOD_COLORS)}>
                   기본값
                 </SmallButton>
-                <PrimaryButton type="button" onClick={() => setIsColorSettingsOpen(false)}>
+                <LessonActionButton type="button" onClick={() => setIsColorSettingsOpen(false)}>
                   적용
-                </PrimaryButton>
+                </LessonActionButton>
               </ButtonRow>
             </ModalActions>
           </ColorModalDialog>
@@ -746,7 +742,9 @@ const IconButton = styled.button`
   position: absolute;
   top: -0.375rem;
   right: -0.375rem;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 1.75rem;
   height: 1.75rem;
   border: 0;
@@ -754,8 +752,10 @@ const IconButton = styled.button`
   background-color: transparent;
   color: #64706c;
   cursor: pointer;
+  line-height: 0;
 
   svg {
+    display: block;
     width: 1rem;
     height: 1rem;
   }
@@ -1039,6 +1039,34 @@ const ModalBody = styled.div`
   gap: ${spacing.space12};
 `;
 
+const ScheduleSelect = styled.select`
+  width: 100%;
+  min-height: 2.375rem;
+  border: 1px solid ${colors.border};
+  border-radius: 0.375rem;
+  padding: 0 2.5rem 0 ${spacing.space12};
+  background-color: ${colors.white};
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6L8 10L12 6' stroke='%2364706C' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 0.875rem center;
+  background-repeat: no-repeat;
+  background-size: 1rem;
+  color: #1f2b28;
+  font-family: inherit;
+  font-size: ${typography.fontSize14};
+  appearance: none;
+  outline: none;
+
+  &:focus {
+    border-color: ${colors.point};
+  }
+
+  &:disabled {
+    opacity: 1;
+    color: #64706c;
+    background-color: ${colors.white};
+  }
+`;
+
 const DateFields = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1084,6 +1112,38 @@ const TimeFields = styled.div`
 const ModalActions = styled.div`
   display: flex;
   justify-content: flex-end;
+`;
+
+const LessonActionButton = styled.button.attrs<{ type?: "button" | "submit" | "reset" }>(
+  ({ type }) => ({
+    type: type ?? "button",
+  }),
+)`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.25rem;
+  border: 1px solid ${colors.point};
+  border-radius: 0.375rem;
+  background-color: ${colors.white};
+  padding: 0 ${spacing.space16};
+  color: ${colors.point};
+  font-family: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const ColorModalDialog = styled(ModalDialog)`

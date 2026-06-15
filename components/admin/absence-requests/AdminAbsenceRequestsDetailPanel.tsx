@@ -1,21 +1,23 @@
 "use client";
 
+import { useState } from "react";
 import styled from "styled-components";
-import { formatAbsenceDate } from "@/components/admin/absence-requests/absenceRequestConstants";
-import { AbsenceStatusBadge } from "@/components/admin/absence-requests/AbsenceStatusBadge";
+import {
+  formatAbsenceDate,
+  formatAbsenceStatus,
+} from "@/components/admin/absence-requests/absenceRequestConstants";
 import type { AdminAbsenceRequestsViewModel } from "@/components/admin/absence-requests/useAdminAbsenceRequests";
 import {
   ButtonRow,
   DangerButton,
   DataState,
   FormGrid,
-  PrimaryButton,
-  SectionCard,
-  SectionDescription,
-  SectionTitle,
+  List,
+  ListItem,
+  SmallButton,
   TextArea,
 } from "@/components/admin/AdminDashboardSectionParts";
-import { spacing, typography } from "@/styles/tokens";
+import { colors, radii, spacing, typography } from "@/styles/tokens";
 
 type AdminAbsenceRequestsDetailPanelProps = Pick<
   AdminAbsenceRequestsViewModel,
@@ -35,144 +37,193 @@ export function AdminAbsenceRequestsDetailPanel({
   handleReject,
   isActionPending,
 }: AdminAbsenceRequestsDetailPanelProps) {
-  return (
-    <SectionCard>
-      <SectionTitle>결석 요청 상세/처리</SectionTitle>
-      <SectionDescription>
-        선택한 결석 요청의 상세 정보를 확인하고 승인 또는 반려 처리를 수행합니다.
-      </SectionDescription>
+  const [confirmAction, setConfirmAction] = useState<"approve" | "reject" | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
 
+  function runConfirmedAction() {
+    if (confirmAction === "approve") {
+      handleApprove();
+      setConfirmAction(null);
+      return;
+    }
+
+    if (confirmAction === "reject") {
+      handleReject();
+      setConfirmAction(null);
+      setIsRejecting(false);
+    }
+  }
+
+  return (
+    <DetailPanelContent>
       <DataState
         isLoading={false}
         isError={false}
         isEmpty={!selectedAbsence}
         loadingLabel=""
         errorLabel=""
-        emptyLabel="결석 요청을 선택하세요."
+        emptyLabel="결강 요청을 선택하세요."
       >
-        <DetailStack>
-          <DetailFields>
-            <DetailField $fullWidth>
-              <DetailFieldLabel>제목</DetailFieldLabel>
-              <DetailFieldValue>{selectedAbsence?.title ?? "-"}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>분반</DetailFieldLabel>
-              <DetailFieldValue>{selectedAbsence?.classroomName ?? "-"}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>수업일</DetailFieldLabel>
-              <DetailFieldValue>{formatAbsenceDate(selectedAbsence?.lessonDate)}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>요청자</DetailFieldLabel>
-              <DetailFieldValue>{selectedAbsence?.requestedByName ?? "-"}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>상태</DetailFieldLabel>
-              <DetailFieldValue>
-                <AbsenceStatusBadge status={selectedAbsence?.status} />
-              </DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>만료 시각</DetailFieldLabel>
-              <DetailFieldValue>{formatAbsenceDate(selectedAbsence?.expiresAt)}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>요청일</DetailFieldLabel>
-              <DetailFieldValue>{formatAbsenceDate(selectedAbsence?.createdAt)}</DetailFieldValue>
-            </DetailField>
-            <DetailField>
-              <DetailFieldLabel>처리일</DetailFieldLabel>
-              <DetailFieldValue>{formatAbsenceDate(selectedAbsence?.approvalAt)}</DetailFieldValue>
-            </DetailField>
-          </DetailFields>
+        <PanelContent>
+          <DetailBlock>
+            <DetailBlockTitle>요청 정보</DetailBlockTitle>
+            <List>
+              <ListItem>
+                <span>제목</span>
+                <span>{selectedAbsence?.title ?? "-"}</span>
+              </ListItem>
+              <ListItem>
+                <span>요청자</span>
+                <span>{selectedAbsence?.requestedByName ?? "-"}</span>
+              </ListItem>
+              <ListItem>
+                <span>분반</span>
+                <span>{selectedAbsence?.classroomName ?? "-"}</span>
+              </ListItem>
+              <ListItem>
+                <span>수업 일자</span>
+                <span>{formatAbsenceDate(selectedAbsence?.lessonDate)}</span>
+              </ListItem>
+              <ListItem>
+                <span>요청 일자</span>
+                <span>{formatAbsenceDate(selectedAbsence?.createdAt)}</span>
+              </ListItem>
+              <ListItem>
+                <span>상태</span>
+                <span>{formatAbsenceStatus(selectedAbsence?.status)}</span>
+              </ListItem>
+            </List>
+          </DetailBlock>
 
-          <ReasonSection>
-            <CompactDivider />
-
-            <DetailField $fullWidth $compact>
-              <DetailFieldLabel>사유</DetailFieldLabel>
-              <DetailTextBox>{selectedAbsence?.reason?.trim() || "-"}</DetailTextBox>
-            </DetailField>
-
+          <DetailBlock>
+            <DetailBlockTitle>사유</DetailBlockTitle>
+            <DetailTextBox>{selectedAbsence?.reason?.trim() || "-"}</DetailTextBox>
             {selectedAbsence?.status === "REJECTED" ? (
-              <DetailField $fullWidth $compact>
-                <DetailFieldLabel>거절 사유</DetailFieldLabel>
+              <DetailBlock>
+                <DetailBlockTitle>거절 사유</DetailBlockTitle>
                 <DetailNoteBox>{selectedAbsence.note?.trim() || "-"}</DetailNoteBox>
-              </DetailField>
+              </DetailBlock>
             ) : null}
+          </DetailBlock>
 
-            <CompactDivider />
-          </ReasonSection>
-
-          <ActionSection>
-            <DetailFieldLabel>처리</DetailFieldLabel>
-            {selectedAbsence?.approvalAt ? (
-              <ProcessedBadge>처리 완료</ProcessedBadge>
-            ) : (
+          {!selectedAbsence?.approvalAt ? (
+            <ActionBlock>
               <FormGrid onSubmit={(event) => event.preventDefault()}>
-                <RejectNoteTextArea
-                  value={rejectNote}
-                  placeholder="거절 사유를 입력해 주세요."
-                  disabled={isActionPending}
-                  onChange={(event) => setRejectNote(event.target.value)}
-                />
+                {isRejecting ? (
+                  <RejectNoteTextArea
+                    value={rejectNote}
+                    placeholder="거절 사유를 입력해 주세요."
+                    disabled={isActionPending}
+                    onChange={(event) => setRejectNote(event.target.value)}
+                    autoFocus
+                  />
+                ) : null}
                 <ButtonRow>
-                  <PrimaryButton type="button" disabled={isActionPending} onClick={handleApprove}>
-                    승인
-                  </PrimaryButton>
-                  <DangerButton
-                    type="button"
-                    disabled={isActionPending || !rejectNote.trim()}
-                    onClick={handleReject}
-                  >
-                    거절
-                  </DangerButton>
+                  {isRejecting ? (
+                    <>
+                      <DangerButton
+                        type="button"
+                        disabled={isActionPending || !rejectNote.trim()}
+                        onClick={() => setConfirmAction("reject")}
+                      >
+                        확인
+                      </DangerButton>
+                      <SmallButton
+                        type="button"
+                        disabled={isActionPending}
+                        onClick={() => {
+                          setIsRejecting(false);
+                          setRejectNote("");
+                        }}
+                      >
+                        취소
+                      </SmallButton>
+                    </>
+                  ) : (
+                    <>
+                      <AbsenceActionButton
+                        type="button"
+                        disabled={isActionPending}
+                        onClick={() => setConfirmAction("approve")}
+                      >
+                        승인
+                      </AbsenceActionButton>
+                      <DangerButton
+                        type="button"
+                        disabled={isActionPending}
+                        onClick={() => setIsRejecting(true)}
+                      >
+                        거절
+                      </DangerButton>
+                    </>
+                  )}
                 </ButtonRow>
               </FormGrid>
-            )}
-          </ActionSection>
-        </DetailStack>
+            </ActionBlock>
+          ) : null}
+        </PanelContent>
       </DataState>
-    </SectionCard>
+
+      {confirmAction ? (
+        <ModalBackdrop onMouseDown={() => setConfirmAction(null)}>
+          <ConfirmDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="absence-action-confirm-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <ConfirmTitle id="absence-action-confirm-title">결강 요청 처리</ConfirmTitle>
+            <ConfirmMessage>
+              {confirmAction === "approve" ? "승인하시겠습니까?" : "거절하시겠습니까?"}
+            </ConfirmMessage>
+            <ButtonRow>
+              <AbsenceActionButton type="button" disabled={isActionPending} onClick={runConfirmedAction}>
+                확인
+              </AbsenceActionButton>
+              <SmallButton
+                type="button"
+                disabled={isActionPending}
+                onClick={() => setConfirmAction(null)}
+              >
+                취소
+              </SmallButton>
+            </ButtonRow>
+          </ConfirmDialog>
+        </ModalBackdrop>
+      ) : null}
+    </DetailPanelContent>
   );
 }
 
-function ProcessedBadge({ children }: { children: string }) {
-  return <ProcessedBadgeBox>{children}</ProcessedBadgeBox>;
-}
-
-const DetailStack = styled.div`
-  display: grid;
-  gap: ${spacing.space20};
-`;
-
-const DetailFields = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: ${spacing.space16};
-`;
-
-const DetailField = styled.div<{ $fullWidth?: boolean; $compact?: boolean }>`
-  display: grid;
-  gap: ${({ $compact }) => ($compact ? spacing.space4 : spacing.space8)};
+const DetailPanelContent = styled.div`
   min-width: 0;
-  grid-column: ${({ $fullWidth }) => ($fullWidth ? "1 / -1" : "auto")};
 `;
 
-const DetailFieldLabel = styled.span`
+const PanelContent = styled.div`
+  display: grid;
+  gap: ${spacing.space12};
+`;
+
+const DetailBlock = styled.div`
+  display: grid;
+  gap: ${spacing.space4};
+
+  ${List} {
+    margin: 0;
+  }
+`;
+
+const ActionBlock = styled.div`
+  display: grid;
+  gap: ${spacing.space8};
+`;
+
+const DetailBlockTitle = styled.h3`
+  margin: 0;
   color: #64706c;
   font-size: ${typography.fontSize13};
   font-weight: 800;
   line-height: ${typography.lineHeight130};
-`;
-
-const DetailFieldValue = styled.div`
-  color: #1f2b28;
-  font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight150};
-  word-break: break-word;
 `;
 
 const DetailTextBox = styled.div`
@@ -193,42 +244,79 @@ const DetailNoteBox = styled(DetailTextBox)`
   color: #1f2b28;
 `;
 
-const CompactDivider = styled.hr`
-  width: 100%;
-  margin: ${spacing.space8} 0;
-  border: 0;
-  border-top: 1px solid #e6e9e7;
-`;
-
-const ReasonSection = styled.section`
-  display: grid;
-  gap: ${spacing.space8};
-  margin: 0;
-`;
-
-const ActionSection = styled.section`
-  display: grid;
-  gap: ${spacing.space12};
-  margin-top: -${spacing.space12};
-`;
-
 const RejectNoteTextArea = styled(TextArea)`
+  min-height: 6rem;
   resize: none;
   font-weight: 500;
 `;
 
-const ProcessedBadgeBox = styled.span`
+const AbsenceActionButton = styled.button.attrs<{ type?: "button" | "submit" | "reset" }>(
+  ({ type }) => ({
+    type: type ?? "button",
+  }),
+)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: fit-content;
-  min-width: 3.25rem;
-  padding: 0.25rem 0.625rem;
-  border-radius: 999px;
-  background: #dcf4ea;
-  color: #3da75c;
-  font-size: ${typography.fontSize13};
-  font-weight: 700;
+  min-height: 2.375rem;
+  border: 1px solid ${colors.point};
+  border-radius: 0.375rem;
+  background-color: ${colors.white};
+  padding: 0 ${spacing.space16};
+  color: ${colors.point};
+  font-family: inherit;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
   line-height: ${typography.lineHeight130};
   white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const ModalBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: ${spacing.space20};
+  background-color: rgb(0 0 0 / 42%);
+`;
+
+const ConfirmDialog = styled.div`
+  display: grid;
+  gap: ${spacing.space16};
+  width: min(100%, 24rem);
+  max-height: calc(100vh - 2.5rem);
+  overflow-y: auto;
+  padding: ${spacing.space20};
+  border-radius: ${radii.radius12};
+  background-color: ${colors.white};
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 18%);
+`;
+
+const ConfirmTitle = styled.h3`
+  margin: 0;
+  color: ${colors.text};
+  font-size: ${typography.fontSize16};
+  font-weight: 700;
+`;
+
+const ConfirmMessage = styled.p`
+  margin: 0;
+  color: #64706c;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
 `;

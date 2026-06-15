@@ -13,7 +13,7 @@ const TERMINAL_LESSON_EXCHANGE_STATUSES: LessonExchangeRequestStatus[] = [
 
 export type LessonExchangeDetailActionState = "empty" | "actionable" | "processed" | "expired";
 
-export const LESSON_EXCHANGE_ITEMS_PER_PAGE = 8;
+export const LESSON_EXCHANGE_ITEMS_PER_PAGE = 11;
 
 export const LESSON_EXCHANGE_STATUS_OPTIONS = [
   { value: "", label: "전체" },

@@ -69,7 +69,7 @@ export const TwoColumnGrid = styled.div`
 
 export const StatsGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: ${spacing.space12};
 
   @media (min-width: 120rem) {
@@ -81,6 +81,29 @@ export const StatsGrid = styled.div`
   }
 `;
 
+export const DashboardStack = styled.div`
+  display: grid;
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space16};
+  }
+`;
+
+export const RequestSummaryGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space16};
+  }
+
+  @media (max-width: ${layout.breakpointTablet}) {
+    grid-template-columns: 1fr;
+  }
+`;
+
 export const StatCard = styled.section`
   min-height: 5.125rem;
   padding: 1rem 0.875rem;
@@ -89,7 +112,6 @@ export const StatCard = styled.section`
   border-radius: ${radii.radius12};
 
   @media (min-width: 120rem) {
-    min-height: 8.25rem;
     padding: 1.5rem;
   }
 `;
@@ -113,7 +135,11 @@ export const StatValue = styled.p`
 export const DashboardGrid = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: ${spacing.space16};
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space16};
+  }
 
   @media (max-width: ${layout.breakpointTablet}) {
     grid-template-columns: 1fr;
@@ -172,19 +198,26 @@ export const ActionGrid = styled.div`
   }
 `;
 
-export const SupportGrid = styled(ActionGrid)`
-  max-width: 41rem;
+export const SingleActionGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: ${spacing.space12};
 `;
 
 export const ActionCardButton = styled.button`
   min-height: 4.25rem;
   border: 1px solid #e1e5e3;
   border-radius: 0.5rem;
-  padding: 1rem;
+  padding: ${spacing.space16};
   background-color: ${colors.white};
   font-family: inherit;
   text-align: left;
   cursor: pointer;
+
+  @media (min-width: 120rem) {
+    min-height: 5rem;
+    padding: 1.5rem;
+  }
 
   &:hover {
     border-color: ${colors.point};
@@ -199,9 +232,9 @@ export const ActionTitle = styled.p<{ $accent?: boolean }>`
   line-height: ${typography.lineHeight130};
 `;
 
-export const ActionDescription = styled.p`
+export const ActionDescription = styled.p<{ $alert?: boolean }>`
   margin: 0;
-  color: #64706c;
+  color: ${({ $alert }) => ($alert ? "#d86a63" : "#64706c")};
   font-size: ${typography.fontSize13};
   line-height: ${typography.lineHeight130};
 `;
@@ -212,7 +245,8 @@ export const StatePanel = styled.div<{ $compact?: boolean }>`
   justify-content: center;
   width: 100%;
   min-height: ${({ $compact }) => ($compact ? "5.5rem" : "8rem")};
-  padding: ${({ $compact }) => ($compact ? `${spacing.space8} ${spacing.space12}` : spacing.space20)};
+  padding: ${({ $compact }) =>
+    $compact ? `${spacing.space8} ${spacing.space12}` : spacing.space20};
   background-color: ${colors.white};
   border: 1px solid #e6e9e7;
   border-radius: ${radii.radius12};
@@ -223,6 +257,7 @@ export const StatePanel = styled.div<{ $compact?: boolean }>`
 export const DataStateBox = styled.div<{ $compact?: boolean }>`
   display: flex;
   width: 100%;
+  height: 100%;
   min-height: ${({ $compact }) => ($compact ? "0" : "16rem")};
   margin-bottom: ${({ $compact }) => ($compact ? "0" : spacing.space12)};
 `;

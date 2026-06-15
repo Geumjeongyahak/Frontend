@@ -1,16 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import styled from "styled-components";
-import { LessonExchangeDetailFieldItems } from "@/components/admin/lesson-exchange/LessonExchangeDetailFieldItems";
 import {
-  LESSON_EXCHANGE_BASIC_DETAIL_FIELDS,
-  LESSON_EXCHANGE_PROCESSING_META_FIELDS,
-} from "@/components/admin/lesson-exchange/lessonExchangeDetailFields";
-import {
-  getLessonExchangeDetailActionState,
+  canProcessLessonExchangeRequest,
+  formatLessonExchangeDate,
+  formatLessonExchangeStatus,
   getLessonExchangeRejectionNote,
-  hasLessonExchangeSupplementalContent,
-  shouldShowLessonExchangeProcessingMeta,
 } from "@/components/admin/lesson-exchange/lessonExchangeRequestConstants";
 import type { AdminLessonExchangeRequestsViewModel } from "@/components/admin/lesson-exchange/useAdminLessonExchangeRequests";
 import {
@@ -18,13 +14,12 @@ import {
   DangerButton,
   DataState,
   FormGrid,
-  PrimaryButton,
-  SectionCard,
-  SectionDescription,
-  SectionTitle,
+  List,
+  ListItem,
+  SmallButton,
   TextArea,
 } from "@/components/admin/AdminDashboardSectionParts";
-import { spacing, typography } from "@/styles/tokens";
+import { colors, radii, spacing, typography } from "@/styles/tokens";
 
 type AdminLessonExchangeRequestsDetailPanelProps = {
   viewModel: AdminLessonExchangeRequestsViewModel;
@@ -42,22 +37,30 @@ export function AdminLessonExchangeRequestsDetailPanel({
     handleReject,
     isActionPending,
   } = viewModel;
-
+  const [confirmAction, setConfirmAction] = useState<"approve" | "reject" | null>(null);
+  const [isRejecting, setIsRejecting] = useState(false);
   const detail = lessonExchangeDetailQuery.data;
   const isLoading = selectedRequestId !== null && lessonExchangeDetailQuery.isLoading;
   const isError = selectedRequestId !== null && lessonExchangeDetailQuery.isError;
-  const actionState = getLessonExchangeDetailActionState(detail);
+  const canProcess = canProcessLessonExchangeRequest(detail);
   const rejectionNote = getLessonExchangeRejectionNote(detail);
-  const showProcessingMeta = shouldShowLessonExchangeProcessingMeta(detail);
-  const hasSupplementalContent = hasLessonExchangeSupplementalContent(detail);
+
+  function runConfirmedAction() {
+    if (confirmAction === "approve") {
+      handleApprove();
+      setConfirmAction(null);
+      return;
+    }
+
+    if (confirmAction === "reject") {
+      handleReject();
+      setConfirmAction(null);
+      setIsRejecting(false);
+    }
+  }
 
   return (
-    <SectionCard>
-      <SectionTitle>수업 교환 요청 상세/처리</SectionTitle>
-      <SectionDescription>
-        선택한 수업 교환 요청의 상세 정보를 확인하고 승인 또는 반려 처리를 수행합니다.
-      </SectionDescription>
-
+    <DetailPanelContent>
       <DataState
         isLoading={isLoading}
         isError={isError}
@@ -66,98 +69,172 @@ export function AdminLessonExchangeRequestsDetailPanel({
         errorLabel="수업 교환 요청 상세를 불러오지 못했습니다."
         emptyLabel="수업 교환 요청을 선택하세요."
       >
-        <DetailStack>
-          <DetailFields>
-            <LessonExchangeDetailFieldItems fields={LESSON_EXCHANGE_BASIC_DETAIL_FIELDS} detail={detail} />
-          </DetailFields>
+        <PanelContent>
+          <DetailBlock>
+            <DetailBlockTitle>요청 정보</DetailBlockTitle>
+            <List>
+              <ListItem>
+                <span>제목</span>
+                <span>{detail?.title ?? "-"}</span>
+              </ListItem>
+              <ListItem>
+                <span>요청자</span>
+                <span>{detail?.requestedByName ?? "-"}</span>
+              </ListItem>
+              <ListItem>
+                <span>분반</span>
+                <span>{detail?.classroomName ?? "-"}</span>
+              </ListItem>
+              <ListItem>
+                <span>수업 일자</span>
+                <span>{formatLessonExchangeDate(detail?.lessonDate)}</span>
+              </ListItem>
+              <ListItem>
+                <span>요청 일자</span>
+                <span>{formatLessonExchangeDate(detail?.createdAt)}</span>
+              </ListItem>
+              <ListItem>
+                <span>만료 일자</span>
+                <span>{formatLessonExchangeDate(detail?.expiresAt)}</span>
+              </ListItem>
+              <ListItem>
+                <span>상태</span>
+                <span>{formatLessonExchangeStatus(detail?.status)}</span>
+              </ListItem>
+            </List>
+          </DetailBlock>
 
-          <DetailLowerBlock>
-            <ContentSection>
-              <DetailField $fullWidth $compact>
-                <DetailFieldLabel>내용</DetailFieldLabel>
-                <DetailTextBox>{detail?.content?.trim() || "-"}</DetailTextBox>
-              </DetailField>
+          <DetailBlock>
+            <DetailBlockTitle>내용</DetailBlockTitle>
+            <DetailTextBox>{detail?.content?.trim() || "-"}</DetailTextBox>
+            {rejectionNote ? (
+              <DetailBlock>
+                <DetailBlockTitle>반려 사유</DetailBlockTitle>
+                <DetailNoteBox>{rejectionNote}</DetailNoteBox>
+              </DetailBlock>
+            ) : null}
+          </DetailBlock>
 
-              {hasSupplementalContent ? (
-                <SupplementalSection>
-                  <CompactDivider />
-
-                  {rejectionNote ? (
-                    <DetailField $fullWidth $compact>
-                      <DetailFieldLabel>반려 사유</DetailFieldLabel>
-                      <DetailNoteBox>{rejectionNote}</DetailNoteBox>
-                    </DetailField>
-                  ) : null}
-
-                  {showProcessingMeta ? (
-                    <ProcessingMetaFields>
-                      <LessonExchangeDetailFieldItems
-                        fields={LESSON_EXCHANGE_PROCESSING_META_FIELDS}
-                        detail={detail}
-                      />
-                    </ProcessingMetaFields>
-                  ) : null}
-                </SupplementalSection>
-              ) : null}
-            </ContentSection>
-
-            {hasSupplementalContent ? <CompactDivider /> : null}
-
-            <ActionSection>
-              <DetailFieldLabel>처리</DetailFieldLabel>
-              {actionState === "expired" ? (
-                <UnavailableBadge>만료된 요청으로 처리불가</UnavailableBadge>
-              ) : null}
-              {actionState === "processed" ? <ProcessedBadge>처리 완료</ProcessedBadge> : null}
-              {actionState === "actionable" ? (
-                <FormGrid onSubmit={(event) => event.preventDefault()}>
+          {canProcess ? (
+            <ActionBlock>
+              <FormGrid onSubmit={(event) => event.preventDefault()}>
+                {isRejecting ? (
                   <RejectNoteTextArea
                     value={rejectNote}
                     placeholder="반려 사유를 입력해 주세요."
                     disabled={isActionPending}
                     onChange={(event) => setRejectNote(event.target.value)}
+                    autoFocus
                   />
-                  <ButtonRow>
-                    <PrimaryButton type="button" disabled={isActionPending} onClick={handleApprove}>
-                      승인
-                    </PrimaryButton>
-                    <DangerButton
-                      type="button"
-                      disabled={isActionPending || !rejectNote.trim()}
-                      onClick={handleReject}
-                    >
-                      반려
-                    </DangerButton>
-                  </ButtonRow>
-                </FormGrid>
-              ) : null}
-            </ActionSection>
-          </DetailLowerBlock>
-        </DetailStack>
+                ) : null}
+                <ButtonRow>
+                  {isRejecting ? (
+                    <>
+                      <DangerButton
+                        type="button"
+                        disabled={isActionPending || !rejectNote.trim()}
+                        onClick={() => setConfirmAction("reject")}
+                      >
+                        확인
+                      </DangerButton>
+                      <SmallButton
+                        type="button"
+                        disabled={isActionPending}
+                        onClick={() => {
+                          setIsRejecting(false);
+                          setRejectNote("");
+                        }}
+                      >
+                        취소
+                      </SmallButton>
+                    </>
+                  ) : (
+                    <>
+                      <LessonExchangeActionButton
+                        type="button"
+                        disabled={isActionPending}
+                        onClick={() => setConfirmAction("approve")}
+                      >
+                        승인
+                      </LessonExchangeActionButton>
+                      <DangerButton
+                        type="button"
+                        disabled={isActionPending}
+                        onClick={() => setIsRejecting(true)}
+                      >
+                        반려
+                      </DangerButton>
+                    </>
+                  )}
+                </ButtonRow>
+              </FormGrid>
+            </ActionBlock>
+          ) : null}
+        </PanelContent>
       </DataState>
-    </SectionCard>
+
+      {confirmAction ? (
+        <ModalBackdrop onMouseDown={() => setConfirmAction(null)}>
+          <ConfirmDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lesson-exchange-action-confirm-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <ConfirmTitle id="lesson-exchange-action-confirm-title">
+              수업 교환 요청 처리
+            </ConfirmTitle>
+            <ConfirmMessage>
+              {confirmAction === "approve" ? "승인하시겠습니까?" : "반려하시겠습니까?"}
+            </ConfirmMessage>
+            <ButtonRow>
+              <LessonExchangeActionButton
+                type="button"
+                disabled={isActionPending}
+                onClick={runConfirmedAction}
+              >
+                확인
+              </LessonExchangeActionButton>
+              <SmallButton
+                type="button"
+                disabled={isActionPending}
+                onClick={() => setConfirmAction(null)}
+              >
+                취소
+              </SmallButton>
+            </ButtonRow>
+          </ConfirmDialog>
+        </ModalBackdrop>
+      ) : null}
+    </DetailPanelContent>
   );
 }
 
-const DetailStack = styled.div`
-  display: grid;
-  gap: ${spacing.space20};
-`;
-
-const DetailFields = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: ${spacing.space16};
-`;
-
-const DetailField = styled.div<{ $fullWidth?: boolean; $compact?: boolean }>`
-  display: grid;
-  gap: ${({ $compact }) => ($compact ? spacing.space4 : spacing.space8)};
+const DetailPanelContent = styled.div`
   min-width: 0;
-  grid-column: ${({ $fullWidth }) => ($fullWidth ? "1 / -1" : "auto")};
 `;
 
-const DetailFieldLabel = styled.span`
+const PanelContent = styled.div`
+  display: grid;
+  gap: ${spacing.space12};
+`;
+
+const DetailBlock = styled.div`
+  display: grid;
+  gap: ${spacing.space4};
+
+  ${List} {
+    margin: 0;
+  }
+`;
+
+const ActionBlock = styled.div`
+  display: grid;
+  gap: ${spacing.space8};
+`;
+
+const DetailBlockTitle = styled.h3`
+  margin: 0;
   color: #64706c;
   font-size: ${typography.fontSize13};
   font-weight: 800;
@@ -181,73 +258,79 @@ const DetailNoteBox = styled(DetailTextBox)`
   background: #fff7f6;
 `;
 
-const CompactDivider = styled.hr`
-  width: 100%;
-  margin: 0;
-  border: 0;
-  border-top: 1px solid #e6e9e7;
-`;
-
-const DetailLowerBlock = styled.div`
-  display: grid;
-  gap: ${spacing.space16};
-`;
-
-const ContentSection = styled.section`
-  display: grid;
-  gap: ${spacing.space12};
-  margin: 0;
-`;
-
-const SupplementalSection = styled.div`
-  display: grid;
-  gap: ${spacing.space12};
-`;
-
-const ProcessingMetaFields = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: ${spacing.space16};
-`;
-
-const ActionSection = styled.section`
-  display: grid;
-  gap: ${spacing.space12};
-`;
-
 const RejectNoteTextArea = styled(TextArea)`
+  min-height: 6rem;
   resize: none;
   font-weight: 500;
 `;
 
-const UnavailableBadge = styled.span`
+const LessonExchangeActionButton = styled.button.attrs<{ type?: "button" | "submit" | "reset" }>(
+  ({ type }) => ({
+    type: type ?? "button",
+  }),
+)`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: fit-content;
-  min-width: 3.25rem;
-  padding: 0.25rem 0.625rem;
-  border-radius: 999px;
-  background: #fff3e0;
-  color: #b45f06;
-  font-size: ${typography.fontSize13};
-  font-weight: 700;
+  min-height: 2.375rem;
+  border: 1px solid ${colors.point};
+  border-radius: 0.375rem;
+  background-color: ${colors.white};
+  padding: 0 ${spacing.space16};
+  color: ${colors.point};
+  font-family: inherit;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
   line-height: ${typography.lineHeight130};
   white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    opacity 0.15s ease;
+
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
-const ProcessedBadge = styled.span`
-  display: inline-flex;
+const ModalBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: fit-content;
-  min-width: 3.25rem;
-  padding: 0.25rem 0.625rem;
-  border-radius: 999px;
-  background: #dcf4ea;
-  color: #3da75c;
-  font-size: ${typography.fontSize13};
+  padding: ${spacing.space20};
+  background-color: rgb(0 0 0 / 42%);
+`;
+
+const ConfirmDialog = styled.div`
+  display: grid;
+  gap: ${spacing.space16};
+  width: min(100%, 24rem);
+  max-height: calc(100vh - 2.5rem);
+  overflow-y: auto;
+  padding: ${spacing.space20};
+  border-radius: ${radii.radius12};
+  background-color: ${colors.white};
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 18%);
+`;
+
+const ConfirmTitle = styled.h3`
+  margin: 0;
+  color: ${colors.text};
+  font-size: ${typography.fontSize16};
   font-weight: 700;
+`;
+
+const ConfirmMessage = styled.p`
+  margin: 0;
+  color: #64706c;
+  font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
-  white-space: nowrap;
 `;

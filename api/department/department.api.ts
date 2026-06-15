@@ -3,7 +3,9 @@ import type {
   CreateDepartmentRequestDto,
   DepartmentDetailResponseDto,
   DepartmentListResponseDto,
+  DepartmentPermissionRequestDto,
   DepartmentPathParamsDto,
+  PermissionResponseDto,
   DepartmentResponseDto,
   UpdateDepartmentRequestDto,
 } from "./department.dto";
@@ -43,4 +45,30 @@ export async function updateDepartment(
 // 특정 부서를 삭제하는 요청
 export async function deleteDepartment(pathParams: DepartmentPathParamsDto) {
   await authClient.delete(`/api/v1/departments/${pathParams.id}`);
+}
+
+// 특정 부서에 권한을 추가하는 요청
+export async function addDepartmentPermission(
+  pathParams: DepartmentPathParamsDto,
+  body: DepartmentPermissionRequestDto,
+) {
+  const response = await authClient.post<PermissionResponseDto[]>(
+    `/api/v1/departments/${pathParams.id}/permissions`,
+    body,
+  );
+  return response.data;
+}
+
+// 특정 부서에서 권한을 제거하는 요청
+export async function removeDepartmentPermission(
+  pathParams: DepartmentPathParamsDto,
+  body: DepartmentPermissionRequestDto,
+) {
+  const response = await authClient.delete<PermissionResponseDto[]>(
+    `/api/v1/departments/${pathParams.id}/permissions`,
+    {
+      data: body,
+    },
+  );
+  return response.data;
 }

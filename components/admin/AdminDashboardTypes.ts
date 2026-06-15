@@ -66,14 +66,18 @@ export type PostCreateState = {
   contentHtml: string;
 };
 
-export type PurchaseCreateState = {
-  title: string;
-  content: string;
-  classroomId: string;
+export type PurchaseCreateItemState = {
+  id: string;
   itemName: string;
   itemQuantity: string;
   itemReason: string;
   itemPaymentType: "PREPAID" | "ACTUAL";
+};
+
+export type PurchaseCreateState = {
+  title: string;
+  classroomId: string;
+  items: PurchaseCreateItemState[];
 };
 
 export type PermissionFormState = {

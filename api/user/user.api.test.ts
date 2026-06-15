@@ -17,6 +17,7 @@ import {
   getTeacherContacts,
   getUsers,
   removeUserPermission,
+  updateUser,
   updateCurrentUser,
 } from "./user.api";
 
@@ -67,6 +68,42 @@ describe("user.api", () => {
     expect(observedBody).toEqual({
       name: "Updated Teacher",
       email: "updated@example.com",
+    });
+  });
+
+  it("updates a user with departmentId in the expected PATCH body", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedBody: unknown;
+
+    server.use(
+      http.patch(`${API_BASE_URL}/api/v1/users/1`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({
+          ...USER_LIST_RESPONSE.content[0],
+          departmentId: 2,
+        });
+      }),
+    );
+
+    const response = await updateUser(
+      { userId: 1 },
+      {
+        name: "Teacher One",
+        email: "teacher1@example.com",
+        phoneNumber: "010-2222-3333",
+        role: "VOLUNTEER",
+        departmentId: 2,
+      },
+    );
+
+    expect(response.departmentId).toBe(2);
+    expect(observedBody).toEqual({
+      name: "Teacher One",
+      email: "teacher1@example.com",
+      phoneNumber: "010-2222-3333",
+      role: "VOLUNTEER",
+      departmentId: 2,
     });
   });
 
