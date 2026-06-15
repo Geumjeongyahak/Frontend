@@ -1198,14 +1198,21 @@ const ReadonlyLabel = styled.span`
 `;
 
 const ReadonlyValue = styled.div`
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 2.375rem;
   min-height: 2.375rem;
+  box-sizing: border-box;
   border: 1px solid ${colors.border};
   border-radius: 0.375rem;
-  padding: 0.625rem ${spacing.space12};
+  padding: 0 ${spacing.space12};
   color: #1f2b28;
   font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight150};
-  overflow-wrap: anywhere;
+  line-height: ${typography.lineHeight130};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 `;
 
 const ReadonlyContent = styled.div`
