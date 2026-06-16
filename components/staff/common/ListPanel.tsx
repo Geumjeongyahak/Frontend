@@ -51,6 +51,7 @@ type ListPanelProps = {
   toggleAriaLabel?: string;
   onMineOnlyToggle?: () => void;
   stableTableRows?: number;
+  lineTone?: "muted" | "default";
 };
 
 type QueryValue = string | number | boolean;
