@@ -12,7 +12,7 @@ const staffSections = [
     title: "수업 관리",
     items: [
       { label: "시간표", href: "/staff/class-management/weekly-schedule" },
-      { label: "수업 일지", href: "/staff/class-management" },
+      { label: "수업 일지", href: "/staff/class-management/class-journal" },
       { label: "수업 교환 신청", href: "/staff/class-management/exchange-request" },
       { label: "수업 결강 신청", href: "/staff/class-management/absence-request" },
     ],
@@ -50,10 +50,10 @@ const adminSection = {
 type StaffSection = (typeof staffSections)[number];
 
 function isCurrentStaffPath(pathname: string, href: string) {
-  if (href === "/staff/class-management") {
+  if (href === "/staff/class-management/class-journal") {
     return (
       pathname === href ||
-      pathname === "/staff/class-management/class-journal" ||
+      pathname.startsWith("/staff/class-management/class-journal/") ||
       /^\/staff\/class-management\/(?!(weekly-schedule|exchange-request|absence-request)(\/|$))[^/]+$/.test(
         pathname,
       )

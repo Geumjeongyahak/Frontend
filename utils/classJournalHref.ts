@@ -4,5 +4,5 @@ export function buildClassJournalHref(page: number, keyword = "", mine = false) 
   if (keyword.trim()) params.set("keyword", keyword.trim());
   if (mine) params.set("mine", "1");
   const query = params.toString();
-  return query ? `/staff/class-management?${query}` : "/staff/class-management";
+  return query ? `/staff/class-management/class-journal?${query}` : "/staff/class-management/class-journal";
 }

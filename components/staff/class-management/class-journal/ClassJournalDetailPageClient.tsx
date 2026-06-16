@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -79,7 +79,7 @@ export default function ClassJournalDetailPageClient({
 }: ClassJournalDetailPageClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { status: authStatus } = useAuthSession();
+  const { status: authStatus, user } = useAuthSession();
   const isAuthenticated = authStatus === "authenticated";
   const [isEditing, setIsEditing] = useState(false);
   const [editableNotes, setEditableNotes] = useState(["", "", ""]);
@@ -99,7 +99,7 @@ export default function ClassJournalDetailPageClient({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["daily-schedules", "list"] });
       window.alert("수업 일지가 삭제되었습니다.");
-      router.push("/staff/class-management");
+      router.push("/staff/class-management/class-journal");
     },
     onError: (error) => {
       window.alert(error instanceof Error ? error.message : "수업 일지 삭제에 실패했습니다.");
@@ -138,15 +138,15 @@ export default function ClassJournalDetailPageClient({
     ? mapClassJournalDetailView(scheduleQuery.data)
     : emptyJournal;
 
-  useEffect(() => {
-    if (!scheduleQuery.data) return;
-    setEditableNotes(mapClassJournalDetailView(scheduleQuery.data).lessons);
-    setEditableAttendance(
-      mapStudentAttendancesToPresentFlags(scheduleQuery.data.studentAttendances),
-    );
-  }, [scheduleQuery.data]);
-
   const isSubmitting = updateJournalMutation.isPending || deleteJournalMutation.isPending;
+  const canManageJournal =
+    isAuthenticated &&
+    Boolean(
+      user?.role === "ADMIN" ||
+        (typeof user?.id === "number" &&
+          typeof scheduleQuery.data?.teacherId === "number" &&
+          user.id === scheduleQuery.data.teacherId),
+    );
 
   const handleDeleteClick = () => {
     if (deleteJournalMutation.isPending) return;
@@ -170,23 +170,27 @@ export default function ClassJournalDetailPageClient({
   return (
     <PageSection>
       <ButtonRow>
-        <ActionButton
-          type="button"
-          $variant="danger"
-          disabled={isSubmitting}
-          onClick={handleDeleteClick}
-        >
-          {deleteJournalMutation.isPending ? "삭제 중..." : "삭제"}
-        </ActionButton>
-        <ActionButton
-          type="button"
-          $variant="edit"
-          disabled={isSubmitting || !scheduleQuery.data}
-          onClick={handleEditClick}
-        >
-          {updateJournalMutation.isPending ? "저장 중..." : isEditing ? "저장" : "수정"}
-        </ActionButton>
-        <LinkButton href="/staff/class-management">목록</LinkButton>
+        {canManageJournal ? (
+          <>
+            <ActionButton
+              type="button"
+              $variant="danger"
+              disabled={isSubmitting}
+              onClick={handleDeleteClick}
+            >
+              {deleteJournalMutation.isPending ? "삭제 중..." : "삭제"}
+            </ActionButton>
+            <ActionButton
+              type="button"
+              $variant="edit"
+              disabled={isSubmitting || !scheduleQuery.data}
+              onClick={handleEditClick}
+            >
+              {updateJournalMutation.isPending ? "저장 중..." : isEditing ? "저장" : "수정"}
+            </ActionButton>
+          </>
+        ) : null}
+        <LinkButton href="/staff/class-management/class-journal">목록</LinkButton>
       </ButtonRow>
 
       <ContentColumn>

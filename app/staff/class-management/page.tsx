@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import ClassJournalListPageClient from "@/components/staff/class-management/class-journal/ClassJournalListPageClient";
+import { redirect } from "next/navigation";
 
 export default function StaffClassPage() {
-  return (
-    <Suspense fallback={null}>
-      <ClassJournalListPageClient />
-    </Suspense>
-  );
+  redirect("/staff/class-management/weekly-schedule");
 }
