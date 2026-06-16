@@ -33,10 +33,18 @@ export interface LessonSummaryResponseDto {
   period?: number;
   startTime?: string;
   endTime?: string;
+  status?: LessonStatus | "CANCELLED";
   teacherName?: string;
   subjectName?: string;
   classroomId?: number;
   classroomName?: string;
+  exchangeDate?: string;
+  exchangeWithDate?: string;
+  exchangedDate?: string;
+  exchangedFromDate?: string;
+  exchangedToDate?: string;
+  originalLessonDate?: string;
+  targetLessonDate?: string;
 }
 
 export type LessonListItemDto = LessonSummaryResponseDto;

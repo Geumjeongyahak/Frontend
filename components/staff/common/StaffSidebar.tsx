@@ -11,6 +11,7 @@ const staffSections = [
   {
     title: "수업 관리",
     items: [
+      { label: "시간표", href: "/staff/class-management/weekly-schedule" },
       { label: "수업 일지", href: "/staff/class-management" },
       { label: "수업 교환 신청", href: "/staff/class-management/exchange-request" },
       { label: "수업 결강 신청", href: "/staff/class-management/absence-request" },
@@ -53,7 +54,9 @@ function isCurrentStaffPath(pathname: string, href: string) {
     return (
       pathname === href ||
       pathname === "/staff/class-management/class-journal" ||
-      /^\/staff\/class\/(?!(exchange|absence)$)[^/]+$/.test(pathname)
+      /^\/staff\/class-management\/(?!(weekly-schedule|exchange-request|absence-request)(\/|$))[^/]+$/.test(
+        pathname,
+      )
     );
   }
 
