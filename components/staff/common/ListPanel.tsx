@@ -26,7 +26,6 @@ export type ListPanelRow = {
 };
 
 type ListPanelTone = "default" | "journal" | "finance" | "archive";
-type ListPanelLineTone = "default" | "muted";
 
 type ListPanelProps = {
   title: string;
@@ -40,7 +39,6 @@ type ListPanelProps = {
   showMineOnlyToggle?: boolean;
   emptyMessage?: string;
   headerTone?: ListPanelTone;
-  lineTone?: ListPanelLineTone;
   writeTone?: ListPanelTone;
   showClassColumn?: boolean;
   classHeader?: string;
@@ -85,7 +83,6 @@ export default function ListPanel({
   showMineOnlyToggle = true,
   emptyMessage = "목록이 없습니다.",
   headerTone = "default",
-  lineTone = "default",
   writeTone,
   showClassColumn = true,
   classHeader = "반",
@@ -121,40 +118,23 @@ export default function ListPanel({
         <Table>
           <thead>
             <tr>
-              <Th $width720="3.75rem" $width1080="5.5rem" $tone={headerTone} $lineTone={lineTone}>
+              <Th $width720="3.75rem" $width1080="5.5rem" $tone={headerTone}>
                 no.
               </Th>
               {showClassColumn ? (
-                <Th
-                  $width720="7.125rem"
-                  $width1080="10.75rem"
-                  $tone={headerTone}
-                  $lineTone={lineTone}
-                >
+                <Th $width720="7.125rem" $width1080="10.75rem" $tone={headerTone}>
                   {classHeader}
                 </Th>
               ) : null}
-              <Th $tone={headerTone} $lineTone={lineTone}>
-                제목
-              </Th>
-              <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone} $lineTone={lineTone}>
+              <Th $tone={headerTone}>제목</Th>
+              <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone}>
                 작성자
               </Th>
-              <Th
-                $width720="10.875rem"
-                $width1080="16.3125rem"
-                $tone={headerTone}
-                $lineTone={lineTone}
-              >
+              <Th $width720="10.875rem" $width1080="16.3125rem" $tone={headerTone}>
                 작성일
               </Th>
               {showStatusColumn ? (
-                <Th
-                  $width720="5rem"
-                  $width1080="7.375rem"
-                  $tone={headerTone}
-                  $lineTone={lineTone}
-                >
+                <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone}>
                   {statusHeader}
                 </Th>
               ) : null}
@@ -164,7 +144,7 @@ export default function ListPanel({
           <tbody>
             {rows.length > 0 ? (
               rows.map((row) => (
-                <Tr key={row.id} $tone={headerTone} $lineTone={lineTone}>
+                <Tr key={row.id} $tone={headerTone}>
                   <Td $width720="3.75rem" $width1080="5.5rem" $isNotice={row.isNotice}>
                     {row.no}
                   </Td>
@@ -175,7 +155,7 @@ export default function ListPanel({
                   ) : null}
                   <TitleTd>
                     <TitleLink href={row.detailHref}>
-                      <TitleContent>
+                      <TitleContent $isPinned={Boolean(row.isPinned)}>
                         {row.isPinned ? (
                           <PinIcon aria-label="고정 게시물" size={16} stroke={2.25} />
                         ) : null}
@@ -197,7 +177,7 @@ export default function ListPanel({
                 </Tr>
               ))
             ) : (
-              <Tr $tone={headerTone} $lineTone={lineTone}>
+              <Tr $tone={headerTone}>
                 <EmptyTd colSpan={columnCount}>{emptyMessage}</EmptyTd>
               </Tr>
             )}
@@ -416,27 +396,16 @@ const Table = styled.table`
   table-layout: fixed;
 `;
 
-function resolveLineColor(lineTone: ListPanelLineTone, tone: ListPanelTone) {
-  if (lineTone === "muted" || tone === "finance" || tone === "archive") {
-    return colors.muted;
-  }
-
-  return "#6d6d6d";
-}
-
-const Th = styled.th<{
-  $width720?: string;
-  $width1080?: string;
-  $tone: ListPanelTone;
-  $lineTone: ListPanelLineTone;
-}>`
+const Th = styled.th<{ $width720?: string; $width1080?: string; $tone: ListPanelTone }>`
   width: ${({ $width720 }) => $width720 ?? "auto"};
   padding: 0.625rem ${spacing.space12};
-  border-bottom: 1px solid ${({ $lineTone, $tone }) => resolveLineColor($lineTone, $tone)};
+  border-bottom: 1px solid
+    ${({ $tone }) => ($tone === "finance" || $tone === "archive" ? colors.muted : "#6d6d6d")};
   font-size: ${typography.fontSize16};
   font-weight: 700;
   text-align: center;
   white-space: nowrap;
+  vertical-align: middle;
 
   @media (min-width: 120rem) {
     width: ${({ $width1080, $width720 }) => $width1080 ?? $width720 ?? "auto"};
@@ -445,8 +414,9 @@ const Th = styled.th<{
   }
 `;
 
-const Tr = styled.tr<{ $tone: ListPanelTone; $lineTone: ListPanelLineTone }>`
-  border-bottom: 1px solid ${({ $lineTone, $tone }) => resolveLineColor($lineTone, $tone)};
+const Tr = styled.tr<{ $tone: ListPanelTone }>`
+  border-bottom: 1px solid
+    ${({ $tone }) => ($tone === "finance" || $tone === "archive" ? colors.muted : "#6d6d6d")};
 `;
 
 const Td = styled.td<{ $width720?: string; $width1080?: string; $isNotice?: boolean }>`
@@ -457,6 +427,7 @@ const Td = styled.td<{ $width720?: string; $width1080?: string; $isNotice?: bool
   font-weight: ${({ $isNotice }) => ($isNotice ? 700 : 400)};
   text-align: center;
   white-space: nowrap;
+  vertical-align: middle;
 
   @media (min-width: 120rem) {
     width: ${({ $width1080, $width720 }) => $width1080 ?? $width720 ?? "auto"};
@@ -479,6 +450,7 @@ const EmptyTd = styled.td`
 `;
 
 const TitleLink = styled(Link)`
+  display: block;
   color: ${colors.text};
   text-decoration: none;
 
@@ -487,23 +459,30 @@ const TitleLink = styled(Link)`
   }
 `;
 
-const TitleContent = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: ${spacing.space8};
+const TitleContent = styled.span<{ $isPinned: boolean }>`
+  position: relative;
+  display: block;
   max-width: 100%;
+  padding-left: ${({ $isPinned }) => ($isPinned ? "1.75rem" : "0")};
+`;
+
+const PinIcon = styled(IconPinFilled)`
+  position: absolute;
+  left: 0;
+  top: 50%;
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  color: ${colors.point};
+  transform: translateY(-50%);
 `;
 
 const TitleText = styled.span`
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-`;
-
-const PinIcon = styled(IconPinFilled)`
-  flex: 0 0 auto;
-  color: ${colors.point};
 `;
 
 const BottomRow = styled.div<{ $hasToggle: boolean; $hasSearch: boolean }>`
@@ -652,7 +631,6 @@ const StatusBadge = styled.span<{
   align-items: center;
   justify-content: center;
   min-width: 3.5rem;
-
   font-size: ${typography.fontSize14};
 
   color: ${({ $status }) => {
