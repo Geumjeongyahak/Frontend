@@ -107,6 +107,7 @@ export default function ExchangeListPageClient() {
       mineOnly={mineOnly}
       emptyMessage={emptyMessage}
       headerTone="journal"
+      lineTone="muted"
       writeTone="archive"
       writeIcon={<IconEdit aria-hidden="true" size={16} stroke={2} />}
       searchSlot={

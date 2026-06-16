@@ -26,6 +26,7 @@ export type ListPanelRow = {
 };
 
 type ListPanelTone = "default" | "journal" | "finance" | "archive";
+type ListPanelLineTone = "default" | "muted";
 
 type ListPanelProps = {
   title: string;
@@ -39,6 +40,7 @@ type ListPanelProps = {
   showMineOnlyToggle?: boolean;
   emptyMessage?: string;
   headerTone?: ListPanelTone;
+  lineTone?: ListPanelLineTone;
   writeTone?: ListPanelTone;
   showClassColumn?: boolean;
   classHeader?: string;
@@ -83,6 +85,7 @@ export default function ListPanel({
   showMineOnlyToggle = true,
   emptyMessage = "목록이 없습니다.",
   headerTone = "default",
+  lineTone = "default",
   writeTone,
   showClassColumn = true,
   classHeader = "반",
@@ -118,23 +121,40 @@ export default function ListPanel({
         <Table>
           <thead>
             <tr>
-              <Th $width720="3.75rem" $width1080="5.5rem" $tone={headerTone}>
+              <Th $width720="3.75rem" $width1080="5.5rem" $tone={headerTone} $lineTone={lineTone}>
                 no.
               </Th>
               {showClassColumn ? (
-                <Th $width720="7.125rem" $width1080="10.75rem" $tone={headerTone}>
+                <Th
+                  $width720="7.125rem"
+                  $width1080="10.75rem"
+                  $tone={headerTone}
+                  $lineTone={lineTone}
+                >
                   {classHeader}
                 </Th>
               ) : null}
-              <Th $tone={headerTone}>제목</Th>
-              <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone}>
+              <Th $tone={headerTone} $lineTone={lineTone}>
+                제목
+              </Th>
+              <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone} $lineTone={lineTone}>
                 작성자
               </Th>
-              <Th $width720="10.875rem" $width1080="16.3125rem" $tone={headerTone}>
+              <Th
+                $width720="10.875rem"
+                $width1080="16.3125rem"
+                $tone={headerTone}
+                $lineTone={lineTone}
+              >
                 작성일
               </Th>
               {showStatusColumn ? (
-                <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone}>
+                <Th
+                  $width720="5rem"
+                  $width1080="7.375rem"
+                  $tone={headerTone}
+                  $lineTone={lineTone}
+                >
                   {statusHeader}
                 </Th>
               ) : null}
@@ -144,7 +164,7 @@ export default function ListPanel({
           <tbody>
             {rows.length > 0 ? (
               rows.map((row) => (
-                <Tr key={row.id} $tone={headerTone}>
+                <Tr key={row.id} $tone={headerTone} $lineTone={lineTone}>
                   <Td $width720="3.75rem" $width1080="5.5rem" $isNotice={row.isNotice}>
                     {row.no}
                   </Td>
@@ -177,7 +197,7 @@ export default function ListPanel({
                 </Tr>
               ))
             ) : (
-              <Tr $tone={headerTone}>
+              <Tr $tone={headerTone} $lineTone={lineTone}>
                 <EmptyTd colSpan={columnCount}>{emptyMessage}</EmptyTd>
               </Tr>
             )}
@@ -396,11 +416,23 @@ const Table = styled.table`
   table-layout: fixed;
 `;
 
-const Th = styled.th<{ $width720?: string; $width1080?: string; $tone: ListPanelTone }>`
+function resolveLineColor(lineTone: ListPanelLineTone, tone: ListPanelTone) {
+  if (lineTone === "muted" || tone === "finance" || tone === "archive") {
+    return colors.muted;
+  }
+
+  return "#6d6d6d";
+}
+
+const Th = styled.th<{
+  $width720?: string;
+  $width1080?: string;
+  $tone: ListPanelTone;
+  $lineTone: ListPanelLineTone;
+}>`
   width: ${({ $width720 }) => $width720 ?? "auto"};
   padding: 0.625rem ${spacing.space12};
-  border-bottom: 1px solid
-    ${({ $tone }) => ($tone === "finance" || $tone === "archive" ? colors.muted : "#6d6d6d")};
+  border-bottom: 1px solid ${({ $lineTone, $tone }) => resolveLineColor($lineTone, $tone)};
   font-size: ${typography.fontSize16};
   font-weight: 700;
   text-align: center;
@@ -413,9 +445,8 @@ const Th = styled.th<{ $width720?: string; $width1080?: string; $tone: ListPanel
   }
 `;
 
-const Tr = styled.tr<{ $tone: ListPanelTone }>`
-  border-bottom: 1px solid
-    ${({ $tone }) => ($tone === "finance" || $tone === "archive" ? colors.muted : "#6d6d6d")};
+const Tr = styled.tr<{ $tone: ListPanelTone; $lineTone: ListPanelLineTone }>`
+  border-bottom: 1px solid ${({ $lineTone, $tone }) => resolveLineColor($lineTone, $tone)};
 `;
 
 const Td = styled.td<{ $width720?: string; $width1080?: string; $isNotice?: boolean }>`
