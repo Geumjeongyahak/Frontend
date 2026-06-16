@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import type {
   DailyScheduleLessonResponseDto,
@@ -14,10 +15,12 @@ import {
   getDailyScheduleDetailIfExists,
   updateStudentAttendances,
 } from "@/api/dailySchedule/dailySchedule.api";
+import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
+import { getMyLessons } from "@/api/lesson/lesson.api";
 import type { StudentListResponseDto } from "@/api/student/student.dto";
 import { getStudents } from "@/api/student/student.api";
-import type { UserTeacherAssignmentResponseDto } from "@/api/user/user.dto";
-import { getCurrentUser } from "@/api/user/user.api";
+import { getMyAssignedSubjects } from "@/api/subject/subject.api";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { buildClassAttendanceSheetPayload } from "@/lib/googleSheet/classAttendance/classAttendanceSheetPayload";
 import { sendClassAttendanceToGoogleSheet } from "@/lib/googleSheet/classAttendance/sendClassAttendanceToGoogleSheet";
 import {
@@ -29,41 +32,17 @@ import { queryKeys } from "@/lib/queryKeys";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import { getKstTodayIsoDate, parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import {
+  buildTodayLessonOptions,
+  buildTodayLessonOptionsFromSubjects,
+  formatLessonRange,
+} from "./classJournalCreateState";
 
 const lessonPeriods = [1, 2, 3] as const;
 const attendanceColumns = Array.from({ length: 10 }, (_, index) => index);
 
-/** TODO: users/me에서 classroomId를 안정적으로 내려주기 전까지 조회 기본값으로 사용 */
-const CLASS_JOURNAL_DEFAULT_CLASSROOM_ID = 1;
-
 function buildAttendanceNameKey(rowIndex: number, column: number) {
   return `${rowIndex}-${column}`;
-}
-
-interface ResolvedTeacherAssignment {
-  subjectName: string;
-  classroomId: number;
-  classroomName: string;
-}
-
-function resolveTeacherAssignmentClassroomId(assignment: UserTeacherAssignmentResponseDto) {
-  const rawClassroomId = assignment.classroomId ?? assignment.classNameId;
-  const parsedClassroomId = Number.parseInt(String(rawClassroomId ?? ""), 10);
-
-  if (!Number.isFinite(parsedClassroomId) || parsedClassroomId <= 0) return null;
-  return parsedClassroomId;
-}
-
-function normalizeTeacherAssignments(teacherAssignments: UserTeacherAssignmentResponseDto[]) {
-  return teacherAssignments.flatMap((assignment, index) => {
-    const classroomId = resolveTeacherAssignmentClassroomId(assignment);
-    if (!classroomId) return [];
-
-    const classroomName = assignment.classroomName?.trim() ?? "";
-    const subjectName = assignment.subjectName?.trim() || classroomName || `수업 ${index + 1}`;
-
-    return [{ subjectName, classroomId, classroomName }];
-  });
 }
 
 function resolveClassroomName(
@@ -78,22 +57,6 @@ function resolveClassroomName(
     .find((classroom) => classroom.id === classroomId)?.name;
 
   return fromStudents?.trim() ? fromStudents : "";
-}
-
-function trimTrailingClockSeconds(time?: string) {
-  if (!time) return "";
-  return time.endsWith(":00") ? time.slice(0, -3) : time;
-}
-
-function formatLessonsActivityTime(lessons?: DailyScheduleLessonResponseDto[]) {
-  if (!lessons?.length) return "";
-
-  const sorted = [...lessons].sort((a, b) => (a.period ?? 0) - (b.period ?? 0));
-  const start = trimTrailingClockSeconds(sorted[0]?.startTime);
-  const end = trimTrailingClockSeconds(sorted[sorted.length - 1]?.endTime);
-
-  if (start && end) return `${start} - ${end}`;
-  return start || end || "";
 }
 
 function buildStudentAttendances(
@@ -118,7 +81,10 @@ function buildStudentAttendances(
 }
 
 function buildLessonJournals(
-  lessons: DailyScheduleLessonResponseDto[] | undefined,
+  lessons: Array<
+    Pick<DailyScheduleLessonResponseDto, "lessonId" | "period"> |
+    Pick<LessonSummaryResponseDto, "lessonId" | "period">
+  > | undefined,
   formData: FormData,
 ): LessonJournalRequestDto[] {
   const orderedLessons = [...(lessons ?? [])]
@@ -145,58 +111,47 @@ export default function ClassJournalCreatePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const todayIsoDate = useMemo(() => getKstTodayIsoDate(), []);
-  const [lessonDateText, setLessonDateText] = useState("");
-  const [classroomNameText, setClassroomNameText] = useState("");
-  const [activityTimeText, setActivityTimeText] = useState("");
   const [attendanceNameOverrides, setAttendanceNameOverrides] = useState<Record<string, string>>({});
   const [additionalAttendanceRows, setAdditionalAttendanceRows] = useState(0);
+  const { status: authStatus, user: currentUser } = useAuthSession();
+  const isAuthenticated = authStatus === "authenticated";
+  const currentUserId = currentUser?.id ?? null;
 
-  const currentUserQuery = useQuery({
-    queryKey: queryKeys.user.me(),
-    queryFn: getCurrentUser,
+  const myTodayLessonsQuery = useQuery({
+    queryKey: ["lessons", "me", currentUserId, "today", todayIsoDate] as const,
+    queryFn: () => getMyLessons({ from: todayIsoDate, to: todayIsoDate }),
+    enabled: isAuthenticated,
     retry: false,
     refetchOnMount: "always",
   });
 
-  const currentUser = currentUserQuery.isFetchedAfterMount ? currentUserQuery.data : undefined;
-  const teacherAssignments = currentUser?.teacherAssignments ?? [];
-  const resolvedTeacherAssignments = useMemo(
-    () => normalizeTeacherAssignments(teacherAssignments),
-    [teacherAssignments],
+  const myAssignedSubjectsQuery = useQuery({
+    queryKey: ["subjects", "me", currentUserId, "today", todayIsoDate] as const,
+    queryFn: getMyAssignedSubjects,
+    enabled: isAuthenticated,
+    retry: false,
+    refetchOnMount: "always",
+  });
+
+  const lessonBackedOptions = useMemo(
+    () => buildTodayLessonOptions(myTodayLessonsQuery.data ?? []),
+    [myTodayLessonsQuery.data],
   );
-  const hasMultipleTeacherAssignments = resolvedTeacherAssignments.length > 1;
-  const [selectedAssignmentClassroomId, setSelectedAssignmentClassroomId] = useState<number | null>(
-    null,
+  const subjectBackedOptions = useMemo(
+    () => buildTodayLessonOptionsFromSubjects(myAssignedSubjectsQuery.data ?? [], todayIsoDate),
+    [myAssignedSubjectsQuery.data, todayIsoDate],
   );
+  const todayLessonOptions = lessonBackedOptions.length > 0 ? lessonBackedOptions : subjectBackedOptions;
+  const hasTodayLessons = todayLessonOptions.length > 0;
+  const showNoClassNotice =
+    myTodayLessonsQuery.isFetched && myAssignedSubjectsQuery.isFetched && !hasTodayLessons;
 
-  useEffect(() => {
-    if (!hasMultipleTeacherAssignments) {
-      if (selectedAssignmentClassroomId !== null) setSelectedAssignmentClassroomId(null);
-      return;
-    }
+  const selectedTodayLesson = useMemo(() => {
+    if (!todayLessonOptions.length) return null;
+    return todayLessonOptions[0];
+  }, [todayLessonOptions]);
 
-    const hasSelectedAssignment = resolvedTeacherAssignments.some(
-      (assignment) => assignment.classroomId === selectedAssignmentClassroomId,
-    );
-
-    if (!hasSelectedAssignment) {
-      setSelectedAssignmentClassroomId(resolvedTeacherAssignments[0]?.classroomId ?? null);
-    }
-  }, [hasMultipleTeacherAssignments, resolvedTeacherAssignments, selectedAssignmentClassroomId]);
-
-  const selectedTeacherAssignment = useMemo(() => {
-    if (hasMultipleTeacherAssignments) {
-      return (
-        resolvedTeacherAssignments.find(
-          (assignment) => assignment.classroomId === selectedAssignmentClassroomId,
-        ) ?? resolvedTeacherAssignments[0]
-      );
-    }
-
-    return resolvedTeacherAssignments[0];
-  }, [hasMultipleTeacherAssignments, resolvedTeacherAssignments, selectedAssignmentClassroomId]);
-
-  const enrollmentClassroomId = selectedTeacherAssignment?.classroomId ?? CLASS_JOURNAL_DEFAULT_CLASSROOM_ID;
+  const enrollmentClassroomId = selectedTodayLesson?.classroomId ?? 0;
 
   const studentsQuery = useQuery({
     queryKey: queryKeys.students.list({
@@ -208,7 +163,7 @@ export default function ClassJournalCreatePage() {
         classroomId: enrollmentClassroomId as number,
         status: "ENROLLED",
       }),
-    enabled: typeof enrollmentClassroomId === "number" && enrollmentClassroomId > 0,
+    enabled: enrollmentClassroomId > 0,
     retry: false,
   });
 
@@ -226,21 +181,17 @@ export default function ClassJournalCreatePage() {
         classroomId: enrollmentClassroomId,
         lessonDate: todayIsoDate,
       }),
-    enabled:
-      enrollmentClassroomId > 0 &&
-      (!hasMultipleTeacherAssignments || selectedAssignmentClassroomId !== null),
+    enabled: enrollmentClassroomId > 0,
     retry: false,
   });
 
   const submitMutation = useMutation({
     mutationFn: async ({
       journalBody,
-      dailyScheduleId,
       attendances,
       googleSheet,
     }: {
       journalBody: Parameters<typeof createJournal>[0];
-      dailyScheduleId: number;
       attendances: UpdateDailyStudentAttendanceItemRequestDto[];
       googleSheet: {
         journal: ReturnType<typeof buildClassJournalSheetPayloadFromFormData>;
@@ -248,9 +199,10 @@ export default function ClassJournalCreatePage() {
       };
     }) => {
       const journal = await createJournal(journalBody);
+      const dailyScheduleId = journal.dailyScheduleId;
 
       const schedule =
-        attendances.length > 0
+        typeof dailyScheduleId === "number" && attendances.length > 0
           ? await updateStudentAttendances({ dailyScheduleId }, { attendances })
           : journal;
 
@@ -272,15 +224,15 @@ export default function ClassJournalCreatePage() {
       await queryClient.invalidateQueries({ queryKey: ["daily-schedules", "list"] });
       queryClient.setQueryData(["daily-schedules", "detail", data.dailyScheduleId], data);
 
-      window.alert("수업 일지가 등록되었습니다.");
+      toast.success("수업 일지가 등록되었습니다.");
       if (data.dailyScheduleId) {
         router.push(`/staff/class-management/${data.dailyScheduleId}`);
         return;
       }
-      router.push("/staff/class-management");
+      router.push("/staff/class-management/class-journal");
     },
     onError: (error) => {
-      window.alert(error instanceof Error ? error.message : "수업 일지 등록에 실패했습니다.");
+      toast.error(error instanceof Error ? error.message : "수업 일지 등록에 실패했습니다.");
     },
   });
 
@@ -291,14 +243,22 @@ export default function ClassJournalCreatePage() {
   const phoneNumber = currentUser?.phoneNumber ?? "";
 
   const resolvedLessonDate = useMemo(() => {
-    if (!scheduleDetail?.lessonDate) return "";
-    return formatUtcToKstShortDate(`${scheduleDetail.lessonDate}T00:00:00`);
-  }, [scheduleDetail?.lessonDate]);
+    if (scheduleDetail?.lessonDate) {
+      return formatUtcToKstShortDate(`${scheduleDetail.lessonDate}T00:00:00`);
+    }
+    if (selectedTodayLesson?.lessonDate) {
+      return formatUtcToKstShortDate(`${selectedTodayLesson.lessonDate}T00:00:00`);
+    }
+    return "";
+  }, [scheduleDetail?.lessonDate, selectedTodayLesson?.lessonDate]);
 
   const resolvedActivityTime = useMemo(
-    () => formatLessonsActivityTime(scheduleDetail?.lessons),
-    [scheduleDetail?.lessons],
+    () => formatLessonRange(scheduleDetail?.lessons ?? []) || selectedTodayLesson?.activityTime || "",
+    [scheduleDetail?.lessons, selectedTodayLesson?.activityTime],
   );
+  const journalSourceLessons = (
+    scheduleDetail?.lessons?.length ? scheduleDetail.lessons : myTodayLessonsQuery.data ?? []
+  ).filter((lesson) => typeof lesson.lessonId === "number");
 
   const resolvedClassroomName = useMemo(
     () =>
@@ -309,11 +269,12 @@ export default function ClassJournalCreatePage() {
       ),
     [enrollmentClassroomId, enrolledStudents, scheduleDetail?.classroomName],
   );
-  const assignedClassroomName = selectedTeacherAssignment?.classroomName?.trim() ?? "";
+  const selectedClassroomName = selectedTodayLesson?.classroomName?.trim() ?? "";
+  const hasResolvedSchedule = Boolean(selectedTodayLesson);
 
-  const lessonDateValue = lessonDateText || resolvedLessonDate;
-  const classroomNameValue = classroomNameText || assignedClassroomName || resolvedClassroomName;
-  const activityTimeValue = activityTimeText || resolvedActivityTime;
+  const lessonDateValue = resolvedLessonDate || (hasResolvedSchedule ? todayIsoDate.slice(2).replace(/-/g, ".") : "-");
+  const classroomNameValue = selectedClassroomName || resolvedClassroomName || "-";
+  const activityTimeValue = resolvedActivityTime || "-";
 
   const apiAttendanceNames = useMemo(() => {
     const names: Record<string, string> = {};
@@ -343,32 +304,34 @@ export default function ClassJournalCreatePage() {
     event.preventDefault();
 
     if (isSubmitting) return;
+    if (!hasTodayLessons) {
+      toast.info("오늘은 수업이 없습니다.");
+      return;
+    }
 
     const form = event.currentTarget;
     const formData = new FormData(form);
     const lessonDate = parseKoreanShortDateToIsoDate(lessonDateValue.trim());
     const parsedClassroomId = enrollmentClassroomId;
     const personalInfoConsent = formData.get("privacyConsent") === "on";
-    const lessonJournals = buildLessonJournals(scheduleDetail?.lessons, formData);
+    const lessonJournals = buildLessonJournals(journalSourceLessons, formData);
 
     if (!lessonDate) {
-      window.alert("활동 일자를 00.00.00 형식으로 입력해 주세요.");
+      toast.error("활동 일자를 00.00.00 형식으로 입력해 주세요.");
       return;
     }
 
     if (!Number.isInteger(parsedClassroomId) || parsedClassroomId <= 0) {
-      window.alert("담당 수업 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      toast.error("담당 수업 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
 
     if (!personalInfoConsent) {
-      window.alert("개인정보 제공 동의가 필요합니다.");
+      toast.error("개인정보 제공 동의가 필요합니다.");
       return;
     }
-
-    const dailyScheduleId = scheduleDetail?.dailyScheduleId;
-    if (!dailyScheduleId) {
-      window.alert("일정 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+    if (lessonJournals.length === 0) {
+      toast.error("수업 내용을 한 교시 이상 입력해 주세요.");
       return;
     }
 
@@ -376,7 +339,6 @@ export default function ClassJournalCreatePage() {
       birthPrefix.trim();
 
     submitMutation.mutate({
-      dailyScheduleId,
       attendances: buildStudentAttendances(formData, enrolledStudents),
       journalBody: {
         lessonDate,
@@ -411,13 +373,20 @@ export default function ClassJournalCreatePage() {
             />
             <span>정보 제공 동의</span>
           </ConsentLabel>
-          <SubmitButton type="submit" form="class-journal-form" disabled={isSubmitting}>
+          <SubmitButton
+            type="submit"
+            form="class-journal-form"
+            disabled={isSubmitting || !hasTodayLessons}
+          >
             {isSubmitting ? "제출 중..." : "수업 일지 제출하기"}
           </SubmitButton>
         </HeaderActions>
       </HeaderRow>
 
       <Form id="class-journal-form" onSubmit={handleSubmit}>
+        {showNoClassNotice ? (
+          <NoClassNotice role="status">오늘은 수업이 없습니다.</NoClassNotice>
+        ) : null}
         <InfoGrid>
           <InfoField>
             <FieldLabel htmlFor="writer">작성자</FieldLabel>
@@ -456,76 +425,41 @@ export default function ClassJournalCreatePage() {
           </InfoField>
 
           <InfoField>
-            <FieldLabel htmlFor="subjectName">과목</FieldLabel>
-            {hasMultipleTeacherAssignments ? (
-              <SubjectSelect
-                id="subjectName"
-                name="subjectName"
-                value={String(selectedAssignmentClassroomId ?? "")}
-                onChange={(event) => {
-                  const nextClassroomId = Number.parseInt(event.target.value, 10);
-                  setSelectedAssignmentClassroomId(
-                    Number.isFinite(nextClassroomId) && nextClassroomId > 0
-                      ? nextClassroomId
-                      : null,
-                  );
-                }}
-              >
-                {resolvedTeacherAssignments.map((assignment) => (
-                  <option
-                    key={`${assignment.classroomId}-${assignment.subjectName}`}
-                    value={assignment.classroomId}
-                  >
-                    {assignment.subjectName}
-                  </option>
-                ))}
-              </SubjectSelect>
-            ) : (
-              <ReadOnlyFieldInput
-                id="subjectName"
-                name="subjectName"
-                type="text"
-                value={resolvedTeacherAssignments[0]?.subjectName ?? ""}
-                placeholder="과목"
-                disabled
-                readOnly
-              />
-            )}
-          </InfoField>
-
-          <InfoField>
             <FieldLabel htmlFor="classroomName">담당 반</FieldLabel>
-            <EditableFieldInput
+            <ReadOnlyFieldInput
               id="classroomName"
               name="classroomName"
               type="text"
-              placeholder="장미반"
+              placeholder="-"
               value={classroomNameValue}
-              onChange={(event) => setClassroomNameText(event.target.value)}
+              disabled
+              readOnly
             />
           </InfoField>
 
           <InfoField>
             <FieldLabel htmlFor="lessonDate">활동 일자</FieldLabel>
-            <EditableFieldInput
+            <ReadOnlyFieldInput
               id="lessonDate"
               name="lessonDate"
               type="text"
-              placeholder="00.00.00"
+              placeholder="-"
               value={lessonDateValue}
-              onChange={(event) => setLessonDateText(event.target.value)}
+              disabled
+              readOnly
             />
           </InfoField>
 
           <InfoField>
             <FieldLabel htmlFor="activityTime">활동 시간</FieldLabel>
-            <EditableFieldInput
+            <ReadOnlyFieldInput
               id="activityTime"
               name="activityTime"
               type="text"
-              placeholder="14:00 - 15:00"
+              placeholder="-"
               value={activityTimeValue}
-              onChange={(event) => setActivityTimeText(event.target.value)}
+              disabled
+              readOnly
             />
           </InfoField>
         </InfoGrid>
@@ -539,6 +473,7 @@ export default function ClassJournalCreatePage() {
                 id={`lesson-${period}`}
                 name={`lesson${period}`}
                 placeholder={`${period}교시 수업 내용을 작성해주세요`}
+                disabled={!hasTodayLessons}
               />
             </LessonField>
           ))}
@@ -562,6 +497,7 @@ export default function ClassJournalCreatePage() {
                         name={`studentName${rowIndex * 10 + column + 1}`}
                         aria-label={`${rowIndex * 10 + column + 1}번 학생 이름`}
                         value={getAttendanceName(nameKey)}
+                        disabled={!hasTodayLessons}
                         onChange={(event) =>
                           setAttendanceNameOverrides((current) => ({
                             ...current,
@@ -580,6 +516,7 @@ export default function ClassJournalCreatePage() {
                           type="checkbox"
                           name={`attendanceStatus${statusIndex}`}
                           aria-label={`${statusIndex}번 출석`}
+                          disabled={!hasTodayLessons}
                         />
                       </AttendanceCheckboxCell>
                     );
@@ -589,6 +526,7 @@ export default function ClassJournalCreatePage() {
             </AttendanceBlocks>
             <AddAttendanceButton
               type="button"
+              disabled={!hasTodayLessons}
               onClick={() => setAdditionalAttendanceRows((count) => count + 1)}
             >
               출석부 추가하기
@@ -752,6 +690,22 @@ const Form = styled.form`
   }
 `;
 
+const NoClassNotice = styled.p`
+  margin: 0;
+  padding: ${spacing.space16} ${spacing.space20};
+  border: 1px solid ${colors.border};
+  border-radius: ${radii.radius12};
+  background-color: #fdeceb;
+  color: #b24d46;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight150};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
 const InfoGrid = styled.section`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -833,17 +787,6 @@ const FieldInput = styled.input`
 const ReadOnlyFieldInput = styled(FieldInput)`
   color: #6d6d6d;
   cursor: not-allowed;
-`;
-
-const EditableFieldInput = styled(FieldInput)`
-  color: #000000;
-`;
-
-const SubjectSelect = styled.select`
-  ${fieldBaseStyle}
-  color: #000000;
-  appearance: none;
-  cursor: pointer;
 `;
 
 const LessonSection = styled.section`
@@ -980,8 +923,13 @@ const AddAttendanceButton = styled.button`
   line-height: ${typography.lineHeight130};
   cursor: pointer;
 
-  &:hover {
+  &:not(:disabled):hover {
     filter: brightness(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   @media (min-width: 120rem) {

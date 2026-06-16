@@ -1,5 +1,10 @@
-import ClassJournalCreatePage from "@/components/staff/class-management/class-journal/ClassJournalCreatePage";
+import { Suspense } from "react";
+import ClassJournalListPageClient from "@/components/staff/class-management/class-journal/ClassJournalListPageClient";
 
 export default function Page() {
-  return <ClassJournalCreatePage />;
+  return (
+    <Suspense fallback={null}>
+      <ClassJournalListPageClient />
+    </Suspense>
+  );
 }

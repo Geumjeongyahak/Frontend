@@ -155,7 +155,7 @@ export default function ListPanel({
                   ) : null}
                   <TitleTd>
                     <TitleLink href={row.detailHref}>
-                      <TitleContent>
+                      <TitleContent $isPinned={Boolean(row.isPinned)}>
                         {row.isPinned ? (
                           <PinIcon aria-label="고정 게시물" size={16} stroke={2.25} />
                         ) : null}
@@ -405,6 +405,7 @@ const Th = styled.th<{ $width720?: string; $width1080?: string; $tone: ListPanel
   font-weight: 700;
   text-align: center;
   white-space: nowrap;
+  vertical-align: middle;
 
   @media (min-width: 120rem) {
     width: ${({ $width1080, $width720 }) => $width1080 ?? $width720 ?? "auto"};
@@ -426,6 +427,7 @@ const Td = styled.td<{ $width720?: string; $width1080?: string; $isNotice?: bool
   font-weight: ${({ $isNotice }) => ($isNotice ? 700 : 400)};
   text-align: center;
   white-space: nowrap;
+  vertical-align: middle;
 
   @media (min-width: 120rem) {
     width: ${({ $width1080, $width720 }) => $width1080 ?? $width720 ?? "auto"};
@@ -448,6 +450,7 @@ const EmptyTd = styled.td`
 `;
 
 const TitleLink = styled(Link)`
+  display: block;
   color: ${colors.text};
   text-decoration: none;
 
@@ -456,23 +459,30 @@ const TitleLink = styled(Link)`
   }
 `;
 
-const TitleContent = styled.span`
-  display: inline-flex;
-  align-items: center;
-  gap: ${spacing.space8};
+const TitleContent = styled.span<{ $isPinned: boolean }>`
+  position: relative;
+  display: block;
   max-width: 100%;
+  padding-left: ${({ $isPinned }) => ($isPinned ? "1.75rem" : "0")};
+`;
+
+const PinIcon = styled(IconPinFilled)`
+  position: absolute;
+  left: 0;
+  top: 50%;
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  color: ${colors.point};
+  transform: translateY(-50%);
 `;
 
 const TitleText = styled.span`
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-`;
-
-const PinIcon = styled(IconPinFilled)`
-  flex: 0 0 auto;
-  color: ${colors.point};
 `;
 
 const BottomRow = styled.div<{ $hasToggle: boolean; $hasSearch: boolean }>`
@@ -621,7 +631,6 @@ const StatusBadge = styled.span<{
   align-items: center;
   justify-content: center;
   min-width: 3.5rem;
-
   font-size: ${typography.fontSize14};
 
   color: ${({ $status }) => {

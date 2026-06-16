@@ -1,0 +1,99 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "금정야학 로고" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "금정야학 로고" [ref=e6]
+      - navigation [ref=e7]:
+        - list [ref=e8]:
+          - listitem [ref=e9]:
+            - link "기관 정보" [ref=e10] [cursor=pointer]:
+              - /url: /info/history
+          - listitem [ref=e11]:
+            - link "교원" [ref=e12] [cursor=pointer]:
+              - /url: /staff/class-management
+          - listitem [ref=e13]:
+            - link "신규 등록" [ref=e14] [cursor=pointer]:
+              - /url: /register
+  - generic [ref=e18]:
+    - complementary [ref=e19]:
+      - heading "교원" [level=1] [ref=e20]
+      - generic [ref=e21]:
+        - generic [ref=e22]:
+          - button "수업 관리" [expanded] [ref=e23] [cursor=pointer]:
+            - generic [ref=e24]: 수업 관리
+            - generic [ref=e25]: ▾
+          - list [ref=e26]:
+            - listitem [ref=e27]:
+              - link "시간표" [ref=e28] [cursor=pointer]:
+                - /url: /staff/class-management/weekly-schedule
+            - listitem [ref=e29]:
+              - link "수업 일지" [ref=e30] [cursor=pointer]:
+                - /url: /staff/class-management
+            - listitem [ref=e31]:
+              - link "수업 교환 신청" [ref=e32] [cursor=pointer]:
+                - /url: /staff/class-management/exchange-request
+            - listitem [ref=e33]:
+              - link "수업 결강 신청" [ref=e34] [cursor=pointer]:
+                - /url: /staff/class-management/absence-request
+        - generic [ref=e35]:
+          - button "재무 관리" [ref=e36] [cursor=pointer]:
+            - generic [ref=e37]: 재무 관리
+            - generic [ref=e38]: ▾
+          - list:
+            - listitem [ref=e39]:
+              - link "결제 신청" [ref=e40] [cursor=pointer]:
+                - /url: /staff/finance-management
+        - generic [ref=e41]:
+          - button "자료실" [ref=e42] [cursor=pointer]:
+            - generic [ref=e43]: 자료실
+            - generic [ref=e44]: ▾
+          - list:
+            - listitem [ref=e45]:
+              - link "교칙" [ref=e46] [cursor=pointer]:
+                - /url: /staff/archive/school-rules
+            - listitem [ref=e47]:
+              - link "연락망" [ref=e48] [cursor=pointer]:
+                - /url: /staff/archive/phone-book
+            - listitem [ref=e49]:
+              - link "교학 회의록" [ref=e50] [cursor=pointer]:
+                - /url: /staff/archive/meeting-records
+            - listitem [ref=e51]:
+              - link "인수인계서" [ref=e52] [cursor=pointer]:
+                - /url: /staff/archive/handover-documents
+            - listitem [ref=e53]:
+              - link "시험 문제 자료" [ref=e54] [cursor=pointer]:
+                - /url: /staff/archive/exam-materials
+            - listitem [ref=e55]:
+              - link "서류 양식" [ref=e56] [cursor=pointer]:
+                - /url: /staff/archive/document-forms
+        - generic [ref=e57]:
+          - button "게시판" [ref=e58] [cursor=pointer]:
+            - generic [ref=e59]: 게시판
+            - generic [ref=e60]: ▾
+          - list:
+            - listitem [ref=e61]:
+              - link "게시판" [ref=e62] [cursor=pointer]:
+                - /url: /staff/board
+        - generic [ref=e63]:
+          - button "학사일정" [ref=e64] [cursor=pointer]:
+            - generic [ref=e65]: 학사일정
+            - generic [ref=e66]: ▾
+          - list:
+            - listitem [ref=e67]:
+              - link "월별 일정" [ref=e68] [cursor=pointer]:
+                - /url: /staff/calendar
+    - main [ref=e69]:
+      - generic [ref=e70]:
+        - generic [ref=e71]:
+          - generic [ref=e72]:
+            - heading "시간표" [level=1] [ref=e73]
+            - paragraph [ref=e74]: 2026-06-15 ~ 2026-06-21
+          - generic "주간 시간표 이동" [ref=e75]:
+            - button "이전 주" [ref=e76] [cursor=pointer]: ◀
+            - button "이번 주로 이동" [ref=e77] [cursor=pointer]: 06월 3주차
+            - button "다음 주" [ref=e78] [cursor=pointer]: ▶
+        - paragraph [ref=e79]: 주중 또는 주말 분반이 없습니다.
+  - region "Notifications Alt+T"
+  - button "Open Next.js Dev Tools" [ref=e85] [cursor=pointer]:
+    - img [ref=e86]

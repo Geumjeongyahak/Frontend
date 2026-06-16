@@ -57,7 +57,7 @@ export function buildUpdateJournalBody(
 function formatAttendanceStatus(status?: string) {
   if (status === "PRESENT") return "O";
   if (status === "ABSENT") return "X";
-  if (status === "LATE") return "△";
+  if (status === "LATE") return "X";
   return "";
 }
 

@@ -1,15 +1,19 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { IconCalendarMonth } from "@tabler/icons-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import styled, { css } from "styled-components";
 import { createAbsenceRequest } from "@/api/request/request.api";
 import { getCurrentUser } from "@/api/user/user.api";
 import { queryKeys } from "@/lib/queryKeys";
+import { parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export default function AbsenceRequestForm() {
+  const [lessonDateText, setLessonDateText] = useState("");
+  const lessonDateInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const currentUserQuery = useQuery({
     queryKey: queryKeys.user.me(),
@@ -41,6 +45,26 @@ export default function AbsenceRequestForm() {
     },
   });
 
+  const handleOpenDatePicker = (ref: React.RefObject<HTMLInputElement | null>) => {
+    const dateInput = ref.current;
+    if (!dateInput) return;
+
+    if (typeof dateInput.showPicker === "function") {
+      dateInput.showPicker();
+      return;
+    }
+
+    dateInput.click();
+  };
+
+  const handleDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    if (!value) return;
+
+    const [year, month, day] = value.split("-");
+    setLessonDateText(`${year.slice(-2)}.${month}.${day}`);
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -48,7 +72,7 @@ export default function AbsenceRequestForm() {
 
     const formData = new FormData(event.currentTarget);
     const title = String(formData.get("title") ?? "").trim();
-    const lessonDate = String(formData.get("lessonDate") ?? "").trim();
+    const lessonDate = parseKoreanShortDateToIsoDate(lessonDateText.trim());
     const reason = String(formData.get("reason") ?? "").trim();
 
     if (!title || !lessonDate || !reason) {
@@ -78,35 +102,60 @@ export default function AbsenceRequestForm() {
         <Section>
           <SectionTitle>신청자 정보</SectionTitle>
 
-          <InfoRow>
-            <FieldLabel htmlFor="className">반 이름</FieldLabel>
-            {hasMultipleClassNames ? (
-              <InlineSelect id="className" name="className" defaultValue="">
-                <option value="" disabled>
-                  반 이름을 선택해 주세요
-                </option>
-                {assignmentClassNames.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
+          <InfoStack>
+            <InfoPairRow>
+              <FieldLabel htmlFor="className">반 이름</FieldLabel>
+              {hasMultipleClassNames ? (
+                <InlineSelect id="className" name="className" defaultValue="">
+                  <option value="" disabled>
+                    반 이름을 선택해 주세요
                   </option>
-                ))}
-              </InlineSelect>
-            ) : (
-              <InlineInput
-                id="className"
-                name="className"
-                placeholder="개나리반"
-                value={className}
-                readOnly
-              />
-            )}
+                  {assignmentClassNames.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </InlineSelect>
+              ) : (
+                <InlineInput
+                  id="className"
+                  name="className"
+                  placeholder="반 이름"
+                  value={className}
+                  readOnly
+                />
+              )}
 
-            <FieldLabel htmlFor="lessonDate">수업 일자</FieldLabel>
-            <InlineInput id="lessonDate" name="lessonDate" type="date" />
+              <FieldLabel htmlFor="writer">작성자</FieldLabel>
+              <InlineInput id="writer" name="writer" placeholder="홍길동" value={writerName} readOnly />
 
-            <FieldLabel htmlFor="writer">작성자</FieldLabel>
-            <InlineInput id="writer" name="writer" placeholder="홍길동" value={writerName} readOnly />
-          </InfoRow>
+              <FieldLabel htmlFor="lessonDate">수업 일자</FieldLabel>
+              <DateRow>
+                <DateInput
+                  id="lessonDate"
+                  name="lessonDate"
+                  placeholder="00.00.00"
+                  value={lessonDateText}
+                  readOnly
+                  onClick={() => handleOpenDatePicker(lessonDateInputRef)}
+                />
+                <HiddenNativeDateInput
+                  ref={lessonDateInputRef}
+                  type="date"
+                  onChange={handleDateChange}
+                  aria-hidden="true"
+                  tabIndex={-1}
+                />
+                <CalendarButton
+                  type="button"
+                  aria-label="수업 일자 달력 열기"
+                  onClick={() => handleOpenDatePicker(lessonDateInputRef)}
+                >
+                  <IconCalendarMonth size={16} stroke={2} color={colors.white} />
+                </CalendarButton>
+              </DateRow>
+            </InfoPairRow>
+          </InfoStack>
         </Section>
 
         <Section>
@@ -122,8 +171,8 @@ const inputStyle = css`
   min-width: 0;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space12};
-  border: 0;
-  background: ${colors.background};
+  border: 1px solid #c0c0c0;
+  background: transparent;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 400;
@@ -131,7 +180,7 @@ const inputStyle = css`
   outline: none;
 
   &::placeholder {
-    color: #b1b1b1;
+    color: #c0c0c0;
   }
 
   @media (min-width: 120rem) {
@@ -161,10 +210,10 @@ const HeaderRow = styled.div`
   align-items: flex-start;
   justify-content: space-between;
   gap: ${spacing.space24};
-  margin-bottom: 2.125rem;
+  margin-bottom: 2.625rem;
 
   @media (min-width: 120rem) {
-    margin-bottom: 3.1875rem;
+    margin-bottom: 3.9375rem;
   }
 
   @media (max-width: ${layout.breakpointMobile}) {
@@ -174,9 +223,8 @@ const HeaderRow = styled.div`
 
 const Title = styled.h1`
   margin: 0;
-  color: #000000;
-  font-size: ${typography.fontSize20};
-  font-weight: 600;
+  font-size: ${typography.fontSize24};
+  font-weight: 500;
   line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
@@ -232,7 +280,7 @@ const Form = styled.form`
 const Section = styled.section`
   display: flex;
   flex-direction: column;
-  gap: ${spacing.space12};
+  gap: ${spacing.space16};
 
   @media (min-width: 120rem) {
     gap: 1.875rem;
@@ -241,7 +289,6 @@ const Section = styled.section`
 
 const labelStyle = css`
   margin: 0;
-  color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
@@ -282,11 +329,26 @@ const InlineSelect = styled.select`
 const TitleInput = styled.input`
   ${inputStyle}
   width: 100%;
+  font-weight: 600;
 `;
 
-const InfoRow = styled.div`
+const InfoStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+`;
+
+const InfoPairRow = styled.div`
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns:
+    auto minmax(0, 1fr)
+    auto minmax(0, 1fr)
+    auto auto;
+
   align-items: center;
   gap: ${spacing.space12};
 
@@ -300,9 +362,8 @@ const InfoRow = styled.div`
 `;
 
 const FieldLabel = styled.label`
-  color: #000000;
   font-size: ${typography.fontSize14};
-  font-weight: 600;
+  font-weight: 500;
   line-height: ${typography.lineHeight130};
   white-space: nowrap;
 
@@ -314,9 +375,9 @@ const FieldLabel = styled.label`
 const TextArea = styled.textarea`
   width: 100%;
   min-height: 6.875rem;
-  padding: 0.75rem ${spacing.space12};
-  border: 0;
-  background: ${colors.background};
+  padding: 0.8125rem ${spacing.space12};
+  border: 1px solid #c0c0c0;
+  background: transparent;
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -325,12 +386,71 @@ const TextArea = styled.textarea`
   outline: none;
 
   &::placeholder {
-    color: #b1b1b1;
+    color: #c0c0c0;
   }
 
   @media (min-width: 120rem) {
     min-height: 9.6875rem;
-    padding: 1.1875rem ${spacing.space20};
+    padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
+  }
+`;
+
+const DateRow = styled.div`
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  min-width: 7.75rem;
+  justify-content: space-between;
+  width: 7.75rem;
+  min-height: 2.6875rem;
+  padding: 0.4375rem ${spacing.space12};
+  border: 1px solid #c0c0c0;
+  outline: none;
+
+  @media (min-width: 120rem) {
+    width: 11.625rem;
+    min-height: 4rem;
+    padding: 0.625rem ${spacing.space20};
+  }
+`;
+
+const DateInput = styled.input`
+  width: 4.375rem;
+  background: transparent;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  outline: none;
+
+  @media (min-width: 120rem) {
+    width: 6.25rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const HiddenNativeDateInput = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+`;
+
+const CalendarButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: ${colors.point};
+  color: ${colors.white};
+  cursor: pointer;
+
+  @media (min-width: 120rem) {
+    width: 2.25rem;
+    height: 2.25rem;
   }
 `;

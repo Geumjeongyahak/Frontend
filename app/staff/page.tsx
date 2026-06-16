@@ -1,5 +1,5 @@
-import PageTemplate from "@/components/common/PageTemplate";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <PageTemplate title="교원" description="교원 페이지입니다." />;
+  redirect("/staff/class-management/weekly-schedule");
 }

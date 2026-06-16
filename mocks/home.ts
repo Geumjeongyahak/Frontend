@@ -19,9 +19,9 @@ export const headerMenus: HeaderDropdownMenu[] = [
   },
   {
     label: "교원",
-    href: "/staff/class-management",
+    href: "/staff/class-management/weekly-schedule",
     items: [
-      { label: "수업 관리", href: "/staff/class-management" },
+      { label: "수업 관리", href: "/staff/class-management/weekly-schedule" },
       { label: "재무 관리", href: "/staff/finance-management" },
       { label: "자료실", href: "/staff/archive/school-rules" },
       { label: "게시판", href: "/staff/board" },

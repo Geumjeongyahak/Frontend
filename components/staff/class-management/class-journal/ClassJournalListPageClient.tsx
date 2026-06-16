@@ -49,7 +49,7 @@ export default function ClassJournalListPageClient() {
         <Title>수업 일지</Title>
         <ActionGroup>
           <ActionButton type="button">수업 일지 출력</ActionButton>
-          <ActionLink href="/staff/class-management/class-journal">
+          <ActionLink href="/staff/class-management/class-journal/new">
             <span>새 수업 일지 작성하기</span>
             <IconEdit aria-hidden="true" size={16} stroke={2} />
           </ActionLink>
