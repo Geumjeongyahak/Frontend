@@ -99,6 +99,7 @@ export default function ExchangeListPageClient() {
       title="수업 교환"
       writeLabel="수업 교환 신청하기"
       writeHref="/staff/class-management/exchange-request/new"
+      showWriteButton={isAuthenticated}
       listPath="/staff/class-management/exchange-request"
       rows={rows}
       currentPage={currentPage}

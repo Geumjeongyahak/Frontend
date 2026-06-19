@@ -97,6 +97,7 @@ export default function AbsenceListPageClient() {
       title="수업 결강"
       writeLabel="수업 결강 신청하기"
       writeHref="/staff/class-management/absence-request/new"
+      showWriteButton={isAuthenticated}
       listPath="/staff/class-management/absence-request"
       rows={rows}
       currentPage={currentPage}

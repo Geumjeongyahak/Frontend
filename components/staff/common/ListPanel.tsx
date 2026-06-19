@@ -31,6 +31,7 @@ type ListPanelProps = {
   title: string;
   writeLabel: string;
   writeHref: string;
+  showWriteButton?: boolean;
   listPath: string;
   rows: ListPanelRow[];
   currentPage: number;
@@ -76,6 +77,7 @@ export default function ListPanel({
   title,
   writeLabel,
   writeHref,
+  showWriteButton = true,
   listPath,
   rows,
   currentPage,
@@ -107,10 +109,12 @@ export default function ListPanel({
     <Container>
       <HeaderRow>
         <Title $tone={headerTone}>{title}</Title>
-        <WriteButton href={writeHref} $tone={writeTone ?? headerTone}>
-          <span>{writeLabel}</span>
-          {writeIcon}
-        </WriteButton>
+        {showWriteButton ? (
+          <WriteButton href={writeHref} $tone={writeTone ?? headerTone}>
+            <span>{writeLabel}</span>
+            {writeIcon}
+          </WriteButton>
+        ) : null}
       </HeaderRow>
 
       {filterSlot ? <FilterSlot>{filterSlot}</FilterSlot> : null}

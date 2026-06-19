@@ -85,7 +85,7 @@ export default function BoardListPageClient({
   initialBoardType = "all",
 }: BoardListPageClientProps) {
   const router = useRouter();
-  const { user } = useAuthSession();
+  const { status: authStatus, user } = useAuthSession();
   const [boardType, setBoardType] = useState<BoardType>(initialBoardType);
   const [boardScope, setBoardScope] = useState("all");
   const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null);
@@ -95,6 +95,7 @@ export default function BoardListPageClient({
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   const requestedPage = Number.isInteger(initialPage) && initialPage >= 1 ? initialPage : 1;
+  const isAuthenticated = authStatus === "authenticated";
   const isScopeDisabled = boardType === "all" || boardType === "NOTICE";
   const currentAuthor = user?.name ?? user?.nickname ?? user?.email;
   const resetToFirstPage = () => {
@@ -279,6 +280,7 @@ export default function BoardListPageClient({
         title="게시판"
         writeLabel="글쓰기"
         writeHref="/staff/board/new"
+        showWriteButton={isAuthenticated}
         listPath="/staff/board"
         rows={rows}
         currentPage={currentPage}

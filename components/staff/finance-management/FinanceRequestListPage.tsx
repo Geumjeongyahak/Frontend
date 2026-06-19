@@ -40,14 +40,16 @@ function getRequestTime(createdAt?: string) {
 
 export default function FinanceRequestListPage({ currentPage }: FinanceRequestListPageProps) {
   const router = useRouter();
-  const { user } = useAuthSession();
+  const { user, status: authStatus } = useAuthSession();
   const [mineOnly, setMineOnly] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
+  const isAuthenticated = authStatus === "authenticated";
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.requests.purchaseList(),
     queryFn: () => getPurchaseRequests(),
+    enabled: isAuthenticated,
     retry: false,
   });
 
@@ -105,11 +107,16 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
     detailHref: `/staff/finance-management/${request.id}`,
   }));
 
-  const emptyMessage = isLoading
-    ? "결제 신청 내역을 불러오는 중입니다."
-    : isError
-      ? "결제 신청 내역을 불러오지 못했습니다."
-      : "결제 신청 내역이 없습니다.";
+  const emptyMessage =
+    authStatus === "loading"
+      ? "사용자 정보를 확인하는 중입니다."
+      : !isAuthenticated
+        ? "로그인이 필요합니다."
+        : isLoading
+          ? "결제 신청 내역을 불러오는 중입니다."
+          : isError
+            ? "결제 신청 내역을 불러오지 못했습니다."
+            : "결제 신청 내역이 없습니다.";
 
   return (
     <Main>
@@ -121,6 +128,7 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
             title="결제 신청"
             writeLabel="결제 신청 하기"
             writeHref="/staff/finance-management/new"
+            showWriteButton={isAuthenticated}
             listPath="/staff/finance-management"
             rows={rows}
             currentPage={safeCurrentPage}

@@ -8,6 +8,7 @@ import styled from "styled-components";
 import { getMeetingRecords } from "@/api/meetingRecord/meetingRecord.api";
 import type { MeetingRecordStatus } from "@/api/meetingRecord/meetingRecord.dto";
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
@@ -29,9 +30,11 @@ export default function MeetingRecordsPage({
   initialMineOnly,
 }: MeetingRecordsPageProps) {
   const router = useRouter();
+  const { status: authStatus } = useAuthSession();
   const [mineOnly, setMineOnly] = useState(initialMineOnly);
   const [searchInput, setSearchInput] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
+  const isAuthenticated = authStatus === "authenticated";
 
   const requestedPage = Number.isInteger(initialPage) && initialPage >= 1 ? initialPage : 1;
   const resetToFirstPage = () => {
@@ -49,6 +52,7 @@ export default function MeetingRecordsPage({
   const { data, isError, isLoading } = useQuery({
     queryKey: queryKeys.meetingRecords.list(queryParams),
     queryFn: () => getMeetingRecords(queryParams),
+    enabled: isAuthenticated,
     retry: false,
   });
 
@@ -77,6 +81,7 @@ export default function MeetingRecordsPage({
       title="교학 회의록"
       writeLabel="교학 회의록 작성하기"
       writeHref="/staff/archive/meeting-records/new"
+      showWriteButton={isAuthenticated}
       listPath="/staff/archive/meeting-records"
       rows={isLoading || isError ? [] : rows}
       currentPage={currentPage}
@@ -91,11 +96,15 @@ export default function MeetingRecordsPage({
         setMineOnly((current) => !current);
       }}
       emptyMessage={
-        isLoading
-          ? "교학 회의록을 불러오는 중입니다."
-          : isError
-            ? "교학 회의록을 불러오지 못했습니다."
-            : "교학 회의록이 없습니다."
+        authStatus === "loading"
+          ? "사용자 정보를 확인하는 중입니다."
+          : !isAuthenticated
+            ? "로그인이 필요합니다."
+            : isLoading
+              ? "교학 회의록을 불러오는 중입니다."
+              : isError
+                ? "교학 회의록을 불러오지 못했습니다."
+                : "교학 회의록이 없습니다."
       }
       headerTone="archive"
       showClassColumn={false}
