@@ -39,13 +39,14 @@ export default function ArchiveDocumentListPage({
   initialPage,
 }: ArchiveDocumentListPageProps) {
   const router = useRouter();
-  const { user } = useAuthSession();
+  const { user, status: authStatus } = useAuthSession();
   const [mineOnly, setMineOnly] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   const requestedPage = Number.isInteger(initialPage) && initialPage >= 1 ? initialPage : 1;
+  const isAuthenticated = authStatus === "authenticated";
   const currentAuthor = user?.name ?? user?.nickname ?? user?.email;
   const resetToFirstPage = () => {
     if (requestedPage > 1) {
@@ -56,12 +57,13 @@ export default function ArchiveDocumentListPage({
   const channelsQuery = useQuery({
     queryKey: ["staff", "archive", "channels"],
     queryFn: () => getChannels({ isActive: true }),
+    enabled: isAuthenticated,
     retry: false,
   });
 
   const channel = useMemo(
-    () => resolveArchiveChannel(channelsQuery.data, config),
-    [channelsQuery.data, config],
+    () => (isAuthenticated ? resolveArchiveChannel(channelsQuery.data, config) : undefined),
+    [channelsQuery.data, config, isAuthenticated],
   );
   const channelId = channel?.id ?? (channelsQuery.isError ? config.channelId : undefined);
   const channelType = channel?.channelType;
@@ -83,12 +85,12 @@ export default function ArchiveDocumentListPage({
         title: searchKeyword.trim() || undefined,
         page: 0,
         size: FETCH_SIZE,
-      }),
-    enabled: Boolean(channelId),
+    }),
+    enabled: isAuthenticated && Boolean(channelId),
     retry: false,
   });
 
-  const filteredPosts = (postsQuery.data?.content ?? [])
+  const filteredPosts = (isAuthenticated ? (postsQuery.data?.content ?? []) : [])
     .filter((post) => {
       if (!mineOnly) return true;
       if (typeof user?.id === "number" && post.authorId === user.id) return true;
@@ -133,8 +135,9 @@ export default function ArchiveDocumentListPage({
       title={config.title}
       writeLabel={config.writeLabel}
       writeHref={`${config.listPath}/new`}
+      showWriteButton={isAuthenticated}
       listPath={config.listPath}
-      rows={rows}
+      rows={isAuthenticated ? rows : []}
       currentPage={currentPage}
       totalPages={totalPages}
       stableTableRows={ARCHIVE_DOCUMENTS_PER_PAGE}
@@ -143,7 +146,13 @@ export default function ArchiveDocumentListPage({
       toggleLabel="내가 작성한 글만 보기"
       toggleAriaLabel="내가 작성한 글만 보기"
       onMineOnlyToggle={() => setMineOnly((current) => !current)}
-      emptyMessage={emptyMessage}
+      emptyMessage={
+        authStatus === "loading"
+          ? "사용자 정보를 확인하는 중입니다."
+          : !isAuthenticated
+            ? "로그인이 필요합니다."
+            : emptyMessage
+      }
       headerTone="archive"
       writeIcon={<IconEdit aria-hidden="true" size={16} stroke={2} />}
       showClassColumn={false}

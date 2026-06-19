@@ -85,7 +85,7 @@ export default function BoardListPageClient({
   initialBoardType = "all",
 }: BoardListPageClientProps) {
   const router = useRouter();
-  const { user } = useAuthSession();
+  const { status: authStatus, user } = useAuthSession();
   const [boardType, setBoardType] = useState<BoardType>(initialBoardType);
   const [boardScope, setBoardScope] = useState("all");
   const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null);
@@ -95,6 +95,7 @@ export default function BoardListPageClient({
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   const requestedPage = Number.isInteger(initialPage) && initialPage >= 1 ? initialPage : 1;
+  const isAuthenticated = authStatus === "authenticated";
   const isScopeDisabled = boardType === "all" || boardType === "NOTICE";
   const currentAuthor = user?.name ?? user?.nickname ?? user?.email;
   const resetToFirstPage = () => {
@@ -110,23 +111,26 @@ export default function BoardListPageClient({
   const channelsQuery = useQuery({
     queryKey: ["staff", "board", "channels"],
     queryFn: () => getChannels(),
+    enabled: isAuthenticated,
     retry: false,
   });
   const classroomsQuery = useQuery({
     queryKey: ["staff", "board", "classrooms"],
     queryFn: () => getClassrooms({ size: 100 }),
+    enabled: isAuthenticated,
     retry: false,
   });
   const departmentsQuery = useQuery({
     queryKey: ["staff", "board", "departments"],
     queryFn: () => getDepartments(),
+    enabled: isAuthenticated,
     retry: false,
   });
 
   const scopeOptions = useMemo<readonly DropdownOption<string>[]>(() => {
     if (boardType === "CLASSROOM") {
       const dynamicOptions =
-        classroomsQuery.data?.content
+        (isAuthenticated ? classroomsQuery.data?.content : undefined)
           ?.filter((classroom) => typeof classroom.id === "number")
           .map((classroom) => ({
             label: classroom.name ?? `반 ${classroom.id}`,
@@ -140,7 +144,7 @@ export default function BoardListPageClient({
 
     if (boardType === "DEPARTMENT") {
       const dynamicOptions =
-        departmentsQuery.data?.departments
+        (isAuthenticated ? departmentsQuery.data?.departments : undefined)
           ?.filter((department) => typeof department.id === "number")
           .map((department) => ({
             label: department.name ?? `부서 ${department.id}`,
@@ -153,7 +157,7 @@ export default function BoardListPageClient({
     }
 
     return getBoardScopeOptions(boardType);
-  }, [boardType, classroomsQuery.data, departmentsQuery.data]);
+  }, [boardType, classroomsQuery.data, departmentsQuery.data, isAuthenticated]);
 
   const selectedChannelId = useMemo(() => {
     if (boardScope === "all" || isScopeDisabled) return undefined;
@@ -161,10 +165,10 @@ export default function BoardListPageClient({
     const refId = Number(boardScope);
     if (!Number.isInteger(refId)) return undefined;
 
-    return channelsQuery.data?.find(
+    return (isAuthenticated ? channelsQuery.data : undefined)?.find(
       (channel) => channel.channelType === boardType && channel.refId === refId,
     )?.id;
-  }, [boardScope, boardType, channelsQuery.data, isScopeDisabled]);
+  }, [boardScope, boardType, channelsQuery.data, isAuthenticated, isScopeDisabled]);
 
   const noticePostsQuery = useQuery({
     queryKey: ["staff", "board", "notices", NOTICE_LIMIT, refreshNonce],
@@ -174,7 +178,7 @@ export default function BoardListPageClient({
         page: 0,
         size: NOTICE_LIMIT,
       }),
-    enabled: boardType !== "NOTICE",
+    enabled: isAuthenticated && boardType !== "NOTICE",
     retry: false,
   });
 
@@ -196,11 +200,13 @@ export default function BoardListPageClient({
         page: 0,
         size: FETCH_SIZE,
       }),
-    enabled: boardScope === "all" || isScopeDisabled || typeof selectedChannelId === "number",
+    enabled:
+      isAuthenticated &&
+      (boardScope === "all" || isScopeDisabled || typeof selectedChannelId === "number"),
     retry: false,
   });
 
-  const rawPosts = (data?.content ?? []).filter(
+  const rawPosts = (isAuthenticated ? (data?.content ?? []) : []).filter(
     (post) => !isArchiveDocumentPost(post) && !isEventPost(post) && !isSchoolRulesPost(post),
   );
   const posts = rawPosts.filter((post) => {
@@ -216,7 +222,7 @@ export default function BoardListPageClient({
   const noticePosts =
     boardType === "NOTICE"
       ? []
-      : (noticePostsQuery.data?.content ?? [])
+      : (isAuthenticated ? (noticePostsQuery.data?.content ?? []) : [])
           .filter((post) => isNoticePost(post))
           .slice(0, NOTICE_LIMIT);
   const noticeIds = new Set(noticePosts.map((post) => post.id).filter(Boolean));
@@ -267,11 +273,16 @@ export default function BoardListPageClient({
 
   const isListLoading = isLoading;
   const isListError = isError;
-  const emptyMessage = isListLoading
-    ? "게시글을 불러오는 중입니다."
-    : isListError
-      ? "게시글을 불러오지 못했습니다."
-      : "게시글이 없습니다.";
+  const emptyMessage =
+    authStatus === "loading"
+      ? "사용자 정보를 확인하는 중입니다."
+      : !isAuthenticated
+        ? "로그인이 필요합니다."
+        : isListLoading
+          ? "게시글을 불러오는 중입니다."
+          : isListError
+            ? "게시글을 불러오지 못했습니다."
+            : "게시글이 없습니다.";
 
   return (
     <BoardShell>
@@ -279,8 +290,9 @@ export default function BoardListPageClient({
         title="게시판"
         writeLabel="글쓰기"
         writeHref="/staff/board/new"
+        showWriteButton={isAuthenticated}
         listPath="/staff/board"
-        rows={rows}
+        rows={isAuthenticated ? rows : []}
         currentPage={currentPage}
         totalPages={totalPages}
         stableTableRows={BOARD_STABLE_TABLE_ROWS}

@@ -25,7 +25,14 @@ export default function ClassJournalListPageClient() {
   const requestedPage = Number.isInteger(pageParam) && pageParam >= 1 ? pageParam : 1;
 
   const { data: schedulePage } = useQuery({
-    queryKey: ["daily-schedules", "list", requestedPage, JOURNALS_PER_PAGE, keyword, mineOnly] as const,
+    queryKey: [
+      "daily-schedules",
+      "list",
+      requestedPage,
+      JOURNALS_PER_PAGE,
+      keyword,
+      mineOnly,
+    ] as const,
     queryFn: () =>
       getDailySchedules({
         keyword: keyword || undefined,
@@ -37,19 +44,32 @@ export default function ClassJournalListPageClient() {
     retry: false,
   });
 
-  const visibleJournals = (schedulePage?.content ?? []).map(mapClassJournalListItem);
-  const totalPages = Math.max(1, schedulePage?.totalPages ?? 1);
+  const visibleJournals = isAuthenticated
+    ? (schedulePage?.content ?? []).map(mapClassJournalListItem)
+    : [];
+  const totalPages = Math.max(1, isAuthenticated ? (schedulePage?.totalPages ?? 1) : 1);
   const currentPage = requestedPage <= totalPages ? requestedPage : totalPages;
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
+  const emptyMessage =
+    authStatus === "loading"
+      ? "사용자 정보를 확인하는 중입니다."
+      : !isAuthenticated
+        ? "로그인이 필요합니다."
+        : "수업 일지가 없습니다.";
 
   return (
     <PageSection>
       <HeaderRow>
         <Title>수업 일지</Title>
-        <ActionGroup>
-          <ActionButton type="button">수업 일지 출력</ActionButton>
-          <ActionLink href="/staff/class-management/class-journal/new">
+        <ActionGroup $isVisible={isAuthenticated} aria-hidden={!isAuthenticated}>
+          <ActionButton type="button" disabled={!isAuthenticated}>
+            수업 일지 출력
+          </ActionButton>
+          <ActionLink
+            href="/staff/class-management/class-journal/new"
+            tabIndex={isAuthenticated ? undefined : -1}
+          >
             <span>새 수업 일지 작성하기</span>
             <IconEdit aria-hidden="true" size={16} stroke={2} />
           </ActionLink>
@@ -57,26 +77,30 @@ export default function ClassJournalListPageClient() {
       </HeaderRow>
 
       <JournalGrid aria-label="수업 일지 목록">
-        {visibleJournals.map((journal) => (
-          <JournalCard key={journal.id} href={`/staff/class-management/${journal.id}`}>
-            <LessonList>
-              {journal.lessons.map((lesson) => (
-                <LessonItem key={lesson.period}>
-                  <Period>{lesson.period}</Period>
-                  <LessonContent>{lesson.content}</LessonContent>
-                </LessonItem>
-              ))}
-            </LessonList>
+        {visibleJournals.length > 0 ? (
+          visibleJournals.map((journal) => (
+            <JournalCard key={journal.id} href={`/staff/class-management/${journal.id}`}>
+              <LessonList>
+                {journal.lessons.map((lesson) => (
+                  <LessonItem key={lesson.period}>
+                    <Period>{lesson.period}</Period>
+                    <LessonContent>{lesson.content}</LessonContent>
+                  </LessonItem>
+                ))}
+              </LessonList>
 
-            <CardFooter>
-              <ClassName>{journal.className}</ClassName>
-              <MetaGroup>
-                <Teacher>{journal.teacher}</Teacher>
-                <DateText>{journal.date}</DateText>
-              </MetaGroup>
-            </CardFooter>
-          </JournalCard>
-        ))}
+              <CardFooter>
+                <ClassName>{journal.className}</ClassName>
+                <MetaGroup>
+                  <Teacher>{journal.teacher}</Teacher>
+                  <DateText>{journal.date}</DateText>
+                </MetaGroup>
+              </CardFooter>
+            </JournalCard>
+          ))
+        ) : (
+          <EmptyState role={!isAuthenticated ? undefined : "status"}>{emptyMessage}</EmptyState>
+        )}
       </JournalGrid>
 
       <FooterRow>
@@ -177,10 +201,12 @@ const Title = styled.h1`
   }
 `;
 
-const ActionGroup = styled.div`
+const ActionGroup = styled.div<{ $isVisible: boolean }>`
   display: flex;
   align-items: center;
   gap: ${spacing.space12};
+  visibility: ${({ $isVisible }) => ($isVisible ? "visible" : "hidden")};
+  pointer-events: ${({ $isVisible }) => ($isVisible ? "auto" : "none")};
 
   @media (min-width: 120rem) {
     gap: 1.125rem;
@@ -535,5 +561,27 @@ const SearchArea = styled.div`
   @media (max-width: ${layout.breakpointMobile}) {
     position: static;
     width: 100%;
+  }
+`;
+
+const EmptyState = styled.p`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  grid-column: 1 / -1;
+  min-height: calc(2 * 12.6875rem + 1.25rem);
+  margin: 0;
+  padding: ${spacing.space24};
+  border: 1px solid ${colors.border};
+  border-radius: ${radii.radius12};
+  color: ${colors.muted};
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight150};
+
+  text-align: center;
+
+  @media (min-width: 120rem) {
+    min-height: calc(2 * 19.0625rem + 1.875rem);
+    font-size: ${typography.fontSize20};
   }
 `;

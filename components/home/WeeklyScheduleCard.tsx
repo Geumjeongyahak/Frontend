@@ -1,12 +1,22 @@
+"use client";
+
 import dayjs from "dayjs";
+import { useState } from "react";
 import styled from "styled-components";
 import HomeCard from "@/components/home/HomeCard";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
-import type { WeeklyScheduleDay } from "@/types/home";
+import type { WeeklyScheduleDay, WeeklyScheduleItem } from "@/types/home";
 
 type WeeklyScheduleCardProps = {
   schedule: WeeklyScheduleDay[];
   onViewAllClick?: () => void;
+};
+
+type SelectedLesson = {
+  classroomName: string;
+  dayLabel: string;
+  date: string;
+  periods: NonNullable<WeeklyScheduleItem["periods"]>;
 };
 
 const getMondayBasedIndex = (date = dayjs()) => {
@@ -14,51 +24,112 @@ const getMondayBasedIndex = (date = dayjs()) => {
   return d === 0 ? 6 : d - 1;
 };
 
+function buildSelectedLesson(dayLabel: string, item: WeeklyScheduleItem): SelectedLesson | null {
+  if (item.type !== "lesson" || !item.classroomName || !item.date || !item.periods?.length) {
+    return null;
+  }
+
+  return {
+    classroomName: item.classroomName,
+    dayLabel,
+    date: item.date,
+    periods: item.periods,
+  };
+}
+
 export default function WeeklyScheduleCard({ schedule, onViewAllClick }: WeeklyScheduleCardProps) {
   const todayIndex = getMondayBasedIndex();
+  const [selectedLesson, setSelectedLesson] = useState<SelectedLesson | null>(null);
 
   return (
-    <Card title="주간 일정" actionLabel="전체일정 보기" onActionClick={onViewAllClick}>
-      <Schedule>
-        {schedule.map((daySchedule, index) => {
-          const isHighlighted = index === todayIndex;
+    <>
+      <Card title="주간 일정" actionLabel="전체일정 보기" onActionClick={onViewAllClick}>
+        <Schedule>
+          {schedule.map((daySchedule, index) => {
+            const isHighlighted = index === todayIndex;
 
-          return (
-            <DayColumn key={daySchedule.day} $highlighted={isHighlighted}>
-              <DayLabel $highlighted={isHighlighted}>{daySchedule.day}</DayLabel>
-              <Divider />
-              <ItemList>
-                {daySchedule.items.length === 0 ? (
-                  <EmptyText>
-                    예정된
-                    <br />
-                    수업이
-                    <br />
-                    없습니다
-                  </EmptyText>
-                ) : (
-                  <>
-                    {daySchedule.items.slice(0, 2).map((item, index) => (
-                      <Item key={`${daySchedule.day}-${item.id ?? index}`}>
-                        <Time>{item.time}</Time>
-                        <ItemTitle>{item.title}</ItemTitle>
-                        <Divider />
-                      </Item>
-                    ))}
-                    {daySchedule.items.length > 2 && (
-                      <MoreText>
-                        ...
-                        <Divider />
-                      </MoreText>
-                    )}
-                  </>
-                )}
-              </ItemList>
-            </DayColumn>
-          );
-        })}
-      </Schedule>
-    </Card>
+            return (
+              <DayColumn key={daySchedule.day} $highlighted={isHighlighted}>
+                <DayLabel $highlighted={isHighlighted}>{daySchedule.day}</DayLabel>
+                <Divider />
+                <ItemList>
+                  {daySchedule.items.length === 0 ? (
+                    <EmptyText>예정된 일정이 없습니다</EmptyText>
+                  ) : (
+                    <>
+                      {daySchedule.items.slice(0, 3).map((item, itemIndex) => {
+                        const lessonSelection = buildSelectedLesson(daySchedule.day, item);
+
+                        return (
+                          <Item
+                            key={`${daySchedule.day}-${item.type ?? "item"}-${item.id ?? itemIndex}`}
+                          >
+                            {item.type === "lesson" ? (
+                              <LessonButton
+                                type="button"
+                                onClick={() => setSelectedLesson(lessonSelection)}
+                                disabled={!lessonSelection}
+                              >
+                                <ItemTitle>{item.title}</ItemTitle>
+                              </LessonButton>
+                            ) : (
+                              <EventRow>
+                                <EventMark aria-hidden="true" />
+                                <EventContent>
+                                  <ItemTitle>{item.title}</ItemTitle>
+                                  {item.time ? <EventTime>{item.time}</EventTime> : null}
+                                </EventContent>
+                              </EventRow>
+                            )}
+                          </Item>
+                        );
+                      })}
+                      {daySchedule.items.length > 3 && (
+                        <MoreText>+{daySchedule.items.length - 3}개 더</MoreText>
+                      )}
+                    </>
+                  )}
+                </ItemList>
+              </DayColumn>
+            );
+          })}
+        </Schedule>
+      </Card>
+
+      {selectedLesson ? (
+        <ModalBackdrop onMouseDown={() => setSelectedLesson(null)}>
+          <ModalDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="weekly-schedule-home-detail-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <ModalHeader>
+              <div>
+                <ModalTitle id="weekly-schedule-home-detail-title">
+                  {selectedLesson.classroomName} {selectedLesson.dayLabel}요일 수업
+                </ModalTitle>
+                <ModalDescription>{selectedLesson.date}</ModalDescription>
+              </div>
+              <CloseButton type="button" onClick={() => setSelectedLesson(null)}>
+                닫기
+              </CloseButton>
+            </ModalHeader>
+            <ModalPeriodList>
+              {selectedLesson.periods.map((period) => (
+                <ModalPeriodCard key={`${selectedLesson.classroomName}-${period.period}`}>
+                  <ModalPeriodHeading>{period.period}교시</ModalPeriodHeading>
+                  <ModalPeriodSubject>{period.subjectName}</ModalPeriodSubject>
+                  {period.status === "CANCELED" || period.status === "CANCELLED" ? (
+                    <ModalStatusText>결강</ModalStatusText>
+                  ) : null}
+                </ModalPeriodCard>
+              ))}
+            </ModalPeriodList>
+          </ModalDialog>
+        </ModalBackdrop>
+      ) : null}
+    </>
   );
 }
 
@@ -90,6 +161,7 @@ const DayColumn = styled.article<{ $highlighted: boolean }>`
   border: 0.0625rem solid ${({ $highlighted }) => ($highlighted ? colors.point : colors.white)};
   border-radius: ${radii.radius15};
   background-color: ${colors.white};
+  overflow: hidden;
 
   @media (min-width: 120rem) {
     min-height: 18.3125rem;
@@ -111,28 +183,18 @@ const DayLabel = styled.h3<{ $highlighted: boolean }>`
 
 const Divider = styled.div`
   height: 0.0625rem;
-  margin: ${spacing.space4} 0 ${spacing.space4};
+  margin: ${spacing.space4} 0 ${spacing.space8};
   background-color: ${colors.border};
 `;
 
 const ItemList = styled.div`
+  display: flex;
+  flex-direction: column;
   min-height: 8rem;
 `;
 
 const Item = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-`;
-
-const Time = styled.span`
-  color: ${colors.muted};
-  font-size: ${typography.fontSize13};
-  line-height: ${typography.lineHeight130};
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
+  min-width: 0;
 `;
 
 const ItemTitle = styled.span`
@@ -149,7 +211,78 @@ const ItemTitle = styled.span`
   -webkit-box-orient: vertical;
 
   @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
+    font-size: ${typography.fontSize18};
+  }
+`;
+
+const LessonButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  min-height: 3rem;
+  padding: ${spacing.space8};
+  border-radius: 8px;
+  background-color: ${colors.pointSoft};
+  text-align: center;
+  cursor: pointer;
+  margin-top: ${spacing.space8};
+
+  &:hover:enabled {
+    background-color: #e6f3db;
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${colors.point};
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 4.125rem;
+    padding: ${spacing.space12};
+  }
+`;
+
+const EventRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: ${spacing.space8};
+  min-width: 0;
+`;
+
+const EventMark = styled.span`
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.375rem;
+  border-radius: 50%;
+  background-color: ${colors.point};
+
+  @media (min-width: 120rem) {
+    width: 0.625rem;
+    height: 0.625rem;
+    margin-top: 0.5rem;
+  }
+`;
+
+const EventContent = styled.div`
+  min-width: 0;
+`;
+
+const EventTime = styled.span`
+  display: block;
+  margin-top: ${spacing.space4};
+  color: ${colors.muted};
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize16};
   }
 `;
 
@@ -160,7 +293,7 @@ const MoreText = styled.span`
   line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
+    font-size: ${typography.fontSize16};
   }
 `;
 
@@ -170,4 +303,98 @@ const EmptyText = styled.p`
   line-height: ${typography.lineHeight150};
   text-align: center;
   padding: ${spacing.space12} 0;
+`;
+
+const ModalBackdrop = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: ${spacing.space20};
+  background-color: rgb(0 0 0 / 42%);
+`;
+
+const ModalDialog = styled.div`
+  display: grid;
+  gap: ${spacing.space16};
+  width: min(100%, 31rem);
+  max-height: calc(100vh - 2.5rem);
+  overflow-y: auto;
+  padding: ${spacing.space20};
+  border-radius: ${radii.radius12};
+  background-color: ${colors.white};
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 18%);
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: ${spacing.space12};
+`;
+
+const ModalTitle = styled.h2`
+  margin: 0;
+  color: #111111;
+  font-size: ${typography.fontSize18};
+  font-weight: 900;
+  line-height: ${typography.lineHeight130};
+`;
+
+const ModalDescription = styled.p`
+  margin: ${spacing.space4} 0 0;
+  color: #64706c;
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight150};
+`;
+
+const CloseButton = styled.button`
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #64706c;
+  font-family: inherit;
+  font-size: ${typography.fontSize14};
+  font-weight: 700;
+  cursor: pointer;
+`;
+
+const ModalPeriodList = styled.div`
+  display: grid;
+  gap: ${spacing.space12};
+`;
+
+const ModalPeriodCard = styled.div`
+  display: grid;
+  gap: ${spacing.space4};
+  padding: ${spacing.space12};
+  border: 1px solid ${colors.border};
+  border-radius: ${radii.radius12};
+  background-color: #fcfcfc;
+`;
+
+const ModalPeriodHeading = styled.h3`
+  margin: 0;
+  color: #64706c;
+  font-size: ${typography.fontSize13};
+  font-weight: 800;
+  line-height: ${typography.lineHeight130};
+`;
+
+const ModalPeriodSubject = styled.p`
+  margin: 0;
+  color: #111111;
+  font-size: ${typography.fontSize16};
+  font-weight: 900;
+  line-height: ${typography.lineHeight130};
+`;
+
+const ModalStatusText = styled.p`
+  margin: 0;
+  color: ${colors.notice};
+  font-size: ${typography.fontSize13};
+  font-weight: 800;
+  line-height: ${typography.lineHeight130};
 `;

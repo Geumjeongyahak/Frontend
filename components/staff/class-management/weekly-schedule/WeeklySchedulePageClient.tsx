@@ -396,16 +396,20 @@ export default function WeeklySchedulePageClient() {
       </HeaderRow>
 
       {isBaseLoading ? <StateText>시간표를 불러오는 중입니다.</StateText> : null}
+      {authStatus === "loading" ? <StateText>사용자 정보를 확인하는 중입니다.</StateText> : null}
+      {authStatus !== "loading" && !isAuthenticated ? (
+        <StateText>로그인이 필요합니다.</StateText>
+      ) : null}
       {isBaseError ? <StateText role="alert">시간표를 불러오지 못했습니다.</StateText> : null}
-      {!isBaseLoading && !isBaseError && hasScheduleOverlayError ? (
+      {!isBaseLoading && !isBaseError && isAuthenticated && hasScheduleOverlayError ? (
         <InlineNotice role="status">
           교환/결강 반영 정보를 불러오지 못해 기본 시간표만 표시합니다.
         </InlineNotice>
       ) : null}
-      {!isBaseLoading && !isBaseError && !hasClassrooms ? (
+      {!isBaseLoading && !isBaseError && isAuthenticated && !hasClassrooms ? (
         <StateText>주중 또는 주말 분반이 없습니다.</StateText>
       ) : null}
-      {!isBaseLoading && !isBaseError && hasClassrooms ? (
+      {!isBaseLoading && !isBaseError && isAuthenticated && hasClassrooms ? (
         <ScheduleShell>
           <ScheduleStack>
             <ScheduleContentTrack>
@@ -625,7 +629,7 @@ const StateText = styled.p`
   padding: ${spacing.space24};
   border: 1px solid ${colors.border};
   border-radius: ${radii.radius12};
-  color: #64706c;
+  color: ${colors.muted};
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight150};
 `;

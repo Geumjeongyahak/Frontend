@@ -9,7 +9,7 @@ const LOGIN_REDIRECT_DELAY_MS = 900;
 
 export function useProtectedHomeNavigation() {
   const router = useRouter();
-  const { status } = useAuthSession();
+  const { status, user } = useAuthSession();
   const isAuthenticated = status === "authenticated";
 
   function navigateWhenAuthenticated(href: string) {
@@ -29,6 +29,7 @@ export function useProtectedHomeNavigation() {
 
   return {
     isAuthenticated,
+    user,
     navigateWhenAuthenticated,
   };
 }
