@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import type { DailyScheduleSummaryResponseDto } from "@/api/dailySchedule/dailySchedule.dto";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
+import type { AbsenceRequestResponseDto } from "@/api/request/request.dto";
 import type { SubjectDayOfWeek, SubjectDetailResponseDto } from "@/api/subject/subject.dto";
 
 dayjs.extend(isoWeek);
@@ -73,6 +74,7 @@ export function buildScheduleOverrides(
   cellSubjects: SubjectDetailResponseDto[],
   lessons: LessonSummaryResponseDto[],
   dailySchedules: DailyScheduleSummaryResponseDto[],
+  absenceRequests: AbsenceRequestResponseDto[],
   classroomId: number | null,
   date: string,
 ) {
@@ -82,13 +84,44 @@ export function buildScheduleOverrides(
   const dailySchedule = dailySchedules.find(
     (schedule) => schedule.classroomId === classroomId && schedule.lessonDate === date,
   );
+  const approvedAbsenceRequest = absenceRequests.find(
+    (request) =>
+      request.classroomId === classroomId &&
+      request.lessonDate === date &&
+      request.status === "APPROVED",
+  );
 
   if (dailySchedule?.status === "CANCELLED") {
+    if (cellSubjects.length === 0) {
+      overrides.set(DISPLAY_PERIODS[0], {
+        status: "CANCELLED",
+        teacherName: dailySchedule.teacherName,
+      });
+    }
+
     for (const subject of cellSubjects) {
       if (typeof subject.period === "number") {
         overrides.set(subject.period, {
           status: "CANCELLED",
           teacherName: dailySchedule.teacherName,
+        });
+      }
+    }
+  }
+
+  if (approvedAbsenceRequest) {
+    if (cellSubjects.length === 0) {
+      overrides.set(DISPLAY_PERIODS[0], {
+        status: "CANCELLED",
+        teacherName: approvedAbsenceRequest.requestedByName,
+      });
+    }
+
+    for (const subject of cellSubjects) {
+      if (typeof subject.period === "number" && !overrides.has(subject.period)) {
+        overrides.set(subject.period, {
+          status: "CANCELLED",
+          teacherName: approvedAbsenceRequest.requestedByName,
         });
       }
     }
