@@ -20,6 +20,7 @@ export const queryKeys = {
     myWeekly: (from: string, to: string) => ["lessons", "me", "weekly", { from, to }] as const,
   },
   events: {
+    monthly: (from: string, to: string) => ["events", "monthly", { from, to }] as const,
     weekly: (from: string, to: string) => ["events", "weekly", { from, to }] as const,
   },
   user: {

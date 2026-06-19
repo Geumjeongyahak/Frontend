@@ -10,8 +10,21 @@ export const DEPARTMENT_DETAIL_RESPONSE = {
   id: 1,
   name: "Education",
   description: "Education team",
-  assignedRole: { name: "MANAGER", level: 1, code: 1001 },
-  users: [{ id: 10, username: "teacher-1", name: "Teacher One" }],
+  permissions: [
+    {
+      id: 11,
+      permissionCode: "channel:write:1",
+      resourceCode: "channel",
+      resourceLabel: "채널",
+      actionCode: "write",
+      actionLabel: "작성",
+      scope: "target",
+      targetId: 1,
+      targetName: "1",
+      source: "MEMBER",
+    },
+  ],
+  users: [{ id: 10, name: "Teacher One", email: "teacher-1@example.com", role: "VOLUNTEER" }],
 };
 
 function hasValidAuthorization(request: Request) {
@@ -59,7 +72,11 @@ export const departmentHandlers: RequestHandler[] = [
       return HttpResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    const body = (await request.json()) as { name?: string; description?: string };
+    const body = (await request.json()) as {
+      name?: string;
+      description?: string;
+      permissions?: unknown[];
+    };
 
     return HttpResponse.json({
       id: Number(params.id),

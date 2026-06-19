@@ -1,10 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { IconChevronLeft, IconChevronRight, IconX } from "@tabler/icons-react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  IconCalendarPlus,
+  IconChevronLeft,
+  IconChevronRight,
+  IconPlus,
+  IconX,
+} from "@tabler/icons-react";
 import styled from "styled-components";
+import { createEvent, deleteEvent, getEvents, updateEvent } from "@/api/event/event.api";
+import type {
+  CreateEventRequestDto,
+  EventResponseDto,
+  UpdateEventRequestDto,
+} from "@/api/event/event.dto";
+import { Button } from "@/components/common/VariantButton";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
-import { type StaffCalendarEvent, staffCalendarEvents } from "@/mocks/staffCalendar";
+import { useAuthSession } from "@/hooks/useAuthSession";
+import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 type StaffCalendarPageProps = {
@@ -12,23 +27,34 @@ type StaffCalendarPageProps = {
   initialMonth: number;
 };
 
-type CalendarDay = {
-  date: Date;
-  isoDate: string;
-  day: number;
-  isCurrentMonth: boolean;
-  isToday: boolean;
-  events: StaffCalendarEvent[];
+type StaffCalendarEvent = {
+  id: number;
+  date: string;
+  title: string;
+  emoji: string;
+  startTime: string;
+  endTime: string;
+  timeLabel: string;
+  description: string;
+};
+
+type EventFormValues = {
+  date: string;
+  startTime: string;
+  endTime: string;
+  title: string;
+  description: string;
+  emoji: string;
+};
+
+type EventRangeFormValues = EventFormValues & {
+  endDate: string;
 };
 
 const weekDays = ["월", "화", "수", "목", "금", "토", "일"];
-const eventTypeLabels: Record<StaffCalendarEvent["type"], string> = {
-  exchange: "수업 교환",
-  absence: "수업 결강",
-  meeting: "교원 회의",
-  class: "수업",
-  notice: "공지",
-};
+const emojiOptions = ["📌", "🔴", "📝", "📚", "🎉", "🔄", "🚫", "🛠️", "📍", "✅"];
+const defaultEmoji = "📌";
+const monthlyPageSize = 100;
 
 function toIsoDate(date: Date) {
   const year = date.getFullYear();
@@ -42,7 +68,7 @@ function getMondayStartIndex(date: Date) {
   return (date.getDay() + 6) % 7;
 }
 
-function getMonthGrid(year: number, month: number, todayIsoDate: string) {
+function getMonthGridRange(year: number, month: number) {
   const firstDate = new Date(year, month - 1, 1);
   const startDate = new Date(firstDate);
   startDate.setDate(firstDate.getDate() - getMondayStartIndex(firstDate));
@@ -51,8 +77,43 @@ function getMonthGrid(year: number, month: number, todayIsoDate: string) {
   const lastGridDate = new Date(lastDate);
   lastGridDate.setDate(lastDate.getDate() + (6 - getMondayStartIndex(lastDate)));
 
+  return {
+    startDate,
+    endDate: lastGridDate,
+    startIsoDate: toIsoDate(startDate),
+    endIsoDate: toIsoDate(lastGridDate),
+  };
+}
+
+function getStartMinutes(startTime: string) {
+  if (!startTime) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const [hours, minutes = "0"] = startTime.split(":");
+
+  return Number(hours) * 60 + Number(minutes);
+}
+
+function sortEvents(events: StaffCalendarEvent[]) {
+  return [...events].sort((left, right) => {
+    if (left.date !== right.date) {
+      return left.date.localeCompare(right.date);
+    }
+
+    return getStartMinutes(left.startTime) - getStartMinutes(right.startTime);
+  });
+}
+
+function getMonthGrid(
+  year: number,
+  month: number,
+  todayIsoDate: string,
+  events: StaffCalendarEvent[],
+) {
+  const { startDate, endDate } = getMonthGridRange(year, month);
   const dayCount =
-    Math.round((lastGridDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
   return Array.from({ length: dayCount }, (_, index) => {
     const date = new Date(startDate);
@@ -65,7 +126,7 @@ function getMonthGrid(year: number, month: number, todayIsoDate: string) {
       day: date.getDate(),
       isCurrentMonth: date.getMonth() === month - 1,
       isToday: isoDate === todayIsoDate,
-      events: staffCalendarEvents.filter((event) => event.date === isoDate),
+      events: events.filter((event) => event.date === isoDate),
     };
   });
 }
@@ -74,18 +135,439 @@ function formatKoreanDate(date: Date) {
   return `${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일`;
 }
 
+function formatMonthDayLabel(isoDate: string) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+
+  return `${month}월 ${day}일 ${weekDays[getMondayStartIndex(date)]}요일`;
+}
+
+function getDateFromIsoDate(isoDate: string) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function toFormTime(time?: string) {
+  return time ? time.slice(0, 5) : "";
+}
+
+function toApiTime(time?: string) {
+  return time ? `${time}:00` : undefined;
+}
+
+function formatEventTimeLabel(startTime: string, endTime: string) {
+  if (startTime && endTime) {
+    return `${startTime} - ${endTime}`;
+  }
+
+  return startTime || "";
+}
+
+function splitEmojiFromTitle(title?: string) {
+  const normalizedTitle = title?.trim() ?? "";
+  const matchedEmoji = emojiOptions.find(
+    (emoji) => normalizedTitle.startsWith(`${emoji} `) || normalizedTitle.startsWith(emoji),
+  );
+
+  if (!matchedEmoji) {
+    return {
+      emoji: defaultEmoji,
+      title: normalizedTitle,
+    };
+  }
+
+  const strippedTitle = normalizedTitle.startsWith(`${matchedEmoji} `)
+    ? normalizedTitle.slice(matchedEmoji.length + 1)
+    : normalizedTitle.slice(matchedEmoji.length);
+
+  return {
+    emoji: matchedEmoji,
+    title: strippedTitle.trim(),
+  };
+}
+
+function decorateEventTitle(title: string, emoji: string) {
+  const trimmedTitle = title.trim();
+  if (!trimmedTitle) {
+    return emoji;
+  }
+
+  const { title: strippedTitle } = splitEmojiFromTitle(trimmedTitle);
+  return `${emoji} ${strippedTitle || trimmedTitle}`.trim();
+}
+
+function mapEventResponseToCalendarEvent(event: EventResponseDto): StaffCalendarEvent | null {
+  if (typeof event.id !== "number" || !event.eventDate || !event.title) {
+    return null;
+  }
+
+  const { emoji, title } = splitEmojiFromTitle(event.title);
+  const startTime = toFormTime(event.startTime);
+  const endTime = toFormTime(event.endTime);
+
+  return {
+    id: event.id,
+    date: event.eventDate,
+    title: title || event.title,
+    emoji,
+    startTime,
+    endTime,
+    timeLabel: formatEventTimeLabel(startTime, endTime),
+    description: event.description ?? "",
+  };
+}
+
+function createDraftFromEvent(event: StaffCalendarEvent): EventFormValues {
+  return {
+    date: event.date,
+    startTime: event.startTime,
+    endTime: event.endTime,
+    title: event.title,
+    description: event.description,
+    emoji: event.emoji,
+  };
+}
+
+function createEmptyEventDraft(date: string): EventFormValues {
+  return {
+    date,
+    startTime: "",
+    endTime: "",
+    title: "",
+    description: "",
+    emoji: defaultEmoji,
+  };
+}
+
+function createEmptyRangeDraft(date: string): EventRangeFormValues {
+  return {
+    ...createEmptyEventDraft(date),
+    endDate: date,
+  };
+}
+
+function buildCreateEventPayload(draft: EventFormValues): CreateEventRequestDto {
+  return {
+    title: decorateEventTitle(draft.title, draft.emoji),
+    description: draft.description.trim(),
+    eventDate: draft.date,
+    startTime: toApiTime(draft.startTime),
+    endTime: toApiTime(draft.endTime),
+  };
+}
+
+function buildUpdateEventPayload(draft: EventFormValues): UpdateEventRequestDto {
+  return {
+    title: decorateEventTitle(draft.title, draft.emoji),
+    description: draft.description.trim(),
+    eventDate: draft.date,
+    startTime: toApiTime(draft.startTime),
+    endTime: toApiTime(draft.endTime),
+  };
+}
+
+function getDateRange(startDate: string, endDate: string) {
+  const result: string[] = [];
+  const current = getDateFromIsoDate(startDate);
+  const end = getDateFromIsoDate(endDate);
+
+  while (current.getTime() <= end.getTime()) {
+    result.push(toIsoDate(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return result;
+}
+
+function isTimeRangeValid(startTime: string, endTime: string) {
+  return (!startTime && !endTime) || Boolean(startTime && endTime);
+}
+
+function isEventFormValid(draft: EventFormValues) {
+  return Boolean(
+    draft.date && draft.title.trim() && isTimeRangeValid(draft.startTime, draft.endTime),
+  );
+}
+
+function isRangeFormValid(draft: EventRangeFormValues) {
+  return (
+    isEventFormValid(draft) &&
+    Boolean(draft.endDate) &&
+    draft.date.localeCompare(draft.endDate) <= 0
+  );
+}
+
 function getDayLabel(date: Date) {
   return weekDays[getMondayStartIndex(date)];
 }
 
-export default function StaffCalendarPage({ initialYear, initialMonth }: StaffCalendarPageProps) {
-  const [visibleMonth, setVisibleMonth] = useState({ year: initialYear, month: initialMonth });
-  const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
-  const todayIsoDate = useMemo(() => toIsoDate(new Date()), []);
-  const calendarDays = useMemo(
-    () => getMonthGrid(visibleMonth.year, visibleMonth.month, todayIsoDate),
-    [todayIsoDate, visibleMonth],
+type EventEditorCardProps = {
+  draft: EventFormValues;
+  submitLabel: string;
+  isSubmitting: boolean;
+  onChange: (field: keyof EventFormValues, value: string) => void;
+  onSubmit: () => void;
+  onEmojiToggle: () => void;
+  emojiPickerOpen: boolean;
+  onEmojiSelect: (emoji: string) => void;
+  onCancel?: () => void;
+};
+
+function EventEditorCard({
+  draft,
+  submitLabel,
+  isSubmitting,
+  onChange,
+  onSubmit,
+  onEmojiToggle,
+  emojiPickerOpen,
+  onEmojiSelect,
+  onCancel,
+}: EventEditorCardProps) {
+  return (
+    <EditorCard>
+      <EditorEmojiRow>
+        <EditorEmojiButton type="button" onClick={onEmojiToggle} aria-label="이모지 선택">
+          <EditorEmoji>{draft.emoji}</EditorEmoji>
+        </EditorEmojiButton>
+      </EditorEmojiRow>
+
+      <EditorHeaderRow>
+        <PeriodGrid>
+          <EditorField>
+            <EditorLabel>시작일</EditorLabel>
+            <EditorInput
+              type="date"
+              value={draft.date}
+              onChange={(event) => onChange("date", event.target.value)}
+            />
+          </EditorField>
+
+          <EditorField>
+            <EditorLabel>종료일</EditorLabel>
+            <EditorInput
+              type="date"
+              value={draft.date}
+              onChange={(event) => onChange("date", event.target.value)}
+            />
+          </EditorField>
+        </PeriodGrid>
+
+        <EmojiPickerWrap>
+          {emojiPickerOpen ? (
+            <EmojiPickerPanel>
+              {emojiOptions.map((emoji) => (
+                <EmojiOption
+                  key={emoji}
+                  type="button"
+                  onClick={() => onEmojiSelect(emoji)}
+                  aria-label={`${emoji} 선택`}
+                >
+                  {emoji}
+                </EmojiOption>
+              ))}
+            </EmojiPickerPanel>
+          ) : null}
+        </EmojiPickerWrap>
+      </EditorHeaderRow>
+
+      <TimeRow>
+        <EditorField>
+          <EditorLabel>시작 시간</EditorLabel>
+          <EditorInput
+            type="time"
+            value={draft.startTime}
+            onChange={(event) => onChange("startTime", event.target.value)}
+          />
+        </EditorField>
+        <EditorField>
+          <EditorLabel>종료 시간</EditorLabel>
+          <EditorInput
+            type="time"
+            value={draft.endTime}
+            onChange={(event) => onChange("endTime", event.target.value)}
+          />
+        </EditorField>
+      </TimeRow>
+
+      <EditorField>
+        <EditorLabel>제목</EditorLabel>
+        <EditorInput
+          type="text"
+          value={draft.title}
+          onChange={(event) => onChange("title", event.target.value)}
+          placeholder="일정 제목을 입력하세요."
+        />
+      </EditorField>
+
+      <EditorField>
+        <EditorLabel>내용</EditorLabel>
+        <EditorTextarea
+          value={draft.description}
+          onChange={(event) => onChange("description", event.target.value)}
+          placeholder="일정 내용을 입력하세요."
+        />
+      </EditorField>
+
+      <EditorActions>
+        {onCancel ? (
+          <Button type="button" $variant="neutral" onClick={onCancel} disabled={isSubmitting}>
+            취소
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          $variant="edit"
+          onClick={onSubmit}
+          disabled={!isEventFormValid(draft) || isSubmitting}
+        >
+          {submitLabel}
+        </Button>
+      </EditorActions>
+    </EditorCard>
   );
+}
+
+export default function StaffCalendarPage({ initialYear, initialMonth }: StaffCalendarPageProps) {
+  const queryClient = useQueryClient();
+  const { status, user } = useAuthSession();
+  const isAdmin = status === "authenticated" && user?.role === "ADMIN";
+
+  const [visibleMonth, setVisibleMonth] = useState({ year: initialYear, month: initialMonth });
+  const [events, setEvents] = useState<StaffCalendarEvent[]>([]);
+  const [selectedIsoDate, setSelectedIsoDate] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
+  const [editingDraft, setEditingDraft] = useState<EventFormValues | null>(null);
+  const [isInlineAdding, setIsInlineAdding] = useState(false);
+  const [inlineDraft, setInlineDraft] = useState<EventFormValues | null>(null);
+  const [emojiPickerTarget, setEmojiPickerTarget] = useState<"edit" | "inline" | "create" | null>(
+    null,
+  );
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createDraft, setCreateDraft] = useState<EventRangeFormValues>(() =>
+    createEmptyRangeDraft(toIsoDate(new Date(initialYear, initialMonth - 1, 1))),
+  );
+
+  const todayIsoDate = useMemo(() => toIsoDate(new Date()), []);
+  const monthRange = useMemo(
+    () => getMonthGridRange(visibleMonth.year, visibleMonth.month),
+    [visibleMonth.month, visibleMonth.year],
+  );
+
+  const eventsQuery = useQuery({
+    queryKey: queryKeys.events.monthly(monthRange.startIsoDate, monthRange.endIsoDate),
+    queryFn: () =>
+      getEvents({
+        startDate: monthRange.startIsoDate,
+        endDate: monthRange.endIsoDate,
+        page: 0,
+        size: monthlyPageSize,
+      }),
+    retry: false,
+  });
+
+  useEffect(() => {
+    const nextEvents = sortEvents(
+      (eventsQuery.data?.content ?? [])
+        .map(mapEventResponseToCalendarEvent)
+        .filter((event): event is StaffCalendarEvent => event !== null),
+    );
+
+    setEvents(nextEvents);
+  }, [eventsQuery.data]);
+
+  const createEventMutation = useMutation({
+    mutationFn: async (draft: EventRangeFormValues) => {
+      const dates = getDateRange(draft.date, draft.endDate);
+
+      return Promise.all(
+        dates.map((date) =>
+          createEvent(
+            buildCreateEventPayload({
+              ...draft,
+              date,
+            }),
+          ),
+        ),
+      );
+    },
+    onSuccess: (createdEvents, draft) => {
+      const mappedEvents = createdEvents
+        .map(mapEventResponseToCalendarEvent)
+        .filter((event): event is StaffCalendarEvent => event !== null);
+
+      setEvents((current) => sortEvents([...current, ...mappedEvents]));
+      setSelectedIsoDate(draft.date);
+      setIsCreateModalOpen(false);
+      setEmojiPickerTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+    },
+    onError: (error) => {
+      window.alert(error instanceof Error ? error.message : "일정 추가에 실패했습니다.");
+    },
+  });
+
+  const updateEventMutation = useMutation({
+    mutationFn: async ({ eventId, draft }: { eventId: number; draft: EventFormValues }) =>
+      updateEvent({ eventId }, buildUpdateEventPayload(draft)),
+    onSuccess: (updatedEvent) => {
+      const mappedEvent = mapEventResponseToCalendarEvent(updatedEvent);
+      if (!mappedEvent) {
+        return;
+      }
+
+      setEvents((current) =>
+        sortEvents(current.map((event) => (event.id === mappedEvent.id ? mappedEvent : event))),
+      );
+      setEditingEventId(null);
+      setEditingDraft(null);
+      setEmojiPickerTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+    },
+    onError: (error) => {
+      window.alert(error instanceof Error ? error.message : "일정 수정에 실패했습니다.");
+    },
+  });
+
+  const deleteEventMutation = useMutation({
+    mutationFn: async (eventId: number) => deleteEvent({ eventId }),
+    onSuccess: (_, eventId) => {
+      setEvents((current) => sortEvents(current.filter((event) => event.id !== eventId)));
+      if (editingEventId === eventId) {
+        setEditingEventId(null);
+        setEditingDraft(null);
+        setEmojiPickerTarget(null);
+      }
+      queryClient.invalidateQueries({ queryKey: ["events"] });
+    },
+    onError: (error) => {
+      window.alert(error instanceof Error ? error.message : "일정 삭제에 실패했습니다.");
+    },
+  });
+
+  const isMutationPending =
+    createEventMutation.isPending || updateEventMutation.isPending || deleteEventMutation.isPending;
+
+  const calendarDays = useMemo(
+    () => getMonthGrid(visibleMonth.year, visibleMonth.month, todayIsoDate, events),
+    [events, todayIsoDate, visibleMonth],
+  );
+
+  const selectedDay = useMemo(
+    () => calendarDays.find((day) => day.isoDate === selectedIsoDate) ?? null,
+    [calendarDays, selectedIsoDate],
+  );
+
+  useEffect(() => {
+    if (!selectedIsoDate) {
+      return;
+    }
+
+    if (!calendarDays.some((day) => day.isoDate === selectedIsoDate)) {
+      setSelectedIsoDate(null);
+    }
+  }, [calendarDays, selectedIsoDate]);
 
   const moveMonth = (offset: number) => {
     setVisibleMonth((current) => {
@@ -96,7 +578,99 @@ export default function StaffCalendarPage({ initialYear, initialMonth }: StaffCa
         month: nextDate.getMonth() + 1,
       };
     });
-    setSelectedDay(null);
+  };
+
+  const openDailyModal = (isoDate: string) => {
+    setSelectedIsoDate(isoDate);
+    setIsEditMode(false);
+    setEditingEventId(null);
+    setEditingDraft(null);
+    setIsInlineAdding(false);
+    setInlineDraft(null);
+    setEmojiPickerTarget(null);
+  };
+
+  const closeDailyModal = () => {
+    setSelectedIsoDate(null);
+    setIsEditMode(false);
+    setEditingEventId(null);
+    setEditingDraft(null);
+    setIsInlineAdding(false);
+    setInlineDraft(null);
+    setEmojiPickerTarget(null);
+  };
+
+  const handleEditStart = (event: StaffCalendarEvent) => {
+    setEditingEventId(event.id);
+    setEditingDraft(createDraftFromEvent(event));
+    setIsInlineAdding(false);
+    setInlineDraft(null);
+    setEmojiPickerTarget(null);
+  };
+
+  const handleEditComplete = () => {
+    setIsEditMode(false);
+    setEditingEventId(null);
+    setEditingDraft(null);
+    setIsInlineAdding(false);
+    setInlineDraft(null);
+    setEmojiPickerTarget(null);
+  };
+
+  const handleDelete = (eventId: number) => {
+    deleteEventMutation.mutate(eventId);
+  };
+
+  const handleUpdateEvent = () => {
+    if (!editingDraft || editingEventId === null) {
+      return;
+    }
+
+    updateEventMutation.mutate({
+      eventId: editingEventId,
+      draft: editingDraft,
+    });
+  };
+
+  const handleInlineAddStart = () => {
+    if (!selectedIsoDate) {
+      return;
+    }
+
+    setInlineDraft(createEmptyEventDraft(selectedIsoDate));
+    setIsInlineAdding(true);
+    setEditingEventId(null);
+    setEditingDraft(null);
+    setEmojiPickerTarget(null);
+  };
+
+  const handleInlineAddSubmit = () => {
+    if (!inlineDraft) {
+      return;
+    }
+
+    createEventMutation.mutate({
+      ...inlineDraft,
+      endDate: inlineDraft.date,
+    });
+    setIsInlineAdding(false);
+    setInlineDraft(null);
+  };
+
+  const openCreateModal = () => {
+    const defaultDate =
+      selectedIsoDate ?? toIsoDate(new Date(visibleMonth.year, visibleMonth.month - 1, 1));
+    setCreateDraft(createEmptyRangeDraft(defaultDate));
+    setIsCreateModalOpen(true);
+    setEmojiPickerTarget(null);
+  };
+
+  const handleCreateSubmit = () => {
+    if (!isRangeFormValid(createDraft)) {
+      return;
+    }
+
+    createEventMutation.mutate(createDraft);
   };
 
   return (
@@ -107,9 +681,20 @@ export default function StaffCalendarPage({ initialYear, initialMonth }: StaffCa
         <Content>
           <HeaderRow>
             <Title>학사 일정</Title>
+            {isAdmin ? (
+              <AddButton type="button" onClick={openCreateModal}>
+                <IconCalendarPlus aria-hidden="true" size={18} stroke={2.2} />새 일정 추가
+              </AddButton>
+            ) : null}
           </HeaderRow>
 
           <CalendarPanel aria-label={`${visibleMonth.year}년 ${visibleMonth.month}월 학사 일정`}>
+            {eventsQuery.isLoading ? (
+              <CalendarLoadingOverlay aria-live="polite">
+                <CalendarLoadingBadge>월별 일정을 불러오는 중입니다.</CalendarLoadingBadge>
+              </CalendarLoadingOverlay>
+            ) : null}
+
             <MonthHeader>
               <MonthButton type="button" onClick={() => moveMonth(-1)} aria-label="이전 달 보기">
                 <IconChevronLeft aria-hidden="true" size={22} stroke={2.4} />
@@ -134,7 +719,7 @@ export default function StaffCalendarPage({ initialYear, initialMonth }: StaffCa
                 <DateCell
                   key={day.isoDate}
                   type="button"
-                  onClick={() => setSelectedDay(day)}
+                  onClick={() => openDailyModal(day.isoDate)}
                   $isCurrentMonth={day.isCurrentMonth}
                   $isToday={day.isToday}
                   aria-label={`${formatKoreanDate(day.date)} ${day.events.length}개 일정`}
@@ -143,7 +728,7 @@ export default function StaffCalendarPage({ initialYear, initialMonth }: StaffCa
                   <EventStack>
                     {day.events.slice(0, 4).map((event) => (
                       <EventChip key={event.id} title={event.title}>
-                        <EventIcon aria-hidden="true">🙂</EventIcon>
+                        <EventIcon aria-hidden="true">{event.emoji}</EventIcon>
                         <EventTitle>{event.title}</EventTitle>
                       </EventChip>
                     ))}
@@ -159,7 +744,7 @@ export default function StaffCalendarPage({ initialYear, initialMonth }: StaffCa
       </Stage>
 
       {selectedDay ? (
-        <ModalBackdrop onClick={() => setSelectedDay(null)}>
+        <ModalBackdrop onClick={closeDailyModal}>
           <ScheduleDialog
             role="dialog"
             aria-modal="true"
@@ -167,40 +752,288 @@ export default function StaffCalendarPage({ initialYear, initialMonth }: StaffCa
             onClick={(event) => event.stopPropagation()}
           >
             <DialogHeader>
-              <DialogTitleGroup>
-                <DialogDate id="calendar-detail-title">
-                  {formatKoreanDate(selectedDay.date)}
-                </DialogDate>
-                <DialogSubText>{getDayLabel(selectedDay.date)}요일 상세 일정</DialogSubText>
-              </DialogTitleGroup>
+              <DialogTitle id="calendar-detail-title">
+                {selectedDay.date.getMonth() + 1}월 {selectedDay.date.getDate()}일{" "}
+                {getDayLabel(selectedDay.date)}요일
+              </DialogTitle>
+
+              <DialogHeaderActions>
+                {isAdmin ? (
+                  isEditMode ? (
+                    <Button
+                      type="button"
+                      $variant="edit"
+                      onClick={handleEditComplete}
+                      disabled={isMutationPending}
+                    >
+                      편집 완료
+                    </Button>
+                  ) : (
+                    <TextActionButton type="button" onClick={() => setIsEditMode(true)}>
+                      편집
+                    </TextActionButton>
+                  )
+                ) : null}
+
+                <CloseButton type="button" onClick={closeDailyModal} aria-label="상세 일정 닫기">
+                  <IconX aria-hidden="true" size={20} stroke={2.2} />
+                </CloseButton>
+              </DialogHeaderActions>
+            </DialogHeader>
+
+            <DialogBody>
+              {isEditMode && isInlineAdding && inlineDraft ? (
+                <EventEditorCard
+                  draft={inlineDraft}
+                  submitLabel="추가하기"
+                  isSubmitting={createEventMutation.isPending}
+                  onChange={(field, value) =>
+                    setInlineDraft((current) =>
+                      current ? { ...current, [field]: value } : current,
+                    )
+                  }
+                  onSubmit={handleInlineAddSubmit}
+                  onEmojiToggle={() =>
+                    setEmojiPickerTarget((current) => (current === "inline" ? null : "inline"))
+                  }
+                  emojiPickerOpen={emojiPickerTarget === "inline"}
+                  onEmojiSelect={(emoji) => {
+                    setInlineDraft((current) => (current ? { ...current, emoji } : current));
+                    setEmojiPickerTarget(null);
+                  }}
+                  onCancel={() => {
+                    setIsInlineAdding(false);
+                    setInlineDraft(null);
+                    setEmojiPickerTarget(null);
+                  }}
+                />
+              ) : null}
+
+              {selectedDay.events.length > 0 ? (
+                <DetailList>
+                  {selectedDay.events.map((event) =>
+                    editingEventId === event.id && editingDraft ? (
+                      <EventEditorCard
+                        key={event.id}
+                        draft={editingDraft}
+                        submitLabel="수정 완료"
+                        isSubmitting={updateEventMutation.isPending}
+                        onChange={(field, value) =>
+                          setEditingDraft((current) =>
+                            current ? { ...current, [field]: value } : current,
+                          )
+                        }
+                        onSubmit={handleUpdateEvent}
+                        onEmojiToggle={() =>
+                          setEmojiPickerTarget((current) => (current === "edit" ? null : "edit"))
+                        }
+                        emojiPickerOpen={emojiPickerTarget === "edit"}
+                        onEmojiSelect={(emoji) => {
+                          setEditingDraft((current) => (current ? { ...current, emoji } : current));
+                          setEmojiPickerTarget(null);
+                        }}
+                        onCancel={() => {
+                          setEditingEventId(null);
+                          setEditingDraft(null);
+                          setEmojiPickerTarget(null);
+                        }}
+                      />
+                    ) : (
+                      <DetailItem key={event.id}>
+                        {isAdmin && isEditMode ? (
+                          <DetailActions>
+                            <ActionLink
+                              type="button"
+                              onClick={() => handleEditStart(event)}
+                              disabled={isMutationPending}
+                            >
+                              수정
+                            </ActionLink>
+                            <DeleteLink
+                              type="button"
+                              onClick={() => handleDelete(event.id)}
+                              disabled={isMutationPending}
+                            >
+                              삭제
+                            </DeleteLink>
+                          </DetailActions>
+                        ) : null}
+                        <DetailEmoji>{event.emoji}</DetailEmoji>
+                        <DetailDate>{formatMonthDayLabel(event.date)}</DetailDate>
+                        {event.timeLabel ? <DetailTime>{event.timeLabel}</DetailTime> : null}
+                        <DetailTitle>{event.title}</DetailTitle>
+                        <DetailDescription>{event.description || "설명 없음"}</DetailDescription>
+                      </DetailItem>
+                    ),
+                  )}
+                </DetailList>
+              ) : !isInlineAdding ? (
+                <EmptyState>등록된 상세 일정이 없습니다.</EmptyState>
+              ) : null}
+
+              {isAdmin && isEditMode ? (
+                <InlineAddButton
+                  type="button"
+                  onClick={handleInlineAddStart}
+                  disabled={isInlineAdding || isMutationPending}
+                >
+                  <IconPlus aria-hidden="true" size={22} stroke={2.4} />
+                </InlineAddButton>
+              ) : null}
+            </DialogBody>
+          </ScheduleDialog>
+        </ModalBackdrop>
+      ) : null}
+
+      {isCreateModalOpen ? (
+        <ModalBackdrop onClick={() => setIsCreateModalOpen(false)}>
+          <CreateDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calendar-create-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <DialogHeader>
+              <DialogTitle id="calendar-create-title">새 일정 추가</DialogTitle>
               <CloseButton
                 type="button"
-                onClick={() => setSelectedDay(null)}
-                aria-label="상세 일정 닫기"
+                onClick={() => setIsCreateModalOpen(false)}
+                aria-label="새 일정 추가 닫기"
               >
                 <IconX aria-hidden="true" size={20} stroke={2.2} />
               </CloseButton>
             </DialogHeader>
 
-            {selectedDay.events.length > 0 ? (
-              <DetailList>
-                {selectedDay.events.map((event) => (
-                  <DetailItem key={event.id}>
-                    <DetailBadge>{eventTypeLabels[event.type]}</DetailBadge>
-                    <DetailTitle>{event.title}</DetailTitle>
-                    <DetailMeta>
-                      <span>{event.time}</span>
-                      <span>{event.location}</span>
-                      <span>{event.teacher}</span>
-                    </DetailMeta>
-                    <DetailDescription>{event.description}</DetailDescription>
-                  </DetailItem>
-                ))}
-              </DetailList>
-            ) : (
-              <EmptyState>등록된 상세 일정이 없습니다.</EmptyState>
-            )}
-          </ScheduleDialog>
+            <DialogBody>
+              <EditorCard>
+                <EditorEmojiRow>
+                  <EditorEmojiButton
+                    type="button"
+                    onClick={() =>
+                      setEmojiPickerTarget((current) => (current === "create" ? null : "create"))
+                    }
+                    aria-label="이모지 선택"
+                  >
+                    <EditorEmoji>{createDraft.emoji}</EditorEmoji>
+                  </EditorEmojiButton>
+                </EditorEmojiRow>
+
+                {emojiPickerTarget === "create" ? (
+                  <CreateEmojiPickerWrap>
+                    <EmojiPickerPanel>
+                      {emojiOptions.map((emoji) => (
+                        <EmojiOption
+                          key={emoji}
+                          type="button"
+                          onClick={() => {
+                            setCreateDraft((current) => ({ ...current, emoji }));
+                            setEmojiPickerTarget(null);
+                          }}
+                          aria-label={`${emoji} 선택`}
+                        >
+                          {emoji}
+                        </EmojiOption>
+                      ))}
+                    </EmojiPickerPanel>
+                  </CreateEmojiPickerWrap>
+                ) : null}
+
+                <CreatePeriodRow>
+                  <PeriodGrid>
+                    <EditorField>
+                      <EditorLabel>기간 시작</EditorLabel>
+                      <EditorInput
+                        type="date"
+                        value={createDraft.date}
+                        onChange={(event) =>
+                          setCreateDraft((current) => ({ ...current, date: event.target.value }))
+                        }
+                      />
+                    </EditorField>
+
+                    <EditorField>
+                      <EditorLabel>기간 종료</EditorLabel>
+                      <EditorInput
+                        type="date"
+                        value={createDraft.endDate}
+                        onChange={(event) =>
+                          setCreateDraft((current) => ({ ...current, endDate: event.target.value }))
+                        }
+                      />
+                    </EditorField>
+                  </PeriodGrid>
+                </CreatePeriodRow>
+
+                <TimeRow>
+                  <EditorField>
+                    <EditorLabel>시작 시간</EditorLabel>
+                    <EditorInput
+                      type="time"
+                      value={createDraft.startTime}
+                      onChange={(event) =>
+                        setCreateDraft((current) => ({ ...current, startTime: event.target.value }))
+                      }
+                    />
+                  </EditorField>
+                  <EditorField>
+                    <EditorLabel>종료 시간</EditorLabel>
+                    <EditorInput
+                      type="time"
+                      value={createDraft.endTime}
+                      onChange={(event) =>
+                        setCreateDraft((current) => ({ ...current, endTime: event.target.value }))
+                      }
+                    />
+                  </EditorField>
+                </TimeRow>
+
+                <EditorField>
+                  <EditorLabel>제목</EditorLabel>
+                  <EditorInput
+                    type="text"
+                    value={createDraft.title}
+                    onChange={(event) =>
+                      setCreateDraft((current) => ({ ...current, title: event.target.value }))
+                    }
+                    placeholder="일정 제목을 입력하세요."
+                  />
+                </EditorField>
+
+                <EditorField>
+                  <EditorLabel>내용</EditorLabel>
+                  <EditorTextarea
+                    value={createDraft.description}
+                    onChange={(event) =>
+                      setCreateDraft((current) => ({
+                        ...current,
+                        description: event.target.value,
+                      }))
+                    }
+                    placeholder="일정 내용을 입력하세요."
+                  />
+                </EditorField>
+
+                <EditorActions>
+                  <Button
+                    type="button"
+                    $variant="neutral"
+                    onClick={() => setIsCreateModalOpen(false)}
+                    disabled={createEventMutation.isPending}
+                  >
+                    취소
+                  </Button>
+                  <Button
+                    type="button"
+                    $variant="edit"
+                    onClick={handleCreateSubmit}
+                    disabled={!isRangeFormValid(createDraft) || createEventMutation.isPending}
+                  >
+                    추가하기
+                  </Button>
+                </EditorActions>
+              </EditorCard>
+            </DialogBody>
+          </CreateDialog>
         </ModalBackdrop>
       ) : null}
     </Main>
@@ -246,7 +1079,7 @@ const Content = styled.section`
 
 const HeaderRow = styled.div`
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: ${spacing.space24};
   margin-bottom: 1.4375rem;
@@ -257,6 +1090,7 @@ const HeaderRow = styled.div`
 
   @media (max-width: ${layout.breakpointMobile}) {
     flex-direction: column;
+    align-items: stretch;
   }
 `;
 
@@ -276,12 +1110,13 @@ const AddButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: ${spacing.space8};
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  border: 0;
-  border-radius: ${radii.radius12};
-  background-color: ${colors.point};
-  color: ${colors.white};
+  border: 1px solid ${colors.point};
+  border-radius: ${radii.radius15};
+  background-color: ${colors.white};
+  color: ${colors.point};
   font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
@@ -289,22 +1124,17 @@ const AddButton = styled.button`
   cursor: pointer;
 
   &:hover {
-    background-color: #76bd49;
+    background-color: ${colors.pointSoft};
   }
 
   &:focus-visible {
     outline: 2px solid ${colors.point};
     outline-offset: 3px;
   }
-
-  @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20} 1.875rem;
-    font-size: ${typography.fontSize20};
-  }
 `;
 
 const CalendarPanel = styled.section`
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.9375rem;
@@ -327,17 +1157,38 @@ const CalendarPanel = styled.section`
   }
 `;
 
+const CalendarLoadingOverlay = styled.div`
+  position: absolute;
+  top: ${spacing.space20};
+  right: ${spacing.space20};
+  z-index: 2;
+  pointer-events: none;
+
+  @media (min-width: 120rem) {
+    top: 1.875rem;
+    right: 1.875rem;
+  }
+`;
+
+const CalendarLoadingBadge = styled.p`
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid ${colors.border};
+  border-radius: ${radii.radius12};
+  background-color: rgba(255, 255, 255, 0.92);
+  color: ${colors.muted};
+  font-size: ${typography.fontSize13};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.06);
+`;
+
 const MonthHeader = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
   gap: ${spacing.space12};
   padding: ${spacing.space12} 0;
-
-  @media (min-width: 120rem) {
-    gap: ${spacing.space20};
-    padding: ${spacing.space20} 0;
-  }
 `;
 
 const MonthButton = styled.button`
@@ -359,44 +1210,25 @@ const MonthButton = styled.button`
     outline: 2px solid ${colors.point};
     outline-offset: 2px;
   }
-
-  @media (min-width: 120rem) {
-    width: 2.5rem;
-    height: 2.5rem;
-
-    svg {
-      width: 1.8125rem;
-      height: 1.8125rem;
-    }
-  }
 `;
 
 const MonthText = styled.h2`
   display: inline-flex;
   align-items: baseline;
+  justify-content: center;
   gap: ${spacing.space8};
   min-width: 5.5rem;
-  justify-content: center;
   margin: 0;
   color: #000000;
   font-size: ${typography.fontSize20};
   font-weight: 400;
   line-height: ${typography.lineHeight130};
-
-  @media (min-width: 120rem) {
-    min-width: 8rem;
-    font-size: ${typography.fontSize32};
-  }
 `;
 
 const YearText = styled.span`
   color: #777777;
   font-size: ${typography.fontSize13};
   font-weight: 500;
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize18};
-  }
 `;
 
 const WeekHeader = styled.div`
@@ -415,10 +1247,6 @@ const WeekDay = styled.div`
   font-size: ${typography.fontSize14};
   font-weight: 700;
   line-height: ${typography.lineHeight130};
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
 `;
 
 const DateGrid = styled.div`
@@ -427,21 +1255,14 @@ const DateGrid = styled.div`
   grid-auto-rows: 11rem;
   gap: 0.4375rem;
   min-width: 42rem;
-
-  @media (min-width: 120rem) {
-    grid-auto-rows: 16.6875rem;
-    gap: 0.625rem;
-  }
 `;
 
 const DateCell = styled.button<{
   $isCurrentMonth: boolean;
   $isToday: boolean;
 }>`
-  position: relative;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   gap: ${spacing.space8};
   min-width: 0;
   min-height: 0;
@@ -463,10 +1284,6 @@ const DateCell = styled.button<{
     outline: 2px solid ${colors.point};
     outline-offset: 2px;
   }
-
-  @media (min-width: 120rem) {
-    padding: 0.625rem;
-  }
 `;
 
 const DayNumber = styled.span<{ $isCurrentMonth: boolean }>`
@@ -474,10 +1291,6 @@ const DayNumber = styled.span<{ $isCurrentMonth: boolean }>`
   font-size: ${typography.fontSize14};
   font-weight: 400;
   line-height: ${typography.lineHeight130};
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
 `;
 
 const EventStack = styled.span`
@@ -494,28 +1307,18 @@ const EventChip = styled.span`
   min-width: 0;
   min-height: 1.1875rem;
   padding: 0.1875rem 0.3125rem;
-  background-color: #343434;
   border: 1px solid ${colors.white};
+  background-color: #343434;
   color: ${colors.white};
   font-size: 0.6875rem;
   font-weight: 500;
   line-height: ${typography.lineHeight130};
-
-  @media (min-width: 120rem) {
-    min-height: 1.75rem;
-    padding: 0.3125rem;
-    font-size: ${typography.fontSize20};
-  }
 `;
 
 const EventIcon = styled.span`
   flex: 0 0 auto;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   line-height: 1;
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize16};
-  }
 `;
 
 const EventTitle = styled.span`
@@ -530,10 +1333,6 @@ const MoreEvents = styled.span`
   font-size: 0.6875rem;
   font-weight: 600;
   line-height: ${typography.lineHeight130};
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize16};
-  }
 `;
 
 const ModalBackdrop = styled.div`
@@ -557,6 +1356,8 @@ const ScheduleDialog = styled.div`
   box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.18);
 `;
 
+const CreateDialog = styled(ScheduleDialog)``;
+
 const DialogHeader = styled.header`
   display: flex;
   align-items: flex-start;
@@ -565,14 +1366,19 @@ const DialogHeader = styled.header`
   padding: ${spacing.space24};
   border-bottom: 1px solid #eeeeee;
   background-color: ${colors.background};
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    padding: ${spacing.space24} ${spacing.space20} ${spacing.space16};
+  }
 `;
 
-const DialogTitleGroup = styled.div`
-  display: grid;
-  gap: ${spacing.space4};
+const DialogHeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space12};
 `;
 
-const DialogDate = styled.h2`
+const DialogTitle = styled.h2`
   margin: 0;
   color: #000000;
   font-size: ${typography.fontSize20};
@@ -580,12 +1386,14 @@ const DialogDate = styled.h2`
   line-height: ${typography.lineHeight130};
 `;
 
-const DialogSubText = styled.p`
-  margin: 0;
-  color: #777777;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
+const TextActionButton = styled.button`
+  border: 0;
+  background-color: transparent;
+  color: ${colors.point};
+  font-size: ${typography.fontSize16};
+  font-weight: 600;
   line-height: ${typography.lineHeight130};
+  cursor: pointer;
 `;
 
 const CloseButton = styled.button`
@@ -599,63 +1407,95 @@ const CloseButton = styled.button`
   background-color: ${colors.white};
   color: #333333;
   cursor: pointer;
+`;
 
-  &:hover {
-    background-color: ${colors.pointSoft};
-    color: ${colors.point};
+const DialogBody = styled.div`
+  display: grid;
+  gap: ${spacing.space12};
+  padding: ${spacing.space24};
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    padding: ${spacing.space20};
   }
 `;
 
 const DetailList = styled.div`
   display: grid;
-  gap: ${spacing.space12};
-  padding: ${spacing.space24};
+  gap: ${spacing.space16};
 `;
 
 const DetailItem = styled.article`
+  position: relative;
   display: grid;
   gap: ${spacing.space8};
   padding: ${spacing.space16};
-  border: 1px solid #e3e3e3;
-  border-radius: ${radii.radius12};
-  background-color: ${colors.white};
+  border-radius: ${radii.radius15};
+  background-color: ${colors.background};
 `;
 
-const DetailBadge = styled.span`
-  width: fit-content;
-  padding: 0.25rem 0.625rem;
-  border-radius: ${radii.radius999};
-  background-color: ${colors.pointSoft};
-  color: ${colors.point};
-  font-size: ${typography.fontSize13};
-  font-weight: 700;
+const DetailActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: ${spacing.space12};
+`;
+
+const ActionLink = styled.button`
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #767676;
+  font-size: ${typography.fontSize18};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+`;
+
+const DeleteLink = styled(ActionLink)`
+  color: ${colors.notice};
+`;
+
+const DetailEmoji = styled.span`
+  font-size: 1.75rem;
+  line-height: 1;
+`;
+
+const DetailDate = styled.p`
+  margin: 0;
+  color: #000000;
+  font-size: ${typography.fontSize16};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+`;
+
+const DetailTime = styled.p`
+  margin: 0;
+  color: #000000;
+  font-size: ${typography.fontSize16};
+  font-weight: 500;
   line-height: ${typography.lineHeight130};
 `;
 
 const DetailTitle = styled.h3`
   margin: 0;
   color: #000000;
-  font-size: ${typography.fontSize18};
+  font-size: ${typography.fontSize20};
   font-weight: 700;
-  line-height: ${typography.lineHeight130};
-`;
-
-const DetailMeta = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: ${spacing.space8} ${spacing.space16};
-  color: #666666;
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
   line-height: ${typography.lineHeight130};
 `;
 
 const DetailDescription = styled.p`
   margin: 0;
   color: ${colors.text};
-  font-size: ${typography.fontSize14};
+  font-size: ${typography.fontSize16};
   font-weight: 400;
   line-height: ${typography.lineHeight150};
+  white-space: pre-wrap;
 `;
 
 const EmptyState = styled.p`
@@ -668,3 +1508,166 @@ const EmptyState = styled.p`
   text-align: center;
 `;
 
+const InlineAddButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3rem;
+  border: 1px dashed ${colors.border};
+  border-radius: ${radii.radius15};
+  background-color: ${colors.white};
+  color: ${colors.point};
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+`;
+
+const EditorCard = styled.article`
+  position: relative;
+  display: grid;
+  gap: ${spacing.space12};
+  padding: ${spacing.space16};
+  border: 1px solid ${colors.border};
+  border-radius: ${radii.radius15};
+  background-color: ${colors.white};
+`;
+
+const EditorEmojiRow = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
+const EditorEmojiButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+`;
+
+const EditorEmoji = styled.span`
+  font-size: 1.75rem;
+  line-height: 1;
+`;
+
+const EditorHeaderRow = styled.div`
+  position: relative;
+`;
+
+const TimeRow = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: ${spacing.space12};
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const PeriodGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: ${spacing.space12};
+  width: 100%;
+  flex: 1;
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+`;
+
+const CreatePeriodRow = styled.div`
+  width: 100%;
+`;
+
+const EditorField = styled.label`
+  display: grid;
+  gap: ${spacing.space8};
+  width: 100%;
+`;
+
+const EditorLabel = styled.span`
+  color: #666666;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+`;
+
+const EditorInput = styled.input`
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid ${colors.border};
+  border-radius: ${radii.radius12};
+  background-color: ${colors.white};
+  color: #000000;
+  font-size: ${typography.fontSize16};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+`;
+
+const EditorTextarea = styled.textarea`
+  width: 100%;
+  min-height: 6rem;
+  padding: 0.875rem;
+  border: 1px solid ${colors.border};
+  border-radius: ${radii.radius12};
+  background-color: ${colors.white};
+  color: #000000;
+  font-size: ${typography.fontSize16};
+  font-weight: 400;
+  line-height: ${typography.lineHeight150};
+  resize: vertical;
+`;
+
+const EmojiPickerWrap = styled.div`
+  position: absolute;
+  top: 0;
+  right: 0;
+`;
+
+const CreateEmojiPickerWrap = styled.div`
+  position: relative;
+  align-self: flex-start;
+`;
+
+const EmojiPickerPanel = styled.div`
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.375rem;
+  width: 14rem;
+  padding: 0.75rem;
+  border: 1px solid ${colors.border};
+  border-radius: ${radii.radius15};
+  background-color: ${colors.white};
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.12);
+`;
+
+const EmojiOption = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.25rem;
+  border: 0;
+  border-radius: ${radii.radius12};
+  background-color: ${colors.background};
+  font-size: 1.25rem;
+  cursor: pointer;
+`;
+
+const EditorActions = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: ${spacing.space12};
+`;

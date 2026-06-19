@@ -5,22 +5,35 @@ export interface DepartmentResponseDto {
 }
 
 export interface PermissionResponseDto {
+  id?: number | null;
   name?: string;
   code?: string;
+  permissionCode?: string;
+  resourceCode?: string;
+  resourceLabel?: string;
+  actionCode?: string;
+  actionLabel?: string;
+  scope?: "global" | "target";
+  targetId?: number | null;
+  targetName?: string | null;
+  source?: "MANUAL" | "MEMBER" | "MANAGER" | null;
 }
 
 export interface DepartmentPermissionRequestDto {
-  permissionCode?: string;
+  permissionCode: string;
+  roleType?: "MEMBER" | "MANAGER";
 }
 
 export interface DepartmentUserSummaryDto {
   id?: number;
   name?: string;
-  nickname?: string;
   email?: string;
   phoneNumber?: string;
   role?: string;
   departmentId?: number | null;
+  classroomId?: number | null;
+  teacherAssignmentCount?: number;
+  teacherAssignmentClassroomNames?: string[];
 }
 
 export interface DepartmentListResponseDto {
