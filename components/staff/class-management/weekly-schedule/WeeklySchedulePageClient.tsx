@@ -10,6 +10,8 @@ import type { ClassroomListItemDto, ClassroomType } from "@/api/classroom/classr
 import { getDailySchedules } from "@/api/dailySchedule/dailySchedule.api";
 import { getLessons } from "@/api/lesson/lesson.api";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
+import { getAbsenceRequests } from "@/api/request/request.api";
+import type { AbsenceRequestResponseDto } from "@/api/request/request.dto";
 import { getSubjects } from "@/api/subject/subject.api";
 import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
 import {
@@ -69,6 +71,7 @@ type ScheduleTableProps = {
   weekStartDate: string;
   lessons: Awaited<ReturnType<typeof getLessons>>;
   dailySchedules: Awaited<ReturnType<typeof getDailySchedules>>["content"];
+  absenceRequests: AbsenceRequestResponseDto[];
   onSelectCell: (selection: ScheduleCellSelection) => void;
 };
 
@@ -164,6 +167,7 @@ function ScheduleTable({
   weekStartDate,
   lessons,
   dailySchedules,
+  absenceRequests,
   onSelectCell,
 }: ScheduleTableProps) {
   return (
@@ -195,6 +199,7 @@ function ScheduleTable({
                     cellSubjects,
                     lessons,
                     dailySchedules,
+                    absenceRequests,
                     classroomId,
                     date,
                   );
@@ -314,6 +319,11 @@ export default function WeeklySchedulePageClient() {
     queryFn: () => getDailySchedules({ page: 0, size: 100 }),
     enabled: isAuthenticated,
   });
+  const absenceRequestsQuery = useQuery({
+    queryKey: [...queryKeys.requests.absenceList(), "weekly-schedule", weekRange.from, weekRange.to],
+    queryFn: () => getAbsenceRequests({ status: "APPROVED", page: 0, size: 100 }),
+    enabled: isAuthenticated,
+  });
 
   const classrooms = useMemo(
     () => sortClassrooms(classroomsQuery.data?.content ?? []),
@@ -330,13 +340,25 @@ export default function WeeklySchedulePageClient() {
       ),
     [dailySchedulesQuery.data?.content, weekRange.from, weekRange.to],
   );
+  const approvedAbsenceRequests = useMemo(
+    () =>
+      (absenceRequestsQuery.data?.content ?? []).filter(
+        (request) =>
+          request.lessonDate &&
+          request.lessonDate >= weekRange.from &&
+          request.lessonDate <= weekRange.to &&
+          request.status === "APPROVED",
+      ),
+    [absenceRequestsQuery.data?.content, weekRange.from, weekRange.to],
+  );
 
   const weekdayClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKDAY"));
   const weekendClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKEND"));
   const hasClassrooms = weekdayClassrooms.length > 0 || weekendClassrooms.length > 0;
   const isBaseLoading = classroomsQuery.isLoading || subjectsQuery.isLoading;
   const isBaseError = classroomsQuery.isError || subjectsQuery.isError;
-  const hasScheduleOverlayError = lessonsQuery.isError || dailySchedulesQuery.isError;
+  const hasScheduleOverlayError =
+    lessonsQuery.isError || dailySchedulesQuery.isError || absenceRequestsQuery.isError;
 
   const openDatePicker = () => {
     const input = datePickerRef.current;
@@ -420,6 +442,7 @@ export default function WeeklySchedulePageClient() {
                 weekStartDate={weekRange.from}
                 lessons={lessonsQuery.isError ? [] : (lessonsQuery.data ?? [])}
                 dailySchedules={dailySchedulesQuery.isError ? [] : dailySchedules}
+                absenceRequests={absenceRequestsQuery.isError ? [] : approvedAbsenceRequests}
                 onSelectCell={setSelectedCell}
               />
               <ScheduleTable
@@ -430,6 +453,7 @@ export default function WeeklySchedulePageClient() {
                 weekStartDate={weekRange.from}
                 lessons={lessonsQuery.isError ? [] : (lessonsQuery.data ?? [])}
                 dailySchedules={dailySchedulesQuery.isError ? [] : dailySchedules}
+                absenceRequests={absenceRequestsQuery.isError ? [] : approvedAbsenceRequests}
                 onSelectCell={setSelectedCell}
               />
             </ScheduleContentTrack>
@@ -848,15 +872,13 @@ const SubjectBlock = styled.span<{
   justify-self: end;
   box-sizing: border-box;
   width: 6.4rem;
-  min-height: ${({ $status }) => ($status === "EXCHANGED" ? "1.25rem" : "1.25rem")};
+  min-height: 1.25rem;
   padding: 0 ${spacing.space8};
   border-radius: ${radii.radius999};
   background-color: ${({ $status, $empty, $period }) => {
-    if ($status === "CANCELLED") return "#fde4e2";
     return $empty ? "#f1f3f2" : DEFAULT_PERIOD_COLORS[$period as PeriodNumber];
   }};
   color: ${({ $status, $empty, $period }) => {
-    if ($status === "CANCELLED") return colors.notice;
     return $empty ? "#7c8581" : (PERIOD_COLOR_TEXT[$period as PeriodNumber] ?? "#1f2b28");
   }};
   font-size: ${typography.fontSize13};
