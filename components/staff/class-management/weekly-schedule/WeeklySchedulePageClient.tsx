@@ -118,7 +118,7 @@ function formatSubjectName(subject?: SubjectDetailResponseDto, override?: Weekly
 
 function formatExchangeDescription(override: WeeklyScheduleOverride) {
   if (override.status !== "EXCHANGED") return "";
-  if (!override.relatedDate) return "교환된 수업";
+  if (!override.relatedDate) return "교환";
   return `${override.relatedDate} 수업과 교환`;
 }
 
@@ -224,7 +224,7 @@ function ScheduleTable({
                     <ScheduleCellButton
                       key={`${classroomId}-${column.value}`}
                       type="button"
-                      $hasStatus={Boolean(firstOverride)}
+                      $status={firstOverride?.status}
                       onClick={() =>
                         onSelectCell({
                           classroomName: classroom.name ?? "이름 없음",
@@ -236,18 +236,20 @@ function ScheduleTable({
                         })
                       }
                     >
-                      {firstOverride ? (
-                        <StatusPill $status={firstOverride.status}>
-                          {firstOverride.status === "EXCHANGED" ? "교환" : "결강"}
-                        </StatusPill>
-                      ) : null}
-                      {hasRegisteredSubject ? (
-                        <TeacherName $assigned={hasTeacher}>
-                          {getTeacherName(cellSubjects, firstOverride)}
-                        </TeacherName>
-                      ) : (
-                        <EmptyText>담당 교사 미배정</EmptyText>
-                      )}
+                      <TeacherRow>
+                        {firstOverride ? (
+                          <StatusPill $status={firstOverride.status}>
+                            {firstOverride.status === "EXCHANGED" ? "교환" : "결강"}
+                          </StatusPill>
+                        ) : null}
+                        {hasRegisteredSubject ? (
+                          <TeacherName $assigned={hasTeacher}>
+                            {getTeacherName(cellSubjects, firstOverride)}
+                          </TeacherName>
+                        ) : (
+                          <EmptyText>담당 교사 미배정</EmptyText>
+                        )}
+                      </TeacherRow>
                       <PeriodList>
                         {DISPLAY_PERIODS.map((period) => {
                           const subject = getPeriodSubject(cellSubjects, period);
@@ -264,9 +266,6 @@ function ScheduleTable({
                                 <SubjectNameText>
                                   {formatSubjectName(subject, override)}
                                 </SubjectNameText>
-                                {override?.status === "EXCHANGED" ? (
-                                  <ExchangeText>{formatExchangeDescription(override)}</ExchangeText>
-                                ) : null}
                               </SubjectBlock>
                             </PeriodItem>
                           );
@@ -467,7 +466,7 @@ export default function WeeklySchedulePageClient() {
                   {period.startTime ? <ModalPeriodTime>{period.startTime}</ModalPeriodTime> : null}
                   {period.status === "EXCHANGED" ? (
                     <ModalStatusText $status="EXCHANGED">
-                      교환 · {period.exchangeDescription ?? "교환된 수업"}
+                      교환 · {period.exchangeDescription ?? "교환"}
                     </ModalStatusText>
                   ) : null}
                   {period.status === "CANCELLED" ? (
@@ -741,25 +740,29 @@ const ClassroomType = styled.span`
   line-height: ${typography.lineHeight130};
 `;
 
-const ScheduleCellButton = styled.button<{ $hasStatus: boolean }>`
-  position: relative;
+const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "CANCELLED" }>`
   display: grid;
   align-content: start;
   gap: ${spacing.space4};
   min-height: 7rem;
-  padding: ${({ $hasStatus }) =>
-    $hasStatus
-      ? `1.5rem ${spacing.space12} ${spacing.space8}`
-      : `${spacing.space8} ${spacing.space12}`};
+  padding: ${spacing.space8} ${spacing.space12};
   border: 0;
   border-top: 1px solid ${colors.borderStrong};
   border-left: 1px solid ${colors.borderStrong};
-  background-color: ${colors.white};
+  background-color: ${({ $status }) => {
+    if ($status === "EXCHANGED") return "#f4efff";
+    if ($status === "CANCELLED") return "#fff4f3";
+    return colors.white;
+  }};
   text-align: left;
   cursor: pointer;
 
   &:hover {
-    background-color: #fbfcfb;
+    background-color: ${({ $status }) => {
+      if ($status === "EXCHANGED") return "#efe8ff";
+      if ($status === "CANCELLED") return "#ffeceb";
+      return "#fbfcfb";
+    }};
   }
 
   &:focus-visible {
@@ -768,13 +771,19 @@ const ScheduleCellButton = styled.button<{ $hasStatus: boolean }>`
   }
 `;
 
+const TeacherRow = styled.div`
+  position: relative;
+  min-height: 1.5rem;
+`;
+
 const StatusPill = styled.span<{ $status: "EXCHANGED" | "CANCELLED" }>`
   position: absolute;
-  top: ${spacing.space8};
-  left: ${spacing.space8};
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   min-height: 1.125rem;
+  border: 1px solid ${({ $status }) => ($status === "EXCHANGED" ? "#d7cafc" : "#f3b8b2")};
   border-radius: ${radii.radius999};
   background-color: ${({ $status }) => ($status === "EXCHANGED" ? "#eee7ff" : "#fde4e2")};
   padding: 0 ${spacing.space8};
@@ -786,6 +795,7 @@ const StatusPill = styled.span<{ $status: "EXCHANGED" | "CANCELLED" }>`
 
 const TeacherName = styled.p<{ $assigned: boolean }>`
   margin: 0;
+  padding-top: 0.15rem;
   color: ${({ $assigned }) => ($assigned ? "#111" : colors.muted)};
   font-size: ${typography.fontSize14};
   font-weight: ${({ $assigned }) => ($assigned ? 900 : 700)};
@@ -796,8 +806,9 @@ const TeacherName = styled.p<{ $assigned: boolean }>`
 
 const EmptyText = styled.p`
   margin: 0;
+  padding-top: 0.15rem;
   color: ${colors.muted};
-  font-size: ${typography.fontSize13};
+  font-size: ${typography.fontSize14};
   font-weight: 700;
   line-height: ${typography.lineHeight130};
   text-align: center;
@@ -837,16 +848,14 @@ const SubjectBlock = styled.span<{
   justify-self: end;
   box-sizing: border-box;
   width: 6.4rem;
-  min-height: ${({ $status }) => ($status === "EXCHANGED" ? "2rem" : "1.25rem")};
+  min-height: ${({ $status }) => ($status === "EXCHANGED" ? "1.25rem" : "1.25rem")};
   padding: 0 ${spacing.space8};
   border-radius: ${radii.radius999};
   background-color: ${({ $status, $empty, $period }) => {
-    if ($status === "EXCHANGED") return "#eee7ff";
     if ($status === "CANCELLED") return "#fde4e2";
     return $empty ? "#f1f3f2" : DEFAULT_PERIOD_COLORS[$period as PeriodNumber];
   }};
   color: ${({ $status, $empty, $period }) => {
-    if ($status === "EXCHANGED") return "#6846c9";
     if ($status === "CANCELLED") return colors.notice;
     return $empty ? "#7c8581" : (PERIOD_COLOR_TEXT[$period as PeriodNumber] ?? "#1f2b28");
   }};
@@ -866,17 +875,6 @@ const SubjectNameText = styled.span`
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-
-const ExchangeText = styled.span`
-  display: block;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  font-size: 0.625rem;
-  font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
 `;
