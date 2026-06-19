@@ -56,10 +56,10 @@ export default function MeetingRecordsPage({
     retry: false,
   });
 
-  const totalElements = data?.totalElements ?? data?.content?.length ?? 0;
-  const totalPages = Math.max(1, data?.totalPages ?? 1);
+  const totalElements = isAuthenticated ? (data?.totalElements ?? data?.content?.length ?? 0) : 0;
+  const totalPages = Math.max(1, isAuthenticated ? (data?.totalPages ?? 1) : 1);
   const currentPage = requestedPage > totalPages ? 1 : requestedPage;
-  const records = data?.content ?? [];
+  const records = isAuthenticated ? (data?.content ?? []) : [];
 
   const rows: ListPanelRow[] = records.map((minute, index) => ({
     id: minute.id ?? index,

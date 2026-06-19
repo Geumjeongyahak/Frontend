@@ -59,12 +59,14 @@ export default function AbsenceListPageClient() {
     retry: false,
   });
 
-  const absenceRequests = [...(absenceRequestPage?.content ?? [])].sort(
+  const absenceRequests = [...(isAuthenticated ? (absenceRequestPage?.content ?? []) : [])].sort(
     (a, b) =>
       getRequestTime(b.createdAt ?? b.lessonDate) - getRequestTime(a.createdAt ?? a.lessonDate),
   );
-  const totalPages = Math.max(1, absenceRequestPage?.totalPages ?? 1);
-  const totalCount = absenceRequestPage?.totalElements ?? absenceRequests.length;
+  const totalPages = Math.max(1, isAuthenticated ? (absenceRequestPage?.totalPages ?? 1) : 1);
+  const totalCount = isAuthenticated
+    ? (absenceRequestPage?.totalElements ?? absenceRequests.length)
+    : 0;
 
   const currentPage = requestedPage <= totalPages ? requestedPage : totalPages;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -99,7 +101,7 @@ export default function AbsenceListPageClient() {
       writeHref="/staff/class-management/absence-request/new"
       showWriteButton={isAuthenticated}
       listPath="/staff/class-management/absence-request"
-      rows={rows}
+      rows={isAuthenticated ? rows : []}
       currentPage={currentPage}
       totalPages={totalPages}
       stableTableRows={STABLE_TABLE_ROWS}

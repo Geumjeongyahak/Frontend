@@ -44,8 +44,10 @@ export default function ClassJournalListPageClient() {
     retry: false,
   });
 
-  const visibleJournals = (schedulePage?.content ?? []).map(mapClassJournalListItem);
-  const totalPages = Math.max(1, schedulePage?.totalPages ?? 1);
+  const visibleJournals = isAuthenticated
+    ? (schedulePage?.content ?? []).map(mapClassJournalListItem)
+    : [];
+  const totalPages = Math.max(1, isAuthenticated ? (schedulePage?.totalPages ?? 1) : 1);
   const currentPage = requestedPage <= totalPages ? requestedPage : totalPages;
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);

@@ -62,8 +62,8 @@ export default function ArchiveDocumentListPage({
   });
 
   const channel = useMemo(
-    () => resolveArchiveChannel(channelsQuery.data, config),
-    [channelsQuery.data, config],
+    () => (isAuthenticated ? resolveArchiveChannel(channelsQuery.data, config) : undefined),
+    [channelsQuery.data, config, isAuthenticated],
   );
   const channelId = channel?.id ?? (channelsQuery.isError ? config.channelId : undefined);
   const channelType = channel?.channelType;
@@ -90,7 +90,7 @@ export default function ArchiveDocumentListPage({
     retry: false,
   });
 
-  const filteredPosts = (postsQuery.data?.content ?? [])
+  const filteredPosts = (isAuthenticated ? (postsQuery.data?.content ?? []) : [])
     .filter((post) => {
       if (!mineOnly) return true;
       if (typeof user?.id === "number" && post.authorId === user.id) return true;
@@ -137,7 +137,7 @@ export default function ArchiveDocumentListPage({
       writeHref={`${config.listPath}/new`}
       showWriteButton={isAuthenticated}
       listPath={config.listPath}
-      rows={rows}
+      rows={isAuthenticated ? rows : []}
       currentPage={currentPage}
       totalPages={totalPages}
       stableTableRows={ARCHIVE_DOCUMENTS_PER_PAGE}

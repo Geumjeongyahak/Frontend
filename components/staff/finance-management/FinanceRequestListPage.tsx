@@ -61,7 +61,7 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
 
   const currentAuthor = user?.name ?? user?.nickname ?? user?.email;
   const normalizedKeyword = searchKeyword.trim().toLowerCase();
-  const requests = (data ?? [])
+  const requests = (isAuthenticated ? (data ?? []) : [])
     .filter((request) => {
       const matchesMine =
         !mineOnly ||
@@ -130,7 +130,7 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
             writeHref="/staff/finance-management/new"
             showWriteButton={isAuthenticated}
             listPath="/staff/finance-management"
-            rows={rows}
+            rows={isAuthenticated ? rows : []}
             currentPage={safeCurrentPage}
             totalPages={totalPages}
             stableTableRows={FINANCE_REQUESTS_PER_PAGE}

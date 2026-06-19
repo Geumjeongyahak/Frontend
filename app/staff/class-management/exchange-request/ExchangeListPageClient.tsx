@@ -59,12 +59,14 @@ export default function ExchangeListPageClient() {
     retry: false,
   });
 
-  const exchangeRequests = [...(exchangeRequestPage?.content ?? [])].sort(
+  const exchangeRequests = [...(isAuthenticated ? (exchangeRequestPage?.content ?? []) : [])].sort(
     (a, b) => getRequestTime(b.createdAt) - getRequestTime(a.createdAt),
   );
 
-  const totalPages = Math.max(1, exchangeRequestPage?.totalPages ?? 1);
-  const totalCount = exchangeRequestPage?.totalElements ?? exchangeRequests.length;
+  const totalPages = Math.max(1, isAuthenticated ? (exchangeRequestPage?.totalPages ?? 1) : 1);
+  const totalCount = isAuthenticated
+    ? (exchangeRequestPage?.totalElements ?? exchangeRequests.length)
+    : 0;
 
   const currentPage = requestedPage <= totalPages ? requestedPage : totalPages;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -101,7 +103,7 @@ export default function ExchangeListPageClient() {
       writeHref="/staff/class-management/exchange-request/new"
       showWriteButton={isAuthenticated}
       listPath="/staff/class-management/exchange-request"
-      rows={rows}
+      rows={isAuthenticated ? rows : []}
       currentPage={currentPage}
       totalPages={totalPages}
       stableTableRows={STABLE_TABLE_ROWS}
