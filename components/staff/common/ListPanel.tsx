@@ -109,12 +109,16 @@ export default function ListPanel({
     <Container>
       <HeaderRow>
         <Title $tone={headerTone}>{title}</Title>
-        {showWriteButton ? (
-          <WriteButton href={writeHref} $tone={writeTone ?? headerTone}>
-            <span>{writeLabel}</span>
-            {writeIcon}
-          </WriteButton>
-        ) : null}
+        <WriteButton
+          href={writeHref}
+          $tone={writeTone ?? headerTone}
+          $isVisible={showWriteButton}
+          aria-hidden={!showWriteButton}
+          tabIndex={showWriteButton ? undefined : -1}
+        >
+          <span>{writeLabel}</span>
+          {writeIcon}
+        </WriteButton>
       </HeaderRow>
 
       {filterSlot ? <FilterSlot>{filterSlot}</FilterSlot> : null}
@@ -310,7 +314,7 @@ const Title = styled.h1<{ $tone: ListPanelTone }>`
   }
 `;
 
-const WriteButton = styled(Link)<{ $tone: ListPanelTone }>`
+const WriteButton = styled(Link)<{ $tone: ListPanelTone; $isVisible: boolean }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -343,7 +347,9 @@ const WriteButton = styled(Link)<{ $tone: ListPanelTone }>`
   line-height: ${typography.lineHeight130};
   text-decoration: none;
   white-space: nowrap;
-  cursor: pointer;
+  visibility: ${({ $isVisible }) => ($isVisible ? "visible" : "hidden")};
+  pointer-events: ${({ $isVisible }) => ($isVisible ? "auto" : "none")};
+  cursor: ${({ $isVisible }) => ($isVisible ? "pointer" : "default")};
 
   svg {
     flex: 0 0 auto;

@@ -60,15 +60,18 @@ export default function ClassJournalListPageClient() {
     <PageSection>
       <HeaderRow>
         <Title>수업 일지</Title>
-        {isAuthenticated ? (
-          <ActionGroup>
-            <ActionButton type="button">수업 일지 출력</ActionButton>
-            <ActionLink href="/staff/class-management/class-journal/new">
-              <span>새 수업 일지 작성하기</span>
-              <IconEdit aria-hidden="true" size={16} stroke={2} />
-            </ActionLink>
-          </ActionGroup>
-        ) : null}
+        <ActionGroup $isVisible={isAuthenticated} aria-hidden={!isAuthenticated}>
+          <ActionButton type="button" disabled={!isAuthenticated}>
+            수업 일지 출력
+          </ActionButton>
+          <ActionLink
+            href="/staff/class-management/class-journal/new"
+            tabIndex={isAuthenticated ? undefined : -1}
+          >
+            <span>새 수업 일지 작성하기</span>
+            <IconEdit aria-hidden="true" size={16} stroke={2} />
+          </ActionLink>
+        </ActionGroup>
       </HeaderRow>
 
       <JournalGrid aria-label="수업 일지 목록">
@@ -196,10 +199,12 @@ const Title = styled.h1`
   }
 `;
 
-const ActionGroup = styled.div`
+const ActionGroup = styled.div<{ $isVisible: boolean }>`
   display: flex;
   align-items: center;
   gap: ${spacing.space12};
+  visibility: ${({ $isVisible }) => ($isVisible ? "visible" : "hidden")};
+  pointer-events: ${({ $isVisible }) => ($isVisible ? "auto" : "none")};
 
   @media (min-width: 120rem) {
     gap: 1.125rem;
