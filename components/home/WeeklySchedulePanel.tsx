@@ -33,6 +33,7 @@ export default function WeeklySchedulePanel() {
     <WeeklyScheduleCard
       schedule={weeklySchedule}
       onViewAllClick={() => navigateWhenAuthenticated("/staff/calendar")}
+      onEventClick={(date) => navigateWhenAuthenticated(`/staff/calendar?date=${date}`)}
     />
   );
 }

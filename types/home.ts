@@ -22,11 +22,14 @@ export type WeeklyScheduleItem = {
   type?: "event" | "lesson";
   time: string;
   title: string;
+  emoji?: string;
   date?: string;
   classroomName?: string;
   periods?: Array<{
     period: number;
     subjectName: string;
+    startTime?: string;
+    endTime?: string;
     status?: string;
   }>;
 };

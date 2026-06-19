@@ -25,6 +25,7 @@ import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 type StaffCalendarPageProps = {
   initialYear: number;
   initialMonth: number;
+  initialSelectedDate?: string;
 };
 
 type StaffCalendarEvent = {
@@ -428,14 +429,18 @@ function EventEditorCard({
   );
 }
 
-export default function StaffCalendarPage({ initialYear, initialMonth }: StaffCalendarPageProps) {
+export default function StaffCalendarPage({
+  initialYear,
+  initialMonth,
+  initialSelectedDate,
+}: StaffCalendarPageProps) {
   const queryClient = useQueryClient();
   const { status, user } = useAuthSession();
   const isAdmin = status === "authenticated" && user?.role === "ADMIN";
 
   const [visibleMonth, setVisibleMonth] = useState({ year: initialYear, month: initialMonth });
   const [events, setEvents] = useState<StaffCalendarEvent[]>([]);
-  const [selectedIsoDate, setSelectedIsoDate] = useState<string | null>(null);
+  const [selectedIsoDate, setSelectedIsoDate] = useState<string | null>(initialSelectedDate ?? null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [editingDraft, setEditingDraft] = useState<EventFormValues | null>(null);

@@ -8,8 +8,29 @@ import type { WeeklyScheduleDay } from "@/types/home";
 dayjs.extend(isoWeek);
 
 const WEEK_ORDER = ["월", "화", "수", "목", "금", "토", "일"] as const;
+const DEFAULT_EVENT_EMOJI = "📌";
 type WeekDay = (typeof WEEK_ORDER)[number];
 type WeeklyItem = WeeklyScheduleDay["items"][number];
+
+function splitEmojiFromTitle(title?: string) {
+  const normalizedTitle = title?.trim() ?? "";
+  const matched = normalizedTitle.match(/^(\p{Extended_Pictographic}|\p{Emoji_Presentation})/u);
+
+  if (!matched) {
+    return {
+      emoji: DEFAULT_EVENT_EMOJI,
+      title: normalizedTitle,
+    };
+  }
+
+  const emoji = matched[0];
+  const strippedTitle = normalizedTitle.slice(emoji.length).trim();
+
+  return {
+    emoji,
+    title: strippedTitle,
+  };
+}
 
 function formatTimeRange(startTime?: string, endTime?: string) {
   const start = startTime?.slice(0, 5) ?? "";
@@ -95,11 +116,15 @@ export function mapLessonsToWeeklySchedule(
     if (isoDay < 1 || isoDay > 7) return;
 
     const day = WEEK_ORDER[isoDay - 1];
+    const { emoji, title } = splitEmojiFromTitle(event.title);
+
     grouped.get(day)?.push({
       id: event.id,
       type: "event",
+      emoji,
+      date: event.eventDate,
       time: formatTimeRange(event.startTime, event.endTime),
-      title: event.title ?? "기관 일정",
+      title: title || event.title || "기관 일정",
     });
   });
 
@@ -127,6 +152,8 @@ export function mapLessonsToWeeklySchedule(
       periods: orderedAssignments.map((assignment, index) => ({
         period: assignment.period ?? index + 1,
         subjectName: assignment.subjectName?.trim() || "미등록",
+        startTime: assignment.startTime?.slice(0, 5) ?? "",
+        endTime: assignment.endTime?.slice(0, 5) ?? "",
         status: "SCHEDULED",
       })),
     });
