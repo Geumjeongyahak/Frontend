@@ -9,6 +9,7 @@ import HomeCard from "@/components/home/HomeCard";
 import { useProtectedHomeNavigation } from "@/components/home/useProtectedHomeNavigation";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, spacing, typography } from "@/styles/tokens";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 function buildNoticeHref(notice: PostSummaryResponseDto) {
   const postId = notice.id;
@@ -54,7 +55,7 @@ export default function NoticeCard() {
           notices.map((notice, index) => (
             <ListItem key={`${notice.id ?? "notice"}-${index}`} href={buildNoticeHref(notice)}>
               <Title>{notice.title ?? "제목 없음"}</Title>
-              {/* <Date>{notice.date}</Date> */} {/*TODO*/}
+              <Date>{formatUtcToKstShortDate(notice.createdAt ?? notice.updatedAt)}</Date>
             </ListItem>
           ))}
       </List>
@@ -102,6 +103,18 @@ const ListItem = styled(Link)`
 
   @media (min-width: 120rem) {
     min-height: 3.6875rem;
+  }
+`;
+
+const Date = styled.time`
+  color: ${colors.muted};
+  font-size: ${typography.fontSize16};
+  line-height: ${typography.lineHeight130};
+  font-weight: 300;
+  white-space: nowrap;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize24};
   }
 `;
 

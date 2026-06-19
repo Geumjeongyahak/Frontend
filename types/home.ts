@@ -19,8 +19,16 @@ export type EventPhoto = {
 
 export type WeeklyScheduleItem = {
   id?: number;
+  type?: "event" | "lesson";
   time: string;
   title: string;
+  date?: string;
+  classroomName?: string;
+  periods?: Array<{
+    period: number;
+    subjectName: string;
+    status?: string;
+  }>;
 };
 
 export type WeeklyScheduleDay = {

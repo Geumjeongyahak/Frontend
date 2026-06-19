@@ -1,3 +1,4 @@
+import type { SubjectDayOfWeek } from "@/api/subject/subject.dto";
 import type { ClassroomType } from "@/api/classroom/classroom.dto";
 
 export type UserRole = string;
@@ -38,10 +39,18 @@ export interface UserClassroomResponseDto {
 }
 
 export interface UserTeacherAssignmentResponseDto {
+  subjectId?: number;
   classroomId?: number;
   classNameId?: number;
   classroomName?: string;
   subjectName?: string;
+  dayOfWeek?: SubjectDayOfWeek;
+  startTime?: string;
+  endTime?: string;
+  period?: number;
+  startAt?: string;
+  endAt?: string;
+  teacherAssignedAt?: string;
 }
 
 export interface UserResponseDto {
