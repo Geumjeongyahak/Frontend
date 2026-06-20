@@ -83,20 +83,37 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
                 <ProposalForm id="exchange-proposal-form" onSubmit={page.submitProposal}>
                   <FieldInput
                     $tone="proposal"
-                    aria-label="반 이름"
-                    placeholder="반 이름"
-                    type="text"
-                    value={page.user?.role ?? ""} //TODO: dto 반이름
-                    readOnly
-                  />
-                  <FieldInput
-                    $tone="proposal"
                     aria-label="작성자"
                     placeholder="작성자"
                     type="text"
                     value={page.user?.name ?? ""}
                     readOnly
                   />
+                  {page.assignmentClassNames.length > 0 ? (
+                    <ProposalSelect
+                      aria-label="반 이름"
+                      value={page.proposalForm.watch("className")}
+                      {...page.proposalForm.register("className")}
+                    >
+                      <option value="" disabled>
+                        반을 선택해 주세요
+                      </option>
+                      {page.assignmentClassNames.map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </ProposalSelect>
+                  ) : (
+                    <FieldInput
+                      $tone="proposal"
+                      aria-label="반 이름"
+                      placeholder="반 이름"
+                      type="text"
+                      value={page.proposalClassName}
+                      readOnly
+                    />
+                  )}
                   <DateRow>
                     <DateInput
                       aria-label="수업 일자"
@@ -140,9 +157,16 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
                 <ExchangeProposalList
                   acceptedHref={`/staff/class-management/exchange-request/${page.postId}`}
                   acceptLabel={page.canChangeExchangeTarget ? "교환 대상 변경하기" : "제안 수락하기"}
+                  withdrawAcceptedLabel="교환 제안 철회"
                   showAcceptLink={page.canAcceptProposal || page.canChangeExchangeTarget}
                   showCardTopBorder={!page.canChangeExchangeTarget}
                   isAccepting={page.isAcceptingProposal}
+                  canManageProposal={page.canManageProposal}
+                  canWithdrawAcceptedProposal={page.canWithdrawAcceptedProposal}
+                  editingProposalId={page.editingProposalId}
+                  editingProposalValues={page.editingProposalValues}
+                  isUpdatingProposal={page.isUpdatingProposal}
+                  isDeletingProposal={page.isDeletingProposal}
                   onAcceptProposal={
                     page.canChangeExchangeTarget
                       ? () => page.changeExchangeTarget()
@@ -150,6 +174,16 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
                           if (proposal.id) page.acceptProposal(proposal.id);
                         }
                   }
+                  onStartProposalEdit={page.startProposalEdit}
+                  onCancelProposalEdit={page.cancelProposalEdit}
+                  onSaveProposalEdit={page.saveProposalEdit}
+                  onDeleteProposal={page.deleteProposal}
+                  onWithdrawAcceptedProposal={page.withdrawAcceptedProposal}
+                  onProposalEditValueChange={(patch) =>
+                    page.setEditingProposalValues((current) => ({ ...current, ...patch }))
+                  }
+                  assignmentClassNames={page.assignmentClassNames}
+                  proposalClassName={page.proposalClassName}
                   proposals={page.proposals}
                   proposalsLoading={page.proposalsLoading}
                   proposalsError={page.proposalsError}
@@ -236,6 +270,37 @@ const ProposalForm = styled.form`
 
   @media (max-width: ${layout.breakpointMobile}) {
     grid-template-columns: 1fr;
+  }
+`;
+
+const ProposalSelect = styled.select`
+  width: 100%;
+  min-width: 0;
+  min-height: 2.6875rem;
+  border: 0.5px solid #c0c0c0;
+  background: #ffffff;
+  padding: 0.8125rem ${spacing.space12};
+  padding-right: 2rem;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  appearance: none;
+  outline: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #8c8c8c 50%),
+    linear-gradient(135deg, #8c8c8c 50%, transparent 50%);
+  background-position:
+    calc(100% - 1rem) calc(50% - 2px),
+    calc(100% - 0.6875rem) calc(50% - 2px);
+  background-size:
+    0.375rem 0.375rem,
+    0.375rem 0.375rem;
+  background-repeat: no-repeat;
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
   }
 `;
 
