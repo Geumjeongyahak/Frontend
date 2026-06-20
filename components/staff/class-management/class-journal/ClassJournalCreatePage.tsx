@@ -156,12 +156,10 @@ export default function ClassJournalCreatePage() {
   const studentsQuery = useQuery({
     queryKey: queryKeys.students.list({
       classroomId: enrollmentClassroomId,
-      status: "ENROLLED",
     }),
     queryFn: () =>
       getStudents({
         classroomId: enrollmentClassroomId as number,
-        status: "ENROLLED",
       }),
     enabled: enrollmentClassroomId > 0,
     retry: false,
