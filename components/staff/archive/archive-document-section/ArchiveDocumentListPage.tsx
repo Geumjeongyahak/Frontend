@@ -34,6 +34,10 @@ function getPostTime(post: PostSummaryResponseDto) {
   return Number.isNaN(time) ? 0 : time;
 }
 
+function isPinnedPost(post: PostSummaryResponseDto) {
+  return Boolean(post.isPinned);
+}
+
 export default function ArchiveDocumentListPage({
   config,
   initialPage,
@@ -101,7 +105,11 @@ export default function ArchiveDocumentListPage({
             post.authorName === user?.email),
       );
     })
-    .sort((a, b) => getPostTime(b) - getPostTime(a));
+    .sort((a, b) => {
+      const pinnedDiff = Number(isPinnedPost(b)) - Number(isPinnedPost(a));
+      if (pinnedDiff !== 0) return pinnedDiff;
+      return getPostTime(b) - getPostTime(a);
+    });
 
   const totalPages = Math.max(1, Math.ceil(filteredPosts.length / ARCHIVE_DOCUMENTS_PER_PAGE));
   const currentPage = requestedPage > totalPages ? 1 : requestedPage;
@@ -122,6 +130,7 @@ export default function ArchiveDocumentListPage({
     date: formatUtcToKstShortDate(post.createdAt ?? post.updatedAt),
     status: "",
     detailHref: `${config.listPath}/${post.id ?? ""}?channelId=${post.channelId ?? channelId}`,
+    isPinned: post.isPinned,
   }));
 
   const emptyMessage = postsQuery.isLoading

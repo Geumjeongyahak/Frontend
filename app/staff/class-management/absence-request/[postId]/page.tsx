@@ -28,7 +28,7 @@ export default function AbsencePostPage() {
   const params = useParams<{ postId: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { status: authStatus } = useAuthSession();
+  const { user, status: authStatus } = useAuthSession();
   const isAuthenticated = authStatus === "authenticated";
   const postId = Number(params.postId);
   const isValidPostId = Number.isInteger(postId) && postId > 0;
@@ -75,15 +75,24 @@ export default function AbsencePostPage() {
   const detailTitle = isLoading ? "불러오는 중..." : data?.title ?? "-";
   const isPendingRequest = data?.status === "PENDING";
   const detailStatusTone = normalizeStatusTone(data?.status);
+  const isAdmin = isAuthenticated && user?.role === "ADMIN";
+  const isRequester =
+    isAuthenticated &&
+    typeof user?.id === "number" &&
+    typeof data?.requestedById === "number" &&
+    user.id === data.requestedById;
+  const canManageRequest = isAdmin || isRequester;
+  const canEditRequest = isPendingRequest && canManageRequest;
+  const canDeleteRequest = isPendingRequest && canManageRequest;
 
   const handleDelete = async () => {
-    if (!isValidPostId || !isPendingRequest || deleteAbsenceMutation.isPending) return;
+    if (!isValidPostId || !canDeleteRequest || deleteAbsenceMutation.isPending) return;
     if (!window.confirm("결강 신청서를 삭제하시겠습니까?")) return;
     deleteAbsenceMutation.mutate({ requestId: postId });
   };
 
   const handleStartEdit = () => {
-    if (!isPendingRequest) return;
+    if (!canEditRequest) return;
     setEditTitle(data?.title ?? "");
     setEditReason(data?.reason ?? "");
     setIsEditing(true);
@@ -110,33 +119,46 @@ export default function AbsencePostPage() {
   return (
     <PageWrapper>
       <TopButtonRow>
-        <Button
-          type="button"
-          $variant="danger"
-          onClick={handleDelete}
-          disabled={!isPendingRequest || deleteAbsenceMutation.isPending}
-        >
-          {deleteAbsenceMutation.isPending ? "삭제 중..." : "삭제"}
-        </Button>
-        {isEditing ? (
+        {canManageRequest ? (
           <>
             <Button
               type="button"
-              $variant="edit"
-              onClick={handleCancelEdit}
-              disabled={updateAbsenceMutation.isPending}
+              $variant="danger"
+              onClick={handleDelete}
+              disabled={!canDeleteRequest || deleteAbsenceMutation.isPending}
             >
-              취소
+              {deleteAbsenceMutation.isPending ? "삭제 중..." : "삭제"}
             </Button>
-            <Button type="button" onClick={handleSaveEdit} disabled={updateAbsenceMutation.isPending}>
-              {updateAbsenceMutation.isPending ? "저장 중..." : "저장"}
-            </Button>
+            {isEditing ? (
+              <>
+                <Button
+                  type="button"
+                  $variant="edit"
+                  onClick={handleCancelEdit}
+                  disabled={updateAbsenceMutation.isPending}
+                >
+                  취소
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  disabled={updateAbsenceMutation.isPending}
+                >
+                  {updateAbsenceMutation.isPending ? "저장 중..." : "저장"}
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                $variant="edit"
+                onClick={handleStartEdit}
+                disabled={!canEditRequest}
+              >
+                수정
+              </Button>
+            )}
           </>
-        ) : (
-          <Button type="button" $variant="edit" onClick={handleStartEdit} disabled={!isPendingRequest}>
-            수정
-          </Button>
-        )}
+        ) : null}
         <Button type="button" $variant="neutral" onClick={() => router.push("/staff/class-management/absence-request")}>
           목록
         </Button>

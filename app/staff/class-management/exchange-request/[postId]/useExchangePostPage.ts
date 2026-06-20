@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  LessonExchangeProposalDto,
   LessonExchangeProposalRequestDto,
   UpdateLessonExchangeRequestDto,
 } from "@/api/lessonExchange/lessonExchange.dto";
@@ -14,10 +15,13 @@ import {
   createLessonExchangeProposal,
   getLessonExchangeRequestDetail,
   getLessonExchangeProposals,
+  updateLessonExchangeProposal,
   updateLessonExchangeRequest,
+  withdrawLessonExchangeProposal,
 } from "@/api/lessonExchange/lessonExchange.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
+import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import {
   normalizeLessonExchangeExpiresAtForApi,
   parseKoreanShortDateToIsoDate,
@@ -40,6 +44,7 @@ function normalizeLessonDateForApi(value: string): string | undefined {
 }
 
 interface ProposalFormValues {
+  className: string;
   lessonDate: string;
   content: string;
 }
@@ -73,6 +78,7 @@ export function useExchangePostPage() {
 
   const proposalForm = useForm<ProposalFormValues>({
     defaultValues: {
+      className: "",
       lessonDate: "",
       content: "",
     },
@@ -95,6 +101,15 @@ export function useExchangePostPage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingExchangeTarget, setIsChangingExchangeTarget] = useState(false);
+  const [editingProposalId, setEditingProposalId] = useState<number | null>(null);
+  const [proposalRemovalActionLabel, setProposalRemovalActionLabel] = useState<
+    "삭제" | "철회"
+  >("삭제");
+  const [editingProposalValues, setEditingProposalValues] = useState<ProposalFormValues>({
+    className: "",
+    lessonDate: "",
+    content: "",
+  });
 
   const createProposalMutation = useMutation({
     mutationFn: (body: LessonExchangeProposalRequestDto) =>
@@ -150,6 +165,55 @@ export function useExchangePostPage() {
     },
     onError: (error) => {
       window.alert(error instanceof Error ? error.message : "교환 제안 수락에 실패했습니다.");
+    },
+  });
+
+  const updateProposalMutation = useMutation({
+    mutationFn: ({
+      proposalId,
+      body,
+    }: {
+      proposalId: number;
+      body: LessonExchangeProposalRequestDto;
+    }) => updateLessonExchangeProposal({ requestId: postId, proposalId }, body),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.lessonExchangeProposals(postId),
+      });
+      setEditingProposalId(null);
+      setEditingProposalValues({
+        className: "",
+        lessonDate: "",
+        content: "",
+      });
+      window.alert("교환 제안이 수정되었습니다.");
+    },
+    onError: (error) => {
+      window.alert(error instanceof Error ? error.message : "교환 제안 수정에 실패했습니다.");
+    },
+  });
+
+  const withdrawProposalMutation = useMutation({
+    mutationFn: (proposalId: number) =>
+      withdrawLessonExchangeProposal({ requestId: postId, proposalId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.lessonExchangeProposals(postId),
+      });
+      setEditingProposalId(null);
+      setEditingProposalValues({
+        className: "",
+        lessonDate: "",
+        content: "",
+      });
+      window.alert(`교환 제안이 ${proposalRemovalActionLabel}되었습니다.`);
+    },
+    onError: (error) => {
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : `교환 제안 ${proposalRemovalActionLabel}에 실패했습니다.`,
+      );
     },
   });
 
@@ -264,6 +328,81 @@ export function useExchangePostPage() {
     acceptProposalMutation.mutate(proposalId);
   };
 
+  const canManageProposal = (proposal: LessonExchangeProposalDto) =>
+    isAuthenticated &&
+    typeof user?.id === "number" &&
+    typeof proposal.proposedById === "number" &&
+    user.id === proposal.proposedById &&
+    (proposal.status === "ACTIVE" || proposal.status == null);
+
+  const canWithdrawAcceptedProposal = (proposal: LessonExchangeProposalDto) =>
+    isApplicant &&
+    proposal.status === "ACCEPTED" &&
+    uiStatus === "COMPLETED";
+
+  const startProposalEdit = (proposal: LessonExchangeProposalDto) => {
+    if (!proposal.id || !canManageProposal(proposal)) {
+      return;
+    }
+
+    setEditingProposalId(proposal.id);
+    setEditingProposalValues({
+      className: proposal.classroomName ?? "",
+      lessonDate: formatUtcToKstShortDate(proposal.lessonDate) || "",
+      content: proposal.content ?? "",
+    });
+  };
+
+  const cancelProposalEdit = () => {
+    if (updateProposalMutation.isPending) {
+      return;
+    }
+
+    setEditingProposalId(null);
+    setEditingProposalValues({
+      className: "",
+      lessonDate: "",
+      content: "",
+    });
+  };
+
+  const saveProposalEdit = (proposalId: number) => {
+    const lessonDate = normalizeLessonDateForApi(editingProposalValues.lessonDate);
+    const content = editingProposalValues.content.trim();
+
+    if (!lessonDate) {
+      window.alert("수업 일자를 입력해 주세요.");
+      return;
+    }
+
+    if (!content) {
+      window.alert("내용을 입력해 주세요.");
+      return;
+    }
+
+    updateProposalMutation.mutate({
+      proposalId,
+      body: {
+        lessonDate,
+        content,
+      },
+    });
+  };
+
+  const deleteProposal = (proposalId: number) => {
+    if (!window.confirm("이 교환 제안을 삭제할까요?")) return;
+
+    setProposalRemovalActionLabel("삭제");
+    withdrawProposalMutation.mutate(proposalId);
+  };
+
+  const withdrawAcceptedProposal = (proposalId: number) => {
+    if (!window.confirm("이 교환 제안을 철회할까요?")) return;
+
+    setProposalRemovalActionLabel("철회");
+    withdrawProposalMutation.mutate(proposalId);
+  };
+
   const changeExchangeTarget = () => {
     if (!window.confirm("교환 대상을 변경할까요?")) return;
 
@@ -272,8 +411,29 @@ export function useExchangePostPage() {
 
   const request = requestQuery.data;
   const requestStatus = request?.status;
+  const teacherAssignments = user?.teacherAssignments ?? [];
+  const assignmentClassNames = Array.from(
+    new Set(
+      teacherAssignments
+        .map((assignment) => assignment.classroomName?.trim() ?? "")
+        .filter((name) => name.length > 0),
+    ),
+  );
+  const hasMultipleProposalClassNames = assignmentClassNames.length > 1;
+  const proposalClassName = assignmentClassNames.length === 1 ? assignmentClassNames[0] : "";
+  const matchesApplicantId =
+    typeof user?.id === "number" &&
+    typeof request?.requestedById === "number" &&
+    user.id === request.requestedById;
+  const matchesApplicantName = Boolean(
+    request?.requestedByName &&
+      [user?.name, user?.nickname, user?.email].some(
+        (candidate) => candidate != null && candidate === request.requestedByName,
+      ),
+  );
   const isApplicant =
-    user?.id != null && request?.requestedById != null && user.id === request.requestedById;
+    (matchesApplicantId && (!request?.requestedByName || matchesApplicantName)) ||
+    (request?.requestedById == null && matchesApplicantName);
 
   const uiStatus =
     isChangingExchangeTarget && requestStatus === "COMPLETED" ? "APPROVED" : requestStatus;
@@ -320,6 +480,9 @@ export function useExchangePostPage() {
     requestError: requestQuery.isError,
 
     isApplicant,
+    assignmentClassNames,
+    hasMultipleProposalClassNames,
+    proposalClassName,
     showProposalSection,
     showProposalMessage,
     proposalMessage,
@@ -342,12 +505,24 @@ export function useExchangePostPage() {
     isUpdating: updateRequestMutation.isPending,
     isCreatingProposal: createProposalMutation.isPending,
     isAcceptingProposal: acceptProposalMutation.isPending,
+    isUpdatingProposal: updateProposalMutation.isPending,
+    isDeletingProposal: withdrawProposalMutation.isPending,
+    editingProposalId,
+    editingProposalValues,
 
     startEdit,
     cancelEdit,
     saveEdit,
     submitProposal,
     acceptProposal,
+    canManageProposal,
+    canWithdrawAcceptedProposal,
+    startProposalEdit,
+    cancelProposalEdit,
+    saveProposalEdit,
+    deleteProposal,
+    withdrawAcceptedProposal,
+    setEditingProposalValues,
     changeExchangeTarget,
     deleteRequest,
     backToList,

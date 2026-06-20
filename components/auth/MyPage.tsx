@@ -9,6 +9,11 @@ import type { UpdateSelfRequestDto, UserResponseDto } from "@/api/user/user.dto"
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import {
+  formatBirthDate,
+  toBirthDateInputValue,
+  toResidentRegistrationNumberPrefix,
+} from "@/utils/birthDate";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
 
 type EditableProfileForm = {
@@ -25,34 +30,6 @@ function getDisplayValue(value: string | number | null | undefined, fallback: st
   }
 
   return String(value);
-}
-
-function formatBirthDate(prefix?: string) {
-  if (!prefix || !/^\d{6}$/.test(prefix)) {
-    return "등록된 생년월일이 없습니다.";
-  }
-
-  const yearPrefix = Number(prefix.slice(0, 2)) > 30 ? "19" : "20";
-  return `${yearPrefix}${prefix.slice(0, 2)}.${prefix.slice(2, 4)}.${prefix.slice(4, 6)}`;
-}
-
-function toBirthDateInputValue(prefix?: string) {
-  if (!prefix || !/^\d{6}$/.test(prefix)) {
-    return "";
-  }
-
-  const yearPrefix = Number(prefix.slice(0, 2)) > 30 ? "19" : "20";
-  return `${yearPrefix}${prefix.slice(0, 2)}-${prefix.slice(2, 4)}-${prefix.slice(4, 6)}`;
-}
-
-function toResidentRegistrationNumberPrefix(date: string) {
-  const [year, month, day] = date.split("-");
-
-  if (!year || !month || !day) {
-    return "";
-  }
-
-  return `${year.slice(-2)}${month}${day}`;
 }
 
 function formatRole(role?: string) {

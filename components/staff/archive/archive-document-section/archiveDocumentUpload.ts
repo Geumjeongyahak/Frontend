@@ -1,5 +1,5 @@
 import type { FileUploadResponseDto } from "@/api/file/file.dto";
-import { attachPostFile, createPost, publishPost, updatePost } from "@/api/post/post.api";
+import { attachPostFile, createPost, pinPost, publishPost, updatePost } from "@/api/post/post.api";
 import type { PostDetailResponseDto } from "@/api/post/post.dto";
 import {
   uploadDocumentFormsDocument,
@@ -30,11 +30,12 @@ type PublishArchivePostWithNewFilesParams = {
   title: string;
   contentHtml: string;
   allowComment: boolean;
+  isPinned: boolean;
   files: File[];
   uploadDocument: UploadArchiveDocumentFn;
   sortOrderStart: number;
   errorLabel: string;
-} & ({ mode: "create" } | { mode: "update"; postId: number });
+} & ({ mode: "create" } | { mode: "update"; postId: number; initialPinned: boolean });
 
 /** DRAFT 저장 → Drive 메타 등록 → 첨부 연동 → 발행 */
 export async function publishArchivePostWithNewFiles(
@@ -45,6 +46,7 @@ export async function publishArchivePostWithNewFiles(
     title,
     contentHtml,
     allowComment,
+    isPinned,
     files,
     uploadDocument,
     sortOrderStart,
@@ -77,5 +79,14 @@ export async function publishArchivePostWithNewFiles(
     );
   }
 
-  return publishPost({ channelId, postId: draftPost.id }, publishBody);
+  const publishedPost = await publishPost({ channelId, postId: draftPost.id }, publishBody);
+
+  const shouldUpdatePinned =
+    params.mode === "create" ? isPinned : isPinned !== params.initialPinned;
+
+  if (shouldUpdatePinned) {
+    await pinPost({ channelId, postId: draftPost.id }, { isPinned });
+  }
+
+  return publishedPost;
 }

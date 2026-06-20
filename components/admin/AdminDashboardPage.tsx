@@ -101,6 +101,7 @@ import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { toBirthDateInputValue, toResidentRegistrationNumberPrefix } from "@/utils/birthDate";
 
 const navigationItems: { key: AdminMenu; label: string }[] = [
   { key: "dashboard", label: "대시보드" },
@@ -184,6 +185,7 @@ const emptyUserForm: UserFormState = {
   password: "",
   name: "",
   phoneNumber: "",
+  birthDate: "",
   role: "VOLUNTEER",
   departmentId: "",
 };
@@ -290,6 +292,8 @@ function mapCreateUserFormToPayload(form: UserFormState) {
     password: form.password,
     name,
     phoneNumber: form.phoneNumber.trim() || undefined,
+    residentRegistrationNumberPrefix:
+      toResidentRegistrationNumberPrefix(form.birthDate) || undefined,
     role: form.role,
     departmentId: form.departmentId ? (toNumber(form.departmentId) ?? null) : null,
   };
@@ -300,6 +304,8 @@ function mapUpdateUserFormToPayload(form: UserFormState) {
     email: form.email.trim(),
     name: form.name.trim(),
     phoneNumber: form.phoneNumber.trim() || undefined,
+    residentRegistrationNumberPrefix:
+      toResidentRegistrationNumberPrefix(form.birthDate) || undefined,
     role: form.role,
     departmentId: form.departmentId ? (toNumber(form.departmentId) ?? null) : null,
   };
@@ -816,6 +822,7 @@ export default function AdminDashboardPage() {
       password: "",
       name: item.name ?? "",
       phoneNumber: item.phoneNumber ?? "",
+      birthDate: toBirthDateInputValue(item.residentRegistrationNumberPrefix),
       role: item.role ?? "VOLUNTEER",
       departmentId:
         item.departmentId !== null && item.departmentId !== undefined

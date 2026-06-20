@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { deletePost, getPost } from "@/api/post/post.api";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
+import BoardCommentSection from "@/components/staff/board/BoardCommentSection";
 import BoardShell from "@/components/staff/board/BoardShell";
 import {
   ActionButton,
@@ -172,6 +173,10 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
               <EmptyAttachmentText>첨부된 자료가 없습니다.</EmptyAttachmentText>
             )}
           </FileList>
+
+          {hasChannelId && visiblePost?.allowComment !== false ? (
+            <BoardCommentSection channelId={channelId} postId={postId} />
+          ) : null}
         </ContentStack>
       </DocumentSection>
     </BoardShell>

@@ -15,6 +15,10 @@ export const queryKeys = {
     boardDetail: (channelId: number, postId: number) =>
       ["posts", "board", "detail", { channelId, postId }] as const,
   },
+  comments: {
+    boardDetail: (channelId: number, postId: number) =>
+      ["comments", "board", "detail", { channelId, postId }] as const,
+  },
   lessons: {
     weekly: (from: string, to: string) => ["lessons", "weekly", { from, to }] as const,
     myWeekly: (from: string, to: string) => ["lessons", "me", "weekly", { from, to }] as const,

@@ -40,13 +40,14 @@ type HistoryPhoto = {
 type HistoryItem = {
   id: number;
   title: string;
+  historyDate?: string;
   detail?: string;
   links?: HistoryLink[];
   photos?: HistoryPhoto[];
 };
 
 type HistoryFormState = {
-  title: string;
+  historyDate: string;
   detail: string;
   linkLabel: string;
   linkHref: string;
@@ -61,7 +62,7 @@ const sidebarItems = [
 ];
 
 const emptyForm: HistoryFormState = {
-  title: "",
+  historyDate: "",
   detail: "",
   linkLabel: "",
   linkHref: "",
@@ -75,19 +76,33 @@ function normalizeHref(href: string) {
   return `https://${trimmed}`;
 }
 
+function formatHistoryDateLabel(historyDate: string) {
+  return historyDate.replaceAll("-", ".");
+}
+
+function getHistorySortTime(item: SiteHistoryResponseDto) {
+  const value = item.historyDate ?? item.title ?? "";
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value;
+  const time = new Date(normalized).getTime();
+  return Number.isNaN(time) ? 0 : time;
+}
+
 function mapHistoryItem(item: SiteHistoryResponseDto): HistoryItem | null {
   if (typeof item.id !== "number" || !item.title) return null;
-  const linkHref = normalizeHref(item.linkHref ?? "");
+  const primaryLink = item.links?.[0];
+  const linkHref = normalizeHref(primaryLink?.href ?? "");
+  const historyDate = item.historyDate ?? undefined;
 
   return {
     id: item.id,
-    title: item.title,
+    title: historyDate ? formatHistoryDateLabel(historyDate) : item.title,
+    historyDate,
     detail: item.detail || undefined,
     links: linkHref
       ? [
           {
             id: `link-${item.id}`,
-            label: item.linkLabel ?? "",
+            label: primaryLink?.label ?? "",
             href: linkHref,
           },
         ]
@@ -95,14 +110,14 @@ function mapHistoryItem(item: SiteHistoryResponseDto): HistoryItem | null {
     photos: item.photos?.map((photo, index) => ({
       id: String(photo.id ?? `${item.id}-${index}`),
       alt: photo.alt ?? item.title ?? "연혁 사진",
-      src: photo.url ?? "",
+      src: photo.src ?? "",
     })),
   };
 }
 
 function itemToForm(item: HistoryItem): HistoryFormState {
   return {
-    title: item.title,
+    historyDate: item.historyDate ?? "",
     detail: item.detail ?? "",
     linkLabel: item.links?.[0]?.label ?? "",
     linkHref: item.links?.[0]?.href === "#" ? "" : item.links?.[0]?.href ?? "",
@@ -140,13 +155,12 @@ export default function HistoryPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   const items = useMemo(
-    () => historiesQuery.data?.history?.map(mapHistoryItem).filter((item): item is HistoryItem => item !== null) ?? [],
+    () =>
+      [...(historiesQuery.data?.history ?? [])]
+        .sort((left, right) => getHistorySortTime(left) - getHistorySortTime(right))
+        .map(mapHistoryItem)
+        .filter((item): item is HistoryItem => item !== null) ?? [],
     [historiesQuery.data],
-  );
-
-  const editingItem = useMemo(
-    () => items.find((item) => item.id === editingItemId) ?? null,
-    [editingItemId, items],
   );
 
   const refreshHistory = () => queryClient.invalidateQueries({ queryKey: queryKeys.siteContent.history() });
@@ -241,19 +255,22 @@ export default function HistoryPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const title = form.title.trim();
-    if (!title) return;
+    const historyDate = form.historyDate.trim();
+    if (!historyDate) return;
 
     const linkHref = normalizeHref(form.linkHref);
+    const title = formatHistoryDateLabel(historyDate);
     const body = {
       title,
+      historyDate,
       detail: form.detail.trim() || undefined,
-      linkLabel: linkHref ? form.linkLabel.trim() : undefined,
-      linkHref: linkHref || undefined,
+      links: linkHref
+        ? [{ label: form.linkLabel.trim(), href: linkHref }]
+        : undefined,
       photos: form.photos.length > 0
         ? form.photos
             .filter((photo) => photo.src)
-            .map((photo) => ({ url: photo.src, alt: photo.alt || title }))
+            .map((photo) => ({ src: photo.src, alt: photo.alt || title }))
         : undefined,
     };
 
@@ -396,12 +413,12 @@ export default function HistoryPage() {
 
             <EditorForm onSubmit={handleSubmit}>
               <Field>
-                <FieldLabel htmlFor="history-title">내용</FieldLabel>
+                <FieldLabel htmlFor="history-title">날짜</FieldLabel>
                 <Input
                   id="history-title"
-                  value={form.title}
-                  onChange={(event) => updateForm("title", event.target.value)}
-                  placeholder="예: 2026년 3월 새 행사 진행"
+                  type="date"
+                  value={form.historyDate}
+                  onChange={(event) => updateForm("historyDate", event.target.value)}
                   required
                 />
               </Field>

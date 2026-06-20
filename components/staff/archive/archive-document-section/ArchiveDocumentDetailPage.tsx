@@ -6,12 +6,15 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import styled, { css } from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import { deletePost, getPost, updatePost } from "@/api/post/post.api";
+import { deletePost, getPost, pinPost, updatePost } from "@/api/post/post.api";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
+import BoardCommentSection from "@/components/staff/board/BoardCommentSection";
 import {
   ActionLink,
+  CheckboxInput,
+  CheckboxLabel,
   ContentStack,
   DocumentSection,
   DownloadBadge,
@@ -20,6 +23,7 @@ import {
   FileList,
   Label,
   MetaBar,
+  OptionRow,
   StateMessage,
   Toolbar,
   ToolbarRight,
@@ -53,6 +57,8 @@ export default function ArchiveDocumentDetailPage({
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
+  const [editAllowComment, setEditAllowComment] = useState(true);
+  const [editIsPinned, setEditIsPinned] = useState(false);
   const [editFiles, setEditFiles] = useState<File[]>([]);
 
   const channelsQuery = useQuery({
@@ -120,7 +126,6 @@ export default function ArchiveDocumentDetailPage({
 
       const title = editTitle.trim();
       const contentHtml = editContent.trim();
-      const allowComment = false;
       const uploadArchiveDocument = getUploadArchiveDocument(config.category);
 
       if (uploadArchiveDocument && editFiles.length > 0) {
@@ -130,18 +135,26 @@ export default function ArchiveDocumentDetailPage({
           channelId,
           title,
           contentHtml,
-          allowComment,
+          allowComment: editAllowComment,
+          isPinned: editIsPinned,
           files: editFiles,
           uploadDocument: uploadArchiveDocument,
           sortOrderStart: attachments.length,
           errorLabel: config.title,
+          initialPinned: visiblePost?.isPinned ?? false,
         });
       }
 
-      return updatePost(
+      const updatedPost = await updatePost(
         { channelId, postId },
-        { title, contentHtml, status: "PUBLISHED", allowComment },
+        { title, contentHtml, status: "PUBLISHED", allowComment: editAllowComment },
       );
+
+      if (editIsPinned !== (visiblePost?.isPinned ?? false)) {
+        await pinPost({ channelId, postId }, { isPinned: editIsPinned });
+      }
+
+      return updatedPost;
     },
     onSuccess: async (updatedPost) => {
       setIsEditing(false);
@@ -184,6 +197,8 @@ export default function ArchiveDocumentDetailPage({
 
     setEditTitle(visiblePost.title ?? "");
     setEditContent(visiblePost.contentHtml ?? "");
+    setEditAllowComment(visiblePost.allowComment ?? true);
+    setEditIsPinned(visiblePost.isPinned ?? false);
     setEditFiles([]);
     setIsEditing(true);
   }
@@ -192,6 +207,8 @@ export default function ArchiveDocumentDetailPage({
     setIsEditing(false);
     setEditTitle("");
     setEditContent("");
+    setEditAllowComment(true);
+    setEditIsPinned(false);
     setEditFiles([]);
   }
 
@@ -280,6 +297,27 @@ export default function ArchiveDocumentDetailPage({
           <FieldBox>{author}</FieldBox>
         )}
 
+        {isEditing ? (
+          <OptionRow>
+            <CheckboxLabel>
+              <CheckboxInput
+                type="checkbox"
+                checked={editIsPinned}
+                onChange={(event) => setEditIsPinned(event.target.checked)}
+              />
+              <span>게시물 고정</span>
+            </CheckboxLabel>
+            <CheckboxLabel>
+              <CheckboxInput
+                type="checkbox"
+                checked={editAllowComment}
+                onChange={(event) => setEditAllowComment(event.target.checked)}
+              />
+              <span>댓글 허용</span>
+            </CheckboxLabel>
+          </OptionRow>
+        ) : null}
+
         <Label>설명</Label>
         {isEditing ? (
           <EditorBox>
@@ -342,6 +380,10 @@ export default function ArchiveDocumentDetailPage({
             )}
           </FileList>
         )}
+
+        {hasChannelId && visiblePost?.allowComment !== false ? (
+          <BoardCommentSection channelId={channelId} postId={postId} />
+        ) : null}
       </ContentStack>
     </DocumentSection>
   );
