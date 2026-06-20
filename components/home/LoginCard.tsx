@@ -263,6 +263,11 @@ const ErrorText = styled.p<{ $visible: boolean }>`
   font-weight: 600;
   line-height: ${typography.lineHeight150};
   visibility: ${({ $visible }) => ($visible ? "visible" : "hidden")};
+
+  @media (min-width: 120rem) {
+    top: calc(10.375rem + ${spacing.space8});
+    font-size: ${typography.fontSize18};
+  }
 `;
 
 const Input = styled(AuthInput)`
