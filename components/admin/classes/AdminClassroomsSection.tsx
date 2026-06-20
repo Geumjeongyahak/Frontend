@@ -8,19 +8,28 @@ import type {
   ClassroomListItemDto,
   ClassroomType,
 } from "@/api/classroom/classroom.dto";
-import type { ClassroomFormState } from "@/components/admin/AdminDashboardTypes";
+import type { StudentListResponseDto } from "@/api/student/student.dto";
+import type {
+  ClassroomFormState,
+  StudentCreateFormState,
+} from "@/components/admin/AdminDashboardTypes";
 import {
   ButtonRow,
   ControlRow,
   DangerButton,
   DataState,
   FormGrid,
+  InlineStatus,
   Label,
+  List,
+  ListItem,
   SectionCard,
+  SectionDescription,
   SectionHeaderRow,
   SectionTitle,
   SmallButton,
   Table,
+  TextArea,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -38,27 +47,46 @@ type VoidMutationAction = {
   mutate: () => void;
 };
 
+type ValueMutationAction<TVariables> = {
+  isPending: boolean;
+  mutate: (variables: TVariables) => void;
+};
+
+type StudentFormMutationVariables = {
+  studentId: number;
+  form: StudentCreateFormState;
+};
+
 type AdminClassroomsSectionProps = {
   classrooms: ClassroomListItemDto[];
   selectedClassroomId: number | null;
   isClassroomEditing: boolean;
   isClassroomCreateModalOpen: boolean;
   isClassroomDeleteConfirmOpen: boolean;
+  isStudentCreateModalOpen: boolean;
   classroomSearch: string;
   classroomForm: ClassroomFormState;
+  studentCreateForm: StudentCreateFormState;
   classroomsQuery: QueryState;
   classroomDetailQuery: QueryState<ClassroomDetailResponseDto>;
+  classroomStudentsQuery: QueryState<StudentListResponseDto>;
   createClassroomMutation: VoidMutationAction;
   updateClassroomMutation: VoidMutationAction;
   deleteClassroomMutation: VoidMutationAction;
+  createStudentMutation: VoidMutationAction;
+  deleteStudentMutation: ValueMutationAction<number>;
+  updateStudentMutation: ValueMutationAction<StudentFormMutationVariables>;
   setSelectedClassroomId: Dispatch<SetStateAction<number | null>>;
   setIsClassroomEditing: Dispatch<SetStateAction<boolean>>;
   setIsClassroomCreateModalOpen: Dispatch<SetStateAction<boolean>>;
   setIsClassroomDeleteConfirmOpen: Dispatch<SetStateAction<boolean>>;
+  setIsStudentCreateModalOpen: Dispatch<SetStateAction<boolean>>;
   setClassroomSearch: Dispatch<SetStateAction<string>>;
   setClassroomForm: Dispatch<SetStateAction<ClassroomFormState>>;
+  setStudentCreateForm: Dispatch<SetStateAction<StudentCreateFormState>>;
   selectClassroom: (item: ClassroomListItemDto) => void;
   emptyClassroomForm: ClassroomFormState;
+  emptyStudentCreateForm: StudentCreateFormState;
 };
 
 function getClassroomTypeLabel(type?: ClassroomType) {
@@ -79,24 +107,41 @@ export function AdminClassroomsSection({
   isClassroomEditing,
   isClassroomCreateModalOpen,
   isClassroomDeleteConfirmOpen,
+  isStudentCreateModalOpen,
   classroomSearch,
   classroomForm,
+  studentCreateForm,
   classroomsQuery,
   classroomDetailQuery,
+  classroomStudentsQuery,
   createClassroomMutation,
   updateClassroomMutation,
   deleteClassroomMutation,
+  createStudentMutation,
+  deleteStudentMutation,
+  updateStudentMutation,
   setSelectedClassroomId,
   setIsClassroomEditing,
   setIsClassroomCreateModalOpen,
   setIsClassroomDeleteConfirmOpen,
+  setIsStudentCreateModalOpen,
   setClassroomSearch,
   setClassroomForm,
+  setStudentCreateForm,
   selectClassroom,
   emptyClassroomForm,
+  emptyStudentCreateForm,
 }: AdminClassroomsSectionProps) {
   const isDetailOpen = selectedClassroomId !== null;
   const [pagination, setPagination] = useState({ page: 1, search: "" });
+  const [studentDeleteTarget, setStudentDeleteTarget] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const [studentEditTarget, setStudentEditTarget] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
   const totalPages = Math.max(1, Math.ceil(classrooms.length / CLASSROOMS_PER_PAGE));
   const requestedPage = pagination.search === classroomSearch ? pagination.page : 1;
   const safeCurrentPage = Math.min(requestedPage, totalPages);
@@ -109,6 +154,10 @@ export function AdminClassroomsSection({
     setSelectedClassroomId(null);
     setIsClassroomEditing(false);
     setIsClassroomDeleteConfirmOpen(false);
+    setIsStudentCreateModalOpen(false);
+    setStudentCreateForm(emptyStudentCreateForm);
+    setStudentDeleteTarget(null);
+    setStudentEditTarget(null);
   }
 
   function openCreateModal() {
@@ -125,6 +174,63 @@ export function AdminClassroomsSection({
 
     setIsClassroomCreateModalOpen(false);
     setClassroomForm(emptyClassroomForm);
+  }
+
+  function openStudentCreateModal() {
+    setStudentEditTarget(null);
+    setStudentCreateForm(emptyStudentCreateForm);
+    setIsStudentCreateModalOpen(true);
+  }
+
+  function closeStudentCreateModal() {
+    if (createStudentMutation.isPending || updateStudentMutation.isPending) {
+      return;
+    }
+
+    setIsStudentCreateModalOpen(false);
+    setStudentCreateForm(emptyStudentCreateForm);
+    setStudentEditTarget(null);
+  }
+
+  function openStudentEditModal(student: StudentListResponseDto[number]) {
+    if (typeof student.id !== "number") {
+      return;
+    }
+
+    setStudentEditTarget({
+      id: student.id,
+      name: student.name?.trim() || "선택한 학생",
+    });
+    setStudentCreateForm({
+      name: student.name ?? "",
+      phoneNumber: student.phoneNumber ?? "",
+      description: student.description ?? "",
+    });
+    setIsStudentCreateModalOpen(true);
+  }
+
+  function openStudentDeleteConfirm(studentId: number, studentName?: string) {
+    setStudentDeleteTarget({
+      id: studentId,
+      name: studentName?.trim() || "선택한 학생",
+    });
+  }
+
+  function closeStudentDeleteConfirm() {
+    if (deleteStudentMutation.isPending) {
+      return;
+    }
+
+    setStudentDeleteTarget(null);
+  }
+
+  function confirmStudentDelete() {
+    if (!studentDeleteTarget) {
+      return;
+    }
+
+    deleteStudentMutation.mutate(studentDeleteTarget.id);
+    setStudentDeleteTarget(null);
   }
 
   function cancelEditing() {
@@ -150,6 +256,30 @@ export function AdminClassroomsSection({
     if (isLeftVisibleArea && !clickedClassroomRow) {
       closeClassroomDetail();
     }
+  }
+
+  const selectedClassroomName =
+    classroomDetailQuery.data?.name?.trim() || classroomForm.name.trim() || "선택된 분반";
+  const classroomStudents = classroomStudentsQuery.data ?? [];
+  const isStudentFormPending = createStudentMutation.isPending || updateStudentMutation.isPending;
+  const studentModalTitle = studentEditTarget ? "학생 수정" : "학생 등록";
+  const studentModalDescription = studentEditTarget
+    ? `${studentEditTarget.name} 학생 정보를 수정하세요.`
+    : `${selectedClassroomName}에 등록할 학생 정보를 입력하세요.`;
+
+  function submitStudentForm() {
+    if (studentEditTarget) {
+      updateStudentMutation.mutate({
+        studentId: studentEditTarget.id,
+        form: studentCreateForm,
+      });
+      setIsStudentCreateModalOpen(false);
+      setStudentCreateForm(emptyStudentCreateForm);
+      setStudentEditTarget(null);
+      return;
+    }
+
+    createStudentMutation.mutate();
   }
 
   return (
@@ -279,6 +409,65 @@ export function AdminClassroomsSection({
                       disabled={!isClassroomEditing || updateClassroomMutation.isPending}
                       setClassroomForm={setClassroomForm}
                     />
+                    <StudentSummarySection>
+                      <SectionHeaderRow>
+                        <SectionTitle>학생 목록</SectionTitle>
+                      </SectionHeaderRow>
+                      <SectionDescription>현재 분반에 등록된 학생 목록입니다.</SectionDescription>
+                      <DataState
+                        isLoading={classroomStudentsQuery.isLoading}
+                        isError={classroomStudentsQuery.isError}
+                        isEmpty={classroomStudents.length === 0}
+                        loadingLabel="학생 목록 불러오는 중"
+                        errorLabel="학생 목록을 불러오지 못했습니다."
+                        emptyLabel="등록된 학생이 없습니다."
+                        compact
+                      >
+                        <StudentList>
+                          {classroomStudents.map((student, index) => (
+                            <StudentListItem key={student.id ?? `${student.name}-${index}`}>
+                              <StudentCardMain>
+                                <StudentIdentity>
+                                  <strong>{student.name ?? "이름 없음"}</strong>
+                                  <span>
+                                    {student.phoneNumber?.trim()
+                                      ? student.phoneNumber
+                                      : "연락처 미등록"}
+                                  </span>
+                                </StudentIdentity>
+                                <StudentMeta>
+                                  {student.description ? (
+                                    <StudentDescription>{student.description}</StudentDescription>
+                                  ) : null}
+                                </StudentMeta>
+                              </StudentCardMain>
+                              {typeof student.id === "number" ? (
+                                <StudentRowActions>
+                                  <SmallButton
+                                    type="button"
+                                    disabled={
+                                      isStudentFormPending || deleteStudentMutation.isPending
+                                    }
+                                    onClick={() => openStudentEditModal(student)}
+                                  >
+                                    수정
+                                  </SmallButton>
+                                  <DangerButton
+                                    type="button"
+                                    disabled={deleteStudentMutation.isPending}
+                                    onClick={() =>
+                                      openStudentDeleteConfirm(student.id as number, student.name)
+                                    }
+                                  >
+                                    삭제
+                                  </DangerButton>
+                                </StudentRowActions>
+                              ) : null}
+                            </StudentListItem>
+                          ))}
+                        </StudentList>
+                      </DataState>
+                    </StudentSummarySection>
                   </DetailFormView>
 
                   <ButtonRow>
@@ -315,6 +504,13 @@ export function AdminClassroomsSection({
                         >
                           삭제
                         </DangerButton>
+                        <SmallButton
+                          type="button"
+                          disabled={!selectedClassroomId}
+                          onClick={openStudentCreateModal}
+                        >
+                          학생 등록
+                        </SmallButton>
                       </>
                     )}
                   </ButtonRow>
@@ -371,6 +567,88 @@ export function AdminClassroomsSection({
               </ButtonRow>
             </FormGrid>
           </ModalDialog>
+        </ModalBackdrop>
+      ) : null}
+
+      {isStudentCreateModalOpen ? (
+        <ModalBackdrop onMouseDown={closeStudentCreateModal}>
+          <ModalDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="student-create-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <ModalHeader>
+              <div>
+                <SectionTitle id="student-create-modal-title">{studentModalTitle}</SectionTitle>
+                <ModalDescription>{studentModalDescription}</ModalDescription>
+              </div>
+              <SmallButton
+                type="button"
+                disabled={isStudentFormPending}
+                onClick={closeStudentCreateModal}
+              >
+                닫기
+              </SmallButton>
+            </ModalHeader>
+            <FormGrid
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitStudentForm();
+              }}
+            >
+              <StudentCreateFields
+                form={studentCreateForm}
+                disabled={isStudentFormPending}
+                setStudentCreateForm={setStudentCreateForm}
+              />
+              <ButtonRow>
+                <ClassroomActionButton
+                  type="submit"
+                  disabled={isStudentFormPending || !studentCreateForm.name.trim()}
+                >
+                  {studentEditTarget ? "저장" : "등록"}
+                </ClassroomActionButton>
+                <SmallButton
+                  type="button"
+                  disabled={isStudentFormPending}
+                  onClick={closeStudentCreateModal}
+                >
+                  취소
+                </SmallButton>
+              </ButtonRow>
+            </FormGrid>
+          </ModalDialog>
+        </ModalBackdrop>
+      ) : null}
+
+      {studentDeleteTarget ? (
+        <ModalBackdrop onMouseDown={closeStudentDeleteConfirm}>
+          <ConfirmDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="student-delete-confirm-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <ConfirmTitle id="student-delete-confirm-title">학생 삭제</ConfirmTitle>
+            <ConfirmMessage>{studentDeleteTarget.name} 학생을 삭제하시겠습니까?</ConfirmMessage>
+            <ButtonRow>
+              <DangerButton
+                type="button"
+                disabled={deleteStudentMutation.isPending}
+                onClick={confirmStudentDelete}
+              >
+                확인
+              </DangerButton>
+              <SmallButton
+                type="button"
+                disabled={deleteStudentMutation.isPending}
+                onClick={closeStudentDeleteConfirm}
+              >
+                취소
+              </SmallButton>
+            </ButtonRow>
+          </ConfirmDialog>
         </ModalBackdrop>
       ) : null}
 
@@ -450,6 +728,57 @@ function ClassroomFields({ form, disabled, setClassroomForm }: ClassroomFieldsPr
           disabled={disabled}
           onChange={(event) =>
             setClassroomForm((current) => ({ ...current, description: event.target.value }))
+          }
+        />
+      </Label>
+    </>
+  );
+}
+
+type StudentCreateFieldsProps = {
+  form: StudentCreateFormState;
+  disabled: boolean;
+  setStudentCreateForm: Dispatch<SetStateAction<StudentCreateFormState>>;
+};
+
+function StudentCreateFields({ form, disabled, setStudentCreateForm }: StudentCreateFieldsProps) {
+  return (
+    <>
+      <Label>
+        이름
+        <TextInput
+          value={form.name}
+          disabled={disabled}
+          onChange={(event) =>
+            setStudentCreateForm((current) => ({ ...current, name: event.target.value }))
+          }
+          required
+        />
+      </Label>
+      <Label>
+        연락처
+        <TextInput
+          value={form.phoneNumber}
+          disabled={disabled}
+          placeholder="010-0000-0000"
+          onChange={(event) =>
+            setStudentCreateForm((current) => ({
+              ...current,
+              phoneNumber: event.target.value,
+            }))
+          }
+        />
+      </Label>
+      <Label>
+        비고
+        <TextArea
+          value={form.description}
+          disabled={disabled}
+          onChange={(event) =>
+            setStudentCreateForm((current) => ({
+              ...current,
+              description: event.target.value,
+            }))
           }
         />
       </Label>
@@ -623,6 +952,65 @@ const PanelContent = styled.div`
   gap: ${spacing.space12};
 `;
 
+const StudentSummarySection = styled.section`
+  display: grid;
+  gap: ${spacing.space8};
+  padding-top: ${spacing.space8};
+  border-top: 1px solid #e6e9e7;
+`;
+
+const StudentList = styled(List)`
+  margin: 0;
+`;
+
+const StudentListItem = styled(ListItem)`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: ${spacing.space12};
+`;
+
+const StudentCardMain = styled.div`
+  display: grid;
+`;
+
+const StudentIdentity = styled.div`
+  display: grid;
+  gap: ${spacing.space4};
+
+  strong {
+    color: #111827;
+    font-size: ${typography.fontSize14};
+    line-height: ${typography.lineHeight130};
+  }
+
+  span {
+    color: #64706c;
+    font-size: ${typography.fontSize13};
+    line-height: ${typography.lineHeight130};
+  }
+`;
+
+const StudentMeta = styled.div`
+  display: grid;
+  gap: ${spacing.space4};
+  justify-items: start;
+`;
+
+const StudentDescription = styled.p`
+  margin: 0;
+  color: #64706c;
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight150};
+`;
+
+const StudentRowActions = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: ${spacing.space8};
+`;
+
 const ClassroomSelect = styled.select`
   width: 100%;
   min-height: 2.375rem;
@@ -683,6 +1071,13 @@ const ModalHeader = styled.div`
   ${SectionTitle} {
     margin-bottom: 0;
   }
+`;
+
+const ModalDescription = styled.p`
+  margin: ${spacing.space4} 0 0;
+  color: #64706c;
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight150};
 `;
 
 const ConfirmDialog = styled(ModalDialog)`

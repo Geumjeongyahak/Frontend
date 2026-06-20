@@ -45,6 +45,12 @@ export type ClassroomFormState = {
   description: string;
 };
 
+export type StudentCreateFormState = {
+  name: string;
+  phoneNumber: string;
+  description: string;
+};
+
 export type PostEditState = {
   title: string;
   status: PostStatus;

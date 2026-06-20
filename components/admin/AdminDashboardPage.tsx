@@ -26,6 +26,7 @@ import type {
   PostCreateState,
   PostEditState,
   PurchaseCreateState,
+  StudentCreateFormState,
   UserFormState,
 } from "@/components/admin/AdminDashboardTypes";
 import {
@@ -42,6 +43,12 @@ import {
   getClassrooms,
   updateClassroom,
 } from "@/api/classroom/classroom.api";
+import {
+  createStudent,
+  deleteStudent,
+  getStudents,
+  updateStudent,
+} from "@/api/student/student.api";
 import {
   addDepartmentPermission,
   createDepartment,
@@ -201,6 +208,12 @@ const emptyClassroomForm: ClassroomFormState = {
   description: "",
 };
 
+const emptyStudentCreateForm: StudentCreateFormState = {
+  name: "",
+  phoneNumber: "",
+  description: "",
+};
+
 const emptyPostEdit: PostEditState = {
   title: "",
   status: "PUBLISHED",
@@ -303,6 +316,18 @@ function mapChannelFormToPayload(form: ChannelFormState) {
   };
 }
 
+function mapStudentCreateFormToPayload(
+  form: StudentCreateFormState,
+  classroomId: number,
+) {
+  return {
+    name: form.name.trim(),
+    phoneNumber: form.phoneNumber.trim() || undefined,
+    description: form.description.trim() || undefined,
+    classroomIds: [classroomId],
+  };
+}
+
 function mapPostToEditState(post?: {
   title?: string;
   status?: PostStatus;
@@ -398,6 +423,8 @@ export default function AdminDashboardPage() {
   const [channelForm, setChannelForm] = useState<ChannelFormState>(emptyChannelForm);
   const [departmentForm, setDepartmentForm] = useState<DepartmentFormState>(emptyDepartmentForm);
   const [classroomForm, setClassroomForm] = useState<ClassroomFormState>(emptyClassroomForm);
+  const [studentCreateForm, setStudentCreateForm] =
+    useState<StudentCreateFormState>(emptyStudentCreateForm);
   const [postEdit, setPostEdit] = useState<PostEditState>(emptyPostEdit);
   const [isPostEditing, setIsPostEditing] = useState(false);
   const [isUserEditing, setIsUserEditing] = useState(false);
@@ -412,6 +439,7 @@ export default function AdminDashboardPage() {
   const [isClassroomEditing, setIsClassroomEditing] = useState(false);
   const [isClassroomCreateModalOpen, setIsClassroomCreateModalOpen] = useState(false);
   const [isClassroomDeleteConfirmOpen, setIsClassroomDeleteConfirmOpen] = useState(false);
+  const [isStudentCreateModalOpen, setIsStudentCreateModalOpen] = useState(false);
   const [isPostCreateModalOpen, setIsPostCreateModalOpen] = useState(false);
   const [isPurchaseCreateModalOpen, setIsPurchaseCreateModalOpen] = useState(false);
   const [postCreate, setPostCreate] = useState<PostCreateState>(emptyPostCreate);
@@ -435,6 +463,8 @@ export default function AdminDashboardPage() {
     setIsChannelDeleteConfirmOpen(false);
     setIsDepartmentDeleteConfirmOpen(false);
     setIsClassroomDeleteConfirmOpen(false);
+    setIsStudentCreateModalOpen(false);
+    setStudentCreateForm(emptyStudentCreateForm);
     setPostEdit(emptyPostEdit);
     setReviewNote("");
   }
@@ -578,6 +608,14 @@ export default function AdminDashboardPage() {
       ? queryKeys.admin.classroomDetail(selectedClassroomId)
       : ["admin", "classrooms", "detail", "none"],
     queryFn: () => getClassroomDetail({ id: selectedClassroomId ?? 0 }),
+    enabled: isAdmin && selectedClassroomId !== null,
+  });
+  const classroomStudentsQuery = useQuery({
+    queryKey:
+      selectedClassroomId !== null
+        ? queryKeys.students.list({ classroomId: selectedClassroomId })
+        : ["students", "list", "classroom", "none"],
+    queryFn: () => getStudents({ classroomId: selectedClassroomId ?? 0 }),
     enabled: isAdmin && selectedClassroomId !== null,
   });
   const purchaseDetailQuery = useQuery({
@@ -844,6 +882,8 @@ export default function AdminDashboardPage() {
     setSelectedClassroomId(item.id);
     setIsClassroomEditing(false);
     setIsClassroomDeleteConfirmOpen(false);
+    setIsStudentCreateModalOpen(false);
+    setStudentCreateForm(emptyStudentCreateForm);
     setClassroomForm({
       name: item.name ?? "",
       type: item.type ?? "WEEKDAY",
@@ -1155,6 +1195,56 @@ export default function AdminDashboardPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.classrooms() });
     },
     onError: (error) => notifyError(getErrorMessage(error, "분반 삭제에 실패했습니다.")),
+  });
+  const createStudentMutation = useMutation({
+    mutationFn: () => {
+      const classroomId = selectedClassroomId ?? 0;
+      return createStudent(mapStudentCreateFormToPayload(studentCreateForm, classroomId));
+    },
+    onSuccess: () => {
+      notifySuccess("학생을 등록했습니다.");
+      setIsStudentCreateModalOpen(false);
+      setStudentCreateForm(emptyStudentCreateForm);
+      if (selectedClassroomId !== null) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.students.list({ classroomId: selectedClassroomId }),
+        });
+      }
+    },
+    onError: (error) => notifyError(getErrorMessage(error, "학생 등록에 실패했습니다.")),
+  });
+  const deleteStudentMutation = useMutation({
+    mutationFn: (studentId: number) => deleteStudent({ studentId }),
+    onSuccess: () => {
+      notifySuccess("학생을 삭제했습니다.");
+      if (selectedClassroomId !== null) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.students.list({ classroomId: selectedClassroomId }),
+        });
+      }
+    },
+    onError: (error) => notifyError(getErrorMessage(error, "학생 삭제에 실패했습니다.")),
+  });
+  const updateStudentMutation = useMutation({
+    mutationFn: (payload: { studentId: number; form: StudentCreateFormState }) =>
+      updateStudent(
+        { studentId: payload.studentId },
+        {
+          name: payload.form.name.trim(),
+          phoneNumber: payload.form.phoneNumber.trim(),
+          description: payload.form.description.trim(),
+          classroomIds: selectedClassroomId !== null ? [selectedClassroomId] : undefined,
+        },
+      ),
+    onSuccess: () => {
+      notifySuccess("학생 정보를 수정했습니다.");
+      if (selectedClassroomId !== null) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.students.list({ classroomId: selectedClassroomId }),
+        });
+      }
+    },
+    onError: (error) => notifyError(getErrorMessage(error, "학생 수정에 실패했습니다.")),
   });
 
   const createPurchaseMutation = useMutation({
@@ -1536,21 +1626,30 @@ export default function AdminDashboardPage() {
               isClassroomEditing={isClassroomEditing}
               isClassroomCreateModalOpen={isClassroomCreateModalOpen}
               isClassroomDeleteConfirmOpen={isClassroomDeleteConfirmOpen}
+              isStudentCreateModalOpen={isStudentCreateModalOpen}
               classroomSearch={classroomSearch}
               classroomForm={classroomForm}
+              studentCreateForm={studentCreateForm}
               classroomsQuery={classroomsQuery}
               classroomDetailQuery={classroomDetailQuery}
+              classroomStudentsQuery={classroomStudentsQuery}
               createClassroomMutation={createClassroomMutation}
               updateClassroomMutation={updateClassroomMutation}
               deleteClassroomMutation={deleteClassroomMutation}
+              createStudentMutation={createStudentMutation}
+              deleteStudentMutation={deleteStudentMutation}
+              updateStudentMutation={updateStudentMutation}
               setSelectedClassroomId={setSelectedClassroomId}
               setIsClassroomEditing={setIsClassroomEditing}
               setIsClassroomCreateModalOpen={setIsClassroomCreateModalOpen}
               setIsClassroomDeleteConfirmOpen={setIsClassroomDeleteConfirmOpen}
+              setIsStudentCreateModalOpen={setIsStudentCreateModalOpen}
               setClassroomSearch={setClassroomSearch}
               setClassroomForm={setClassroomForm}
+              setStudentCreateForm={setStudentCreateForm}
               selectClassroom={selectClassroom}
               emptyClassroomForm={emptyClassroomForm}
+              emptyStudentCreateForm={emptyStudentCreateForm}
             />
           ) : null}
           {activeMenu === "lessons" ? <AdminLessonManagementSection /> : null}

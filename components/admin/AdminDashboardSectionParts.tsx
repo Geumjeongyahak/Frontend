@@ -162,30 +162,19 @@ export const SectionHeaderRow = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: ${spacing.space12};
 `;
 
 export const SectionTitle = styled.h2`
-  margin: 0 0 ${spacing.space16};
   color: #050505;
   font-size: ${typography.fontSize18};
   font-weight: 900;
   line-height: ${typography.lineHeight130};
-
-  ${SectionHeaderRow} & {
-    margin-bottom: 0;
-  }
 `;
 
 export const SectionDescription = styled.p`
-  margin: -${spacing.space8} 0 ${spacing.space16};
   color: #64706c;
   font-size: ${typography.fontSize13};
   line-height: ${typography.lineHeight150};
-
-  ${SectionHeaderRow} + & {
-    margin-top: ${spacing.space8};
-  }
 `;
 
 export const ActionGrid = styled.div`
