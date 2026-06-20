@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import styled from "styled-components";
 import { signup } from "@/api/auth/auth.api";
 import {
   Field,
@@ -13,11 +14,13 @@ import {
   SubmitButton,
 } from "@/components/auth/AuthFormParts";
 import AuthShell from "@/components/auth/AuthShell";
+import { colors } from "@/styles/tokens";
 import { toResidentRegistrationNumberPrefix } from "@/utils/birthDate";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
 
 type RegisterFormState = {
   password: string;
+  confirmPassword: string;
   name: string;
   email: string;
   birthDate: string;
@@ -26,6 +29,7 @@ type RegisterFormState = {
 
 const initialState: RegisterFormState = {
   password: "",
+  confirmPassword: "",
   name: "",
   email: "",
   birthDate: "",
@@ -37,10 +41,19 @@ export default function RegisterForm() {
   const [form, setForm] = useState(initialState);
   const [statusMessage, setStatusMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const passwordMatchState =
+    form.confirmPassword.length === 0
+      ? "idle"
+      : form.password === form.confirmPassword
+        ? "matched"
+        : "mismatched";
+  const isPasswordConfirmed =
+    form.confirmPassword.length > 0 && form.password === form.confirmPassword;
 
   const canSubmit =
     form.email.trim().length > 0 &&
     form.password.length >= 8 &&
+    isPasswordConfirmed &&
     form.name.trim().length > 0 &&
     form.birthDate.length > 0;
 
@@ -48,6 +61,9 @@ export default function RegisterForm() {
     event.preventDefault();
 
     if (!canSubmit || isSubmitting) {
+      if (form.confirmPassword.length > 0 && !isPasswordConfirmed) {
+        setStatusMessage("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+      }
       return;
     }
 
@@ -98,7 +114,7 @@ export default function RegisterForm() {
 
           <Field>
             <Label htmlFor="register-password">비밀번호</Label>
-            <Input
+            <PasswordInput
               id="register-password"
               name="password"
               type="password"
@@ -110,6 +126,25 @@ export default function RegisterForm() {
               }
               required
               minLength={8}
+              $matchState={passwordMatchState}
+            />
+          </Field>
+
+          <Field>
+            <Label htmlFor="register-confirm-password">비밀번호 확인</Label>
+            <PasswordInput
+              id="register-confirm-password"
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              placeholder="비밀번호를 한 번 더 입력"
+              value={form.confirmPassword}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, confirmPassword: event.target.value }))
+              }
+              required
+              minLength={8}
+              $matchState={passwordMatchState}
             />
           </Field>
 
@@ -162,14 +197,18 @@ export default function RegisterForm() {
           </Field>
         </FieldGroup>
 
-        <Status
+        <RegisterStatus
           role="status"
           aria-live="polite"
           $tone={statusMessage.startsWith("회원가입 정보") ? "error" : "default"}
-          $visible={Boolean(statusMessage)}
+          $matchState={passwordMatchState}
+          $visible={Boolean(statusMessage) || form.confirmPassword.length > 0}
         >
-          {statusMessage}
-        </Status>
+          {statusMessage ||
+            (form.confirmPassword.length > 0 && !isPasswordConfirmed
+              ? "비밀번호와 비밀번호 확인이 일치하지 않습니다."
+              : " ")}
+        </RegisterStatus>
 
         <SubmitButton type="submit" disabled={!canSubmit || isSubmitting}>
           {isSubmitting ? "가입 중" : "회원가입"}
@@ -178,3 +217,41 @@ export default function RegisterForm() {
     </AuthShell>
   );
 }
+
+const PasswordInput = styled(Input)<{ $matchState: "idle" | "matched" | "mismatched" }>`
+  border-color: ${({ $matchState }) =>
+    $matchState === "matched"
+      ? colors.point
+      : $matchState === "mismatched"
+        ? "#e5a19b"
+        : colors.border};
+  background-color: ${({ $matchState }) =>
+    $matchState === "matched"
+      ? "#f4faef"
+      : $matchState === "mismatched"
+        ? "#fff6f5"
+        : colors.white};
+
+  &:focus {
+    border-color: ${({ $matchState }) =>
+      $matchState === "matched" ? colors.point : $matchState === "mismatched" ? "#de8c85" : colors.point};
+    outline: 2px solid
+      ${({ $matchState }) =>
+        $matchState === "matched"
+          ? colors.pointSoft
+          : $matchState === "mismatched"
+            ? "#f8d8d4"
+            : colors.pointSoft};
+  }
+`;
+
+const RegisterStatus = styled(Status)<{
+  $matchState: "idle" | "matched" | "mismatched";
+}>`
+  color: ${({ $tone, $matchState }) =>
+    $matchState === "mismatched"
+      ? "#d98882"
+      : $tone === "error"
+        ? colors.notice
+        : "#52604c"};
+`;
