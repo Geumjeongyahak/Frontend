@@ -6,15 +6,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import { createPost, getPost, updatePost } from "@/api/post/post.api";
+import { createPost, getPost, pinPost, updatePost } from "@/api/post/post.api";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import {
   ActionButton,
+  CheckboxInput,
+  CheckboxLabel,
   DocumentSection,
   Form,
   HiddenFileInput,
   Label,
+  OptionRow,
   PageTitle,
   StateMessage,
   Toolbar,
@@ -45,6 +48,8 @@ export default function ArchiveDocumentFormPage({
   const isEditMode = typeof editPostId === "number" && typeof editChannelId === "number";
   const [title, setTitle] = useState<string | undefined>(undefined);
   const [description, setDescription] = useState<string | undefined>(undefined);
+  const [isPinned, setIsPinned] = useState<boolean | undefined>(undefined);
+  const [allowComment, setAllowComment] = useState<boolean | undefined>(undefined);
   const [files, setFiles] = useState<File[]>([]);
 
   const channelsQuery = useQuery({
@@ -70,6 +75,8 @@ export default function ArchiveDocumentFormPage({
   const visibleTitle = title ?? postDetailQuery.data?.title ?? "";
   const visibleAuthor = postDetailQuery.data?.authorName ?? currentUserName;
   const visibleDescription = description ?? postDetailQuery.data?.contentHtml ?? "";
+  const visibleIsPinned = isPinned ?? postDetailQuery.data?.isPinned ?? false;
+  const visibleAllowComment = allowComment ?? postDetailQuery.data?.allowComment ?? true;
   const existingAttachments = postDetailQuery.data?.attachments ?? [];
   const canManagePost =
     !isEditMode ||
@@ -90,7 +97,6 @@ export default function ArchiveDocumentFormPage({
 
       const title = visibleTitle.trim();
       const contentHtml = visibleDescription.trim();
-      const allowComment = false;
       const uploadArchiveDocument = getUploadArchiveDocument(config.category);
       const sortOrderStart = isEditMode ? existingAttachments.length : 0;
 
@@ -99,23 +105,44 @@ export default function ArchiveDocumentFormPage({
           channelId,
           title,
           contentHtml,
-          allowComment,
+          allowComment: visibleAllowComment,
+          isPinned: visibleIsPinned,
           files,
           uploadDocument: uploadArchiveDocument,
           sortOrderStart,
           errorLabel: config.title,
           ...(isEditMode
-            ? { mode: "update", postId: editPostId }
+            ? {
+                mode: "update",
+                postId: editPostId,
+                initialPinned: postDetailQuery.data?.isPinned ?? false,
+              }
             : { mode: "create" }),
         });
       }
 
-      return isEditMode
-        ? updatePost(
+      if (isEditMode) {
+        const updatedPost = await updatePost(
             { channelId, postId: editPostId },
-            { title, contentHtml, status: "PUBLISHED", allowComment },
-          )
-        : createPost({ channelId }, { title, contentHtml, status: "PUBLISHED", allowComment });
+            { title, contentHtml, status: "PUBLISHED", allowComment: visibleAllowComment },
+          );
+
+        if (visibleIsPinned !== (postDetailQuery.data?.isPinned ?? false)) {
+          await pinPost({ channelId, postId: editPostId }, { isPinned: visibleIsPinned });
+        }
+
+        return updatedPost;
+      }
+
+      return createPost({
+        channelId,
+      }, {
+        title,
+        contentHtml,
+        status: "PUBLISHED",
+        allowComment: visibleAllowComment,
+        isPinned: visibleIsPinned,
+      });
     },
     onSuccess: async (post) => {
       await Promise.all([
@@ -183,6 +210,25 @@ export default function ArchiveDocumentFormPage({
           value={visibleAuthor}
           readOnly
         />
+
+        <OptionRow>
+          <CheckboxLabel>
+            <CheckboxInput
+              type="checkbox"
+              checked={visibleIsPinned}
+              onChange={(event) => setIsPinned(event.target.checked)}
+            />
+            <span>게시물 고정</span>
+          </CheckboxLabel>
+          <CheckboxLabel>
+            <CheckboxInput
+              type="checkbox"
+              checked={visibleAllowComment}
+              onChange={(event) => setAllowComment(event.target.checked)}
+            />
+            <span>댓글 허용</span>
+          </CheckboxLabel>
+        </OptionRow>
 
         <Label as="label" htmlFor={`${config.category}-description`}>
           설명

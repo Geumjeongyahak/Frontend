@@ -179,7 +179,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
                     onChange={(event) => setEditDraft(event.target.value)}
                   />
                   <ReplyActionRow>
-                    <TextActionButton
+                    <SecondaryButton
                       type="button"
                       onClick={() => {
                         setEditingCommentId(null);
@@ -187,7 +187,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
                       }}
                     >
                       취소
-                    </TextActionButton>
+                    </SecondaryButton>
                     <SubmitButton
                       type="button"
                       disabled={!editDraft.trim() || updateCommentMutation.isPending}
@@ -202,7 +202,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
                   <CommentBody>{getCommentBody(comment)}</CommentBody>
                 </CommentBodyRow>
               )}
-              {comment.status !== "DELETED" ? (
+              {comment.status !== "DELETED" && editingCommentId !== comment.id ? (
                 <ActionRow>
                   <ManageActionGroup>
                     {canManageComment(comment, user) ? (
@@ -264,7 +264,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
                   onChange={(event) => setReplyDraft(event.target.value)}
                 />
                 <ReplyActionRow>
-                  <TextActionButton
+                  <SecondaryButton
                     type="button"
                     onClick={() => {
                       setOpenReplyCommentId(null);
@@ -272,7 +272,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
                     }}
                   >
                     취소
-                  </TextActionButton>
+                  </SecondaryButton>
                   <SubmitButton
                     type="button"
                     disabled={
@@ -308,7 +308,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
                       onChange={(event) => setEditDraft(event.target.value)}
                     />
                     <ReplyActionRow>
-                      <TextActionButton
+                      <SecondaryButton
                         type="button"
                         onClick={() => {
                           setEditingCommentId(null);
@@ -316,7 +316,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
                         }}
                       >
                         취소
-                      </TextActionButton>
+                      </SecondaryButton>
                       <SubmitButton
                         type="button"
                         disabled={!editDraft.trim() || updateCommentMutation.isPending}
@@ -340,7 +340,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
                     </CommentBody>
                   </ReplyBodyRow>
                 )}
-                {reply.status !== "DELETED" ? (
+                {reply.status !== "DELETED" && editingCommentId !== reply.id ? (
                   <ReplyOnlyActionRow>
                     {canManageComment(reply, user) ? (
                       <>
@@ -477,6 +477,10 @@ const SubmitButton = styled.button`
   white-space: nowrap;
   cursor: pointer;
 
+  &:not(:disabled):hover {
+    background-color: ${colors.pointSoft};
+  }
+
   &:disabled {
     opacity: 0.45;
     cursor: not-allowed;
@@ -486,6 +490,21 @@ const SubmitButton = styled.button`
     min-height: 4rem;
     padding: ${spacing.space20} 1.875rem;
     font-size: ${typography.fontSize20};
+  }
+`;
+
+const SecondaryButton = styled(SubmitButton)`
+  border-color: ${colors.border};
+  background-color: ${colors.white};
+  color: ${colors.placeholder};
+
+  &:not(:disabled):hover {
+    background-color: ${colors.background};
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
   }
 `;
 
@@ -636,11 +655,11 @@ const EditWrap = styled.div<{ $isReply?: boolean }>`
   display: flex;
   flex-direction: column;
   gap: ${spacing.space12};
-  padding: 0 0 ${spacing.space12} ${({ $isReply }) => ($isReply ? "3rem" : spacing.space12)};
+  padding-left: ${({ $isReply }) => ($isReply ? "3rem" : spacing.space12)};
 
   @media (min-width: 120rem) {
     gap: ${spacing.space20};
-    padding: 0 0 ${spacing.space16} ${({ $isReply }) => ($isReply ? "4.4375rem" : spacing.space20)};
+    padding-left: ${({ $isReply }) => ($isReply ? "4.4375rem" : spacing.space20)};
   }
 `;
 
