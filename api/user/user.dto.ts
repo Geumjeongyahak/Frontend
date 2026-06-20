@@ -113,6 +113,7 @@ export interface CreateUserRequestDto {
   password: string;
   name: string;
   phoneNumber?: string;
+  residentRegistrationNumberPrefix?: string;
   role?: UserRole;
   departmentId?: number | null;
 }
@@ -123,6 +124,7 @@ export interface UpdateUserRequestDto {
   phoneNumber?: string;
   email?: string;
   password?: string;
+  residentRegistrationNumberPrefix?: string;
   role?: UserRole;
   departmentId?: number | null;
 }

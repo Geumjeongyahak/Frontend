@@ -13,6 +13,7 @@ import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
 import {
+  createUser,
   getAssignablePermissions,
   getTeacherContacts,
   getUsers,
@@ -71,6 +72,71 @@ describe("user.api", () => {
     });
   });
 
+  it("updates the current user with resident registration number prefix in the expected PATCH body", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedBody: unknown;
+
+    server.use(
+      http.patch(`${API_BASE_URL}/api/v1/users/me`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({
+          ...USER_LIST_RESPONSE.content[0],
+          residentRegistrationNumberPrefix: "900101",
+        });
+      }),
+    );
+
+    const response = await updateCurrentUser({
+      residentRegistrationNumberPrefix: "900101",
+    });
+
+    expect(response.residentRegistrationNumberPrefix).toBe("900101");
+    expect(observedBody).toEqual({
+      residentRegistrationNumberPrefix: "900101",
+    });
+  });
+
+  it("creates a user with resident registration number prefix in the expected POST body", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedBody: unknown;
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/users`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({
+          ...USER_LIST_RESPONSE.content[0],
+          id: 2,
+          name: "Teacher Two",
+        });
+      }),
+    );
+
+    const response = await createUser({
+      email: "teacher2@example.com",
+      nickname: "teacher-2",
+      password: "password123!",
+      name: "Teacher Two",
+      phoneNumber: "010-3333-4444",
+      residentRegistrationNumberPrefix: "900101",
+      role: "VOLUNTEER",
+      departmentId: 1,
+    });
+
+    expect(response.id).toBe(2);
+    expect(observedBody).toEqual({
+      email: "teacher2@example.com",
+      nickname: "teacher-2",
+      password: "password123!",
+      name: "Teacher Two",
+      phoneNumber: "010-3333-4444",
+      residentRegistrationNumberPrefix: "900101",
+      role: "VOLUNTEER",
+      departmentId: 1,
+    });
+  });
+
   it("updates a user with departmentId in the expected PATCH body", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
@@ -92,6 +158,7 @@ describe("user.api", () => {
         name: "Teacher One",
         email: "teacher1@example.com",
         phoneNumber: "010-2222-3333",
+        residentRegistrationNumberPrefix: "900101",
         role: "VOLUNTEER",
         departmentId: 2,
       },
@@ -102,6 +169,7 @@ describe("user.api", () => {
       name: "Teacher One",
       email: "teacher1@example.com",
       phoneNumber: "010-2222-3333",
+      residentRegistrationNumberPrefix: "900101",
       role: "VOLUNTEER",
       departmentId: 2,
     });

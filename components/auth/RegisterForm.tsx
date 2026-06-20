@@ -13,6 +13,7 @@ import {
   SubmitButton,
 } from "@/components/auth/AuthFormParts";
 import AuthShell from "@/components/auth/AuthShell";
+import { toResidentRegistrationNumberPrefix } from "@/utils/birthDate";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
 
 type RegisterFormState = {
@@ -30,16 +31,6 @@ const initialState: RegisterFormState = {
   birthDate: "",
   phoneNumber: "",
 };
-
-function toResidentRegistrationNumberPrefix(date: string) {
-  const [year, month, day] = date.split("-");
-
-  if (!year || !month || !day) {
-    return "";
-  }
-
-  return `${year.slice(-2)}${month}${day}`;
-}
 
 export default function RegisterForm() {
   const router = useRouter();

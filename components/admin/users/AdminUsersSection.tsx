@@ -28,6 +28,7 @@ import {
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { toBirthDateInputValue } from "@/utils/birthDate";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
 
 const USERS_PER_PAGE = 11;
@@ -202,6 +203,8 @@ export function AdminUsersSection({
       password: "",
       name: detail?.name ?? userForm.name,
       phoneNumber: detail?.phoneNumber ?? userForm.phoneNumber,
+      birthDate:
+        toBirthDateInputValue(detail?.residentRegistrationNumberPrefix) || userForm.birthDate,
       role: detail?.role ?? userForm.role,
       departmentId:
         detail?.departmentId !== null && detail?.departmentId !== undefined
@@ -212,6 +215,53 @@ export function AdminUsersSection({
     });
     setIsUserEditing(false);
   }
+
+  function startEditing() {
+    const detail = userDetailQuery.data;
+
+    if (detail) {
+      setUserForm((current) => ({
+        email: detail.email ?? current.email,
+        nickname: detail.nickname ?? current.nickname,
+        password: "",
+        name: detail.name ?? current.name,
+        phoneNumber: detail.phoneNumber ?? current.phoneNumber,
+        birthDate:
+          toBirthDateInputValue(detail.residentRegistrationNumberPrefix) || current.birthDate,
+        role: detail.role ?? current.role,
+        departmentId:
+          detail.departmentId !== null && detail.departmentId !== undefined
+            ? String(detail.departmentId)
+            : typeof detail.department?.id === "number"
+              ? String(detail.department.id)
+              : current.departmentId,
+      }));
+    }
+
+    setIsUserEditing(true);
+  }
+
+  const detailForm =
+    userDetailQuery.data && !isUserEditing
+      ? {
+          email: userDetailQuery.data.email ?? userForm.email,
+          nickname: userDetailQuery.data.nickname ?? userForm.nickname,
+          password: "",
+          name: userDetailQuery.data.name ?? userForm.name,
+          phoneNumber: userDetailQuery.data.phoneNumber ?? userForm.phoneNumber,
+          birthDate:
+            toBirthDateInputValue(userDetailQuery.data.residentRegistrationNumberPrefix) ||
+            userForm.birthDate,
+          role: userDetailQuery.data.role ?? userForm.role,
+          departmentId:
+            userDetailQuery.data.departmentId !== null &&
+            userDetailQuery.data.departmentId !== undefined
+              ? String(userDetailQuery.data.departmentId)
+              : typeof userDetailQuery.data.department?.id === "number"
+                ? String(userDetailQuery.data.department.id)
+                : userForm.departmentId,
+        }
+      : userForm;
 
   function handleUserListSectionClick(event: MouseEvent<HTMLElement>) {
     if (!isDetailOpen) {
@@ -353,7 +403,7 @@ export function AdminUsersSection({
                   ) : (
                     <DetailFormView>
                       <UserFields
-                        form={userForm}
+                        form={detailForm}
                         departments={departments}
                         disabled
                         setUserForm={setUserForm}
@@ -553,7 +603,7 @@ export function AdminUsersSection({
                           onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
-                            setIsUserEditing(true);
+                            startEditing();
                           }}
                         >
                           수정
@@ -725,6 +775,20 @@ function UserFields({
             setUserForm((current) => ({
               ...current,
               phoneNumber: formatPhoneNumber(event.target.value),
+            }))
+          }
+        />
+      </Label>
+      <Label>
+        생년월일
+        <TextInput
+          type="date"
+          value={form.birthDate}
+          disabled={disabled}
+          onChange={(event) =>
+            setUserForm((current) => ({
+              ...current,
+              birthDate: event.target.value,
             }))
           }
         />

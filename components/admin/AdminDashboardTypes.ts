@@ -21,6 +21,7 @@ export type UserFormState = {
   password: string;
   name: string;
   phoneNumber: string;
+  birthDate: string;
   role: UserRole;
   departmentId: string;
 };
