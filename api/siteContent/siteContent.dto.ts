@@ -1,20 +1,33 @@
+export interface SiteHistoryLinkRequestDto {
+  label: string;
+  href: string;
+}
+
+export interface SiteHistoryLinkResponseDto {
+  id?: number;
+  label?: string;
+  href?: string;
+}
+
 export interface SiteHistoryPhotoRequestDto {
-  url: string;
+  id?: number;
+  fileId?: string;
+  src: string;
   alt?: string;
 }
 
 export interface SiteHistoryPhotoResponseDto {
   id?: number;
-  url?: string;
+  src?: string;
   alt?: string;
 }
 
 export interface SiteHistoryResponseDto {
   id?: number;
   title?: string;
+  historyDate?: string;
   detail?: string;
-  linkLabel?: string;
-  linkHref?: string;
+  links?: SiteHistoryLinkResponseDto[];
   photos?: SiteHistoryPhotoResponseDto[];
 }
 
@@ -24,9 +37,9 @@ export interface SiteHistoriesResponseDto {
 
 export interface UpsertSiteHistoryRequestDto {
   title: string;
+  historyDate: string;
   detail?: string;
-  linkLabel?: string;
-  linkHref?: string;
+  links?: SiteHistoryLinkRequestDto[];
   photos?: SiteHistoryPhotoRequestDto[];
 }
 

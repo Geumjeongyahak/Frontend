@@ -20,7 +20,7 @@ describe("siteContent.api", () => {
   it("returns public site content sections", async () => {
     server.use(
       http.get(`${API_BASE_URL}/api/v1/site-contents/history`, () => {
-        return HttpResponse.json({ history: [{ id: 1, title: "개교" }] });
+        return HttpResponse.json({ history: [{ id: 1, title: "개교", historyDate: "2026-06-21" }] });
       }),
       http.get(`${API_BASE_URL}/api/v1/site-contents/departments`, () => {
         return HttpResponse.json({
@@ -62,7 +62,7 @@ describe("siteContent.api", () => {
       }),
       http.put(`${API_BASE_URL}/api/v1/site-contents/history/1`, async ({ request }) => {
         observedHistoryBody = await request.json();
-        return HttpResponse.json({ id: 1, title: "수정 연혁" });
+        return HttpResponse.json({ id: 1, title: "2026.06.21", historyDate: "2026-06-21" });
       }),
     );
 
@@ -76,7 +76,7 @@ describe("siteContent.api", () => {
       groupId: "weekendMorning",
       description: ["오전"],
     });
-    await updateHistory({ historyId: 1 }, { title: "수정 연혁" });
+    await updateHistory({ historyId: 1 }, { title: "2026.06.21", historyDate: "2026-06-21" });
 
     expect(observedDepartmentBody).toEqual({
       title: "교무부",
@@ -88,6 +88,6 @@ describe("siteContent.api", () => {
       groupId: "weekendMorning",
       description: ["오전"],
     });
-    expect(observedHistoryBody).toEqual({ title: "수정 연혁" });
+    expect(observedHistoryBody).toEqual({ title: "2026.06.21", historyDate: "2026-06-21" });
   });
 });
