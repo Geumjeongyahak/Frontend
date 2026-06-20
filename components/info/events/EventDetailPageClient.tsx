@@ -3,6 +3,7 @@
 import { IconDownload } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import styled from "styled-components";
 import { deletePost, getPost } from "@/api/post/post.api";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import EventDocumentLayout from "@/components/info/events/EventDocumentLayout";
@@ -25,6 +26,7 @@ import {
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
+import { colors, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type EventDetailPageClientProps = {
@@ -80,27 +82,28 @@ export default function EventDetailPageClient({ postId, channelId }: EventDetail
   return (
     <EventDocumentLayout>
       <DocumentSection>
-        <Toolbar>
-          <ActionLink href="/info/events" $variant="muted">
-            목록
-          </ActionLink>
-
-          {canManagePost ? (
-            <ToolbarRight>
-              <ActionButton
-                type="button"
-                $variant="danger"
-                disabled={!hasChannelId || deletePostMutation.isPending}
-                onClick={() => deletePostMutation.mutate()}
-              >
-                삭제
-              </ActionButton>
-              <ActionLink href={editHref} $variant="edit">
-                수정
-              </ActionLink>
-            </ToolbarRight>
-          ) : null}
-        </Toolbar>
+        <ActionToolbar>
+          <ToolbarRight>
+            {canManagePost ? (
+              <>
+                <ActionLink href={editHref} $variant="edit">
+                  수정
+                </ActionLink>
+                <ActionButton
+                  type="button"
+                  $variant="danger"
+                  disabled={!hasChannelId || deletePostMutation.isPending}
+                  onClick={() => deletePostMutation.mutate()}
+                >
+                  삭제
+                </ActionButton>
+              </>
+            ) : null}
+            <ActionLink href="/info/events" $variant="muted">
+              목록
+            </ActionLink>
+          </ToolbarRight>
+        </ActionToolbar>
 
         {stateMessage ? <StateMessage>{stateMessage}</StateMessage> : null}
 
@@ -137,7 +140,7 @@ export default function EventDetailPageClient({ postId, channelId }: EventDetail
                 );
               })
             ) : (
-              <StateMessage>등록된 자료가 없습니다.</StateMessage>
+              <EmptyAttachmentText>등록된 자료가 없습니다.</EmptyAttachmentText>
             )}
           </FileList>
         </ContentStack>
@@ -145,3 +148,17 @@ export default function EventDetailPageClient({ postId, channelId }: EventDetail
     </EventDocumentLayout>
   );
 }
+
+const ActionToolbar = styled(Toolbar)`
+  justify-content: flex-end;
+`;
+
+const EmptyAttachmentText = styled.span`
+  color: ${colors.placeholder};
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
