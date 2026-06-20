@@ -5,24 +5,21 @@ import type {
   DepartmentListResponseDto,
   DepartmentPermissionRequestDto,
   DepartmentPathParamsDto,
-  PermissionResponseDto,
   DepartmentResponseDto,
+  PermissionResponseDto,
   UpdateDepartmentRequestDto,
 } from "./department.dto";
 
-// 부서 목록을 조회하는 요청
 export async function getDepartments() {
   const response = await authClient.get<DepartmentListResponseDto>("/api/v1/departments");
   return response.data;
 }
 
-// 새 부서를 생성하는 요청
 export async function createDepartment(body: CreateDepartmentRequestDto) {
   const response = await authClient.post<DepartmentResponseDto>("/api/v1/departments", body);
   return response.data;
 }
 
-// 특정 부서 상세 정보를 조회하는 요청
 export async function getDepartmentDetail(pathParams: DepartmentPathParamsDto) {
   const response = await authClient.get<DepartmentDetailResponseDto>(
     `/api/v1/departments/${pathParams.id}`,
@@ -30,7 +27,6 @@ export async function getDepartmentDetail(pathParams: DepartmentPathParamsDto) {
   return response.data;
 }
 
-// 특정 부서 정보를 수정하는 요청
 export async function updateDepartment(
   pathParams: DepartmentPathParamsDto,
   body: UpdateDepartmentRequestDto,
@@ -42,33 +38,84 @@ export async function updateDepartment(
   return response.data;
 }
 
-// 특정 부서를 삭제하는 요청
 export async function deleteDepartment(pathParams: DepartmentPathParamsDto) {
   await authClient.delete(`/api/v1/departments/${pathParams.id}`);
 }
 
-// 특정 부서에 권한을 추가하는 요청
+function toDepartmentPermissionRequest(
+  permission: PermissionResponseDto,
+): DepartmentPermissionRequestDto | null {
+  const permissionCode = permission.permissionCode ?? permission.code;
+
+  if (!permissionCode) {
+    return null;
+  }
+
+  if (permission.source === "MANAGER") {
+    return { permissionCode, roleType: "MANAGER" };
+  }
+
+  if (permission.source === "MEMBER") {
+    return { permissionCode, roleType: "MEMBER" };
+  }
+
+  return { permissionCode };
+}
+
+function dedupeDepartmentPermissions(
+  permissions: DepartmentPermissionRequestDto[],
+): DepartmentPermissionRequestDto[] {
+  const seen = new Set<string>();
+
+  return permissions.filter((permission) => {
+    const key = `${permission.roleType ?? "MEMBER"}:${permission.permissionCode}`;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+}
+
+async function updateDepartmentPermissions(
+  pathParams: DepartmentPathParamsDto,
+  transform: (permissions: DepartmentPermissionRequestDto[]) => DepartmentPermissionRequestDto[],
+) {
+  const detail = await getDepartmentDetail(pathParams);
+  const currentPermissions = (detail.permissions ?? [])
+    .map(toDepartmentPermissionRequest)
+    .filter((permission): permission is DepartmentPermissionRequestDto => permission !== null);
+  const nextPermissions = dedupeDepartmentPermissions(transform(currentPermissions));
+
+  return updateDepartment(pathParams, { permissions: nextPermissions });
+}
+
 export async function addDepartmentPermission(
   pathParams: DepartmentPathParamsDto,
   body: DepartmentPermissionRequestDto,
 ) {
-  const response = await authClient.post<PermissionResponseDto[]>(
-    `/api/v1/departments/${pathParams.id}/permissions`,
-    body,
-  );
-  return response.data;
+  return updateDepartmentPermissions(pathParams, (permissions) => [...permissions, body]);
 }
 
-// 특정 부서에서 권한을 제거하는 요청
 export async function removeDepartmentPermission(
   pathParams: DepartmentPathParamsDto,
   body: DepartmentPermissionRequestDto,
 ) {
-  const response = await authClient.delete<PermissionResponseDto[]>(
-    `/api/v1/departments/${pathParams.id}/permissions`,
-    {
-      data: body,
-    },
+  return updateDepartmentPermissions(
+    pathParams,
+    (permissions) =>
+      permissions.filter((permission) => {
+        if (permission.permissionCode !== body.permissionCode) {
+          return true;
+        }
+
+        if (!body.roleType) {
+          return false;
+        }
+
+        return (permission.roleType ?? "MEMBER") !== body.roleType;
+      }),
   );
-  return response.data;
 }

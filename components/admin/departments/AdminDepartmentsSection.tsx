@@ -75,7 +75,7 @@ function getDefaultPermissionScope(definition?: PermissionDefinitionDto) {
 }
 
 function getPermissionCode(permission: PermissionResponseDto) {
-  return permission.code ?? permission.name ?? "";
+  return permission.permissionCode ?? permission.code ?? permission.name ?? "";
 }
 
 function getPermissionDescription(permission: PermissionResponseDto) {
@@ -328,7 +328,7 @@ export function AdminDepartmentsSection({
                       {departmentDetailQuery.data?.users?.length ? (
                         departmentDetailQuery.data.users.map((item) => (
                           <ListItem key={item.id ?? item.email}>
-                            <span>{item.name ?? item.nickname ?? item.email ?? "-"}</span>
+                            <span>{item.name ?? item.email ?? "-"}</span>
                             <span>{item.role ?? "-"}</span>
                           </ListItem>
                         ))

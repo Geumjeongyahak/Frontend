@@ -10,6 +10,7 @@ import type { WeeklyScheduleDay, WeeklyScheduleItem } from "@/types/home";
 type WeeklyScheduleCardProps = {
   schedule: WeeklyScheduleDay[];
   onViewAllClick?: () => void;
+  onEventClick?: (date: string) => void;
 };
 
 type SelectedLesson = {
@@ -37,7 +38,11 @@ function buildSelectedLesson(dayLabel: string, item: WeeklyScheduleItem): Select
   };
 }
 
-export default function WeeklyScheduleCard({ schedule, onViewAllClick }: WeeklyScheduleCardProps) {
+export default function WeeklyScheduleCard({
+  schedule,
+  onViewAllClick,
+  onEventClick,
+}: WeeklyScheduleCardProps) {
   const todayIndex = getMondayBasedIndex();
   const [selectedLesson, setSelectedLesson] = useState<SelectedLesson | null>(null);
 
@@ -59,6 +64,7 @@ export default function WeeklyScheduleCard({ schedule, onViewAllClick }: WeeklyS
                     <>
                       {daySchedule.items.slice(0, 3).map((item, itemIndex) => {
                         const lessonSelection = buildSelectedLesson(daySchedule.day, item);
+                        const eventDate = item.date;
 
                         return (
                           <Item
@@ -72,14 +78,22 @@ export default function WeeklyScheduleCard({ schedule, onViewAllClick }: WeeklyS
                               >
                                 <ItemTitle>{item.title}</ItemTitle>
                               </LessonButton>
+                            ) : eventDate ? (
+                              <EventButton
+                                type="button"
+                                onClick={() => onEventClick?.(eventDate)}
+                                disabled={!onEventClick}
+                              >
+                                <EventRow>
+                                  <EventEmoji aria-hidden="true">{item.emoji ?? "📌"}</EventEmoji>
+                                  <EventText>{item.title}</EventText>
+                                </EventRow>
+                              </EventButton>
                             ) : (
-                              <EventRow>
-                                <EventMark aria-hidden="true" />
-                                <EventContent>
-                                  <ItemTitle>{item.title}</ItemTitle>
-                                  {item.time ? <EventTime>{item.time}</EventTime> : null}
-                                </EventContent>
-                              </EventRow>
+                              <StaticEventRow>
+                                <EventEmoji aria-hidden="true">{item.emoji ?? "📌"}</EventEmoji>
+                                <EventText>{item.title}</EventText>
+                              </StaticEventRow>
                             )}
                           </Item>
                         );
@@ -119,6 +133,11 @@ export default function WeeklyScheduleCard({ schedule, onViewAllClick }: WeeklyS
               {selectedLesson.periods.map((period) => (
                 <ModalPeriodCard key={`${selectedLesson.classroomName}-${period.period}`}>
                   <ModalPeriodHeading>{period.period}교시</ModalPeriodHeading>
+                  {period.startTime && period.endTime ? (
+                    <ModalPeriodTime>
+                      {period.startTime} - {period.endTime}
+                    </ModalPeriodTime>
+                  ) : null}
                   <ModalPeriodSubject>{period.subjectName}</ModalPeriodSubject>
                   {period.status === "CANCELED" || period.status === "CANCELLED" ? (
                     <ModalStatusText>결강</ModalStatusText>
@@ -248,37 +267,51 @@ const LessonButton = styled.button`
   }
 `;
 
-const EventRow = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: ${spacing.space8};
-  min-width: 0;
-`;
+const EventButton = styled.button`
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin-top: ${spacing.space8};
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
 
-const EventMark = styled.span`
-  flex: 0 0 auto;
-  width: 0.5rem;
-  height: 0.5rem;
-  margin-top: 0.375rem;
-  border-radius: 50%;
-  background-color: ${colors.point};
+  &:focus-visible {
+    outline: 2px solid ${colors.point};
+    outline-offset: 2px;
+  }
 
-  @media (min-width: 120rem) {
-    width: 0.625rem;
-    height: 0.625rem;
-    margin-top: 0.5rem;
+  &:disabled {
+    cursor: default;
   }
 `;
 
-const EventContent = styled.div`
-  min-width: 0;
+const EventRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
 `;
 
-const EventTime = styled.span`
+const StaticEventRow = styled(EventRow)`
+  margin-top: ${spacing.space8};
+`;
+
+const EventEmoji = styled.span`
+  flex: 0 0 auto;
+  font-size: ${typography.fontSize14};
+  line-height: 1;
+`;
+
+const EventText = styled.span`
   display: block;
-  margin-top: ${spacing.space4};
-  color: ${colors.muted};
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: ${colors.text};
   font-size: ${typography.fontSize13};
+  font-weight: 500;
   line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
@@ -380,6 +413,14 @@ const ModalPeriodHeading = styled.h3`
   color: #64706c;
   font-size: ${typography.fontSize13};
   font-weight: 800;
+  line-height: ${typography.lineHeight130};
+`;
+
+const ModalPeriodTime = styled.p`
+  margin: 0;
+  color: #64706c;
+  font-size: ${typography.fontSize13};
+  font-weight: 600;
   line-height: ${typography.lineHeight130};
 `;
 

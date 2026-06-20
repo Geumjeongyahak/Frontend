@@ -48,6 +48,8 @@ describe("mapLessonsToWeeklySchedule", () => {
         {
           id: 20,
           type: "event",
+          date: "2026-06-17",
+          emoji: "📌",
           time: "18:00-18:30",
           title: "교원 회의",
         },
@@ -59,8 +61,20 @@ describe("mapLessonsToWeeklySchedule", () => {
           classroomName: "해바라기반",
           title: "해바라기반 수업",
           periods: [
-            { period: 1, subjectName: "영어", status: "SCHEDULED" },
-            { period: 2, subjectName: "수학", status: "SCHEDULED" },
+            {
+              period: 1,
+              subjectName: "영어",
+              startTime: "19:00",
+              endTime: "19:50",
+              status: "SCHEDULED",
+            },
+            {
+              period: 2,
+              subjectName: "수학",
+              startTime: "20:00",
+              endTime: "20:50",
+              status: "SCHEDULED",
+            },
           ],
         },
       ],

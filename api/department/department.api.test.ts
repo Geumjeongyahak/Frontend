@@ -8,11 +8,20 @@ import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 
 import { API_BASE_URL, VALID_ACCESS_TOKEN } from "../../mocks/handlers/auth.handlers";
-import { DEPARTMENT_LIST_RESPONSE } from "../../mocks/handlers/department.handlers";
+import {
+  DEPARTMENT_DETAIL_RESPONSE,
+  DEPARTMENT_LIST_RESPONSE,
+} from "../../mocks/handlers/department.handlers";
 import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
-import { createDepartment, getDepartments, updateDepartment } from "./department.api";
+import {
+  addDepartmentPermission,
+  createDepartment,
+  getDepartments,
+  removeDepartmentPermission,
+  updateDepartment,
+} from "./department.api";
 
 describe("department.api", () => {
   it("returns departments and injects the auth header", async () => {
@@ -87,5 +96,67 @@ describe("department.api", () => {
     const response = await getDepartments();
 
     expect(response).toEqual(DEPARTMENT_LIST_RESPONSE);
+  });
+
+  it("adds a department permission by replacing the full permissions list", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedUpdateBody: unknown;
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/departments/1`, () =>
+        HttpResponse.json(DEPARTMENT_DETAIL_RESPONSE),
+      ),
+      http.put(`${API_BASE_URL}/api/v1/departments/1`, async ({ request }) => {
+        observedUpdateBody = await request.json();
+        return HttpResponse.json({ id: 1, name: "Education", description: "Education team" });
+      }),
+    );
+
+    await addDepartmentPermission(
+      { id: 1 },
+      { permissionCode: "department:manage:*", roleType: "MANAGER" },
+    );
+
+    expect(observedUpdateBody).toEqual({
+      permissions: [
+        { permissionCode: "channel:write:1", roleType: "MEMBER" },
+        { permissionCode: "department:manage:*", roleType: "MANAGER" },
+      ],
+    });
+  });
+
+  it("removes a department permission by replacing the full permissions list", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedUpdateBody: unknown;
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/departments/1`, () =>
+        HttpResponse.json({
+          ...DEPARTMENT_DETAIL_RESPONSE,
+          permissions: [
+            ...DEPARTMENT_DETAIL_RESPONSE.permissions,
+            {
+              id: 12,
+              permissionCode: "department:manage:*",
+              resourceCode: "department",
+              actionCode: "manage",
+              source: "MANAGER",
+            },
+          ],
+        }),
+      ),
+      http.put(`${API_BASE_URL}/api/v1/departments/1`, async ({ request }) => {
+        observedUpdateBody = await request.json();
+        return HttpResponse.json({ id: 1, name: "Education", description: "Education team" });
+      }),
+    );
+
+    await removeDepartmentPermission({ id: 1 }, { permissionCode: "department:manage:*" });
+
+    expect(observedUpdateBody).toEqual({
+      permissions: [{ permissionCode: "channel:write:1", roleType: "MEMBER" }],
+    });
   });
 });
