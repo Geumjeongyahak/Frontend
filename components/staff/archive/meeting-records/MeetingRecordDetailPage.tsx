@@ -25,6 +25,7 @@ import {
   ToolbarRight,
   ViewerBox,
 } from "@/components/staff/archive/meeting-records/MeetingRecordDocument.styles";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
@@ -35,6 +36,7 @@ type MeetingRecordDetailPageProps = {
 export default function MeetingRecordDetailPage({ recordId }: MeetingRecordDetailPageProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { user, status: authStatus } = useAuthSession();
   const [isEditing, setIsEditing] = useState(false);
   const {
     data: meetingRecord,
@@ -53,6 +55,12 @@ export default function MeetingRecordDetailPage({ recordId }: MeetingRecordDetai
       router.replace("/staff/archive/meeting-records");
     },
   });
+  const canManageRecord =
+    authStatus === "authenticated" &&
+    (user?.role === "ADMIN" ||
+      (typeof user?.id === "number" &&
+        typeof meetingRecord?.authorId === "number" &&
+        user.id === meetingRecord.authorId));
 
   if (isEditing && meetingRecord) {
     return (
@@ -69,22 +77,26 @@ export default function MeetingRecordDetailPage({ recordId }: MeetingRecordDetai
     <DocumentSection>
       <Toolbar>
         <ToolbarRight>
-          <ActionButton
-            type="button"
-            $variant="danger"
-            disabled={!meetingRecord || deleteMutation.isPending}
-            onClick={() => deleteMutation.mutate()}
-          >
-            {deleteMutation.isPending ? "삭제 중" : "삭제"}
-          </ActionButton>
-          <ActionButton
-            type="button"
-            $variant="edit"
-            disabled={!meetingRecord}
-            onClick={() => setIsEditing(true)}
-          >
-            수정
-          </ActionButton>
+          {canManageRecord ? (
+            <>
+              <ActionButton
+                type="button"
+                $variant="danger"
+                disabled={!meetingRecord || deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate()}
+              >
+                {deleteMutation.isPending ? "삭제 중" : "삭제"}
+              </ActionButton>
+              <ActionButton
+                type="button"
+                $variant="edit"
+                disabled={!meetingRecord}
+                onClick={() => setIsEditing(true)}
+              >
+                수정
+              </ActionButton>
+            </>
+          ) : null}
           <ActionLink href="/staff/archive/meeting-records" $variant="muted">
             목록
           </ActionLink>

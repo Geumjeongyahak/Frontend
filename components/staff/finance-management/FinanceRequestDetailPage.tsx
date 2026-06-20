@@ -360,10 +360,12 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     typeof user?.id === "number" &&
     typeof request?.requestedById === "number" &&
     user.id === request.requestedById;
+  const isAdmin = authStatus === "authenticated" && user?.role === "ADMIN";
+  const canManageRequest = isAdmin || isRequester;
   const canManagePurchaseReport =
-    authStatus === "authenticated" && (user?.role === "ADMIN" || isRequester);
-  const canEditRequest = request?.status === "PENDING" && isRequester;
-  const canDeleteRequest = request?.status === "PENDING" && isRequester;
+    authStatus === "authenticated" && canManageRequest;
+  const canEditRequest = request?.status === "PENDING" && canManageRequest;
+  const canDeleteRequest = request?.status === "PENDING" && canManageRequest;
   const canShowReportForm = request?.status === "APPROVED" && isRequester;
   const canEditPurchaseReport = request?.status === "PURCHASED" && canManagePurchaseReport;
   const canShowReportEditor = canShowReportForm || isReportEditing;
@@ -507,24 +509,36 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
               </>
             ) : (
               <>
-                <ActionButton
-                  type="button"
-                  $variant="danger"
-                  disabled={!canDeleteRequest || deleteMutation.isPending || isLoading}
-                  title={canDeleteRequest ? undefined : "대기 중인 본인 작성 글만 삭제할 수 있습니다."}
-                  onClick={() => deleteMutation.mutate()}
-                >
-                  {deleteMutation.isPending ? "삭제 중" : "삭제"}
-                </ActionButton>
-                <ActionButton
-                  type="button"
-                  $variant="edit"
-                  disabled={!canEditRequest}
-                  title={canEditRequest ? undefined : "대기 중인 본인 작성 글만 수정할 수 있습니다."}
-                  onClick={startEditing}
-                >
-                  수정
-                </ActionButton>
+                {canManageRequest ? (
+                  <>
+                    <ActionButton
+                      type="button"
+                      $variant="danger"
+                      disabled={!canDeleteRequest || deleteMutation.isPending || isLoading}
+                      title={
+                        canDeleteRequest
+                          ? undefined
+                          : "관리자이거나 대기 중인 본인 작성 글만 삭제할 수 있습니다."
+                      }
+                      onClick={() => deleteMutation.mutate()}
+                    >
+                      {deleteMutation.isPending ? "삭제 중" : "삭제"}
+                    </ActionButton>
+                    <ActionButton
+                      type="button"
+                      $variant="edit"
+                      disabled={!canEditRequest}
+                      title={
+                        canEditRequest
+                          ? undefined
+                          : "관리자이거나 대기 중인 본인 작성 글만 수정할 수 있습니다."
+                      }
+                      onClick={startEditing}
+                    >
+                      수정
+                    </ActionButton>
+                  </>
+                ) : null}
                 <ListButton href="/staff/finance-management">목록</ListButton>
               </>
             )}
