@@ -12,6 +12,7 @@ export type AdminMenu =
   | "classrooms"
   | "lessons"
   | "purchases"
+  | "teacherApplications"
   | "absenceRequests"
   | "lessonExchange";
 

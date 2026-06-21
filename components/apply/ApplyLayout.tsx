@@ -4,27 +4,45 @@ import { colors, layout, typography } from "@/styles/tokens";
 
 type ApplyLayoutProps = {
   children: React.ReactNode;
+  activeItem?: "apply" | "status";
 };
 
-export default function ApplyLayout({ children }: ApplyLayoutProps) {
+export default function ApplyLayout({ children, activeItem = "apply" }: ApplyLayoutProps) {
   return (
     <ApplyShell>
       <ApplyStage>
-        <ApplySidebar />
+        <ApplySidebar activeItem={activeItem} />
         <ApplyContent>{children}</ApplyContent>
       </ApplyStage>
     </ApplyShell>
   );
 }
 
-function ApplySidebar() {
+function ApplySidebar({ activeItem }: { activeItem: "apply" | "status" }) {
   return (
     <Sidebar>
       <SidebarHeader>신규 등록</SidebarHeader>
       <SidebarContent>
-        <ActiveLink href="/apply" aria-current="page">
-          교사 신청
-        </ActiveLink>
+        <SidebarList>
+          <SidebarItem>
+            <NavLink
+              href="/apply"
+              aria-current={activeItem === "apply" ? "page" : undefined}
+              $active={activeItem === "apply"}
+            >
+              교사 신청
+            </NavLink>
+          </SidebarItem>
+          <SidebarItem>
+            <NavLink
+              href="/apply/status"
+              aria-current={activeItem === "status" ? "page" : undefined}
+              $active={activeItem === "status"}
+            >
+              지원 현황
+            </NavLink>
+          </SidebarItem>
+        </SidebarList>
       </SidebarContent>
     </Sidebar>
   );
@@ -88,22 +106,46 @@ const SidebarHeader = styled.h1`
 `;
 
 const SidebarContent = styled.nav`
-  padding: 1.5rem 0 2.5rem;
+  padding: 1.75rem 0 2.5rem;
 
   @media (min-width: 120rem) {
-    padding: 2.25rem 0 3.75rem;
+    padding: 2.75rem 0 3.75rem;
   }
 `;
 
-const ActiveLink = styled(Link)`
+const SidebarList = styled.ul`
+  display: grid;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @media (min-width: 120rem) {
+    gap: 0.625rem;
+  }
+`;
+
+const SidebarItem = styled.li`
+  display: block;
+`;
+
+const NavLink = styled(Link)<{ $active: boolean }>`
   display: block;
   padding: 0.25rem 1.625rem;
-  background-color: ${colors.point};
-  color: ${colors.white};
+  background-color: ${({ $active }) => ($active ? colors.point : "transparent")};
+  color: ${({ $active }) => ($active ? colors.white : colors.point)};
   font-size: ${typography.fontSize14};
-  font-weight: 500;
+  font-weight: 700;
   line-height: ${typography.lineHeight130};
   text-decoration: none;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+
+  &:hover {
+    background-color: ${({ $active }) => ($active ? colors.point : "#eeeeee")};
+    color: ${({ $active }) => ($active ? colors.white : colors.text)};
+  }
 
   @media (min-width: 120rem) {
     padding: 0.3125rem 2.5rem;

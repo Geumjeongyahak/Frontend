@@ -45,6 +45,7 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { status, signOut } = useAuthSession();
   const isAuthenticated = status === "authenticated";
+  const newRegistrationHref = isAuthenticated ? "/apply" : "/login";
 
   if (pathname.startsWith("/admin")) {
     return null;
@@ -69,7 +70,7 @@ export default function Header() {
                 {headerMenus.map((menu) => (
                   <NavItem key={menu.label}>
                     <NavLink
-                      href={menu.href}
+                      href={menu.label === "신규 등록" ? newRegistrationHref : menu.href}
                       $isOpen={isMenuOpen}
                       onFocus={() => setIsMenuOpen(true)}
                       onMouseEnter={() => setIsMenuOpen(true)}
@@ -107,7 +108,15 @@ export default function Header() {
                   <SubMenuList>
                     {menu.items.map((item) => (
                       <SubMenuItem key={item.label}>
-                        <SubMenuLink href={item.href}>{item.label}</SubMenuLink>
+                        <SubMenuLink
+                          href={
+                            menu.label === "신규 등록" && item.label === "교사 신청"
+                              ? newRegistrationHref
+                              : item.href
+                          }
+                        >
+                          {item.label}
+                        </SubMenuLink>
                       </SubMenuItem>
                     ))}
                   </SubMenuList>

@@ -1,6 +1,12 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import ApplyLayout from "@/components/apply/ApplyLayout";
 import { ApplyActionLink } from "@/components/apply/ApplyAction";
+import LoadingSpinner from "@/components/common/LoadingSpinner";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 const notices = [
@@ -13,8 +19,27 @@ const notices = [
 ];
 
 export default function TeacherApplyIntroPage() {
+  const router = useRouter();
+  const { status } = useAuthSession();
+
+  useEffect(() => {
+    if (status === "unauthenticated" || status === "error") {
+      router.replace("/login");
+    }
+  }, [router, status]);
+
+  if (status !== "authenticated") {
+    return (
+      <ApplyLayout activeItem="apply">
+        <LoadingSection>
+          <LoadingSpinner label="교사 신청 페이지를 불러오는 중" />
+        </LoadingSection>
+      </ApplyLayout>
+    );
+  }
+
   return (
-    <ApplyLayout>
+    <ApplyLayout activeItem="apply">
       <PageSection>
         <Title>교사 신청</Title>
         <NoticeBox>
@@ -117,4 +142,12 @@ const ActionRow = styled.div`
   @media (min-width: 120rem) {
     margin-top: 3.25rem;
   }
+`;
+
+const LoadingSection = styled.section`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - ${layout.headerHeight});
+  padding: ${spacing.space40} ${spacing.space20};
 `;
