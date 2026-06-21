@@ -1,5 +1,6 @@
 export * as authApi from "./auth/auth.api";
 export * as authDto from "./auth/auth.dto";
+export * as googleOAuthState from "./auth/googleOAuthState";
 export * as tokenStorage from "./client/tokenStorage";
 
 export * as fileApi from "./file/file.api";

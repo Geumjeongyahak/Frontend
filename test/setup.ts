@@ -11,12 +11,14 @@ beforeAll(() => {
 
 beforeEach(() => {
   window.localStorage.clear();
+  window.sessionStorage.clear();
   clearTokens();
 });
 
 afterEach(() => {
   server.resetHandlers();
   window.localStorage.clear();
+  window.sessionStorage.clear();
   clearTokens();
 });
 
