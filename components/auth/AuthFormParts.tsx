@@ -90,6 +90,11 @@ export const SubmitButton = styled.button`
   font-weight: 800;
   line-height: ${typography.lineHeight130};
   cursor: pointer;
+  transition: filter 0.18s ease;
+
+  &:not(:disabled):hover {
+    filter: brightness(0.97);
+  }
 
   @media (min-width: 120rem) {
     min-height: 3.75rem;

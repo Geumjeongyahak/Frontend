@@ -4,7 +4,6 @@ import { clearTokens, setTokens } from "../client/tokenStorage";
 import type {
   AuthMessageResponseDto,
   AdminLoginRequestDto,
-  GoogleCallbackQueryParamsDto,
   GoogleLoginRequestDto,
   GoogleSignupRequestDto,
   LoginRequestDto,
@@ -56,16 +55,6 @@ export async function logoutAllDevices() {
   const response = await authClient.post<AuthMessageResponseDto>("/api/v1/auth/logout-all");
   clearTokens();
   return response.data;
-}
-
-export async function redirectToGoogle() {
-  await publicClient.get("/api/v1/auth/google");
-}
-
-export async function handleGoogleCallback(query: GoogleCallbackQueryParamsDto) {
-  await publicClient.get("/api/v1/auth/google/callback", {
-    params: query,
-  });
 }
 
 export async function googleSignup(body: GoogleSignupRequestDto) {

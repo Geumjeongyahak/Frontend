@@ -32,18 +32,21 @@ export interface AuthMessageResponseDto {
   message?: string;
 }
 
-export interface GoogleCallbackQueryParamsDto {
-  code: string;
-}
-
 export interface GoogleSignupRequestDto {
   tempToken: string;
   name: string;
   phoneNumber?: string;
+  residentRegistrationNumberPrefix: string;
 }
 
 export interface GoogleLoginRequestDto {
   tempToken: string;
+}
+
+export interface GoogleCallbackRedirectQueryParamsDto {
+  tempToken?: string;
+  signupRequired?: string;
+  errorCode?: string;
 }
 
 export type AdminLoginRequestDto = LoginRequestDto;

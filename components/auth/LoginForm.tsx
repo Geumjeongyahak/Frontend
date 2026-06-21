@@ -3,6 +3,8 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/api/auth/auth.api";
+import { setGoogleOAuthIntent } from "@/api/auth/googleOAuthState";
+import { baseURL } from "@/api/client/publicClient";
 import {
   Field,
   FieldGroup,
@@ -12,6 +14,7 @@ import {
   Status,
   SubmitButton,
 } from "@/components/auth/AuthFormParts";
+import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
 import AuthShell from "@/components/auth/AuthShell";
 
 type LoginFormState = {
@@ -54,6 +57,11 @@ export default function LoginForm() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function handleGoogleLogin() {
+    setGoogleOAuthIntent("login");
+    window.location.assign(`${baseURL}/api/v1/auth/google`);
   }
 
   return (
@@ -105,6 +113,8 @@ export default function LoginForm() {
         <SubmitButton type="submit" disabled={!canSubmit || isSubmitting}>
           {isSubmitting ? "로그인 중" : "로그인"}
         </SubmitButton>
+
+        <GoogleLoginButton type="button" onClick={handleGoogleLogin} disabled={isSubmitting} />
       </Form>
     </AuthShell>
   );

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import styled from "styled-components";
+import { setGoogleOAuthIntent } from "@/api/auth/googleOAuthState";
+import { baseURL } from "@/api/client/publicClient";
 import { updateCurrentUser } from "@/api/user/user.api";
 import type { UpdateSelfRequestDto, UserResponseDto } from "@/api/user/user.dto";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
@@ -119,6 +121,11 @@ export default function MyPage() {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function handleGoogleConnect() {
+    setGoogleOAuthIntent("connect");
+    window.location.assign(`${baseURL}/api/v1/auth/google`);
   }
 
   return (
@@ -300,6 +307,9 @@ export default function MyPage() {
                   <>
                     <ActionButton type="button" onClick={startEditing}>
                       정보 수정
+                    </ActionButton>
+                    <ActionButton type="button" $variant="outline" onClick={handleGoogleConnect}>
+                      구글 계정 연동
                     </ActionButton>
                     <ActionButton type="button" $variant="muted" onClick={handleLogout}>
                       로그아웃
@@ -514,7 +524,7 @@ const ActionRow = styled.div`
   margin-top: ${spacing.space24};
   padding-top: ${spacing.space20};
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: ${spacing.space8};
   border-top: 1px solid ${colors.border};
 
@@ -577,16 +587,18 @@ const PrimaryLink = styled.a`
   }
 `;
 
-const ActionButton = styled.button<{ $variant?: "default" | "muted" }>`
+const ActionButton = styled.button<{ $variant?: "default" | "muted" | "outline" }>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
   min-height: 2.6875rem;
   padding: 0.8125rem ${spacing.space20};
-  border: 1px solid ${({ $variant }) => ($variant === "muted" ? colors.border : colors.point)};
+  border: 1px solid
+    ${({ $variant }) =>
+      $variant === "default" ? colors.point : $variant === "muted" ? colors.border : colors.borderStrong};
   border-radius: 0.375rem;
   background-color: ${({ $variant }) => ($variant === "muted" ? colors.background : colors.white)};
-  color: ${({ $variant }) => ($variant === "muted" ? colors.text : colors.point)};
+  color: ${({ $variant }) => ($variant === "muted" ? colors.text : $variant === "outline" ? colors.text : colors.point)};
   font-family: inherit;
   font-size: ${typography.fontSize14};
   font-weight: 500;
@@ -595,8 +607,9 @@ const ActionButton = styled.button<{ $variant?: "default" | "muted" }>`
   cursor: pointer;
 
   &:not(:disabled):hover {
-    background-color: ${({ $variant }) => ($variant === "muted" ? colors.background : colors.pointSoft)};
-    filter: ${({ $variant }) => ($variant === "muted" ? "brightness(0.97)" : "none")};
+    background-color: ${({ $variant }) =>
+      $variant === "default" ? colors.pointSoft : colors.background};
+    filter: ${({ $variant }) => ($variant === "default" ? "none" : "brightness(0.97)")};
   }
 
   &:disabled {

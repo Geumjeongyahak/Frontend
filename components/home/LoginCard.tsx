@@ -4,6 +4,9 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import styled, { keyframes } from "styled-components";
 import { login } from "@/api/auth/auth.api";
+import { setGoogleOAuthIntent } from "@/api/auth/googleOAuthState";
+import { baseURL } from "@/api/client/publicClient";
+import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
 import { Input as AuthInput } from "@/components/auth/AuthFormParts";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import HomeCard from "@/components/home/HomeCard";
@@ -32,6 +35,11 @@ export default function LoginCard() {
   async function handleLogout() {
     await signOut();
     router.replace("/");
+  }
+
+  function handleGoogleLogin() {
+    setGoogleOAuthIntent("login");
+    window.location.assign(`${baseURL}/api/v1/auth/google`);
   }
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
@@ -109,9 +117,17 @@ export default function LoginCard() {
         <ErrorText role="status" aria-live="polite" $visible={Boolean(errorMessage)}>
           {errorMessage}
         </ErrorText>
-        <SubmitButton type="submit" disabled={!canSubmit || isSubmitting}>
-          {isSubmitting ? "로그인 중" : "로그인"}
-        </SubmitButton>
+        <ButtonGroup>
+          <SubmitButton type="submit" disabled={!canSubmit || isSubmitting}>
+            {isSubmitting ? "로그인 중" : "로그인"}
+          </SubmitButton>
+          <GoogleLoginButton
+            type="button"
+            size="compact"
+            onClick={handleGoogleLogin}
+            disabled={isSubmitting}
+          />
+        </ButtonGroup>
       </Form>
     </Card>
   );
@@ -120,11 +136,35 @@ export default function LoginCard() {
 const Card = styled(HomeCard)`
   min-width: 0;
   height: 100%;
+  min-height: 18.75rem;
   background-color: ${colors.background};
   border: 0.0625rem solid ${colors.border};
   display: flex;
   flex-direction: column;
   gap: ${spacing.space12};
+
+  & > div:first-child {
+    margin-bottom: 0;
+  }
+
+  & > div:last-child {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 26.5rem;
+
+    & > div:first-child {
+      margin-bottom: 8px;
+    }
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    min-height: 16rem;
+  }
 `;
 
 const SignedInCard = styled.section`
@@ -233,28 +273,29 @@ const NameText = styled.span`
 
 const Form = styled.form`
   position: relative;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: ${spacing.space28};
+  gap: ${spacing.space20};
 
   @media (min-width: 120rem) {
-    gap: ${spacing.space40};
+    gap: ${spacing.space32};
   }
 `;
 
 const InputGroup = styled.div`
   display: flex;
   flex-direction: column;
-  gap: ${spacing.space12};
+  gap: ${spacing.space8};
 
   @media (min-width: 120rem) {
-    gap: ${spacing.space16};
+    gap: ${spacing.space12};
   }
 `;
 
 const ErrorText = styled.p<{ $visible: boolean }>`
   position: absolute;
-  top: calc(7.25rem + ${spacing.space8});
+  top: calc(5.75rem + ${spacing.space4});
   left: 0;
   right: 0;
   min-height: 1.375rem;
@@ -265,21 +306,21 @@ const ErrorText = styled.p<{ $visible: boolean }>`
   visibility: ${({ $visible }) => ($visible ? "visible" : "hidden")};
 
   @media (min-width: 120rem) {
-    top: calc(10.375rem + ${spacing.space8});
+    top: calc(7.9rem + ${spacing.space8});
     font-size: ${typography.fontSize18};
   }
 `;
 
 const Input = styled(AuthInput)`
   font-family: ${typography.fontFamily};
-  height: 3.375rem;
-  border-radius: ${radii.radius12};
+  height: 2.75rem;
+  border-radius: 8px;
   background-color: ${colors.white};
   font-size: ${typography.fontSize16};
 
   @media (min-width: 120rem) {
-    height: 4.6875rem;
-    border-radius: ${radii.radius15};
+    height: 3.75rem;
+    border-radius: 10px;
     font-size: ${typography.fontSize24};
   }
 
@@ -290,9 +331,9 @@ const Input = styled(AuthInput)`
 
 const SubmitButton = styled.button`
   width: 100%;
-  height: 3.5rem;
+  height: 2.75rem;
   border: 0;
-  border-radius: ${radii.radius12};
+  border-radius: 8px;
   background-color: ${colors.point};
   color: ${colors.white};
   display: inline-flex;
@@ -305,8 +346,8 @@ const SubmitButton = styled.button`
   cursor: pointer;
 
   @media (min-width: 120rem) {
-    height: 4.9375rem;
-    border-radius: ${radii.radius15};
+    height: 3.75rem;
+    border-radius: 10px;
     font-size: ${typography.fontSize24};
   }
 
@@ -316,8 +357,18 @@ const SubmitButton = styled.button`
   }
 `;
 
+const ButtonGroup = styled.div`
+  display: grid;
+  gap: ${spacing.space8};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space12};
+  }
+`;
+
 const PendingContent = styled.div`
-  min-height: 12.125rem;
+  min-height: 100%;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
