@@ -45,9 +45,22 @@ export const ApplyActionButton = styled.button`
   line-height: ${typography.lineHeight130};
   white-space: nowrap;
   cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
 
-  &:hover {
+  &:not(:disabled):hover {
     background-color: ${colors.pointSoft};
+  }
+
+  &:disabled {
+    border-color: #c8d7cb;
+    background-color: #f5f7f5;
+    color: #9caf9f;
+    cursor: not-allowed;
+    opacity: 1;
   }
 
   @media (min-width: 120rem) {

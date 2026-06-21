@@ -15,6 +15,7 @@ import { AdminPostsSection } from "@/components/admin/posts/AdminPostsSection";
 import { AdminAbsenceRequestsSection } from "@/components/admin/absence-requests/AdminAbsenceRequestsSection";
 import { AdminLessonExchangeSection } from "@/components/admin/lesson-exchange/AdminLessonExchangeSection";
 import { AdminPurchasesSection } from "@/components/admin/purchase-requests/AdminPurchasesSection";
+import { AdminTeacherApplicationsSection } from "@/components/admin/teacher-applications/AdminTeacherApplicationsSection";
 import { AdminLessonManagementSection } from "@/components/admin/lesson-management/AdminLessonManagementSection";
 import { AdminUsersSection } from "@/components/admin/users/AdminUsersSection";
 import type {
@@ -114,6 +115,7 @@ const navigationItems: { key: AdminMenu; label: string }[] = [
   { key: "lessonExchange", label: "수업 교환 요청 관리" },
   { key: "absenceRequests", label: "결강 요청 관리" },
   { key: "purchases", label: "결제 요청 관리" },
+  { key: "teacherApplications", label: "교사 신청 관리" },
 ];
 
 const ADMIN_ACTIVE_MENU_STORAGE_KEY = "admin-active-menu";
@@ -1413,6 +1415,7 @@ export default function AdminDashboardPage() {
             activeMenu === "departments" ||
             activeMenu === "classrooms" ||
             activeMenu === "purchases" ||
+            activeMenu === "teacherApplications" ||
             activeMenu === "absenceRequests" ||
             activeMenu === "lessonExchange"
           }
@@ -1441,6 +1444,8 @@ export default function AdminDashboardPage() {
     posts: "채널별 게시물 목록을 조회하고, 게시물을 생성/수정/삭제할 수 있습니다.",
     purchases:
       "물품 구매 요청 목록을 조회하고, 각 요청건에 대한 승인/반려 및 결제 확정 처리를 할 수 있습니다.",
+    teacherApplications:
+      "교사 신청 목록을 조회하고, 슬라이드 패널에서 지원서 상세 내용을 확인할 수 있습니다.",
     absenceRequests: "결강 요청 목록을 조회하고, 각 요청건에 대한 승인/반려 처리를 할 수 있습니다.",
     lessonExchange:
       "수업 교환 요청 목록을 조회하고, 각 요청건에 대한 승인/반려 처리를 할 수 있습니다.",
@@ -1485,6 +1490,7 @@ export default function AdminDashboardPage() {
             activeMenu === "departments" ||
             activeMenu === "classrooms" ||
             activeMenu === "purchases" ||
+            activeMenu === "teacherApplications" ||
             activeMenu === "absenceRequests" ||
             activeMenu === "lessonExchange"
           }
@@ -1689,6 +1695,7 @@ export default function AdminDashboardPage() {
               emptyPurchaseCreate={emptyPurchaseCreate}
             />
           ) : null}
+          {activeMenu === "teacherApplications" ? <AdminTeacherApplicationsSection /> : null}
           <ToastContainer position="top-right" autoClose={2400} newestOnTop pauseOnHover />
         </AdminContent>
       </Main>

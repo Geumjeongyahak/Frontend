@@ -44,6 +44,14 @@ export const queryKeys = {
   teachers: {
     contactList: () => ["teachers", "contact-list"] as const,
   },
+  teacherApplications: {
+    my: () => ["teacher-applications", "me"] as const,
+    availableSchedules: () => ["teacher-applications", "available-schedules"] as const,
+    adminList: (params?: { keyword?: string; status?: string; page?: number; size?: number }) =>
+      ["admin", "teacher-applications", "list", params ?? {}] as const,
+    adminDetail: (applicationId: number) =>
+      ["admin", "teacher-applications", "detail", applicationId] as const,
+  },
   meetingRecords: {
     list: (params: { page: number; size: number; keyword?: string; mineOnly?: boolean }) =>
       ["meeting-records", "list", params] as const,
