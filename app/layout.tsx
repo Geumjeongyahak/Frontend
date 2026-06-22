@@ -3,6 +3,7 @@ import AppToastContainer from "@/components/providers/AppToastContainer";
 import QueryProvider from "@/components/providers/QueryProvider";
 import Header from "@/components/layout/Header";
 import StyledComponentsRegistry from "@/lib/styled-components-registry";
+import MobileBootstrap from "@/pwa/bootstrap/MobileBootstrap";
 import "react-toastify/dist/ReactToastify.css";
 import "@toast-ui/editor/dist/toastui-editor.css";
 import "@toast-ui/editor/dist/toastui-editor-viewer.css";
@@ -11,6 +12,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "금정열린배움터",
   description: "금정열린배움터 업무지원 플랫폼",
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({
@@ -23,6 +25,7 @@ export default function RootLayout({
       <body>
         <StyledComponentsRegistry>
           <QueryProvider>
+            <MobileBootstrap />
             <Header />
             {children}
             <AppToastContainer />

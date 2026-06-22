@@ -1,20 +1,11 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { signup } from "@/api/auth/auth.api";
-import {
-  Field,
-  FieldGroup,
-  Form,
-  Input,
-  Label,
-  Status,
-  SubmitButton,
-} from "@/components/auth/AuthFormParts";
-import AuthShell from "@/components/auth/AuthShell";
-import { colors } from "@/styles/tokens";
+import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { toResidentRegistrationNumberPrefix } from "@/utils/birthDate";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
 
@@ -36,11 +27,12 @@ const initialState: RegisterFormState = {
   phoneNumber: "",
 };
 
-export default function RegisterForm() {
+export default function MobileRegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState(initialState);
   const [statusMessage, setStatusMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const passwordMatchState =
     form.confirmPassword.length === 0
       ? "idle"
@@ -78,8 +70,7 @@ export default function RegisterForm() {
         residentRegistrationNumberPrefix: toResidentRegistrationNumberPrefix(form.birthDate),
         phoneNumber: form.phoneNumber.trim() || undefined,
       });
-      setStatusMessage("회원가입이 완료되었습니다. 잠시 후 메인으로 이동합니다.");
-      router.replace("/");
+      router.replace("/", { scroll: true });
     } catch {
       setStatusMessage("회원가입 정보를 확인해 주세요.");
     } finally {
@@ -88,19 +79,18 @@ export default function RegisterForm() {
   }
 
   return (
-    <AuthShell
-      switchText="이미 계정이 있나요?"
-      switchLabel="로그인"
-      switchHref="/login"
-      panelSize="wide"
-    >
-      <Form onSubmit={handleSubmit} aria-label="회원가입 폼">
-        <FieldGroup>
+    <Page>
+      <Header>
+        <Eyebrow>금정열린배움터</Eyebrow>
+        <Title>회원가입</Title>
+      </Header>
+
+      <Panel>
+        <Form onSubmit={handleSubmit}>
           <Field>
-            <Label htmlFor="register-email">이메일</Label>
+            <Label htmlFor="mobile-register-email">이메일</Label>
             <Input
-              id="register-email"
-              name="email"
+              id="mobile-register-email"
               type="email"
               autoComplete="email"
               placeholder="이메일"
@@ -108,15 +98,13 @@ export default function RegisterForm() {
               onChange={(event) =>
                 setForm((current) => ({ ...current, email: event.target.value }))
               }
-              required
             />
           </Field>
 
           <Field>
-            <Label htmlFor="register-password">비밀번호</Label>
+            <Label htmlFor="mobile-register-password">비밀번호</Label>
             <PasswordInput
-              id="register-password"
-              name="password"
+              id="mobile-register-password"
               type="password"
               autoComplete="new-password"
               placeholder="8자 이상 입력"
@@ -124,17 +112,14 @@ export default function RegisterForm() {
               onChange={(event) =>
                 setForm((current) => ({ ...current, password: event.target.value }))
               }
-              required
-              minLength={8}
               $matchState={passwordMatchState}
             />
           </Field>
 
           <Field>
-            <Label htmlFor="register-confirm-password">비밀번호 확인</Label>
+            <Label htmlFor="mobile-register-confirm-password">비밀번호 확인</Label>
             <PasswordInput
-              id="register-confirm-password"
-              name="confirmPassword"
+              id="mobile-register-confirm-password"
               type="password"
               autoComplete="new-password"
               placeholder="비밀번호를 한 번 더 입력"
@@ -142,46 +127,39 @@ export default function RegisterForm() {
               onChange={(event) =>
                 setForm((current) => ({ ...current, confirmPassword: event.target.value }))
               }
-              required
-              minLength={8}
               $matchState={passwordMatchState}
             />
           </Field>
 
           <Field>
-            <Label htmlFor="register-name">이름</Label>
+            <Label htmlFor="mobile-register-name">이름</Label>
             <Input
-              id="register-name"
-              name="name"
+              id="mobile-register-name"
               type="text"
               autoComplete="name"
               placeholder="이름"
               value={form.name}
               onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
-              required
             />
           </Field>
 
           <Field>
-            <Label htmlFor="register-birth-date">생년월일</Label>
+            <Label htmlFor="mobile-register-birth-date">생년월일</Label>
             <DateInput
-              id="register-birth-date"
-              name="birthDate"
+              id="mobile-register-birth-date"
               type="date"
               autoComplete="bday"
               value={form.birthDate}
               onChange={(event) =>
                 setForm((current) => ({ ...current, birthDate: event.target.value }))
               }
-              required
             />
           </Field>
 
           <Field>
-            <Label htmlFor="register-phone">전화번호</Label>
+            <Label htmlFor="mobile-register-phone">전화번호</Label>
             <Input
-              id="register-phone"
-              name="phoneNumber"
+              id="mobile-register-phone"
               type="tel"
               autoComplete="tel"
               inputMode="numeric"
@@ -195,28 +173,112 @@ export default function RegisterForm() {
               }
             />
           </Field>
-        </FieldGroup>
 
-        <RegisterStatus
-          role="status"
-          aria-live="polite"
-          $tone={statusMessage.startsWith("회원가입 정보") ? "error" : "default"}
-          $matchState={passwordMatchState}
-          $visible={Boolean(statusMessage) || form.confirmPassword.length > 0}
-        >
-          {statusMessage ||
-            (form.confirmPassword.length > 0 && !isPasswordConfirmed
-              ? "비밀번호와 비밀번호 확인이 일치하지 않습니다."
-              : " ")}
-        </RegisterStatus>
+          <Status
+            role="status"
+            aria-live="polite"
+            $visible={Boolean(statusMessage) || form.confirmPassword.length > 0}
+          >
+            {statusMessage ||
+              (form.confirmPassword.length > 0 && !isPasswordConfirmed
+                ? "비밀번호와 비밀번호 확인이 일치하지 않습니다."
+                : " ")}
+          </Status>
 
-        <SubmitButton type="submit" disabled={!canSubmit || isSubmitting}>
-          {isSubmitting ? "가입 중" : "회원가입"}
-        </SubmitButton>
-      </Form>
-    </AuthShell>
+          <SubmitButton type="submit" disabled={!canSubmit || isSubmitting}>
+            {isSubmitting ? "가입 중" : "회원가입"}
+          </SubmitButton>
+        </Form>
+      </Panel>
+
+      <Footer>
+        <FooterText>이미 계정이 있나요?</FooterText>
+        <FooterLink href="/login">로그인</FooterLink>
+      </Footer>
+    </Page>
   );
 }
+
+const Page = styled.main`
+  min-height: 100lvh;
+  padding: 4.5rem 1.5625rem 2.5rem;
+  background:
+    radial-gradient(circle at top right, rgba(136, 205, 90, 0.22), transparent 34%),
+    linear-gradient(180deg, #f7faf4 0%, #f3f3f3 42%, #f3f3f3 100%);
+`;
+
+const Header = styled.header`
+  display: grid;
+  gap: ${spacing.space12};
+  margin-bottom: 1rem;
+`;
+
+const Eyebrow = styled.p`
+  color: ${colors.point};
+  font-size: ${typography.fontSize14};
+  font-weight: 700;
+  line-height: ${typography.lineHeight130};
+`;
+
+const Title = styled.h1`
+  color: ${colors.text};
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.25;
+  word-break: keep-all;
+`;
+
+const Description = styled.p`
+  color: #66725f;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight150};
+  word-break: keep-all;
+`;
+
+const Panel = styled.section`
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  background: ${colors.white};
+  box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.06);
+`;
+
+const Form = styled.form`
+  display: grid;
+  gap: ${spacing.space16};
+`;
+
+const Field = styled.div`
+  display: grid;
+  gap: ${spacing.space8};
+`;
+
+const Label = styled.label`
+  color: ${colors.text};
+  font-size: ${typography.fontSize13};
+  font-weight: 700;
+  line-height: ${typography.lineHeight130};
+`;
+
+const Input = styled.input`
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0 1rem;
+  border: 1px solid #d7ddd3;
+  border-radius: ${radii.radius15};
+  background: #fbfcfa;
+  color: ${colors.text};
+  font-size: ${typography.fontSize16};
+  outline: none;
+
+  &::placeholder {
+    color: ${colors.placeholder};
+  }
+
+  &:focus {
+    border-color: ${colors.point};
+    box-shadow: 0 0 0 0.1875rem rgba(136, 205, 90, 0.16);
+  }
+`;
 
 const PasswordInput = styled(Input)<{ $matchState: "idle" | "matched" | "mismatched" }>`
   border-color: ${({ $matchState }) =>
@@ -224,25 +286,9 @@ const PasswordInput = styled(Input)<{ $matchState: "idle" | "matched" | "mismatc
       ? colors.point
       : $matchState === "mismatched"
         ? "#e5a19b"
-        : colors.border};
+        : "#d7ddd3"};
   background-color: ${({ $matchState }) =>
-    $matchState === "matched"
-      ? "#f4faef"
-      : $matchState === "mismatched"
-        ? "#fff6f5"
-        : colors.white};
-
-  &:focus {
-    border-color: ${({ $matchState }) =>
-      $matchState === "matched" ? colors.point : $matchState === "mismatched" ? "#de8c85" : colors.point};
-    outline: 2px solid
-      ${({ $matchState }) =>
-        $matchState === "matched"
-          ? colors.pointSoft
-          : $matchState === "mismatched"
-            ? "#f8d8d4"
-            : colors.pointSoft};
-  }
+    $matchState === "matched" ? "#f4faef" : $matchState === "mismatched" ? "#fff6f5" : "#fbfcfa"};
 `;
 
 const DateInput = styled(Input)`
@@ -268,13 +314,47 @@ const DateInput = styled(Input)`
   }
 `;
 
-const RegisterStatus = styled(Status)<{
-  $matchState: "idle" | "matched" | "mismatched";
-}>`
-  color: ${({ $tone, $matchState }) =>
-    $matchState === "mismatched"
-      ? "#d98882"
-      : $tone === "error"
-        ? colors.notice
-        : "#52604c"};
+const Status = styled.p<{ $visible: boolean }>`
+  min-height: 1.125rem;
+  color: ${colors.notice};
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight130};
+  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
+`;
+
+const SubmitButton = styled.button`
+  width: 100%;
+  min-height: 3.25rem;
+  border: 0;
+  border-radius: ${radii.radius999};
+  background: linear-gradient(90deg, #87c25c 0%, #5fc077 100%);
+  color: ${colors.white};
+  font-size: ${typography.fontSize16};
+  font-weight: 800;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+`;
+
+const Footer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${spacing.space8};
+  margin-top: ${spacing.space24};
+`;
+
+const FooterText = styled.span`
+  color: ${colors.muted};
+  font-size: ${typography.fontSize14};
+`;
+
+const FooterLink = styled(Link)`
+  color: ${colors.point};
+  font-size: ${typography.fontSize14};
+  font-weight: 700;
+  text-decoration: none;
 `;

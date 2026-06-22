@@ -28,6 +28,8 @@ export function useProtectedHomeNavigation() {
   }
 
   return {
+    status,
+    isAuthLoading: status === "loading",
     isAuthenticated,
     user,
     navigateWhenAuthenticated,
