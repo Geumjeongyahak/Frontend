@@ -51,7 +51,7 @@ export default function LoginForm() {
         password: form.password,
       });
       setStatusMessage("로그인되었습니다. 잠시 후 메인으로 이동합니다.");
-      router.replace("/");
+      router.replace("/", { scroll: true });
     } catch {
       setStatusMessage("입력하신 정보를 다시 확인해주세요.");
     } finally {

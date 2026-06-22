@@ -51,6 +51,13 @@ export default function Header() {
     return null;
   }
 
+  const shouldHideOnMobile =
+    pathname === "/" ||
+    pathname === "/notifications" ||
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/mypage";
+
   async function handleLogout() {
     await signOut();
     router.replace("/");
@@ -58,7 +65,11 @@ export default function Header() {
 
   return (
     <>
-      <HeaderContainer $isOpen={isMenuOpen} onMouseLeave={() => setIsMenuOpen(false)}>
+      <HeaderContainer
+        $isOpen={isMenuOpen}
+        $hideOnMobile={shouldHideOnMobile}
+        onMouseLeave={() => setIsMenuOpen(false)}
+      >
         <HeaderWrapper $isOpen={isMenuOpen}>
           <Inner>
             <LogoArea href="/" $isOpen={isMenuOpen} onMouseEnter={() => setIsMenuOpen(false)}>
@@ -131,12 +142,16 @@ export default function Header() {
   );
 }
 
-const HeaderContainer = styled.div<{ $isOpen: boolean }>`
+const HeaderContainer = styled.div<{ $isOpen: boolean; $hideOnMobile: boolean }>`
   position: sticky;
   top: 0;
   z-index: 20;
   width: 100%;
   background-color: ${({ $isOpen }) => ($isOpen ? colors.point : colors.background)};
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    display: ${({ $hideOnMobile }) => ($hideOnMobile ? "none" : "block")};
+  }
 `;
 
 const HeaderWrapper = styled.header<{ $isOpen: boolean }>`
