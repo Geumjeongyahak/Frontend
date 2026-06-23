@@ -51,7 +51,6 @@ export default function AbsenceListPageClient() {
     queryFn: () =>
       getAbsenceRequests({
         keyword: searchKeyword.trim() || undefined,
-        mine: mineOnly,
         page: requestedPage - 1,
         size: ITEMS_PER_PAGE,
       }),

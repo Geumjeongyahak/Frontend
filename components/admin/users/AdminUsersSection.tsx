@@ -29,6 +29,7 @@ import {
 } from "@/components/admin/AdminDashboardSectionParts";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { toBirthDateInputValue } from "@/utils/birthDate";
+import { openDatePicker } from "@/utils/datePicker";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
 
 const USERS_PER_PAGE = 11;
@@ -204,7 +205,8 @@ export function AdminUsersSection({
       name: detail?.name ?? userForm.name,
       phoneNumber: detail?.phoneNumber ?? userForm.phoneNumber,
       birthDate:
-        toBirthDateInputValue(detail?.residentRegistrationNumberPrefix) || userForm.birthDate,
+        toBirthDateInputValue(detail?.birthDate ?? detail?.residentRegistrationNumberPrefix) ||
+        userForm.birthDate,
       role: detail?.role ?? userForm.role,
       departmentId:
         detail?.departmentId !== null && detail?.departmentId !== undefined
@@ -227,7 +229,8 @@ export function AdminUsersSection({
         name: detail.name ?? current.name,
         phoneNumber: detail.phoneNumber ?? current.phoneNumber,
         birthDate:
-          toBirthDateInputValue(detail.residentRegistrationNumberPrefix) || current.birthDate,
+          toBirthDateInputValue(detail.birthDate ?? detail.residentRegistrationNumberPrefix) ||
+          current.birthDate,
         role: detail.role ?? current.role,
         departmentId:
           detail.departmentId !== null && detail.departmentId !== undefined
@@ -250,7 +253,9 @@ export function AdminUsersSection({
           name: userDetailQuery.data.name ?? userForm.name,
           phoneNumber: userDetailQuery.data.phoneNumber ?? userForm.phoneNumber,
           birthDate:
-            toBirthDateInputValue(userDetailQuery.data.residentRegistrationNumberPrefix) ||
+            toBirthDateInputValue(
+              userDetailQuery.data.birthDate ?? userDetailQuery.data.residentRegistrationNumberPrefix,
+            ) ||
             userForm.birthDate,
           role: userDetailQuery.data.role ?? userForm.role,
           departmentId:
@@ -663,7 +668,8 @@ export function AdminUsersSection({
                     createUserMutation.isPending ||
                     !userForm.name.trim() ||
                     !userForm.email.trim() ||
-                    !userForm.password
+                    !userForm.password ||
+                    !userForm.birthDate
                   }
                 >
                   생성
@@ -785,6 +791,7 @@ function UserFields({
           type="date"
           value={form.birthDate}
           disabled={disabled}
+          onClick={(event) => openDatePicker(event.currentTarget)}
           onChange={(event) =>
             setUserForm((current) => ({
               ...current,

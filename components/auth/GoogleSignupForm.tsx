@@ -15,7 +15,7 @@ import {
   SubmitButton,
 } from "@/components/auth/AuthFormParts";
 import AuthShell from "@/components/auth/AuthShell";
-import { toResidentRegistrationNumberPrefix } from "@/utils/birthDate";
+import { openDatePicker } from "@/utils/datePicker";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
 
 type GoogleSignupFormState = {
@@ -64,7 +64,7 @@ export default function GoogleSignupForm({ searchParams }: GoogleSignupFormProps
         tempToken,
         name: form.name.trim(),
         phoneNumber: form.phoneNumber.trim() || undefined,
-        residentRegistrationNumberPrefix: toResidentRegistrationNumberPrefix(form.birthDate),
+        birthDate: form.birthDate,
       });
       clearGoogleOAuthIntent();
       setStatusMessage("구글 회원가입이 완료되었습니다. 잠시 후 메인으로 이동합니다.");
@@ -102,6 +102,7 @@ export default function GoogleSignupForm({ searchParams }: GoogleSignupFormProps
               type="date"
               autoComplete="bday"
               value={form.birthDate}
+              onClick={(event) => openDatePicker(event.currentTarget)}
               onChange={(event) =>
                 setForm((current) => ({ ...current, birthDate: event.target.value }))
               }

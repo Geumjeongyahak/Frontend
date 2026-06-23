@@ -24,7 +24,7 @@ export const USER_LIST_RESPONSE = {
 export const USER_DETAIL_RESPONSE = USER_LIST_RESPONSE.content[0];
 export const USER_ME_RESPONSE = {
   ...USER_DETAIL_RESPONSE,
-  residentRegistrationNumberPrefix: "900101",
+  birthDate: "1990-01-01",
   phoneNumber: "010-2222-3333",
   teacherAssignments: [{ classroomId: 1, classroomName: "벚꽃반", subjectName: "국어" }],
 };
@@ -64,10 +64,10 @@ export const userHandlers: RequestHandler[] = [
 
     const body = (await request.json()) as {
       email?: string;
-      nickname?: string;
       name?: string;
+      birthDate?: string;
     };
-    if (!body.email || !body.nickname || !body.name) {
+    if (!body.email || !body.name || !body.birthDate) {
       return HttpResponse.json({ message: "Invalid user payload" }, { status: 400 });
     }
 

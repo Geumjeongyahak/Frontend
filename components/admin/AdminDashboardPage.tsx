@@ -98,11 +98,12 @@ import type { PermissionDefinitionDto } from "@/api/user/user.dto";
 import { getLessonExchangeRequests } from "@/api/lessonExchange/lessonExchange.api";
 import { chargeVendor, getVendors } from "@/api/vendor/vendor.api";
 import type { VendorResponseDto } from "@/api/vendor/vendor.dto";
+import type { UserListItemDto } from "@/api/user/user.dto";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
-import { toBirthDateInputValue, toResidentRegistrationNumberPrefix } from "@/utils/birthDate";
+import { toBirthDateInputValue } from "@/utils/birthDate";
 
 const navigationItems: { key: AdminMenu; label: string }[] = [
   { key: "dashboard", label: "대시보드" },
@@ -290,12 +291,10 @@ function mapCreateUserFormToPayload(form: UserFormState) {
 
   return {
     email,
-    nickname: form.nickname.trim() || name || email,
     password: form.password,
     name,
     phoneNumber: form.phoneNumber.trim() || undefined,
-    residentRegistrationNumberPrefix:
-      toResidentRegistrationNumberPrefix(form.birthDate) || undefined,
+    birthDate: form.birthDate,
     role: form.role,
     departmentId: form.departmentId ? (toNumber(form.departmentId) ?? null) : null,
   };
@@ -306,8 +305,7 @@ function mapUpdateUserFormToPayload(form: UserFormState) {
     email: form.email.trim(),
     name: form.name.trim(),
     phoneNumber: form.phoneNumber.trim() || undefined,
-    residentRegistrationNumberPrefix:
-      toResidentRegistrationNumberPrefix(form.birthDate) || undefined,
+    birthDate: form.birthDate || undefined,
     role: form.role,
     departmentId: form.departmentId ? (toNumber(form.departmentId) ?? null) : null,
   };
@@ -557,12 +555,10 @@ export default function AdminDashboardPage() {
   const purchasesQuery = useQuery({
     queryKey: queryKeys.admin.purchaseRequests({
       status: purchaseStatus || undefined,
-      keyword: purchaseSearch.trim() || undefined,
     }),
     queryFn: () =>
       getAllPurchaseRequests({
         status: purchaseStatus || undefined,
-        keyword: purchaseSearch.trim() || undefined,
       }),
     enabled: isAdmin,
   });
@@ -811,7 +807,7 @@ export default function AdminDashboardPage() {
     toast.error(message);
   }
 
-  function selectUser(item: (typeof users)[number]) {
+  function selectUser(item: UserListItemDto) {
     if (!item.id) {
       return;
     }
@@ -824,7 +820,7 @@ export default function AdminDashboardPage() {
       password: "",
       name: item.name ?? "",
       phoneNumber: item.phoneNumber ?? "",
-      birthDate: toBirthDateInputValue(item.residentRegistrationNumberPrefix),
+      birthDate: toBirthDateInputValue(item.birthDate ?? item.residentRegistrationNumberPrefix) || "",
       role: item.role ?? "VOLUNTEER",
       departmentId:
         item.departmentId !== null && item.departmentId !== undefined

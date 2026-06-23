@@ -77,12 +77,16 @@ export default function TeacherApplyFormPage() {
 
     setForm((current) => ({
       ...current,
-      birthDate: current.birthDate || toBirthDateInputValue(user?.residentRegistrationNumberPrefix),
+      birthDate:
+        current.birthDate ||
+        toBirthDateInputValue(user?.birthDate ?? user?.residentRegistrationNumberPrefix) ||
+        "",
       email: current.email || user?.email || "",
       phoneNumber: current.phoneNumber || user?.phoneNumber || "",
     }));
   }, [
     isAuthenticated,
+    user?.birthDate,
     user?.email,
     user?.phoneNumber,
     user?.residentRegistrationNumberPrefix,

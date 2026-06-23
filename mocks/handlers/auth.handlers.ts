@@ -30,7 +30,7 @@ export const DEFAULT_SIGNUP_REQUEST: SignupRequestDto = {
   name: "New User",
   email: "new-user@example.com",
   phoneNumber: "010-0000-0000",
-  residentRegistrationNumberPrefix: "900101",
+  birthDate: "1990-01-01",
 };
 
 export const DEFAULT_TOKEN_RESPONSE: TokenResponseDto = {
@@ -57,7 +57,7 @@ export const authHandlers = [
   http.post(`${API_BASE_URL}/api/v1/auth/signup`, async ({ request }) => {
     const body = (await request.json()) as SignupRequestDto;
 
-    if (!body.email || !body.password || !body.name || !body.residentRegistrationNumberPrefix) {
+    if (!body.email || !body.password || !body.name || !body.birthDate) {
       return HttpResponse.json({ message: "Invalid signup payload" }, { status: 400 });
     }
 

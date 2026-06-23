@@ -200,7 +200,7 @@ describe("auth.api", () => {
       tempToken: "temp-token",
       name: "User",
       phoneNumber: "010-0000-0000",
-      residentRegistrationNumberPrefix: "900101",
+      birthDate: "1990-01-01",
     });
     await googleLogin({ tempToken: "temp-token" });
     await connectLocalAccount({ tempToken: "temp-token" });
@@ -209,7 +209,7 @@ describe("auth.api", () => {
       tempToken: "temp-token",
       name: "User",
       phoneNumber: "010-0000-0000",
-      residentRegistrationNumberPrefix: "900101",
+      birthDate: "1990-01-01",
     });
     expect(observedLoginBody).toEqual({ tempToken: "temp-token" });
     expect(observedConnectBody).toEqual({ tempToken: "temp-token" });
