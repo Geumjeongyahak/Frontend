@@ -11,6 +11,9 @@ export const LESSON_LIST_RESPONSE = [
     endTime: "15:00",
     teacherName: "Teacher One",
     subjectName: "English",
+    isExchanged: false,
+    isAbsent: false,
+    exchangedLessonDate: null,
   },
 ];
 

@@ -1,8 +1,6 @@
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
-import type { DailyScheduleSummaryResponseDto } from "@/api/dailySchedule/dailySchedule.dto";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
-import type { AbsenceRequestResponseDto } from "@/api/request/request.dto";
 import type { SubjectDayOfWeek, SubjectDetailResponseDto } from "@/api/subject/subject.dto";
 
 dayjs.extend(isoWeek);
@@ -29,17 +27,6 @@ export type WeeklyScheduleOverride = {
   teacherName?: string;
   subjectName?: string;
   relatedDate?: string;
-};
-
-type LessonWithExchangeFields = LessonSummaryResponseDto & {
-  status?: string;
-  exchangeDate?: string;
-  exchangeWithDate?: string;
-  exchangedDate?: string;
-  exchangedFromDate?: string;
-  exchangedToDate?: string;
-  originalLessonDate?: string;
-  targetLessonDate?: string;
 };
 
 export function getWeekRange(anchorDate = new Date()) {
@@ -73,66 +60,18 @@ export function getPeriodSubject(subjects: SubjectDetailResponseDto[], period: n
 export function buildScheduleOverrides(
   cellSubjects: SubjectDetailResponseDto[],
   lessons: LessonSummaryResponseDto[],
-  dailySchedules: DailyScheduleSummaryResponseDto[],
-  absenceRequests: AbsenceRequestResponseDto[],
   classroomId: number | null,
   date: string,
 ) {
   const overrides = new Map<number, WeeklyScheduleOverride>();
   if (classroomId == null) return overrides;
 
-  const dailySchedule = dailySchedules.find(
-    (schedule) => schedule.classroomId === classroomId && schedule.lessonDate === date,
-  );
-  const approvedAbsenceRequest = absenceRequests.find(
-    (request) =>
-      request.classroomId === classroomId &&
-      request.lessonDate === date &&
-      request.status === "APPROVED",
-  );
-
-  if (dailySchedule?.status === "CANCELLED") {
-    if (cellSubjects.length === 0) {
-      overrides.set(DISPLAY_PERIODS[0], {
-        status: "CANCELLED",
-        teacherName: dailySchedule.teacherName,
-      });
-    }
-
-    for (const subject of cellSubjects) {
-      if (typeof subject.period === "number") {
-        overrides.set(subject.period, {
-          status: "CANCELLED",
-          teacherName: dailySchedule.teacherName,
-        });
-      }
-    }
-  }
-
-  if (approvedAbsenceRequest) {
-    if (cellSubjects.length === 0) {
-      overrides.set(DISPLAY_PERIODS[0], {
-        status: "CANCELLED",
-        teacherName: approvedAbsenceRequest.requestedByName,
-      });
-    }
-
-    for (const subject of cellSubjects) {
-      if (typeof subject.period === "number" && !overrides.has(subject.period)) {
-        overrides.set(subject.period, {
-          status: "CANCELLED",
-          teacherName: approvedAbsenceRequest.requestedByName,
-        });
-      }
-    }
-  }
-
-  for (const lesson of lessons as LessonWithExchangeFields[]) {
+  for (const lesson of lessons) {
     if (lesson.classroomId !== classroomId || lesson.date !== date || typeof lesson.period !== "number") {
       continue;
     }
 
-    if (lesson.status === "CANCELED" || lesson.status === "CANCELLED") {
+    if (lesson.isAbsent || lesson.status === "CANCELED" || lesson.status === "CANCELLED") {
       overrides.set(lesson.period, {
         status: "CANCELLED",
         teacherName: lesson.teacherName,
@@ -141,34 +80,15 @@ export function buildScheduleOverrides(
       continue;
     }
 
-    const baseSubject = getPeriodSubject(cellSubjects, lesson.period);
-    const hasTeacherChanged =
-      Boolean(baseSubject?.teacherName && lesson.teacherName) &&
-      baseSubject?.teacherName !== lesson.teacherName;
-    const hasSubjectChanged =
-      Boolean(baseSubject?.name && lesson.subjectName) && baseSubject?.name !== lesson.subjectName;
-
-    if (hasTeacherChanged || hasSubjectChanged) {
+    if (lesson.isExchanged) {
       overrides.set(lesson.period, {
         status: "EXCHANGED",
         teacherName: lesson.teacherName,
         subjectName: lesson.subjectName,
-        relatedDate: getExchangeRelatedDate(lesson),
+        relatedDate: lesson.exchangedLessonDate ?? undefined,
       });
     }
   }
 
   return overrides;
-}
-
-function getExchangeRelatedDate(lesson: LessonWithExchangeFields) {
-  return (
-    lesson.exchangeWithDate ??
-    lesson.exchangeDate ??
-    lesson.exchangedDate ??
-    lesson.exchangedFromDate ??
-    lesson.exchangedToDate ??
-    lesson.originalLessonDate ??
-    lesson.targetLessonDate
-  );
 }

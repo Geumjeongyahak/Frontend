@@ -111,7 +111,8 @@ export function toMyLessonCardItems(lessons: LessonSummaryResponseDto[] = []) {
         (left.startTime ?? "99:99").localeCompare(right.startTime ?? "99:99"),
       );
       const isCancelled = ordered.every(
-        (lesson) => lesson.status === "CANCELED" || lesson.status === "CANCELLED",
+        (lesson) =>
+          lesson.isAbsent || lesson.status === "CANCELED" || lesson.status === "CANCELLED",
       );
 
       return {
@@ -131,7 +132,7 @@ export function toMyLessonCardItems(lessons: LessonSummaryResponseDto[] = []) {
           subjectName: lesson.subjectName,
           startTime: lesson.startTime,
           endTime: lesson.endTime,
-          status: lesson.status,
+          status: lesson.isAbsent ? "CANCELLED" : lesson.status,
         })),
       };
     }),

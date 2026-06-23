@@ -38,13 +38,9 @@ export interface LessonSummaryResponseDto {
   subjectName?: string;
   classroomId?: number;
   classroomName?: string;
-  exchangeDate?: string;
-  exchangeWithDate?: string;
-  exchangedDate?: string;
-  exchangedFromDate?: string;
-  exchangedToDate?: string;
-  originalLessonDate?: string;
-  targetLessonDate?: string;
+  isExchanged?: boolean;
+  isAbsent?: boolean;
+  exchangedLessonDate?: string | null;
 }
 
 export type LessonListItemDto = LessonSummaryResponseDto;

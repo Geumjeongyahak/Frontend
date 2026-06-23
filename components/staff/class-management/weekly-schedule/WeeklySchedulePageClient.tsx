@@ -7,11 +7,8 @@ import styled from "styled-components";
 import { IconCalendarMonth } from "@tabler/icons-react";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import type { ClassroomListItemDto, ClassroomType } from "@/api/classroom/classroom.dto";
-import { getDailySchedules } from "@/api/dailySchedule/dailySchedule.api";
 import { getLessons } from "@/api/lesson/lesson.api";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
-import { getAbsenceRequests } from "@/api/request/request.api";
-import type { AbsenceRequestResponseDto } from "@/api/request/request.dto";
 import { getSubjects } from "@/api/subject/subject.api";
 import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
 import {
@@ -70,8 +67,6 @@ type ScheduleTableProps = {
   columns: typeof WEEKDAY_COLUMNS | typeof WEEKEND_COLUMNS;
   weekStartDate: string;
   lessons: Awaited<ReturnType<typeof getLessons>>;
-  dailySchedules: Awaited<ReturnType<typeof getDailySchedules>>["content"];
-  absenceRequests: AbsenceRequestResponseDto[];
   onSelectCell: (selection: ScheduleCellSelection) => void;
 };
 
@@ -166,8 +161,6 @@ function ScheduleTable({
   columns,
   weekStartDate,
   lessons,
-  dailySchedules,
-  absenceRequests,
   onSelectCell,
 }: ScheduleTableProps) {
   return (
@@ -195,14 +188,7 @@ function ScheduleTable({
                 {columns.map((column) => {
                   const date = getDateForColumn(weekStartDate, column.isoWeekday);
                   const cellSubjects = getSubjectsForCell(subjects, classroomId, column.value);
-                  const overrides = buildScheduleOverrides(
-                    cellSubjects,
-                    lessons,
-                    dailySchedules,
-                    absenceRequests,
-                    classroomId,
-                    date,
-                  );
+                  const overrides = buildScheduleOverrides(cellSubjects, lessons, classroomId, date);
                   const firstOverride = [...overrides.values()][0];
                   const hasRegisteredSubject = cellSubjects.length > 0;
                   const hasTeacher = hasAssignedTeacher(cellSubjects, firstOverride);
@@ -314,17 +300,6 @@ export default function WeeklySchedulePageClient() {
     enabled: isAuthenticated,
   });
 
-  const dailySchedulesQuery = useQuery({
-    queryKey: ["daily-schedules", "weekly-schedule", weekRange.from, weekRange.to] as const,
-    queryFn: () => getDailySchedules({ page: 0, size: 100 }),
-    enabled: isAuthenticated,
-  });
-  const absenceRequestsQuery = useQuery({
-    queryKey: [...queryKeys.requests.absenceList(), "weekly-schedule", weekRange.from, weekRange.to],
-    queryFn: () => getAbsenceRequests({ status: "APPROVED", page: 0, size: 100 }),
-    enabled: isAuthenticated,
-  });
-
   const classrooms = useMemo(
     () => sortClassrooms(classroomsQuery.data?.content ?? []),
     [classroomsQuery.data?.content],
@@ -333,32 +308,12 @@ export default function WeeklySchedulePageClient() {
     const items = Array.isArray(subjectsQuery.data) ? subjectsQuery.data : [];
     return filterActiveSubjects(items);
   }, [subjectsQuery.data]);
-  const dailySchedules = useMemo(
-    () =>
-      (dailySchedulesQuery.data?.content ?? []).filter(
-        (schedule) => schedule.lessonDate >= weekRange.from && schedule.lessonDate <= weekRange.to,
-      ),
-    [dailySchedulesQuery.data?.content, weekRange.from, weekRange.to],
-  );
-  const approvedAbsenceRequests = useMemo(
-    () =>
-      (absenceRequestsQuery.data?.content ?? []).filter(
-        (request) =>
-          request.lessonDate &&
-          request.lessonDate >= weekRange.from &&
-          request.lessonDate <= weekRange.to &&
-          request.status === "APPROVED",
-      ),
-    [absenceRequestsQuery.data?.content, weekRange.from, weekRange.to],
-  );
 
   const weekdayClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKDAY"));
   const weekendClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKEND"));
   const hasClassrooms = weekdayClassrooms.length > 0 || weekendClassrooms.length > 0;
   const isBaseLoading = classroomsQuery.isLoading || subjectsQuery.isLoading;
   const isBaseError = classroomsQuery.isError || subjectsQuery.isError;
-  const hasScheduleOverlayError =
-    lessonsQuery.isError || dailySchedulesQuery.isError || absenceRequestsQuery.isError;
 
   const openDatePicker = () => {
     const input = datePickerRef.current;
@@ -422,15 +377,13 @@ export default function WeeklySchedulePageClient() {
         <StateText>로그인이 필요합니다.</StateText>
       ) : null}
       {isBaseError ? <StateText role="alert">시간표를 불러오지 못했습니다.</StateText> : null}
-      {!isBaseLoading && !isBaseError && isAuthenticated && hasScheduleOverlayError ? (
-        <InlineNotice role="status">
-          교환/결강 반영 정보를 불러오지 못해 기본 시간표만 표시합니다.
-        </InlineNotice>
+      {!isBaseLoading && !isBaseError && isAuthenticated && lessonsQuery.isError ? (
+        <StateText role="alert">시간표를 불러오지 못했습니다.</StateText>
       ) : null}
       {!isBaseLoading && !isBaseError && isAuthenticated && !hasClassrooms ? (
         <StateText>주중 또는 주말 분반이 없습니다.</StateText>
       ) : null}
-      {!isBaseLoading && !isBaseError && isAuthenticated && hasClassrooms ? (
+      {!isBaseLoading && !isBaseError && isAuthenticated && !lessonsQuery.isError && hasClassrooms ? (
         <ScheduleShell>
           <ScheduleStack>
             <ScheduleContentTrack>
@@ -440,9 +393,7 @@ export default function WeeklySchedulePageClient() {
                 subjects={subjects}
                 columns={WEEKDAY_COLUMNS}
                 weekStartDate={weekRange.from}
-                lessons={lessonsQuery.isError ? [] : (lessonsQuery.data ?? [])}
-                dailySchedules={dailySchedulesQuery.isError ? [] : dailySchedules}
-                absenceRequests={absenceRequestsQuery.isError ? [] : approvedAbsenceRequests}
+                lessons={lessonsQuery.data ?? []}
                 onSelectCell={setSelectedCell}
               />
               <ScheduleTable
@@ -451,9 +402,7 @@ export default function WeeklySchedulePageClient() {
                 subjects={subjects}
                 columns={WEEKEND_COLUMNS}
                 weekStartDate={weekRange.from}
-                lessons={lessonsQuery.isError ? [] : (lessonsQuery.data ?? [])}
-                dailySchedules={dailySchedulesQuery.isError ? [] : dailySchedules}
-                absenceRequests={absenceRequestsQuery.isError ? [] : approvedAbsenceRequests}
+                lessons={lessonsQuery.data ?? []}
                 onSelectCell={setSelectedCell}
               />
             </ScheduleContentTrack>
@@ -899,13 +848,6 @@ const SubjectNameText = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-`;
-
-const InlineNotice = styled.p`
-  margin: 0 0 ${spacing.space16};
-  color: #64706c;
-  font-size: ${typography.fontSize13};
-  line-height: ${typography.lineHeight150};
 `;
 
 const ModalBackdrop = styled.div`
