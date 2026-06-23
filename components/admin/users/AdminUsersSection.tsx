@@ -202,6 +202,7 @@ export function AdminUsersSection({
       email: detail?.email ?? userForm.email,
       nickname: detail?.nickname ?? userForm.nickname,
       password: "",
+      confirmPassword: "",
       name: detail?.name ?? userForm.name,
       phoneNumber: detail?.phoneNumber ?? userForm.phoneNumber,
       birthDate:
@@ -226,6 +227,7 @@ export function AdminUsersSection({
         email: detail.email ?? current.email,
         nickname: detail.nickname ?? current.nickname,
         password: "",
+        confirmPassword: "",
         name: detail.name ?? current.name,
         phoneNumber: detail.phoneNumber ?? current.phoneNumber,
         birthDate:
@@ -250,6 +252,7 @@ export function AdminUsersSection({
           email: userDetailQuery.data.email ?? userForm.email,
           nickname: userDetailQuery.data.nickname ?? userForm.nickname,
           password: "",
+          confirmPassword: "",
           name: userDetailQuery.data.name ?? userForm.name,
           phoneNumber: userDetailQuery.data.phoneNumber ?? userForm.phoneNumber,
           birthDate:
@@ -651,6 +654,9 @@ export function AdminUsersSection({
             <FormGrid
               onSubmit={(event) => {
                 event.preventDefault();
+                if (!event.currentTarget.reportValidity()) {
+                  return;
+                }
                 createUserMutation.mutate();
               }}
             >
@@ -669,6 +675,7 @@ export function AdminUsersSection({
                     !userForm.name.trim() ||
                     !userForm.email.trim() ||
                     !userForm.password ||
+                    userForm.password !== userForm.confirmPassword ||
                     !userForm.birthDate
                   }
                 >
@@ -735,6 +742,13 @@ function UserFields({
   includePassword = false,
   setUserForm,
 }: UserFieldsProps) {
+  const passwordMatchState =
+    form.confirmPassword.length === 0
+      ? "idle"
+      : form.password === form.confirmPassword
+        ? "matched"
+        : "mismatched";
+
   return (
     <>
       <Label>
@@ -759,18 +773,39 @@ function UserFields({
         />
       </Label>
       {includePassword ? (
-        <Label>
-          비밀번호
-          <TextInput
-            type="password"
-            value={form.password}
-            disabled={disabled}
-            onChange={(event) =>
-              setUserForm((current) => ({ ...current, password: event.target.value }))
-            }
-            required
-          />
-        </Label>
+        <>
+          <Label>
+            비밀번호
+            <PasswordInput
+              type="password"
+              value={form.password}
+              disabled={disabled}
+              onChange={(event) =>
+                setUserForm((current) => ({ ...current, password: event.target.value }))
+              }
+              required
+              minLength={8}
+              $matchState={passwordMatchState}
+            />
+          </Label>
+          <Label>
+            비밀번호 확인
+            <PasswordInput
+              type="password"
+              value={form.confirmPassword}
+              disabled={disabled}
+              onChange={(event) =>
+                setUserForm((current) => ({
+                  ...current,
+                  confirmPassword: event.target.value,
+                }))
+              }
+              required
+              minLength={8}
+              $matchState={passwordMatchState}
+            />
+          </Label>
+        </>
       ) : null}
       <Label>
         전화번호
@@ -791,6 +826,7 @@ function UserFields({
           type="date"
           value={form.birthDate}
           disabled={disabled}
+          required
           onClick={(event) => openDatePicker(event.currentTarget)}
           onChange={(event) =>
             setUserForm((current) => ({
@@ -1198,5 +1234,34 @@ const UserActionButton = styled.button.attrs<{ type?: "button" | "submit" | "res
     min-height: 2.375rem;
     padding: 0 ${spacing.space16};
     font-size: ${typography.fontSize14};
+  }
+`;
+
+const PasswordInput = styled(TextInput)<{
+  $matchState: "idle" | "matched" | "mismatched";
+}>`
+  border-color: ${({ $matchState }) =>
+    $matchState === "matched"
+      ? colors.point
+      : $matchState === "mismatched"
+        ? "#e5a19b"
+        : colors.border};
+  background-color: ${({ $matchState }) =>
+    $matchState === "matched"
+      ? "#f4faef"
+      : $matchState === "mismatched"
+        ? "#fff6f5"
+        : colors.white};
+
+  &:focus {
+    border-color: ${({ $matchState }) =>
+      $matchState === "matched" ? colors.point : $matchState === "mismatched" ? "#de8c85" : colors.point};
+    outline: 2px solid
+      ${({ $matchState }) =>
+        $matchState === "matched"
+          ? colors.pointSoft
+          : $matchState === "mismatched"
+            ? "#f8d8d4"
+            : colors.pointSoft};
   }
 `;
