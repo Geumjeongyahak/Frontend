@@ -45,11 +45,26 @@ export function getSubjectsForCell(
   subjects: SubjectDetailResponseDto[],
   classroomId: number | null,
   dayOfWeek: SubjectDayOfWeek,
+  date?: string,
 ) {
   if (classroomId == null) return [];
 
   return subjects
-    .filter((subject) => subject.classroomId === classroomId && subject.dayOfWeek === dayOfWeek)
+    .filter((subject) => {
+      if (subject.classroomId !== classroomId || subject.dayOfWeek !== dayOfWeek) {
+        return false;
+      }
+
+      if (date && subject.startAt && subject.startAt > date) {
+        return false;
+      }
+
+      if (date && subject.endAt && subject.endAt < date) {
+        return false;
+      }
+
+      return true;
+    })
     .sort((a, b) => (a.period ?? 0) - (b.period ?? 0));
 }
 

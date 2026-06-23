@@ -187,7 +187,7 @@ function ScheduleTable({
                 </ClassroomCell>
                 {columns.map((column) => {
                   const date = getDateForColumn(weekStartDate, column.isoWeekday);
-                  const cellSubjects = getSubjectsForCell(subjects, classroomId, column.value);
+                  const cellSubjects = getSubjectsForCell(subjects, classroomId, column.value, date);
                   const overrides = buildScheduleOverrides(cellSubjects, lessons, classroomId, date);
                   const firstOverride = [...overrides.values()][0];
                   const hasRegisteredSubject = cellSubjects.length > 0;
