@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { IconCalendarMonth } from "@tabler/icons-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import styled, { css } from "styled-components";
 import { createAbsenceRequest } from "@/api/request/request.api";
 import { getCurrentUser } from "@/api/user/user.api";
@@ -12,6 +12,7 @@ import { parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export default function AbsenceRequestForm() {
+  const queryClient = useQueryClient();
   const [lessonDateText, setLessonDateText] = useState("");
   const lessonDateInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -36,7 +37,13 @@ export default function AbsenceRequestForm() {
 
   const createAbsenceMutation = useMutation({
     mutationFn: createAbsenceRequest,
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.absenceList(),
+      });
+      queryClient.removeQueries({
+        queryKey: queryKeys.requests.absenceList(),
+      });
       router.push("/staff/class-management/absence-request");
       router.refresh();
     },

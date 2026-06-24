@@ -51,13 +51,7 @@ type StaffSection = (typeof staffSections)[number];
 
 function isCurrentStaffPath(pathname: string, href: string) {
   if (href === "/staff/class-management/class-journal") {
-    return (
-      pathname === href ||
-      pathname.startsWith("/staff/class-management/class-journal/") ||
-      /^\/staff\/class-management\/(?!(weekly-schedule|exchange-request|absence-request)(\/|$))[^/]+$/.test(
-        pathname,
-      )
-    );
+    return pathname === href || pathname.startsWith("/staff/class-management/class-journal/");
   }
 
   return pathname === href || pathname.startsWith(`${href}/`);

@@ -7,18 +7,14 @@ import styled from "styled-components";
 import { IconCalendarMonth } from "@tabler/icons-react";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import type { ClassroomListItemDto, ClassroomType } from "@/api/classroom/classroom.dto";
-import { getDailySchedules } from "@/api/dailySchedule/dailySchedule.api";
 import { getLessons } from "@/api/lesson/lesson.api";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
-import { getAbsenceRequests } from "@/api/request/request.api";
-import type { AbsenceRequestResponseDto } from "@/api/request/request.dto";
 import { getSubjects } from "@/api/subject/subject.api";
 import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
 import {
   filterActiveSubjects,
   formatSubjectTeacherName,
 } from "@/components/admin/subjects/shared/subjectDisplay";
-import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import {
@@ -26,6 +22,7 @@ import {
   WEEKDAY_COLUMNS,
   WEEKEND_COLUMNS,
   buildScheduleOverrides,
+  formatRelatedLessonDate,
   getDateForColumn,
   getPeriodSubject,
   getSubjectsForCell,
@@ -70,8 +67,6 @@ type ScheduleTableProps = {
   columns: typeof WEEKDAY_COLUMNS | typeof WEEKEND_COLUMNS;
   weekStartDate: string;
   lessons: Awaited<ReturnType<typeof getLessons>>;
-  dailySchedules: Awaited<ReturnType<typeof getDailySchedules>>["content"];
-  absenceRequests: AbsenceRequestResponseDto[];
   onSelectCell: (selection: ScheduleCellSelection) => void;
 };
 
@@ -120,6 +115,7 @@ function formatSubjectName(subject?: SubjectDetailResponseDto, override?: Weekly
 }
 
 function formatExchangeDescription(override: WeeklyScheduleOverride) {
+  if (override.status === "SUBSTITUTED") return "대체";
   if (override.status !== "EXCHANGED") return "";
   if (!override.relatedDate) return "교환";
   return `${override.relatedDate} 수업과 교환`;
@@ -166,8 +162,6 @@ function ScheduleTable({
   columns,
   weekStartDate,
   lessons,
-  dailySchedules,
-  absenceRequests,
   onSelectCell,
 }: ScheduleTableProps) {
   return (
@@ -194,16 +188,13 @@ function ScheduleTable({
                 </ClassroomCell>
                 {columns.map((column) => {
                   const date = getDateForColumn(weekStartDate, column.isoWeekday);
-                  const cellSubjects = getSubjectsForCell(subjects, classroomId, column.value);
-                  const overrides = buildScheduleOverrides(
-                    cellSubjects,
-                    lessons,
-                    dailySchedules,
-                    absenceRequests,
-                    classroomId,
-                    date,
-                  );
+                  const cellSubjects = getSubjectsForCell(subjects, classroomId, column.value, date);
+                  const overrides = buildScheduleOverrides(cellSubjects, lessons, classroomId, date);
                   const firstOverride = [...overrides.values()][0];
+                  const firstExchangeDate =
+                    firstOverride?.status === "EXCHANGED"
+                      ? formatRelatedLessonDate(firstOverride.relatedDate)
+                      : "";
                   const hasRegisteredSubject = cellSubjects.length > 0;
                   const hasTeacher = hasAssignedTeacher(cellSubjects, firstOverride);
                   const teacherName = getTeacherName(cellSubjects, firstOverride);
@@ -244,7 +235,11 @@ function ScheduleTable({
                       <TeacherRow>
                         {firstOverride ? (
                           <StatusPill $status={firstOverride.status}>
-                            {firstOverride.status === "EXCHANGED" ? "교환" : "결강"}
+                            {firstOverride.status === "EXCHANGED"
+                              ? "교환"
+                              : firstOverride.status === "SUBSTITUTED"
+                                ? "대체"
+                                : "결강"}
                           </StatusPill>
                         ) : null}
                         {hasRegisteredSubject ? (
@@ -254,6 +249,7 @@ function ScheduleTable({
                         ) : (
                           <EmptyText>담당 교사 미배정</EmptyText>
                         )}
+                        {firstExchangeDate ? <ExchangeDateText>{firstExchangeDate}</ExchangeDateText> : null}
                       </TeacherRow>
                       <PeriodList>
                         {DISPLAY_PERIODS.map((period) => {
@@ -289,8 +285,6 @@ function ScheduleTable({
 }
 
 export default function WeeklySchedulePageClient() {
-  const { status: authStatus } = useAuthSession();
-  const isAuthenticated = authStatus === "authenticated";
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [selectedCell, setSelectedCell] = useState<ScheduleCellSelection | null>(null);
   const weekRange = useMemo(() => getWeekRange(anchorDate), [anchorDate]);
@@ -299,30 +293,16 @@ export default function WeeklySchedulePageClient() {
   const classroomsQuery = useQuery({
     queryKey: queryKeys.classrooms.list(),
     queryFn: () => getClassrooms({ page: 0, size: 100 }),
-    enabled: isAuthenticated,
   });
 
   const subjectsQuery = useQuery({
     queryKey: queryKeys.admin.subjects(),
     queryFn: () => getSubjects(),
-    enabled: isAuthenticated,
   });
 
   const lessonsQuery = useQuery({
     queryKey: queryKeys.lessons.weekly(weekRange.from, weekRange.to),
     queryFn: () => getLessons({ from: weekRange.from, to: weekRange.to }),
-    enabled: isAuthenticated,
-  });
-
-  const dailySchedulesQuery = useQuery({
-    queryKey: ["daily-schedules", "weekly-schedule", weekRange.from, weekRange.to] as const,
-    queryFn: () => getDailySchedules({ page: 0, size: 100 }),
-    enabled: isAuthenticated,
-  });
-  const absenceRequestsQuery = useQuery({
-    queryKey: [...queryKeys.requests.absenceList(), "weekly-schedule", weekRange.from, weekRange.to],
-    queryFn: () => getAbsenceRequests({ status: "APPROVED", page: 0, size: 100 }),
-    enabled: isAuthenticated,
   });
 
   const classrooms = useMemo(
@@ -333,32 +313,12 @@ export default function WeeklySchedulePageClient() {
     const items = Array.isArray(subjectsQuery.data) ? subjectsQuery.data : [];
     return filterActiveSubjects(items);
   }, [subjectsQuery.data]);
-  const dailySchedules = useMemo(
-    () =>
-      (dailySchedulesQuery.data?.content ?? []).filter(
-        (schedule) => schedule.lessonDate >= weekRange.from && schedule.lessonDate <= weekRange.to,
-      ),
-    [dailySchedulesQuery.data?.content, weekRange.from, weekRange.to],
-  );
-  const approvedAbsenceRequests = useMemo(
-    () =>
-      (absenceRequestsQuery.data?.content ?? []).filter(
-        (request) =>
-          request.lessonDate &&
-          request.lessonDate >= weekRange.from &&
-          request.lessonDate <= weekRange.to &&
-          request.status === "APPROVED",
-      ),
-    [absenceRequestsQuery.data?.content, weekRange.from, weekRange.to],
-  );
 
   const weekdayClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKDAY"));
   const weekendClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKEND"));
   const hasClassrooms = weekdayClassrooms.length > 0 || weekendClassrooms.length > 0;
   const isBaseLoading = classroomsQuery.isLoading || subjectsQuery.isLoading;
   const isBaseError = classroomsQuery.isError || subjectsQuery.isError;
-  const hasScheduleOverlayError =
-    lessonsQuery.isError || dailySchedulesQuery.isError || absenceRequestsQuery.isError;
 
   const openDatePicker = () => {
     const input = datePickerRef.current;
@@ -417,20 +377,14 @@ export default function WeeklySchedulePageClient() {
       </HeaderRow>
 
       {isBaseLoading ? <StateText>시간표를 불러오는 중입니다.</StateText> : null}
-      {authStatus === "loading" ? <StateText>사용자 정보를 확인하는 중입니다.</StateText> : null}
-      {authStatus !== "loading" && !isAuthenticated ? (
-        <StateText>로그인이 필요합니다.</StateText>
-      ) : null}
       {isBaseError ? <StateText role="alert">시간표를 불러오지 못했습니다.</StateText> : null}
-      {!isBaseLoading && !isBaseError && isAuthenticated && hasScheduleOverlayError ? (
-        <InlineNotice role="status">
-          교환/결강 반영 정보를 불러오지 못해 기본 시간표만 표시합니다.
-        </InlineNotice>
+      {!isBaseLoading && !isBaseError && lessonsQuery.isError ? (
+        <StateText role="alert">시간표를 불러오지 못했습니다.</StateText>
       ) : null}
-      {!isBaseLoading && !isBaseError && isAuthenticated && !hasClassrooms ? (
+      {!isBaseLoading && !isBaseError && !hasClassrooms ? (
         <StateText>주중 또는 주말 분반이 없습니다.</StateText>
       ) : null}
-      {!isBaseLoading && !isBaseError && isAuthenticated && hasClassrooms ? (
+      {!isBaseLoading && !isBaseError && !lessonsQuery.isError && hasClassrooms ? (
         <ScheduleShell>
           <ScheduleStack>
             <ScheduleContentTrack>
@@ -440,9 +394,7 @@ export default function WeeklySchedulePageClient() {
                 subjects={subjects}
                 columns={WEEKDAY_COLUMNS}
                 weekStartDate={weekRange.from}
-                lessons={lessonsQuery.isError ? [] : (lessonsQuery.data ?? [])}
-                dailySchedules={dailySchedulesQuery.isError ? [] : dailySchedules}
-                absenceRequests={absenceRequestsQuery.isError ? [] : approvedAbsenceRequests}
+                lessons={lessonsQuery.data ?? []}
                 onSelectCell={setSelectedCell}
               />
               <ScheduleTable
@@ -451,9 +403,7 @@ export default function WeeklySchedulePageClient() {
                 subjects={subjects}
                 columns={WEEKEND_COLUMNS}
                 weekStartDate={weekRange.from}
-                lessons={lessonsQuery.isError ? [] : (lessonsQuery.data ?? [])}
-                dailySchedules={dailySchedulesQuery.isError ? [] : dailySchedules}
-                absenceRequests={absenceRequestsQuery.isError ? [] : approvedAbsenceRequests}
+                lessons={lessonsQuery.data ?? []}
                 onSelectCell={setSelectedCell}
               />
             </ScheduleContentTrack>
@@ -492,6 +442,9 @@ export default function WeeklySchedulePageClient() {
                     <ModalStatusText $status="EXCHANGED">
                       교환 · {period.exchangeDescription ?? "교환"}
                     </ModalStatusText>
+                  ) : null}
+                  {period.status === "SUBSTITUTED" ? (
+                    <ModalStatusText $status="SUBSTITUTED">대체</ModalStatusText>
                   ) : null}
                   {period.status === "CANCELLED" ? (
                     <ModalStatusText $status="CANCELLED">결강</ModalStatusText>
@@ -764,7 +717,7 @@ const ClassroomType = styled.span`
   line-height: ${typography.lineHeight130};
 `;
 
-const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "CANCELLED" }>`
+const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
   display: grid;
   align-content: start;
   gap: ${spacing.space4};
@@ -775,6 +728,7 @@ const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "CANCELLED" }
   border-left: 1px solid ${colors.borderStrong};
   background-color: ${({ $status }) => {
     if ($status === "EXCHANGED") return "#f4efff";
+    if ($status === "SUBSTITUTED") return "#fff8dc";
     if ($status === "CANCELLED") return "#fff4f3";
     return colors.white;
   }};
@@ -784,6 +738,7 @@ const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "CANCELLED" }
   &:hover {
     background-color: ${({ $status }) => {
       if ($status === "EXCHANGED") return "#efe8ff";
+      if ($status === "SUBSTITUTED") return "#fff2b8";
       if ($status === "CANCELLED") return "#ffeceb";
       return "#fbfcfb";
     }};
@@ -800,18 +755,22 @@ const TeacherRow = styled.div`
   min-height: 1.5rem;
 `;
 
-const StatusPill = styled.span<{ $status: "EXCHANGED" | "CANCELLED" }>`
+const StatusPill = styled.span<{ $status: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   min-height: 1.125rem;
-  border: 1px solid ${({ $status }) => ($status === "EXCHANGED" ? "#d7cafc" : "#f3b8b2")};
+  border: 1px solid
+    ${({ $status }) =>
+      $status === "EXCHANGED" ? "#d7cafc" : $status === "SUBSTITUTED" ? "#eadb86" : "#f3b8b2"};
   border-radius: ${radii.radius999};
-  background-color: ${({ $status }) => ($status === "EXCHANGED" ? "#eee7ff" : "#fde4e2")};
+  background-color: ${({ $status }) =>
+    $status === "EXCHANGED" ? "#eee7ff" : $status === "SUBSTITUTED" ? "#fff4b5" : "#fde4e2"};
   padding: 0 ${spacing.space8};
-  color: ${({ $status }) => ($status === "EXCHANGED" ? "#6846c9" : colors.notice)};
+  color: ${({ $status }) =>
+    $status === "EXCHANGED" ? "#6846c9" : $status === "SUBSTITUTED" ? "#9e7a00" : colors.notice};
   font-size: 0.6875rem;
   font-weight: 900;
   line-height: ${typography.lineHeight130};
@@ -843,6 +802,22 @@ const PeriodList = styled.div`
   gap: 0.1875rem;
 `;
 
+const ExchangeDateText = styled.p`
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  margin: 0;
+  color: ${colors.notice};
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize13};
+  }
+`;
+
 const PeriodItem = styled.div`
   display: grid;
   grid-template-columns: 3.25rem minmax(0, 1fr);
@@ -863,7 +838,7 @@ const PeriodBadge = styled.span`
 `;
 
 const SubjectBlock = styled.span<{
-  $status?: "EXCHANGED" | "CANCELLED";
+  $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED";
   $empty: boolean;
   $period: number;
 }>`
@@ -899,13 +874,6 @@ const SubjectNameText = styled.span`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-`;
-
-const InlineNotice = styled.p`
-  margin: 0 0 ${spacing.space16};
-  color: #64706c;
-  font-size: ${typography.fontSize13};
-  line-height: ${typography.lineHeight150};
 `;
 
 const ModalBackdrop = styled.div`
@@ -1001,9 +969,10 @@ const ModalPeriodTime = styled.p`
   line-height: ${typography.lineHeight130};
 `;
 
-const ModalStatusText = styled.p<{ $status: "EXCHANGED" | "CANCELLED" }>`
+const ModalStatusText = styled.p<{ $status: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
   margin: 0;
-  color: ${({ $status }) => ($status === "EXCHANGED" ? "#6846c9" : colors.notice)};
+  color: ${({ $status }) =>
+    $status === "EXCHANGED" ? "#6846c9" : $status === "SUBSTITUTED" ? "#9e7a00" : colors.notice};
   font-size: ${typography.fontSize13};
   font-weight: 800;
   line-height: ${typography.lineHeight130};

@@ -362,48 +362,49 @@ export function AdminLessonScheduleTables() {
       }
       const teacherId = parsedTeacherId;
 
-      await Promise.all(
-        cellForm.periods.map(async (periodForm) => {
-          const name = periodForm.name.trim();
-          if (!name && periodForm.subjectId != null) {
-            throw new Error("기존 항목의 과목명은 비울 수 없습니다.");
-          }
-          if (!name) return null;
-          if (!periodForm.startTime || !periodForm.endTime) {
-            throw new Error(`${periodForm.period}교시 시간을 입력해 주세요.`);
-          }
+      for (const periodForm of cellForm.periods) {
+        const name = periodForm.name.trim();
+        if (!name && periodForm.subjectId != null) {
+          throw new Error("기존 항목의 과목명은 비울 수 없습니다.");
+        }
+        if (!name) {
+          continue;
+        }
+        if (!periodForm.startTime || !periodForm.endTime) {
+          throw new Error(`${periodForm.period}교시 시간을 입력해 주세요.`);
+        }
 
-          const schedulePayload = {
-            startAt: cellForm.startAt,
-            endAt: cellForm.endAt,
-            dayOfWeek: selectedCell.dayOfWeek,
-            startTime: normalizeLessonTimeForApi(periodForm.startTime),
-            endTime: normalizeLessonTimeForApi(periodForm.endTime),
-            period: periodForm.period,
-          };
+        const schedulePayload = {
+          startAt: cellForm.startAt,
+          endAt: cellForm.endAt,
+          dayOfWeek: selectedCell.dayOfWeek,
+          startTime: normalizeLessonTimeForApi(periodForm.startTime),
+          endTime: normalizeLessonTimeForApi(periodForm.endTime),
+          period: periodForm.period,
+        };
 
-          if (periodForm.subjectId == null) {
-            return createSubject({
-              classroomId,
-              teacherId,
-              name,
-              ...schedulePayload,
-            });
-          }
+        if (periodForm.subjectId == null) {
+          await createSubject({
+            classroomId,
+            teacherId,
+            name,
+            ...schedulePayload,
+          });
+          continue;
+        }
 
-          await updateSubject({ subjectId: periodForm.subjectId }, { name });
-          await updateSubjectSchedule({ subjectId: periodForm.subjectId }, schedulePayload);
-          await assignSubjectTeacher({ subjectId: periodForm.subjectId }, { teacherId });
-          return null;
-        }),
-      );
+        await updateSubject({ subjectId: periodForm.subjectId }, { name });
+        await updateSubjectSchedule({ subjectId: periodForm.subjectId }, schedulePayload);
+        await assignSubjectTeacher({ subjectId: periodForm.subjectId }, { teacherId });
+      }
     },
     onSuccess: async () => {
       toast.success("시간표 항목을 저장했습니다.");
       await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
       closeModal();
     },
-    onError: (error) => {
+    onError: async (error) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
       setFormError(resolveScheduleMutationError(error));
     },
   });

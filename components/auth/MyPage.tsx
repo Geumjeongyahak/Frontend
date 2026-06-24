@@ -14,8 +14,8 @@ import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import {
   formatBirthDate,
   toBirthDateInputValue,
-  toResidentRegistrationNumberPrefix,
 } from "@/utils/birthDate";
+import { openDatePicker } from "@/utils/datePicker";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
 
 type EditableProfileForm = {
@@ -50,7 +50,7 @@ function createEditableForm(user: UserResponseDto | null): EditableProfileForm {
     name: user?.name ?? "",
     email: user?.email ?? "",
     phoneNumber: user?.phoneNumber ?? "",
-    birthDate: toBirthDateInputValue(user?.residentRegistrationNumberPrefix),
+    birthDate: toBirthDateInputValue(user?.birthDate ?? user?.residentRegistrationNumberPrefix) || "",
     password: "",
   };
 }
@@ -60,7 +60,7 @@ function buildUpdatePayload(form: EditableProfileForm): UpdateSelfRequestDto {
     name: form.name.trim(),
     email: form.email.trim(),
     phoneNumber: form.phoneNumber.trim() || undefined,
-    residentRegistrationNumberPrefix: toResidentRegistrationNumberPrefix(form.birthDate),
+    birthDate: form.birthDate,
   };
 
   if (form.password.length > 0) {
@@ -255,13 +255,14 @@ export default function MyPage() {
                       type="date"
                       autoComplete="bday"
                       value={form.birthDate}
+                      onClick={(event) => openDatePicker(event.currentTarget)}
                       onChange={(event) =>
                         setForm((current) => ({ ...current, birthDate: event.target.value }))
                       }
                       required
                     />
                   ) : (
-                    <ProfileValue>{formatBirthDate(user?.residentRegistrationNumberPrefix)}</ProfileValue>
+                    <ProfileValue>{formatBirthDate(user?.birthDate ?? user?.residentRegistrationNumberPrefix)}</ProfileValue>
                   )}
                 </ProfileItem>
 

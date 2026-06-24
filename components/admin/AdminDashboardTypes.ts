@@ -20,6 +20,7 @@ export type UserFormState = {
   email: string;
   nickname: string;
   password: string;
+  confirmPassword: string;
   name: string;
   phoneNumber: string;
   birthDate: string;

@@ -2,9 +2,8 @@ export interface SignupRequestDto {
   password: string;
   name: string;
   email: string;
-  profileImageUrl?: string;
   phoneNumber?: string;
-  residentRegistrationNumberPrefix: string;
+  birthDate: string;
 }
 
 export interface LoginRequestDto {
@@ -36,7 +35,7 @@ export interface GoogleSignupRequestDto {
   tempToken: string;
   name: string;
   phoneNumber?: string;
-  residentRegistrationNumberPrefix: string;
+  birthDate: string;
 }
 
 export interface GoogleLoginRequestDto {

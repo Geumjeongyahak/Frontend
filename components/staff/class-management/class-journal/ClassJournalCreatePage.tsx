@@ -224,7 +224,7 @@ export default function ClassJournalCreatePage() {
 
       toast.success("수업 일지가 등록되었습니다.");
       if (data.dailyScheduleId) {
-        router.push(`/staff/class-management/${data.dailyScheduleId}`);
+        router.push(`/staff/class-management/class-journal/${data.dailyScheduleId}`);
         return;
       }
       router.push("/staff/class-management/class-journal");

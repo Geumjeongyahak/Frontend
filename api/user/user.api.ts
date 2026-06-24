@@ -1,4 +1,5 @@
 import authClient from "../client/authClient";
+import { toBirthDateInputValue, toResidentRegistrationNumberPrefix } from "../../utils/birthDate";
 import type {
   CreateUserRequestDto,
   PermissionDefinitionDto,
@@ -13,24 +14,40 @@ import type {
   TeacherContactResponseDto,
 } from "./user.dto";
 
+function normalizeUserResponse(user: UserResponseDto) {
+  const birthDate = toBirthDateInputValue(user.birthDate ?? user.residentRegistrationNumberPrefix);
+  const residentRegistrationNumberPrefix =
+    user.residentRegistrationNumberPrefix ??
+    (user.birthDate ? toResidentRegistrationNumberPrefix(user.birthDate) || undefined : undefined);
+
+  return {
+    ...user,
+    birthDate: birthDate || user.birthDate,
+    residentRegistrationNumberPrefix,
+  };
+}
+
 // 사용자 목록을 조회하는 요청
 export async function getUsers(query?: UserListQueryParamsDto) {
   const response = await authClient.get<UserListResponseDto>("/api/v1/users", {
     params: query,
   });
-  return response.data;
+  return {
+    ...response.data,
+    content: response.data.content?.map(normalizeUserResponse),
+  };
 }
 
 // 새 사용자를 생성하는 요청
 export async function createUser(body: CreateUserRequestDto) {
   const response = await authClient.post<UserResponseDto>("/api/v1/users", body);
-  return response.data;
+  return normalizeUserResponse(response.data);
 }
 
 // 특정 사용자 상세 정보를 조회하는 요청
 export async function getUserDetail(pathParams: UserPathParamsDto) {
   const response = await authClient.get<UserResponseDto>(`/api/v1/users/${pathParams.userId}`);
-  return response.data;
+  return normalizeUserResponse(response.data);
 }
 
 // 특정 사용자 정보를 수정하는 요청
@@ -39,7 +56,7 @@ export async function updateUser(pathParams: UserPathParamsDto, body: UpdateUser
     `/api/v1/users/${pathParams.userId}`,
     body,
   );
-  return response.data;
+  return normalizeUserResponse(response.data);
 }
 
 // 특정 사용자를 삭제하는 요청
@@ -50,13 +67,13 @@ export async function deleteUser(pathParams: UserPathParamsDto) {
 // 현재 로그인한 사용자 정보를 조회하는 요청
 export async function getCurrentUser() {
   const response = await authClient.get<UserResponseDto>("/api/v1/users/me");
-  return response.data;
+  return normalizeUserResponse(response.data);
 }
 
 // 현재 로그인한 사용자 정보를 수정하는 요청
 export async function updateCurrentUser(body: UpdateSelfRequestDto) {
   const response = await authClient.patch<UserResponseDto>("/api/v1/users/me", body);
-  return response.data;
+  return normalizeUserResponse(response.data);
 }
 
 // 특정 사용자의 역할 목록을 조회하는 요청

@@ -79,7 +79,10 @@ export default function ClassJournalListPageClient() {
       <JournalGrid aria-label="수업 일지 목록">
         {visibleJournals.length > 0 ? (
           visibleJournals.map((journal) => (
-            <JournalCard key={journal.id} href={`/staff/class-management/${journal.id}`}>
+            <JournalCard
+              key={journal.id}
+              href={`/staff/class-management/class-journal/${journal.id}`}
+            >
               <LessonList>
                 {journal.lessons.map((lesson) => (
                   <LessonItem key={lesson.period}>

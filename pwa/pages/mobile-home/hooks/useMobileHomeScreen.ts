@@ -99,7 +99,10 @@ export function useMobileHomeScreen() {
     }
 
     return [...(todayLessonsQuery.data ?? [])]
-      .filter((lesson) => lesson.status !== "CANCELED" && lesson.status !== "CANCELLED")
+      .filter(
+        (lesson) =>
+          !lesson.isAbsent && lesson.status !== "CANCELED" && lesson.status !== "CANCELLED",
+      )
       .sort((left, right) => (left.startTime ?? "99:99").localeCompare(right.startTime ?? "99:99"))[0];
   }, [isAuthenticated, todayLessonsQuery.data]);
 

@@ -157,12 +157,10 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
                 <ExchangeProposalList
                   acceptedHref={`/staff/class-management/exchange-request/${page.postId}`}
                   acceptLabel={page.canChangeExchangeTarget ? "교환 대상 변경하기" : "제안 수락하기"}
-                  withdrawAcceptedLabel="교환 제안 철회"
                   showAcceptLink={page.canAcceptProposal || page.canChangeExchangeTarget}
                   showCardTopBorder={!page.canChangeExchangeTarget}
                   isAccepting={page.isAcceptingProposal}
                   canManageProposal={page.canManageProposal}
-                  canWithdrawAcceptedProposal={page.canWithdrawAcceptedProposal}
                   editingProposalId={page.editingProposalId}
                   editingProposalValues={page.editingProposalValues}
                   isUpdatingProposal={page.isUpdatingProposal}
@@ -178,7 +176,6 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
                   onCancelProposalEdit={page.cancelProposalEdit}
                   onSaveProposalEdit={page.saveProposalEdit}
                   onDeleteProposal={page.deleteProposal}
-                  onWithdrawAcceptedProposal={page.withdrawAcceptedProposal}
                   onProposalEditValueChange={(patch) =>
                     page.setEditingProposalValues((current) => ({ ...current, ...patch }))
                   }

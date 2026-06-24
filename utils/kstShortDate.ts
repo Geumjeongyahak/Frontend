@@ -39,6 +39,6 @@ export function normalizeLessonExchangeExpiresAtForApi(value: string): string | 
   if (withMinutes) return `${withMinutes[1]}T${withMinutes[2]}:${withMinutes[3]}:00`;
   const withSeconds = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/.exec(t);
   if (withSeconds) return withSeconds[1];
-  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return `${t}T22:00:00`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return `${t}T23:59:59`;
   return undefined;
 }

@@ -3,7 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IconCalendarMonth } from "@tabler/icons-react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import dayjs from "dayjs";
 import styled from "styled-components";
 import { createLessonExchangeRequest } from "@/api/lessonExchange/lessonExchange.api";
 import { getCurrentUser } from "@/api/user/user.api";
@@ -15,8 +16,11 @@ import {
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export default function Page() {
+  const queryClient = useQueryClient();
   const [lessonDateText, setLessonDateText] = useState("");
   const [expireDateText, setExpireDateText] = useState("");
+  const [lessonDateValue, setLessonDateValue] = useState("");
+  const [expireDateValue, setExpireDateValue] = useState("");
 
   const lessonDateInputRef = useRef<HTMLInputElement>(null);
   const expireDateInputRef = useRef<HTMLInputElement>(null);
@@ -43,7 +47,13 @@ export default function Page() {
 
   const createLessonExchangeMutation = useMutation({
     mutationFn: createLessonExchangeRequest,
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.requests.lessonExchangeList(),
+      });
+      queryClient.removeQueries({
+        queryKey: queryKeys.requests.lessonExchangeList(),
+      });
       router.push("/staff/class-management/exchange-request");
       router.refresh();
     },
@@ -67,12 +77,26 @@ export default function Page() {
   const handleDateChange = (
     event: React.ChangeEvent<HTMLInputElement>,
     setter: React.Dispatch<React.SetStateAction<string>>,
+    valueSetter?: React.Dispatch<React.SetStateAction<string>>,
   ) => {
     const value = event.target.value;
     if (!value) return;
 
     const [year, month, day] = value.split("-");
+    valueSetter?.(value);
     setter(`${year.slice(-2)}.${month}.${day}`);
+  };
+
+  const handleLessonDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value;
+    if (!value) return;
+
+    handleDateChange(event, setLessonDateText, setLessonDateValue);
+
+    const autoExpireDate = dayjs(value).subtract(3, "day").format("YYYY-MM-DD");
+    const [year, month, day] = autoExpireDate.split("-");
+    setExpireDateValue(autoExpireDate);
+    setExpireDateText(`${year.slice(-2)}.${month}.${day}`);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -83,7 +107,7 @@ export default function Page() {
     const title = String(formData.get("title") ?? "").trim();
     const content = String(formData.get("reason") ?? "").trim();
     const lessonDate = parseKoreanShortDateToIsoDate(lessonDateText.trim());
-    const expiresAt = koreanShortDateToLocalDateTime(expireDateText.trim());
+    const expiresAt = koreanShortDateToLocalDateTime(expireDateText.trim(), "23:59:59");
 
     if (!title || !content) {
       window.alert("필수 입력값을 확인해주세요.");
@@ -165,7 +189,8 @@ export default function Page() {
                 <HiddenNativeDateInput
                   ref={lessonDateInputRef}
                   type="date"
-                  onChange={(e) => handleDateChange(e, setLessonDateText)}
+                  value={lessonDateValue}
+                  onChange={handleLessonDateChange}
                   aria-hidden="true"
                   tabIndex={-1}
                 />
@@ -200,7 +225,9 @@ export default function Page() {
             <HiddenNativeDateInput
               ref={expireDateInputRef}
               type="date"
-              onChange={(e) => handleDateChange(e, setExpireDateText)}
+              max={lessonDateValue ? dayjs(lessonDateValue).subtract(3, "day").format("YYYY-MM-DD") : undefined}
+              value={expireDateValue}
+              onChange={(e) => handleDateChange(e, setExpireDateText, setExpireDateValue)}
               aria-hidden="true"
               tabIndex={-1}
             />

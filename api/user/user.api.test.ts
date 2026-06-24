@@ -72,7 +72,7 @@ describe("user.api", () => {
     });
   });
 
-  it("updates the current user with resident registration number prefix in the expected PATCH body", async () => {
+  it("updates the current user with birthDate in the expected PATCH body", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     let observedBody: unknown;
@@ -82,22 +82,22 @@ describe("user.api", () => {
         observedBody = await request.json();
         return HttpResponse.json({
           ...USER_LIST_RESPONSE.content[0],
-          residentRegistrationNumberPrefix: "900101",
+          birthDate: "1990-01-01",
         });
       }),
     );
 
     const response = await updateCurrentUser({
-      residentRegistrationNumberPrefix: "900101",
+      birthDate: "1990-01-01",
     });
 
     expect(response.residentRegistrationNumberPrefix).toBe("900101");
     expect(observedBody).toEqual({
-      residentRegistrationNumberPrefix: "900101",
+      birthDate: "1990-01-01",
     });
   });
 
-  it("creates a user with resident registration number prefix in the expected POST body", async () => {
+  it("creates a user with birthDate in the expected POST body", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     let observedBody: unknown;
@@ -115,11 +115,10 @@ describe("user.api", () => {
 
     const response = await createUser({
       email: "teacher2@example.com",
-      nickname: "teacher-2",
       password: "password123!",
       name: "Teacher Two",
       phoneNumber: "010-3333-4444",
-      residentRegistrationNumberPrefix: "900101",
+      birthDate: "1990-01-01",
       role: "VOLUNTEER",
       departmentId: 1,
     });
@@ -127,11 +126,10 @@ describe("user.api", () => {
     expect(response.id).toBe(2);
     expect(observedBody).toEqual({
       email: "teacher2@example.com",
-      nickname: "teacher-2",
       password: "password123!",
       name: "Teacher Two",
       phoneNumber: "010-3333-4444",
-      residentRegistrationNumberPrefix: "900101",
+      birthDate: "1990-01-01",
       role: "VOLUNTEER",
       departmentId: 1,
     });
@@ -158,7 +156,7 @@ describe("user.api", () => {
         name: "Teacher One",
         email: "teacher1@example.com",
         phoneNumber: "010-2222-3333",
-        residentRegistrationNumberPrefix: "900101",
+        birthDate: "1990-01-01",
         role: "VOLUNTEER",
         departmentId: 2,
       },
@@ -169,7 +167,7 @@ describe("user.api", () => {
       name: "Teacher One",
       email: "teacher1@example.com",
       phoneNumber: "010-2222-3333",
-      residentRegistrationNumberPrefix: "900101",
+      birthDate: "1990-01-01",
       role: "VOLUNTEER",
       departmentId: 2,
     });

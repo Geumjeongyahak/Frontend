@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DailyScheduleSummaryResponseDto } from "@/api/dailySchedule/dailySchedule.dto";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
-import type { AbsenceRequestResponseDto } from "@/api/request/request.dto";
 import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
 import { buildScheduleOverrides, getWeekRange } from "./weeklyScheduleState";
 
@@ -17,7 +15,7 @@ const BASE_SUBJECTS: SubjectDetailResponseDto[] = [
 ];
 
 describe("weeklyScheduleState", () => {
-  it("marks a period as exchanged when the actual teacher changes", () => {
+  it("marks a period as exchanged when the lesson response says it was exchanged", () => {
     const lessons: LessonSummaryResponseDto[] = [
       {
         lessonId: 100,
@@ -26,11 +24,12 @@ describe("weeklyScheduleState", () => {
         period: 1,
         teacherName: "이교사",
         subjectName: "국어",
-        exchangeWithDate: "2026-06-17",
+        isExchanged: true,
+        exchangedLessonDate: "2026-06-17",
       },
     ];
 
-    const overrides = buildScheduleOverrides(BASE_SUBJECTS, lessons, [], [], 10, "2026-06-15");
+    const overrides = buildScheduleOverrides(BASE_SUBJECTS, lessons, 10, "2026-06-15");
 
     expect(overrides.get(1)).toEqual({
       status: "EXCHANGED",
@@ -40,42 +39,20 @@ describe("weeklyScheduleState", () => {
     });
   });
 
-  it("marks all registered periods as cancelled when the daily schedule is cancelled", () => {
-    const dailySchedules: DailyScheduleSummaryResponseDto[] = [
+  it("marks a period as cancelled when the lesson response says it is absent", () => {
+    const lessons: LessonSummaryResponseDto[] = [
       {
-        dailyScheduleId: 1,
-        lessonDate: "2026-06-15",
+        lessonId: 200,
+        date: "2026-06-15",
         classroomId: 10,
-        classroomName: "장미반",
-        teacherId: 20,
+        period: 1,
         teacherName: "김교사",
-        activityStartTime: "19:00:00",
-        activityEndTime: "21:00:00",
-        status: "CANCELLED",
-        lessonCount: 1,
+        subjectName: "국어",
+        isAbsent: true,
       },
     ];
 
-    const overrides = buildScheduleOverrides(BASE_SUBJECTS, [], dailySchedules, [], 10, "2026-06-15");
-
-    expect(overrides.get(1)).toMatchObject({
-      status: "CANCELLED",
-      teacherName: "김교사",
-    });
-  });
-
-  it("marks registered periods as cancelled when an approved absence request exists", () => {
-    const absenceRequests: AbsenceRequestResponseDto[] = [
-      {
-        id: 1,
-        classroomId: 10,
-        lessonDate: "2026-06-15",
-        requestedByName: "김교사",
-        status: "APPROVED",
-      },
-    ];
-
-    const overrides = buildScheduleOverrides(BASE_SUBJECTS, [], [], absenceRequests, 10, "2026-06-15");
+    const overrides = buildScheduleOverrides(BASE_SUBJECTS, lessons, 10, "2026-06-15");
 
     expect(overrides.get(1)).toMatchObject({
       status: "CANCELLED",

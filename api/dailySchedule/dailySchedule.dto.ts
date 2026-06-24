@@ -5,8 +5,6 @@ export type DailyStudentAttendanceStatus = "PRESENT" | "ABSENT" | "LATE";
 export interface DailyScheduleListQueryParamsDto {
   keyword?: string;
   mine?: boolean;
-  classroomId?: number;
-  lessonDate?: string;
   page?: number;
   size?: number;
 }
@@ -62,6 +60,9 @@ export interface DailyScheduleSummaryResponseDto {
   activityEndTime: string;
   volunteerServiceMinutes?: number | null;
   status: DailyScheduleStatus;
+  isExchanged?: boolean;
+  isAbsent?: boolean;
+  exchangedLessonDate?: string | null;
   teacherAttendanceStatus?: DailyTeacherAttendanceStatus | null;
   lessonCount: number;
   lessons?: DailyScheduleLessonResponseDto[];

@@ -64,6 +64,7 @@ export interface UserResponseDto {
   department?: DepartmentResponseDto;
   classroom?: UserClassroomResponseDto;
   teacherAssignments?: UserTeacherAssignmentResponseDto[];
+  birthDate?: string;
   residentRegistrationNumberPrefix?: string;
   teacherStartAt?: string;
   teacherEndAt?: string;
@@ -109,33 +110,32 @@ export interface UserListQueryParamsDto {
 
 export interface CreateUserRequestDto {
   email: string;
-  nickname: string;
   password: string;
   name: string;
   phoneNumber?: string;
-  residentRegistrationNumberPrefix?: string;
+  birthDate: string;
   role?: UserRole;
   departmentId?: number | null;
+  classroomId?: number | null;
 }
 
 export interface UpdateUserRequestDto {
   name?: string;
-  nickname?: string;
   phoneNumber?: string;
   email?: string;
   password?: string;
-  residentRegistrationNumberPrefix?: string;
+  birthDate?: string;
   role?: UserRole;
   departmentId?: number | null;
+  classroomId?: number | null;
 }
 
 export interface UpdateSelfRequestDto {
   name?: string;
-  nickname?: string;
   phoneNumber?: string;
   email?: string;
   password?: string;
-  residentRegistrationNumberPrefix?: string;
+  birthDate?: string;
 }
 
 export interface UserPermissionRequestDto {
