@@ -115,6 +115,7 @@ function formatSubjectName(subject?: SubjectDetailResponseDto, override?: Weekly
 }
 
 function formatExchangeDescription(override: WeeklyScheduleOverride) {
+  if (override.status === "SUBSTITUTED") return "대체";
   if (override.status !== "EXCHANGED") return "";
   if (!override.relatedDate) return "교환";
   return `${override.relatedDate} 수업과 교환`;
@@ -234,7 +235,11 @@ function ScheduleTable({
                       <TeacherRow>
                         {firstOverride ? (
                           <StatusPill $status={firstOverride.status}>
-                            {firstOverride.status === "EXCHANGED" ? "교환" : "결강"}
+                            {firstOverride.status === "EXCHANGED"
+                              ? "교환"
+                              : firstOverride.status === "SUBSTITUTED"
+                                ? "대체"
+                                : "결강"}
                           </StatusPill>
                         ) : null}
                         {hasRegisteredSubject ? (
@@ -437,6 +442,9 @@ export default function WeeklySchedulePageClient() {
                     <ModalStatusText $status="EXCHANGED">
                       교환 · {period.exchangeDescription ?? "교환"}
                     </ModalStatusText>
+                  ) : null}
+                  {period.status === "SUBSTITUTED" ? (
+                    <ModalStatusText $status="SUBSTITUTED">대체</ModalStatusText>
                   ) : null}
                   {period.status === "CANCELLED" ? (
                     <ModalStatusText $status="CANCELLED">결강</ModalStatusText>
@@ -709,7 +717,7 @@ const ClassroomType = styled.span`
   line-height: ${typography.lineHeight130};
 `;
 
-const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "CANCELLED" }>`
+const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
   display: grid;
   align-content: start;
   gap: ${spacing.space4};
@@ -720,6 +728,7 @@ const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "CANCELLED" }
   border-left: 1px solid ${colors.borderStrong};
   background-color: ${({ $status }) => {
     if ($status === "EXCHANGED") return "#f4efff";
+    if ($status === "SUBSTITUTED") return "#fff8dc";
     if ($status === "CANCELLED") return "#fff4f3";
     return colors.white;
   }};
@@ -729,6 +738,7 @@ const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "CANCELLED" }
   &:hover {
     background-color: ${({ $status }) => {
       if ($status === "EXCHANGED") return "#efe8ff";
+      if ($status === "SUBSTITUTED") return "#fff2b8";
       if ($status === "CANCELLED") return "#ffeceb";
       return "#fbfcfb";
     }};
@@ -745,18 +755,22 @@ const TeacherRow = styled.div`
   min-height: 1.5rem;
 `;
 
-const StatusPill = styled.span<{ $status: "EXCHANGED" | "CANCELLED" }>`
+const StatusPill = styled.span<{ $status: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   min-height: 1.125rem;
-  border: 1px solid ${({ $status }) => ($status === "EXCHANGED" ? "#d7cafc" : "#f3b8b2")};
+  border: 1px solid
+    ${({ $status }) =>
+      $status === "EXCHANGED" ? "#d7cafc" : $status === "SUBSTITUTED" ? "#eadb86" : "#f3b8b2"};
   border-radius: ${radii.radius999};
-  background-color: ${({ $status }) => ($status === "EXCHANGED" ? "#eee7ff" : "#fde4e2")};
+  background-color: ${({ $status }) =>
+    $status === "EXCHANGED" ? "#eee7ff" : $status === "SUBSTITUTED" ? "#fff4b5" : "#fde4e2"};
   padding: 0 ${spacing.space8};
-  color: ${({ $status }) => ($status === "EXCHANGED" ? "#6846c9" : colors.notice)};
+  color: ${({ $status }) =>
+    $status === "EXCHANGED" ? "#6846c9" : $status === "SUBSTITUTED" ? "#9e7a00" : colors.notice};
   font-size: 0.6875rem;
   font-weight: 900;
   line-height: ${typography.lineHeight130};
@@ -824,7 +838,7 @@ const PeriodBadge = styled.span`
 `;
 
 const SubjectBlock = styled.span<{
-  $status?: "EXCHANGED" | "CANCELLED";
+  $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED";
   $empty: boolean;
   $period: number;
 }>`
@@ -955,9 +969,10 @@ const ModalPeriodTime = styled.p`
   line-height: ${typography.lineHeight130};
 `;
 
-const ModalStatusText = styled.p<{ $status: "EXCHANGED" | "CANCELLED" }>`
+const ModalStatusText = styled.p<{ $status: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
   margin: 0;
-  color: ${({ $status }) => ($status === "EXCHANGED" ? "#6846c9" : colors.notice)};
+  color: ${({ $status }) =>
+    $status === "EXCHANGED" ? "#6846c9" : $status === "SUBSTITUTED" ? "#9e7a00" : colors.notice};
   font-size: ${typography.fontSize13};
   font-weight: 800;
   line-height: ${typography.lineHeight130};

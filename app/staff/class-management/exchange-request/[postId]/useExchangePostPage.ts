@@ -287,11 +287,6 @@ export function useExchangePostPage() {
     const content = data.content.trim();
     const lessonDate = normalizeLessonDateForApi(data.lessonDate);
 
-    if (!lessonDate) {
-      window.alert("수업 일자를 입력해 주세요.");
-      return;
-    }
-
     if (!content) {
       window.alert("내용을 입력해 주세요.");
       return;
@@ -357,11 +352,6 @@ export function useExchangePostPage() {
   const saveProposalEdit = (proposalId: number) => {
     const lessonDate = normalizeLessonDateForApi(editingProposalValues.lessonDate);
     const content = editingProposalValues.content.trim();
-
-    if (!lessonDate) {
-      window.alert("수업 일자를 입력해 주세요.");
-      return;
-    }
 
     if (!content) {
       window.alert("내용을 입력해 주세요.");

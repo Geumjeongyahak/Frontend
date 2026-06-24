@@ -20,7 +20,7 @@ export const WEEKEND_COLUMNS: { value: SubjectDayOfWeek; label: string; isoWeekd
 
 export const DISPLAY_PERIODS = [1, 2, 3] as const;
 
-export type WeeklyScheduleStatus = "EXCHANGED" | "CANCELLED";
+export type WeeklyScheduleStatus = "EXCHANGED" | "SUBSTITUTED" | "CANCELLED";
 
 export type WeeklyScheduleOverride = {
   status: WeeklyScheduleStatus;
@@ -102,7 +102,7 @@ export function buildScheduleOverrides(
 
     if (lesson.isExchanged) {
       overrides.set(lesson.period, {
-        status: "EXCHANGED",
+        status: lesson.exchangedLessonDate ? "EXCHANGED" : "SUBSTITUTED",
         teacherName: lesson.teacherName,
         subjectName: lesson.subjectName,
         relatedDate: lesson.exchangedLessonDate ?? undefined,

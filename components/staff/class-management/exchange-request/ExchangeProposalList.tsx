@@ -9,6 +9,25 @@ import { FieldInput, FieldTextarea } from "@/components/common/FormField";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
+function getProposalTypeLabel(proposal: LessonExchangeProposalDto) {
+  const proposalType = proposal.proposalType?.toUpperCase();
+  const proposalScope = proposal.proposalScope?.toUpperCase();
+
+  if (proposalType === "SUBSTITUTE" || proposalType === "SUBSTITUTION") return "대체";
+  if (proposalType === "EXCHANGE") return "교환";
+  if (proposalScope === "SUBSTITUTE" || proposalScope === "SUBSTITUTION") return "대체";
+  if (proposalScope === "EXCHANGE") return "교환";
+
+  return proposal.lessonDate ? "교환" : "대체";
+}
+
+function getProposalLessonDateLabel(lessonDate?: string) {
+  if (!lessonDate?.trim()) return "-";
+
+  const formatted = formatUtcToKstShortDate(lessonDate);
+  return formatted === "00.00.00" ? "-" : formatted;
+}
+
 interface ExchangeProposalListProps {
   acceptedHref: string | ((proposal: LessonExchangeProposalDto) => string);
   acceptLabel?: string;
@@ -190,12 +209,17 @@ export function ExchangeProposalList({
 
                     <ProposalMetaCell>
                       <MetaLabel>반 이름</MetaLabel>
-                      <MetaValue>{proposal.classroomName ?? "—"}</MetaValue>
+                      <MetaValue>{proposal.classroomName?.trim() || proposalClassName || "-"}</MetaValue>
                     </ProposalMetaCell>
 
                     <ProposalMetaCell>
                       <MetaLabel>수업일자</MetaLabel>
-                      <MetaValue>{formatUtcToKstShortDate(proposal.lessonDate) || "—"}</MetaValue>
+                      <MetaValue>{getProposalLessonDateLabel(proposal.lessonDate)}</MetaValue>
+                    </ProposalMetaCell>
+
+                    <ProposalMetaCell>
+                      <MetaLabel>제안 유형</MetaLabel>
+                      <MetaValue>{getProposalTypeLabel(proposal)}</MetaValue>
                     </ProposalMetaCell>
                   </ProposalMetaRow>
                   <ProposalContent>{proposal.content ?? "—"}</ProposalContent>
@@ -317,7 +341,7 @@ const ProposalCard = styled.article<{ $showTopBorder: boolean }>`
 
 const ProposalMetaRow = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: ${spacing.space12};
   width: 100%;
 
