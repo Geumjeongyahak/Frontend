@@ -12,13 +12,11 @@ import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 interface ExchangeProposalListProps {
   acceptedHref: string | ((proposal: LessonExchangeProposalDto) => string);
   acceptLabel?: string;
-  withdrawAcceptedLabel?: string;
   showAcceptLink?: boolean;
   showCardTopBorder?: boolean;
   isAccepting?: boolean;
   onAcceptProposal?: (proposal: LessonExchangeProposalDto) => void;
   canManageProposal?: (proposal: LessonExchangeProposalDto) => boolean;
-  canWithdrawAcceptedProposal?: (proposal: LessonExchangeProposalDto) => boolean;
   editingProposalId?: number | null;
   editingProposalValues?: {
     className: string;
@@ -31,7 +29,6 @@ interface ExchangeProposalListProps {
   onCancelProposalEdit?: () => void;
   onSaveProposalEdit?: (proposalId: number) => void;
   onDeleteProposal?: (proposalId: number) => void;
-  onWithdrawAcceptedProposal?: (proposalId: number) => void;
   onProposalEditValueChange?: (patch: {
     className?: string;
     lessonDate?: string;
@@ -47,13 +44,11 @@ interface ExchangeProposalListProps {
 export function ExchangeProposalList({
   acceptedHref,
   acceptLabel = "제안 수락하기",
-  withdrawAcceptedLabel = "교환 제안 철회",
   showAcceptLink = true,
   showCardTopBorder = true,
   isAccepting = false,
   onAcceptProposal,
   canManageProposal,
-  canWithdrawAcceptedProposal,
   editingProposalId = null,
   editingProposalValues,
   isUpdatingProposal = false,
@@ -62,7 +57,6 @@ export function ExchangeProposalList({
   onCancelProposalEdit,
   onSaveProposalEdit,
   onDeleteProposal,
-  onWithdrawAcceptedProposal,
   onProposalEditValueChange,
   assignmentClassNames = [],
   proposalClassName = "",
@@ -110,11 +104,9 @@ export function ExchangeProposalList({
           const canShowAccept =
             showAcceptLink && (proposal.status === "ACTIVE" || proposal.status == null);
           const canShowManageActions = canManageProposal?.(proposal) ?? false;
-          const canShowWithdrawAccepted = canWithdrawAcceptedProposal?.(proposal) ?? false;
           const isEditingProposal =
             typeof proposal.id === "number" && editingProposalId === proposal.id;
-          const shouldRenderFooter =
-            canShowAccept || canShowWithdrawAccepted || Boolean(canManageProposal);
+          const shouldRenderFooter = canShowAccept || Boolean(canManageProposal);
 
           return (
             <ProposalCard key={proposal.id ?? index} $showTopBorder={showCardTopBorder}>
@@ -280,20 +272,6 @@ export function ExchangeProposalList({
                       ) : (
                         <AcceptLink href={acceptHref}>{acceptLabel}</AcceptLink>
                       )}
-                    </AcceptActionGroup>
-                  ) : canShowWithdrawAccepted ? (
-                    <AcceptActionGroup>
-                      <WithdrawAcceptedButton
-                        type="button"
-                        disabled={isDeletingProposal}
-                        onClick={() => {
-                          if (typeof proposal.id === "number") {
-                            onWithdrawAcceptedProposal?.(proposal.id);
-                          }
-                        }}
-                      >
-                        {isDeletingProposal ? "철회 중" : withdrawAcceptedLabel}
-                      </WithdrawAcceptedButton>
                     </AcceptActionGroup>
                   ) : null}
                 </ProposalFooter>
@@ -497,35 +475,6 @@ const AcceptButton = styled.button`
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-  }
-`;
-
-const WithdrawAcceptedButton = styled.button`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: ${colors.notice};
-  font-size: ${typography.fontSize14};
-  font-weight: 600;
-  line-height: ${typography.lineHeight130};
-  text-decoration: underline;
-  text-underline-offset: 0.125rem;
-  cursor: pointer;
-
-  &:not(:disabled):hover {
-    opacity: 0.72;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
   }
 `;
 

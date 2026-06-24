@@ -102,9 +102,6 @@ export function useExchangePostPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingExchangeTarget, setIsChangingExchangeTarget] = useState(false);
   const [editingProposalId, setEditingProposalId] = useState<number | null>(null);
-  const [proposalRemovalActionLabel, setProposalRemovalActionLabel] = useState<
-    "삭제" | "철회"
-  >("삭제");
   const [editingProposalValues, setEditingProposalValues] = useState<ProposalFormValues>({
     className: "",
     lessonDate: "",
@@ -193,7 +190,7 @@ export function useExchangePostPage() {
     },
   });
 
-  const withdrawProposalMutation = useMutation({
+  const deleteProposalMutation = useMutation({
     mutationFn: (proposalId: number) =>
       withdrawLessonExchangeProposal({ requestId: postId, proposalId }),
     onSuccess: async () => {
@@ -206,14 +203,10 @@ export function useExchangePostPage() {
         lessonDate: "",
         content: "",
       });
-      window.alert(`교환 제안이 ${proposalRemovalActionLabel}되었습니다.`);
+      window.alert("교환 제안이 삭제되었습니다.");
     },
     onError: (error) => {
-      window.alert(
-        error instanceof Error
-          ? error.message
-          : `교환 제안 ${proposalRemovalActionLabel}에 실패했습니다.`,
-      );
+      window.alert(error instanceof Error ? error.message : "교환 제안 삭제에 실패했습니다.");
     },
   });
 
@@ -335,11 +328,6 @@ export function useExchangePostPage() {
     user.id === proposal.proposedById &&
     (proposal.status === "ACTIVE" || proposal.status == null);
 
-  const canWithdrawAcceptedProposal = (proposal: LessonExchangeProposalDto) =>
-    isApplicant &&
-    proposal.status === "ACCEPTED" &&
-    uiStatus === "COMPLETED";
-
   const startProposalEdit = (proposal: LessonExchangeProposalDto) => {
     if (!proposal.id || !canManageProposal(proposal)) {
       return;
@@ -392,15 +380,7 @@ export function useExchangePostPage() {
   const deleteProposal = (proposalId: number) => {
     if (!window.confirm("이 교환 제안을 삭제할까요?")) return;
 
-    setProposalRemovalActionLabel("삭제");
-    withdrawProposalMutation.mutate(proposalId);
-  };
-
-  const withdrawAcceptedProposal = (proposalId: number) => {
-    if (!window.confirm("이 교환 제안을 철회할까요?")) return;
-
-    setProposalRemovalActionLabel("철회");
-    withdrawProposalMutation.mutate(proposalId);
+    deleteProposalMutation.mutate(proposalId);
   };
 
   const changeExchangeTarget = () => {
@@ -506,7 +486,7 @@ export function useExchangePostPage() {
     isCreatingProposal: createProposalMutation.isPending,
     isAcceptingProposal: acceptProposalMutation.isPending,
     isUpdatingProposal: updateProposalMutation.isPending,
-    isDeletingProposal: withdrawProposalMutation.isPending,
+    isDeletingProposal: deleteProposalMutation.isPending,
     editingProposalId,
     editingProposalValues,
 
@@ -516,12 +496,10 @@ export function useExchangePostPage() {
     submitProposal,
     acceptProposal,
     canManageProposal,
-    canWithdrawAcceptedProposal,
     startProposalEdit,
     cancelProposalEdit,
     saveProposalEdit,
     deleteProposal,
-    withdrawAcceptedProposal,
     setEditingProposalValues,
     changeExchangeTarget,
     deleteRequest,

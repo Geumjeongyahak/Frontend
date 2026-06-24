@@ -15,7 +15,6 @@ import {
   filterActiveSubjects,
   formatSubjectTeacherName,
 } from "@/components/admin/subjects/shared/subjectDisplay";
-import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import {
@@ -23,6 +22,7 @@ import {
   WEEKDAY_COLUMNS,
   WEEKEND_COLUMNS,
   buildScheduleOverrides,
+  formatRelatedLessonDate,
   getDateForColumn,
   getPeriodSubject,
   getSubjectsForCell,
@@ -190,6 +190,10 @@ function ScheduleTable({
                   const cellSubjects = getSubjectsForCell(subjects, classroomId, column.value, date);
                   const overrides = buildScheduleOverrides(cellSubjects, lessons, classroomId, date);
                   const firstOverride = [...overrides.values()][0];
+                  const firstExchangeDate =
+                    firstOverride?.status === "EXCHANGED"
+                      ? formatRelatedLessonDate(firstOverride.relatedDate)
+                      : "";
                   const hasRegisteredSubject = cellSubjects.length > 0;
                   const hasTeacher = hasAssignedTeacher(cellSubjects, firstOverride);
                   const teacherName = getTeacherName(cellSubjects, firstOverride);
@@ -240,6 +244,7 @@ function ScheduleTable({
                         ) : (
                           <EmptyText>담당 교사 미배정</EmptyText>
                         )}
+                        {firstExchangeDate ? <ExchangeDateText>{firstExchangeDate}</ExchangeDateText> : null}
                       </TeacherRow>
                       <PeriodList>
                         {DISPLAY_PERIODS.map((period) => {
@@ -275,8 +280,6 @@ function ScheduleTable({
 }
 
 export default function WeeklySchedulePageClient() {
-  const { status: authStatus } = useAuthSession();
-  const isAuthenticated = authStatus === "authenticated";
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [selectedCell, setSelectedCell] = useState<ScheduleCellSelection | null>(null);
   const weekRange = useMemo(() => getWeekRange(anchorDate), [anchorDate]);
@@ -285,19 +288,16 @@ export default function WeeklySchedulePageClient() {
   const classroomsQuery = useQuery({
     queryKey: queryKeys.classrooms.list(),
     queryFn: () => getClassrooms({ page: 0, size: 100 }),
-    enabled: isAuthenticated,
   });
 
   const subjectsQuery = useQuery({
     queryKey: queryKeys.admin.subjects(),
     queryFn: () => getSubjects(),
-    enabled: isAuthenticated,
   });
 
   const lessonsQuery = useQuery({
     queryKey: queryKeys.lessons.weekly(weekRange.from, weekRange.to),
     queryFn: () => getLessons({ from: weekRange.from, to: weekRange.to }),
-    enabled: isAuthenticated,
   });
 
   const classrooms = useMemo(
@@ -372,18 +372,14 @@ export default function WeeklySchedulePageClient() {
       </HeaderRow>
 
       {isBaseLoading ? <StateText>시간표를 불러오는 중입니다.</StateText> : null}
-      {authStatus === "loading" ? <StateText>사용자 정보를 확인하는 중입니다.</StateText> : null}
-      {authStatus !== "loading" && !isAuthenticated ? (
-        <StateText>로그인이 필요합니다.</StateText>
-      ) : null}
       {isBaseError ? <StateText role="alert">시간표를 불러오지 못했습니다.</StateText> : null}
-      {!isBaseLoading && !isBaseError && isAuthenticated && lessonsQuery.isError ? (
+      {!isBaseLoading && !isBaseError && lessonsQuery.isError ? (
         <StateText role="alert">시간표를 불러오지 못했습니다.</StateText>
       ) : null}
-      {!isBaseLoading && !isBaseError && isAuthenticated && !hasClassrooms ? (
+      {!isBaseLoading && !isBaseError && !hasClassrooms ? (
         <StateText>주중 또는 주말 분반이 없습니다.</StateText>
       ) : null}
-      {!isBaseLoading && !isBaseError && isAuthenticated && !lessonsQuery.isError && hasClassrooms ? (
+      {!isBaseLoading && !isBaseError && !lessonsQuery.isError && hasClassrooms ? (
         <ScheduleShell>
           <ScheduleStack>
             <ScheduleContentTrack>
@@ -790,6 +786,22 @@ const EmptyText = styled.p`
 const PeriodList = styled.div`
   display: grid;
   gap: 0.1875rem;
+`;
+
+const ExchangeDateText = styled.p`
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  margin: 0;
+  color: ${colors.notice};
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize13};
+  }
 `;
 
 const PeriodItem = styled.div`

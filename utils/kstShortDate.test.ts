@@ -27,7 +27,7 @@ describe("kstShortDate", () => {
     expect(normalizeLessonExchangeExpiresAtForApi("2026-06-07T22:00:59")).toBe(
       "2026-06-07T22:00:59",
     );
-    expect(normalizeLessonExchangeExpiresAtForApi("2026-06-07")).toBe("2026-06-07T22:00:00");
+    expect(normalizeLessonExchangeExpiresAtForApi("2026-06-07")).toBe("2026-06-07T23:59:59");
     expect(normalizeLessonExchangeExpiresAtForApi("  2026-06-07T08:01  ")).toBe(
       "2026-06-07T08:01:00",
     );

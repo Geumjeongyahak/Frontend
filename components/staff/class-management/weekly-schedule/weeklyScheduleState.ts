@@ -29,6 +29,11 @@ export type WeeklyScheduleOverride = {
   relatedDate?: string;
 };
 
+export function formatRelatedLessonDate(value?: string) {
+  if (!value) return "";
+  return `(${dayjs(value).format("MM/DD")})`;
+}
+
 export function getWeekRange(anchorDate = new Date()) {
   const anchor = dayjs(anchorDate);
   return {
