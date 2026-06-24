@@ -2,10 +2,13 @@ import styled from "styled-components";
 import DesktopHomePage from "@/components/home/DesktopHomePage";
 import MobileHomePage from "@/pwa/components/MobileHomePage";
 import { layout } from "@/styles/tokens";
+import DeployTargetLogger from "../common/DeployTargetLogger";
 
 export default function HomePage() {
   return (
     <>
+      <DeployTargetLogger />
+
       <DesktopShell>
         <DesktopHomePage />
       </DesktopShell>

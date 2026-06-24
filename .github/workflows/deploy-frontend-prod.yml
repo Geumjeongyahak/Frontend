@@ -1,4 +1,4 @@
-name: Deploy Frontend to Cloud Run
+name: Deploy Frontend to Production Cloud Run
 
 on:
   push:
@@ -14,14 +14,14 @@ jobs:
       id-token: write
 
     env:
-      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-      CLOUD_RUN_REGION: ${{ vars.CLOUD_RUN_REGION }}
-      ARTIFACT_REGISTRY_REGION: ${{ vars.ARTIFACT_REGISTRY_REGION }}
-      AR_REPOSITORY: ${{ vars.AR_REPOSITORY }}
-      IMAGE_NAME: ${{ vars.IMAGE_NAME }}
-      CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE }}
-      NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL }}
-      NEXT_PUBLIC_DEPLOY_TARGET: DEV
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID_PROD }}
+      CLOUD_RUN_REGION: ${{ vars.CLOUD_RUN_REGION_PROD }}
+      ARTIFACT_REGISTRY_REGION: ${{ vars.ARTIFACT_REGISTRY_REGION_PROD }}
+      AR_REPOSITORY: ${{ vars.AR_REPOSITORY_PROD }}
+      IMAGE_NAME: ${{ vars.IMAGE_NAME_PROD }}
+      CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE_PROD }}
+      NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL_PROD }}
+      NEXT_PUBLIC_DEPLOY_TARGET: PROD
       KEEP_COUNT: 3
 
     steps:
@@ -31,8 +31,9 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER_PROD }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_PROD }}
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v3
@@ -62,6 +63,7 @@ jobs:
           service: ${{ env.CLOUD_RUN_SERVICE }}
           region: ${{ env.CLOUD_RUN_REGION }}
           image: ${{ env.ARTIFACT_REGISTRY_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          project_id: ${{ env.PROJECT_ID }}
 
       - name: Show deployed URL
         run: echo "${{ steps.deploy.outputs.url }}"
@@ -73,6 +75,7 @@ jobs:
           echo "Keeping latest ${{ env.KEEP_COUNT }} image digests in $IMAGE_BASE"
 
           gcloud artifacts docker images list "$IMAGE_BASE" \
+            --project="${{ env.PROJECT_ID }}" \
             --include-tags \
             --sort-by=~UPDATE_TIME \
             --format="value(DIGEST)" \
@@ -82,6 +85,7 @@ jobs:
                 if [ -n "$DIGEST" ]; then
                   echo "Deleting old image digest: $DIGEST"
                   gcloud artifacts docker images delete "$IMAGE_BASE@$DIGEST" \
+                    --project="${{ env.PROJECT_ID }}" \
                     --delete-tags \
                     --quiet || true
                 fi
@@ -92,6 +96,7 @@ jobs:
           echo "Keeping latest ${{ env.KEEP_COUNT }} Cloud Run revisions for ${{ env.CLOUD_RUN_SERVICE }}"
 
           gcloud run revisions list \
+            --project="${{ env.PROJECT_ID }}" \
             --service="${{ env.CLOUD_RUN_SERVICE }}" \
             --region="${{ env.CLOUD_RUN_REGION }}" \
             --sort-by=~metadata.creationTimestamp \
@@ -101,6 +106,7 @@ jobs:
                 if [ -n "$REVISION" ]; then
                   echo "Deleting old revision: $REVISION"
                   gcloud run revisions delete "$REVISION" \
+                    --project="${{ env.PROJECT_ID }}" \
                     --region="${{ env.CLOUD_RUN_REGION }}" \
                     --quiet || true
                 fi
