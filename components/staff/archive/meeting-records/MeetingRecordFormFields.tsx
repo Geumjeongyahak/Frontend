@@ -3,6 +3,8 @@
 import type { ChangeEvent, FormEvent } from "react";
 import type { MeetingRecordStatus } from "@/api/meetingRecord/meetingRecord.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
+import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
+import type { MeetingRecordAttachment } from "@/components/staff/archive/meeting-records/meetingRecordAttachments";
 import {
   EditorBox,
   Form,
@@ -23,16 +25,26 @@ export type MeetingRecordFormValues = {
 type MeetingRecordFormFieldsProps = {
   authorName: string;
   values: MeetingRecordFormValues;
+  attachments: MeetingRecordAttachment[];
+  selectedFiles: File[];
+  onRemoveExisting?: (attachmentId: string) => void;
+  onRemoveSelected?: (file: File) => void;
   isBeforeMeetingDisabled?: boolean;
   onChange: (patch: Partial<MeetingRecordFormValues>) => void;
+  onFilesChange: (files: File[]) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
 export default function MeetingRecordFormFields({
   authorName,
   values,
+  attachments,
+  selectedFiles,
+  onRemoveExisting,
+  onRemoveSelected,
   isBeforeMeetingDisabled = false,
   onChange,
+  onFilesChange,
   onSubmit,
 }: MeetingRecordFormFieldsProps) {
   const isBeforeMeeting = values.status === "BEFORE_MEETING";
@@ -118,6 +130,18 @@ export default function MeetingRecordFormFields({
           </EditorBox>
         </>
       ) : null}
+
+      <Label>자료</Label>
+      <AttachmentEditorPanel
+        existingAttachments={attachments.map((file) => ({
+          id: file.fileId,
+          label: file.originalName,
+        }))}
+        selectedFiles={selectedFiles}
+        onSelectFiles={onFilesChange}
+        onRemoveExisting={onRemoveExisting}
+        onRemoveSelected={onRemoveSelected}
+      />
     </Form>
   );
 }

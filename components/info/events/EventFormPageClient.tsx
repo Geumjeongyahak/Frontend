@@ -1,12 +1,23 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { IconPaperclip } from "@tabler/icons-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
+import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import { createPost, getPost, updatePost } from "@/api/post/post.api";
+import { deleteAttachment } from "@/api/file/file.api";
+import {
+  attachPostFile,
+  createPost,
+  getPost,
+  publishPost,
+  updatePost,
+} from "@/api/post/post.api";
+import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
+import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
+import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import EventDocumentLayout from "@/components/info/events/EventDocumentLayout";
 import {
   EVENT_CHANNEL_TYPE,
@@ -17,10 +28,7 @@ import {
 import {
   ActionButton,
   DocumentSection,
-  FileSelectLabel,
-  FileUploadPanel,
   Form,
-  HiddenFileInput,
   Input,
   Label,
   PageTitle,
@@ -28,8 +36,9 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { boardFileToGoogleDrive } from "@/lib/googleDrive/driveUpload";
+import { uploadEventDocument } from "@/lib/googleDrive";
 import { queryKeys } from "@/lib/queryKeys";
+import { layout, spacing } from "@/styles/tokens";
 
 type EventFormPageClientProps = {
   editPostId?: number;
@@ -44,6 +53,8 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
   const [title, setTitle] = useState<string | undefined>(undefined);
   const [contentHtml, setContentHtml] = useState<string | undefined>(undefined);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[]>([]);
+  const shouldShowUploadToastRef = useRef(false);
 
   const channelsQuery = useQuery({
     queryKey: ["info", "events", "channels"],
@@ -62,15 +73,13 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
   const visibleTitle = title ?? postDetailQuery.data?.title ?? "";
   const visibleAuthor = postDetailQuery.data?.authorName ?? currentUserName;
   const visibleContentHtml = contentHtml ?? postDetailQuery.data?.contentHtml ?? "";
+  const existingAttachments = postDetailQuery.data?.attachments ?? [];
+  useEffect(() => {
+    setEditableAttachments(existingAttachments);
+  }, [existingAttachments]);
   const isEditorReady = !isEditMode || Boolean(postDetailQuery.data);
   const canManagePost =
     !isEditMode ? status === "authenticated" : canManageEventPost(user, postDetailQuery.data);
-
-  const uploadEventFiles = async (files: File[]) => {
-    if (files.length === 0) return;
-
-    await Promise.all(files.map((file) => boardFileToGoogleDrive(file)));
-  };
 
   const { mutate, isPending, isError } = useMutation({
     mutationFn: async () => {
@@ -85,40 +94,59 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
       }
 
       const thumbnailUrl = extractFirstImageUrl(visibleContentHtml);
+      const title = visibleTitle.trim();
+      const contentHtml = visibleContentHtml.trim();
+      const hasFileUpload = selectedFiles.length > 0;
+      shouldShowUploadToastRef.current = hasFileUpload;
+      const publishBody = {
+        title,
+        contentHtml,
+        allowComment: true,
+        thumbnailUrl: thumbnailUrl || undefined,
+      };
 
-      if (isEditMode) {
-        const updated = await updatePost(
-          { channelId, postId: editPostId },
-          {
-            title: visibleTitle.trim(),
-            contentHtml: visibleContentHtml.trim(),
-            status: "PUBLISHED",
-            allowComment: true,
-            thumbnailUrl,
-          },
-        );
+      if (hasFileUpload) {
+        const draftPost = isEditMode
+          ? await updatePost(
+              { channelId, postId: editPostId },
+              { ...publishBody, status: "DRAFT" },
+            )
+          : await createPost({ channelId }, { ...publishBody, status: "DRAFT" });
 
-        await uploadEventFiles(selectedFiles);
+        if (typeof draftPost.id !== "number") {
+          throw new Error("행사 정보 초안을 저장하지 못했습니다.");
+        }
 
-        return updated;
+        const registeredFiles = await Promise.all(selectedFiles.map((file) => uploadEventDocument(file)));
+
+        for (const [index, registered] of registeredFiles.entries()) {
+          if (!registered.fileId) {
+            throw new Error("행사 자료 파일 메타데이터 등록에 실패했습니다.");
+          }
+
+          await attachPostFile(
+            { channelId, postId: draftPost.id },
+            {
+              fileId: registered.fileId,
+              sortOrder: editableAttachments.length + index,
+            },
+          );
+        }
+
+        return publishPost({ channelId, postId: draftPost.id }, publishBody);
       }
 
-      const created = await createPost(
-        { channelId },
-        {
-          title: visibleTitle.trim(),
-          contentHtml: visibleContentHtml.trim(),
-          status: "PUBLISHED",
-          allowComment: true,
-          thumbnailUrl: thumbnailUrl || undefined,
-        },
-      );
+      if (isEditMode) {
+        return updatePost({ channelId, postId: editPostId }, { ...publishBody, status: "PUBLISHED" });
+      }
 
-      await uploadEventFiles(selectedFiles);
-
-      return created;
+      return createPost({ channelId }, { ...publishBody, status: "PUBLISHED" });
     },
     onSuccess: async (post) => {
+      if (shouldShowUploadToastRef.current) {
+        toast.success("파일 업로드가 완료되었습니다.");
+      }
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["info", "events"] }),
         queryClient.invalidateQueries({ queryKey: ["posts"] }),
@@ -135,6 +163,9 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
           : "/info/events",
       );
     },
+    onError: () => {
+      shouldShowUploadToastRef.current = false;
+    },
   });
 
   const canSubmit =
@@ -145,14 +176,28 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
     canManagePost &&
     !isPending;
 
+  async function handleRemoveExistingAttachment(fileId: string) {
+    await deleteAttachment({ fileId });
+    setEditableAttachments((current) => current.filter((file) => file.fileId !== fileId));
+  }
+
+  function handleRemoveSelectedFile(file: File) {
+    setSelectedFiles((current) =>
+      current.filter((item) => !(item.name === file.name && item.lastModified === file.lastModified)),
+    );
+  }
+
   return (
     <EventDocumentLayout>
       <DocumentSection>
         <Toolbar>
           <PageTitle>{isEditMode ? "행사 정보 수정" : "행사 정보 작성"}</PageTitle>
-          <ActionButton type="submit" form="event-form" disabled={!canSubmit}>
-            {isEditMode ? "수정 완료" : "작성 완료"}
-          </ActionButton>
+          <ToolbarActions>
+            {isPending && selectedFiles.length > 0 ? <FileUploadProgressNotice /> : null}
+            <ActionButton type="submit" form="event-form" disabled={!canSubmit}>
+              {isEditMode ? "수정 완료" : "작성 완료"}
+            </ActionButton>
+          </ToolbarActions>
         </Toolbar>
 
         <Form
@@ -192,27 +237,17 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
           )}
 
           <Label>자료</Label>
-          <FileUploadPanel>
-            {selectedFiles.length > 0 ? (
-              selectedFiles.map((file, index) => (
-                <span key={`${file.name}-${index}`}>{file.name}</span>
-              ))
-            ) : (
-              <span>선택된 파일이 없습니다.</span>
-            )}
-            <FileSelectLabel>
-              <IconPaperclip aria-hidden="true" size={16} stroke={2.25} />
-              <span>파일 선택</span>
-              <HiddenFileInput
-                type="file"
-                name="files"
-                multiple
-                onChange={(event) => {
-                  setSelectedFiles(Array.from(event.target.files ?? []));
-                }}
-              />
-            </FileSelectLabel>
-          </FileUploadPanel>
+          <AttachmentEditorPanel
+            existingAttachments={editableAttachments.map((file, index) => ({
+              id: file.fileId ?? `existing-${index}`,
+              label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
+            }))}
+            selectedFiles={selectedFiles}
+            onSelectFiles={(files) => setSelectedFiles((current) => [...current, ...files])}
+            onRemoveExisting={handleRemoveExistingAttachment}
+            onRemoveSelected={handleRemoveSelectedFile}
+            disabled={isPending}
+          />
 
           {status === "unauthenticated" ? (
             <StateMessage>로그인 후 행사 정보를 작성할 수 있습니다.</StateMessage>
@@ -236,3 +271,15 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
     </EventDocumentLayout>
   );
 }
+
+const ToolbarActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space20};
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+`;

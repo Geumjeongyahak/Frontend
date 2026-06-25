@@ -136,7 +136,7 @@ describe("file.api", () => {
     );
 
     const body = {
-      driveUrl: "https://drive.google.com/file/d/abc123/view",
+      driveUrl: "https://drive.google.com/file/d/abc123/view?usp=sharing",
       originalName: "handover.pdf",
       mimeType: "application/pdf",
       fileSize: 1024,

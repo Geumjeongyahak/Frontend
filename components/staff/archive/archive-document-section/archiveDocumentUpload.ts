@@ -5,7 +5,7 @@ import {
   uploadDocumentFormsDocument,
   uploadExamMaterialsDocument,
   uploadHandoverDocument,
-} from "@/lib/googleDrive/documentUploaders";
+} from "@/lib/googleDrive";
 import type { ArchiveDocumentCategory } from "@/mocks/archiveDocuments";
 
 export type UploadArchiveDocumentFn = (file: File) => Promise<FileUploadResponseDto>;

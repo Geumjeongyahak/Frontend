@@ -1,22 +1,19 @@
 "use client";
 
-import { IconDownload } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { deletePost, getPost } from "@/api/post/post.api";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import BoardCommentSection from "@/components/staff/board/BoardCommentSection";
+import { AttachmentDownloadList } from "@/components/common/AttachmentField";
 import BoardShell from "@/components/staff/board/BoardShell";
 import {
   ActionButton,
   ActionLink,
   ContentStack,
   DocumentSection,
-  DownloadBadge,
   FieldBox,
-  FileLink,
-  FileList,
   Label,
   MetaBar,
   StateMessage,
@@ -150,29 +147,14 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
           </ViewerBox>
 
           <Label>자료</Label>
-          <FileList>
-            {attachments.length > 0 ? (
-              attachments.map((file, index) => {
-                const fileName = file.originalName ?? file.fileId ?? `자료 ${index + 1}`;
-                const fileUrl = file.downloadUrl ?? "#";
-
-                return (
-                  <FileLink
-                    key={`${file.fileId ?? fileName}-${index}`}
-                    href={fileUrl}
-                    aria-label={`${fileName} 다운로드`}
-                  >
-                    <span>{fileName}</span>
-                    <DownloadBadge aria-hidden="true">
-                      <IconDownload size={16} stroke={2.25} />
-                    </DownloadBadge>
-                  </FileLink>
-                );
-              })
-            ) : (
-              <EmptyAttachmentText>첨부된 자료가 없습니다.</EmptyAttachmentText>
-            )}
-          </FileList>
+          <AttachmentDownloadList
+            attachments={attachments.map((file, index) => ({
+              id: file.fileId ?? `${file.originalName}-${index}`,
+              fileId: file.fileId,
+              label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
+              href: file.downloadUrl ?? "#",
+            }))}
+          />
 
           {hasChannelId && visiblePost?.allowComment !== false ? (
             <BoardCommentSection channelId={channelId} postId={postId} />
@@ -187,15 +169,3 @@ const ActionToolbar = styled(Toolbar)`
   justify-content: flex-end;
 `;
 
-const EmptyAttachmentText = styled.span`
-  color: ${colors.placeholder};
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  cursor: default;
-  user-select: text;
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
-`;
