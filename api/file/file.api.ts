@@ -62,7 +62,7 @@ export async function uploadAdminPurchaseRequestReceiptImage(file: Blob, filenam
   return uploadImage("/admin/request/purchase/purchase-requests/receipt-images", file, filename);
 }
 
-// 프론트에서 Google Drive에 업로드한 파일 메타데이터를 등록하는 요청
+// 프론트에서 Apps Script로 업로드한 Drive 파일 메타데이터를 등록하는 요청
 export async function registerDriveFile(body: RegisterDriveFileRequestDto) {
   const response = await authClient.post<FileUploadResponseDto>("/api/v1/files/drive", body);
   return response.data;

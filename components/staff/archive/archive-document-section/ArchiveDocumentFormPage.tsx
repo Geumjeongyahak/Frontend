@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { IconPaperclip } from "@tabler/icons-react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
+import { deleteAttachment } from "@/api/file/file.api";
 import { createPost, getPost, pinPost, updatePost } from "@/api/post/post.api";
+import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
+import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
+import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import {
   ActionButton,
@@ -15,7 +19,6 @@ import {
   CheckboxLabel,
   DocumentSection,
   Form,
-  HiddenFileInput,
   Label,
   OptionRow,
   PageTitle,
@@ -51,6 +54,8 @@ export default function ArchiveDocumentFormPage({
   const [isPinned, setIsPinned] = useState<boolean | undefined>(undefined);
   const [allowComment, setAllowComment] = useState<boolean | undefined>(undefined);
   const [files, setFiles] = useState<File[]>([]);
+  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[]>([]);
+  const shouldShowUploadToastRef = useRef(false);
 
   const channelsQuery = useQuery({
     queryKey: ["staff", "archive", "channels"],
@@ -78,6 +83,9 @@ export default function ArchiveDocumentFormPage({
   const visibleIsPinned = isPinned ?? postDetailQuery.data?.isPinned ?? false;
   const visibleAllowComment = allowComment ?? postDetailQuery.data?.allowComment ?? true;
   const existingAttachments = postDetailQuery.data?.attachments ?? [];
+  useEffect(() => {
+    setEditableAttachments(existingAttachments);
+  }, [existingAttachments]);
   const canManagePost =
     !isEditMode ||
     user?.role === "ADMIN" ||
@@ -98,9 +106,11 @@ export default function ArchiveDocumentFormPage({
       const title = visibleTitle.trim();
       const contentHtml = visibleDescription.trim();
       const uploadArchiveDocument = getUploadArchiveDocument(config.category);
-      const sortOrderStart = isEditMode ? existingAttachments.length : 0;
+      const sortOrderStart = isEditMode ? editableAttachments.length : 0;
+      const hasFileUpload = Boolean(uploadArchiveDocument) && files.length > 0;
+      shouldShowUploadToastRef.current = hasFileUpload;
 
-      if (uploadArchiveDocument && files.length > 0) {
+      if (hasFileUpload && uploadArchiveDocument) {
         return publishArchivePostWithNewFiles({
           channelId,
           title,
@@ -145,6 +155,10 @@ export default function ArchiveDocumentFormPage({
       });
     },
     onSuccess: async (post) => {
+      if (shouldShowUploadToastRef.current) {
+        toast.success("파일 업로드가 완료되었습니다.");
+      }
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["posts"] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) }),
@@ -162,6 +176,9 @@ export default function ArchiveDocumentFormPage({
 
       router.push(config.listPath);
     },
+    onError: () => {
+      shouldShowUploadToastRef.current = false;
+    },
   });
 
   const canSubmit =
@@ -173,13 +190,27 @@ export default function ArchiveDocumentFormPage({
   const canShowDescriptionEditor =
     !isEditMode || Boolean(postDetailQuery.data) || postDetailQuery.isError;
 
+  async function handleRemoveExistingAttachment(fileId: string) {
+    await deleteAttachment({ fileId });
+    setEditableAttachments((current) => current.filter((file) => file.fileId !== fileId));
+  }
+
+  function handleRemoveSelectedFile(file: File) {
+    setFiles((current) =>
+      current.filter((item) => !(item.name === file.name && item.lastModified === file.lastModified)),
+    );
+  }
+
   return (
     <DocumentSection>
       <Toolbar>
         <PageTitle>{isEditMode ? `${config.title} 수정하기` : config.writeTitle}</PageTitle>
-        <ActionButton type="submit" form={`${config.category}-form`} disabled={!canSubmit}>
-          {isEditMode ? "수정 완료" : "작성 완료"}
-        </ActionButton>
+        <ToolbarActions>
+          {isPending && files.length > 0 ? <FileUploadProgressNotice /> : null}
+          <ActionButton type="submit" form={`${config.category}-form`} disabled={!canSubmit}>
+            {isEditMode ? "수정 완료" : "작성 완료"}
+          </ActionButton>
+        </ToolbarActions>
       </Toolbar>
 
       <Form
@@ -245,30 +276,17 @@ export default function ArchiveDocumentFormPage({
         )}
 
         <Label>자료</Label>
-        <FileUploadPanel>
-          {existingAttachments.map((file, index) => (
-            <span key={`${file.fileId ?? file.originalName}-${index}`}>
-              {file.originalName ?? file.fileId ?? `자료 ${index + 1}`}
-            </span>
-          ))}
-          {files.length > 0 ? (
-            files.map((file) => <span key={`${file.name}-${file.lastModified}`}>{file.name}</span>)
-          ) : existingAttachments.length === 0 ? (
-            <span>선택된 파일이 없습니다.</span>
-          ) : null}
-          <FileSelectLabel>
-            <IconPaperclip aria-hidden="true" size={16} stroke={2.25} />
-            <span>파일 선택</span>
-            <HiddenFileInput
-              type="file"
-              name="files"
-              multiple
-              onChange={(event) => {
-                setFiles(Array.from(event.target.files ?? []));
-              }}
-            />
-          </FileSelectLabel>
-        </FileUploadPanel>
+        <AttachmentEditorPanel
+          existingAttachments={editableAttachments.map((file, index) => ({
+            id: file.fileId ?? `existing-${index}`,
+            label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
+          }))}
+          selectedFiles={files}
+          onSelectFiles={(nextFiles) => setFiles((current) => [...current, ...nextFiles])}
+          onRemoveExisting={handleRemoveExistingAttachment}
+          onRemoveSelected={handleRemoveSelectedFile}
+          disabled={isPending}
+        />
 
         {postDetailQuery.isError ? (
           <StateMessage>수정할 {config.title} 내용을 불러오지 못했습니다.</StateMessage>
@@ -310,6 +328,18 @@ const ArchiveInput = styled.input`
     min-height: 4rem;
     padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
+  }
+`;
+
+const ToolbarActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space20};
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 `;
 

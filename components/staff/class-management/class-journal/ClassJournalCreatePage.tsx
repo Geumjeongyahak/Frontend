@@ -21,15 +21,9 @@ import type { StudentListResponseDto } from "@/api/student/student.dto";
 import { getStudents } from "@/api/student/student.api";
 import { getMyAssignedSubjects } from "@/api/subject/subject.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { buildClassAttendanceSheetPayload } from "@/lib/googleSheet/classAttendance/classAttendanceSheetPayload";
-import { sendClassAttendanceToGoogleSheet } from "@/lib/googleSheet/classAttendance/sendClassAttendanceToGoogleSheet";
-import {
-  buildClassJournalSheetPayloadFromFormData,
-  formatPhone,
-} from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
-import { sendClassJournalToGoogleSheet } from "@/lib/googleSheet/classJournal/sendClassJournalToGoogleSheet";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
+import { formatPhone } from "@/utils/formatPhone";
 import { getKstTodayIsoDate, parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import {
@@ -187,36 +181,16 @@ export default function ClassJournalCreatePage() {
     mutationFn: async ({
       journalBody,
       attendances,
-      googleSheet,
     }: {
       journalBody: Parameters<typeof createJournal>[0];
       attendances: UpdateDailyStudentAttendanceItemRequestDto[];
-      googleSheet: {
-        journal: ReturnType<typeof buildClassJournalSheetPayloadFromFormData>;
-        attendance: ReturnType<typeof buildClassAttendanceSheetPayload>;
-      };
     }) => {
       const journal = await createJournal(journalBody);
       const dailyScheduleId = journal.dailyScheduleId;
 
-      const schedule =
-        typeof dailyScheduleId === "number" && attendances.length > 0
-          ? await updateStudentAttendances({ dailyScheduleId }, { attendances })
-          : journal;
-
-      try {
-        await sendClassJournalToGoogleSheet(googleSheet.journal);
-
-        if (googleSheet.attendance.attendances.length > 0) {
-          await sendClassAttendanceToGoogleSheet(googleSheet.attendance);
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "구글 시트 연동에 실패했습니다.";
-        throw new Error(`수업 일지는 저장되었으나 ${message}`);
-      }
-
-      return schedule;
+      return typeof dailyScheduleId === "number" && attendances.length > 0
+        ? await updateStudentAttendances({ dailyScheduleId }, { attendances })
+        : journal;
     },
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ["daily-schedules", "list"] });
@@ -344,15 +318,6 @@ export default function ClassJournalCreatePage() {
         personalInfoConsent,
         residentRegistrationNumberPrefix,
         lessonJournals,
-      },
-      googleSheet: {
-        journal: buildClassJournalSheetPayloadFromFormData(formData),
-        attendance: buildClassAttendanceSheetPayload(
-          formData,
-          enrolledStudents,
-          classroomNameValue,
-          lessonDateValue.trim(),
-        ),
       },
     });
   };

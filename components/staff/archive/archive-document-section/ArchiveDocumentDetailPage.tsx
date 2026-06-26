@@ -1,14 +1,21 @@
 "use client";
 
-import { IconDownload, IconPaperclip } from "@tabler/icons-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { toast } from "react-toastify";
 import styled, { css } from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
+import { deleteAttachment } from "@/api/file/file.api";
 import { deletePost, getPost, pinPost, updatePost } from "@/api/post/post.api";
+import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
+import {
+  AttachmentDownloadList,
+  AttachmentEditorPanel,
+} from "@/components/common/AttachmentField";
+import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import BoardCommentSection from "@/components/staff/board/BoardCommentSection";
 import {
@@ -17,10 +24,7 @@ import {
   CheckboxLabel,
   ContentStack,
   DocumentSection,
-  DownloadBadge,
   FieldBox,
-  FileLink,
-  FileList,
   Label,
   MetaBar,
   OptionRow,
@@ -60,6 +64,9 @@ export default function ArchiveDocumentDetailPage({
   const [editAllowComment, setEditAllowComment] = useState(true);
   const [editIsPinned, setEditIsPinned] = useState(false);
   const [editFiles, setEditFiles] = useState<File[]>([]);
+  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[]>([]);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const shouldShowUploadToastRef = useRef(false);
 
   const channelsQuery = useQuery({
     queryKey: ["staff", "archive", "channels"],
@@ -108,6 +115,9 @@ export default function ArchiveDocumentDetailPage({
   const author = visiblePost?.authorName ?? "홍길동";
   const content = visiblePost?.contentHtml?.trim() || "설명";
   const attachments = visiblePost?.attachments ?? [];
+  useEffect(() => {
+    setEditableAttachments(attachments);
+  }, [attachments]);
   const canManagePost =
     user?.role === "ADMIN" ||
     (typeof user?.id === "number" && visiblePost?.authorId === user.id) ||
@@ -127,8 +137,11 @@ export default function ArchiveDocumentDetailPage({
       const title = editTitle.trim();
       const contentHtml = editContent.trim();
       const uploadArchiveDocument = getUploadArchiveDocument(config.category);
+      const hasFileUpload = Boolean(uploadArchiveDocument) && editFiles.length > 0;
+      shouldShowUploadToastRef.current = hasFileUpload;
+      setIsUploadingFiles(hasFileUpload);
 
-      if (uploadArchiveDocument && editFiles.length > 0) {
+      if (hasFileUpload && uploadArchiveDocument) {
         return publishArchivePostWithNewFiles({
           mode: "update",
           postId,
@@ -139,7 +152,7 @@ export default function ArchiveDocumentDetailPage({
           isPinned: editIsPinned,
           files: editFiles,
           uploadDocument: uploadArchiveDocument,
-          sortOrderStart: attachments.length,
+          sortOrderStart: editableAttachments.length,
           errorLabel: config.title,
           initialPinned: visiblePost?.isPinned ?? false,
         });
@@ -157,6 +170,11 @@ export default function ArchiveDocumentDetailPage({
       return updatedPost;
     },
     onSuccess: async (updatedPost) => {
+      if (shouldShowUploadToastRef.current) {
+        toast.success("파일 업로드가 완료되었습니다.");
+      }
+
+      setIsUploadingFiles(false);
       setIsEditing(false);
       setEditFiles([]);
       queryClient.setQueryData(queryKeys.posts.boardDetail(channelId ?? 0, postId), updatedPost);
@@ -168,6 +186,10 @@ export default function ArchiveDocumentDetailPage({
             })
           : Promise.resolve(),
       ]);
+    },
+    onError: () => {
+      shouldShowUploadToastRef.current = false;
+      setIsUploadingFiles(false);
     },
   });
 
@@ -200,6 +222,7 @@ export default function ArchiveDocumentDetailPage({
     setEditAllowComment(visiblePost.allowComment ?? true);
     setEditIsPinned(visiblePost.isPinned ?? false);
     setEditFiles([]);
+    setEditableAttachments(visiblePost.attachments ?? []);
     setIsEditing(true);
   }
 
@@ -210,6 +233,20 @@ export default function ArchiveDocumentDetailPage({
     setEditAllowComment(true);
     setEditIsPinned(false);
     setEditFiles([]);
+    shouldShowUploadToastRef.current = false;
+    setIsUploadingFiles(false);
+    setEditableAttachments(attachments);
+  }
+
+  async function handleRemoveExistingAttachment(fileId: string) {
+    await deleteAttachment({ fileId });
+    setEditableAttachments((current) => current.filter((file) => file.fileId !== fileId));
+  }
+
+  function handleRemoveSelectedFile(file: File) {
+    setEditFiles((current) =>
+      current.filter((item) => !(item.name === file.name && item.lastModified === file.lastModified)),
+    );
   }
 
   function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
@@ -225,6 +262,7 @@ export default function ArchiveDocumentDetailPage({
         <ToolbarRight>
           {isEditing ? (
             <>
+              {updatePostMutation.isPending && isUploadingFiles ? <FileUploadProgressNotice /> : null}
               <ArchiveActionButton
                 type="submit"
                 form={`${config.category}-detail-edit-form`}
@@ -331,54 +369,26 @@ export default function ArchiveDocumentDetailPage({
 
         <Label>자료</Label>
         {isEditing ? (
-          <FileUploadPanel>
-            {attachments.map((file, index) => (
-              <span key={`${file.fileId ?? file.originalName}-${index}`}>
-                {file.originalName ?? file.fileId ?? `자료 ${index + 1}`}
-              </span>
-            ))}
-
-            {editFiles.length > 0 ? (
-              editFiles.map((file) => (
-                <span key={`${file.name}-${file.lastModified}`}>{file.name}</span>
-              ))
-            ) : attachments.length === 0 ? (
-              <span>선택된 파일이 없습니다.</span>
-            ) : null}
-
-            <FileSelectLabel>
-              <IconPaperclip aria-hidden="true" size={16} stroke={2.25} />
-              <span>파일 선택</span>
-              <HiddenFileInput
-                type="file"
-                name="files"
-                multiple
-                onChange={(event) => {
-                  setEditFiles(Array.from(event.target.files ?? []));
-                }}
-              />
-            </FileSelectLabel>
-          </FileUploadPanel>
+          <AttachmentEditorPanel
+            existingAttachments={editableAttachments.map((file, index) => ({
+              id: file.fileId ?? `existing-${index}`,
+              label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
+            }))}
+            selectedFiles={editFiles}
+            onSelectFiles={(files) => setEditFiles((current) => [...current, ...files])}
+            onRemoveExisting={handleRemoveExistingAttachment}
+            onRemoveSelected={handleRemoveSelectedFile}
+            disabled={updatePostMutation.isPending}
+          />
         ) : (
-          <FileList>
-            {attachments.length > 0 ? (
-              attachments.map((file, index) => {
-                const fileName = file.originalName ?? file.fileId ?? `자료 ${index + 1}`;
-                const fileUrl = file.downloadUrl ?? "#";
-
-                return (
-                  <FileLink key={`${file.fileId ?? fileName}-${index}`} href={fileUrl}>
-                    <span>{fileName}</span>
-                    <DownloadBadge aria-hidden="true">
-                      <IconDownload size={16} stroke={2.25} />
-                    </DownloadBadge>
-                  </FileLink>
-                );
-              })
-            ) : (
-              <EmptyAttachmentText>첨부된 자료가 없습니다.</EmptyAttachmentText>
-            )}
-          </FileList>
+          <AttachmentDownloadList
+            attachments={attachments.map((file, index) => ({
+              id: file.fileId ?? `${file.originalName}-${index}`,
+              fileId: file.fileId,
+              label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
+              href: file.downloadUrl ?? "#",
+            }))}
+          />
         )}
 
         {hasChannelId && visiblePost?.allowComment !== false ? (
@@ -490,96 +500,3 @@ const EditorBox = styled.div`
   }
 `;
 
-const EmptyAttachmentText = styled.span`
-  color: ${colors.placeholder};
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  cursor: default;
-  user-select: text;
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
-`;
-
-const FileUploadPanel = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: ${spacing.space20};
-  width: 100%;
-  min-height: 6.875rem;
-  border: 1px solid ${colors.muted};
-  background-color: ${colors.white};
-  padding: ${spacing.space20};
-
-  > span {
-    color: ${colors.text};
-    font-size: ${typography.fontSize14};
-    font-weight: 500;
-    line-height: ${typography.lineHeight130};
-    text-decoration: underline;
-    text-underline-position: from-font;
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 9.6875rem;
-    gap: 1.875rem;
-
-    > span {
-      font-size: ${typography.fontSize20};
-    }
-  }
-`;
-
-const FileSelectLabel = styled.label`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: ${spacing.space4};
-  min-height: 1.9375rem;
-  border: 1px solid ${colors.point};
-  border-radius: ${radii.radius15};
-  background-color: ${colors.pointSoft};
-  padding: 0.5rem 0.625rem;
-  color: ${colors.point};
-  font-size: ${typography.fontSize13};
-  font-weight: 600;
-  line-height: ${typography.lineHeight130};
-  cursor: pointer;
-
-  svg {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  &:hover {
-    background-color: #e5f5db;
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 2.75rem;
-    padding: 0.625rem 0.9375rem;
-    font-size: ${typography.fontSize20};
-
-    svg {
-      width: 1.5rem;
-      height: 1.5rem;
-    }
-  }
-
-  @media (max-width: ${layout.breakpointMobile}) {
-    width: 100%;
-  }
-`;
-
-const HiddenFileInput = styled.input`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-`;

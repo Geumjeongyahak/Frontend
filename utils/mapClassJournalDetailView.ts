@@ -3,7 +3,7 @@ import type {
   DailyScheduleLessonResponseDto,
   UpdateDailyScheduleJournalRequestDto,
 } from "@/api/dailySchedule/dailySchedule.dto";
-import { formatPhone } from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
+import { formatPhone } from "@/utils/formatPhone";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const LESSON_PERIOD_COUNT = 3;

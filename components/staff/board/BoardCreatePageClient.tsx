@@ -1,15 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { IconPaperclip } from "@tabler/icons-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
+import { deleteAttachment } from "@/api/file/file.api";
 import { attachPostFile, createPost, getPost, pinPost, publishPost, updatePost } from "@/api/post/post.api";
+import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
+import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
+import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import BoardDropdown, { type DropdownOption } from "@/components/staff/board/BoardDropdown";
 import {
   BOARD_WRITE_TYPE_OPTIONS,
@@ -24,10 +28,7 @@ import {
   CheckboxInput,
   CheckboxLabel,
   DocumentSection,
-  FileSelectLabel,
-  FileUploadPanel,
   Form,
-  HiddenFileInput,
   Input,
   Label,
   OptionRow,
@@ -36,8 +37,9 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { uploadBoardDocument } from "@/lib/googleDrive/documentUploaders";
+import { uploadBoardDocument } from "@/lib/googleDrive";
 import { queryKeys } from "@/lib/queryKeys";
+import type { UploadTargetConfig } from "@/lib/googleDrive/uploadTargets";
 
 type OpenDropdown = "type" | "scope" | null;
 
@@ -62,6 +64,8 @@ export default function BoardCreatePageClient({
   const [isPinned, setIsPinned] = useState<boolean | undefined>(undefined);
   const [allowComment, setAllowComment] = useState<boolean | undefined>(undefined);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[]>([]);
+  const shouldShowUploadToastRef = useRef(false);
 
   const channelsQuery = useQuery({
     queryKey: ["staff", "board", "channels"],
@@ -196,6 +200,9 @@ export default function BoardCreatePageClient({
   const visibleIsPinned = isPinned ?? initialPinned;
   const visibleAllowComment = allowComment ?? postDetailQuery.data?.allowComment ?? true;
   const existingAttachments = postDetailQuery.data?.attachments ?? [];
+  useEffect(() => {
+    setEditableAttachments(existingAttachments);
+  }, [existingAttachments]);
   const isEditorReady = !isEditMode || Boolean(postDetailQuery.data);
   const cancelHref =
     isEditMode && typeof editPostId === "number" && typeof editChannelId === "number"
@@ -211,7 +218,23 @@ export default function BoardCreatePageClient({
           postDetailQuery.data.authorName === user?.nickname ||
           postDetailQuery.data.authorName === user?.email),
     );
+  const selectedScopeLabel =
+    selectedBoardType === "NOTICE"
+      ? "공지사항"
+      : scopeOptions.find((option) => option.value === selectedBoardScope)?.label ??
+        (selectedBoardType === "CLASSROOM" ? "반별 게시판" : "부서별 게시판");
 
+  function resolveBoardUploadTarget(): UploadTargetConfig {
+    if (selectedBoardType === "NOTICE") {
+      return { targetType: "notice", targetName: "공지사항" };
+    }
+
+    if (selectedBoardType === "CLASSROOM") {
+      return { targetType: "classroom", targetName: selectedScopeLabel };
+    }
+
+    return { targetType: "department", targetName: selectedScopeLabel };
+  }
   const { mutate, isPending, isError } = useMutation({
     mutationFn: async () => {
       const channelId = isEditMode ? editChannelId : selectedChannelId;
@@ -228,8 +251,10 @@ export default function BoardCreatePageClient({
       const contentHtml = visibleContentHtml.trim();
       const allowComment = visibleAllowComment;
       const publishBody = { title, contentHtml, allowComment };
+      const hasFileUpload = selectedFiles.length > 0;
+      shouldShowUploadToastRef.current = hasFileUpload;
 
-      if (selectedFiles.length > 0) {
+      if (hasFileUpload) {
         const draftPost = isEditMode
           ? await updatePost(
               { channelId, postId: editPostId },
@@ -241,7 +266,10 @@ export default function BoardCreatePageClient({
           throw new Error("게시글 초안을 저장하지 못했습니다.");
         }
 
-        const registeredFiles = await Promise.all(selectedFiles.map((file) => uploadBoardDocument(file)));
+        const boardUploadTarget = resolveBoardUploadTarget();
+        const registeredFiles = await Promise.all(
+          selectedFiles.map((file) => uploadBoardDocument(file, boardUploadTarget)),
+        );
 
         for (const [index, registered] of registeredFiles.entries()) {
           if (!registered.fileId) {
@@ -252,7 +280,7 @@ export default function BoardCreatePageClient({
             { channelId, postId: draftPost.id },
             {
               fileId: registered.fileId,
-              sortOrder: (isEditMode ? existingAttachments.length : 0) + index,
+              sortOrder: (isEditMode ? editableAttachments.length : 0) + index,
             },
           );
         }
@@ -291,6 +319,10 @@ export default function BoardCreatePageClient({
       );
     },
     onSuccess: async (post) => {
+      if (shouldShowUploadToastRef.current) {
+        toast.success("파일 업로드가 완료되었습니다.");
+      }
+
       const savedPostId = post.id ?? editPostId;
       const savedChannelId = post.channelId ?? (isEditMode ? editChannelId : selectedChannelId);
 
@@ -317,6 +349,9 @@ export default function BoardCreatePageClient({
 
       router.push("/staff/board");
     },
+    onError: () => {
+      shouldShowUploadToastRef.current = false;
+    },
   });
 
   const canSubmit =
@@ -326,12 +361,24 @@ export default function BoardCreatePageClient({
     canManagePost &&
     !isPending;
 
+  async function handleRemoveExistingAttachment(fileId: string) {
+    await deleteAttachment({ fileId });
+    setEditableAttachments((current) => current.filter((file) => file.fileId !== fileId));
+  }
+
+  function handleRemoveSelectedFile(file: File) {
+    setSelectedFiles((current) =>
+      current.filter((item) => !(item.name === file.name && item.lastModified === file.lastModified)),
+    );
+  }
+
   return (
     <BoardShell>
       <DocumentSection>
         <Toolbar>
           <PageTitle>{isEditMode ? "글 수정" : "글쓰기"}</PageTitle>
           <ToolbarActions>
+            {isPending && selectedFiles.length > 0 ? <FileUploadProgressNotice /> : null}
             <ActionButton type="submit" form="board-create-form" disabled={!canSubmit}>
               {isEditMode ? "수정 완료" : "작성 완료"}
             </ActionButton>
@@ -443,32 +490,17 @@ export default function BoardCreatePageClient({
           )}
 
           <Label>자료</Label>
-          <FileUploadPanel>
-            {existingAttachments.map((file, index) => (
-              <span key={`${file.fileId ?? file.originalName}-${index}`}>
-                {file.originalName ?? file.fileId ?? `자료 ${index + 1}`}
-              </span>
-            ))}
-            {selectedFiles.length > 0 ? (
-              selectedFiles.map((file) => (
-                <span key={`${file.name}-${file.lastModified}`}>{file.name}</span>
-              ))
-            ) : existingAttachments.length === 0 ? (
-              <span>선택된 파일이 없습니다.</span>
-            ) : null}
-            <FileSelectLabel>
-              <IconPaperclip aria-hidden="true" size={16} stroke={2.25} />
-              <span>파일 선택</span>
-              <HiddenFileInput
-                type="file"
-                name="files"
-                multiple
-                onChange={(event) => {
-                  setSelectedFiles(Array.from(event.target.files ?? []));
-                }}
-              />
-            </FileSelectLabel>
-          </FileUploadPanel>
+          <AttachmentEditorPanel
+            existingAttachments={editableAttachments.map((file, index) => ({
+              id: file.fileId ?? `existing-${index}`,
+              label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
+            }))}
+            selectedFiles={selectedFiles}
+            onSelectFiles={(files) => setSelectedFiles((current) => [...current, ...files])}
+            onRemoveExisting={handleRemoveExistingAttachment}
+            onRemoveSelected={handleRemoveSelectedFile}
+            disabled={isPending}
+          />
 
           {postDetailQuery.isError ? (
             <StateMessage>수정할 게시글 내용을 불러오지 못했습니다.</StateMessage>
@@ -494,5 +526,11 @@ const ToolbarActions = styled.div`
 
   @media (min-width: 120rem) {
     gap: 1.875rem;
+  }
+
+  @media (max-width: 47.9375rem) {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 `;

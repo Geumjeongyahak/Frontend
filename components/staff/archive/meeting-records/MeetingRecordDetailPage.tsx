@@ -10,6 +10,10 @@ import {
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import MeetingRecordAbsenceSection from "@/components/staff/archive/meeting-records/MeetingRecordAbsenceSection";
 import MeetingRecordFormPage from "@/components/staff/archive/meeting-records/MeetingRecordFormPage";
+import { extractMeetingRecordAttachments } from "@/components/staff/archive/meeting-records/meetingRecordAttachments";
+import {
+  AttachmentDownloadList,
+} from "@/components/common/AttachmentField";
 import {
   ActionButton,
   ActionLink,
@@ -61,6 +65,10 @@ export default function MeetingRecordDetailPage({ recordId }: MeetingRecordDetai
       (typeof user?.id === "number" &&
         typeof meetingRecord?.authorId === "number" &&
         user.id === meetingRecord.authorId));
+  const parsedAgenda = extractMeetingRecordAttachments(meetingRecord?.agenda);
+  const attachments = meetingRecord?.attachments?.length
+    ? meetingRecord.attachments
+    : parsedAgenda.attachments;
 
   if (isEditing && meetingRecord) {
     return (
@@ -122,9 +130,9 @@ export default function MeetingRecordDetailPage({ recordId }: MeetingRecordDetai
           <FieldBox>{meetingRecord.author ?? "-"}</FieldBox>
 
           <Label>안건</Label>
-          {meetingRecord.agenda?.trim() ? (
+          {parsedAgenda.content.trim() ? (
             <ViewerBox>
-              <ToastViewerField value={meetingRecord.agenda} />
+              <ToastViewerField value={parsedAgenda.content} />
             </ViewerBox>
           ) : (
             <TextBox>-</TextBox>
@@ -147,6 +155,16 @@ export default function MeetingRecordDetailPage({ recordId }: MeetingRecordDetai
           ) : (
             <TextBox>-</TextBox>
           )}
+
+          <Label>자료</Label>
+          <AttachmentDownloadList
+            attachments={attachments.map((file, index) => ({
+              id: file.fileId ?? `${file.originalName}-${index}`,
+              fileId: file.fileId,
+              label: file.originalName ?? `자료 ${index + 1}`,
+              href: file.downloadUrl ?? "#",
+            }))}
+          />
 
           <Divider />
           <MeetingRecordAbsenceSection

@@ -35,10 +35,18 @@ export interface MeetingAbsenceReportResponseDto {
   createdAt?: string;
 }
 
+export interface MeetingRecordAttachmentDto {
+  fileId?: string;
+  originalName?: string;
+  downloadUrl?: string;
+  viewUrl?: string;
+}
+
 export interface MeetingRecordDetailResponseDto extends MeetingRecordSummaryResponseDto {
   agenda?: string;
   discussion?: string;
   suggestion?: string;
+  attachments?: MeetingRecordAttachmentDto[];
   absenceReports?: MeetingAbsenceReportResponseDto[];
 }
 
