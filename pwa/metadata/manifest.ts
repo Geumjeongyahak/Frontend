@@ -14,13 +14,13 @@ export default function manifest(): MetadataRoute.Manifest {
     icons: [
       {
         src: "/pwa-logo.png",
-        sizes: "84x84",
-        type: "image/svg+xml",
+        sizes: "512x512",
+        type: "image/png",
       },
       {
         src: "/pwa-logo.png",
-        sizes: "84x84",
-        type: "image/svg+xml",
+        sizes: "512x512",
+        type: "image/png",
         purpose: "maskable",
       },
       {
