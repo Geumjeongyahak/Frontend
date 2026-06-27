@@ -118,13 +118,13 @@ export function TimeWheelPicker({ label, value, onChange }: TimeWheelPickerProps
   const hourColumnRef = useRef<HTMLDivElement>(null);
   const minuteColumnRef = useRef<HTMLDivElement>(null);
   const parsed = parseTimeValue(value);
-  const [centeredHour, setCenteredHour] = useState(parsed.hour);
-  const [centeredMinute, setCenteredMinute] = useState(parsed.minute);
-
-  useEffect(() => {
-    setCenteredHour(parsed.hour);
-    setCenteredMinute(parsed.minute);
-  }, [parsed.hour, parsed.minute]);
+  const [centered, setCentered] = useState({
+    value,
+    hour: parsed.hour,
+    minute: parsed.minute,
+  });
+  const centeredHour = centered.value === value ? centered.hour : parsed.hour;
+  const centeredMinute = centered.value === value ? centered.minute : parsed.minute;
 
   useEffect(() => {
     if (hourColumnRef.current) {
@@ -145,7 +145,11 @@ export function TimeWheelPicker({ label, value, onChange }: TimeWheelPickerProps
     if (!column) return;
 
     const nextHour = syncCenteredFromScroll(column, HOUR_OPTIONS);
-    setCenteredHour(nextHour);
+    setCentered((current) => ({
+      value,
+      hour: nextHour,
+      minute: current.value === value ? current.minute : parsed.minute,
+    }));
 
     const minuteColumn = minuteColumnRef.current;
     if (!minuteColumn) return;
@@ -158,7 +162,11 @@ export function TimeWheelPicker({ label, value, onChange }: TimeWheelPickerProps
     if (!column) return;
 
     const nextMinute = syncCenteredFromScroll(column, MINUTE_OPTIONS);
-    setCenteredMinute(nextMinute);
+    setCentered((current) => ({
+      value,
+      hour: current.value === value ? current.hour : parsed.hour,
+      minute: nextMinute,
+    }));
 
     const hourColumn = hourColumnRef.current;
     if (!hourColumn) return;
