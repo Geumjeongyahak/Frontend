@@ -37,7 +37,10 @@ type GoogleSignupFormProps = {
 export default function GoogleSignupForm({ searchParams }: GoogleSignupFormProps) {
   const router = useRouter();
   const tempToken = searchParams.tempToken ?? "";
-  const [form, setForm] = useState(initialState);
+  const [form, setForm] = useState<GoogleSignupFormState>({
+    ...initialState,
+    name: searchParams.name ?? "",
+  });
   const [statusMessage, setStatusMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
