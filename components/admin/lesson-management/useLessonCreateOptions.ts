@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getSubjects } from "@/api/subject/subject.api";
 import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
@@ -60,9 +60,7 @@ export function useLessonCreateOptions() {
     [subjectsQuery.data],
   );
 
-  useEffect(() => {
-    setSelectedSubjectId(subjects[0]?.id ?? null);
-  }, [subjects, selectedTeacherId]);
+  const effectiveSelectedSubjectId = selectedSubjectId ?? subjects[0]?.id ?? null;
 
   const selectTeacher = (teacherId: number | null) => {
     setSelectedTeacherId(teacherId);
@@ -71,7 +69,7 @@ export function useLessonCreateOptions() {
 
   const selection: LessonCreateSelection = {
     teacherId: selectedTeacherId,
-    subjectId: selectedSubjectId,
+    subjectId: effectiveSelectedSubjectId,
   };
 
   return {
@@ -83,7 +81,7 @@ export function useLessonCreateOptions() {
     classroomId,
     subjects,
     subjectsQuery,
-    selectedSubjectId,
+    selectedSubjectId: effectiveSelectedSubjectId,
     setSelectedSubjectId,
     selection,
   };

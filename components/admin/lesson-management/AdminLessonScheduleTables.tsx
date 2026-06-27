@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { SetStateAction } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import styled from "styled-components";
@@ -297,7 +298,13 @@ function ScheduleTable({
 export function AdminLessonScheduleTables() {
   const queryClient = useQueryClient();
   const [selectedCell, setSelectedCell] = useState<ScheduleCellSelection | null>(null);
-  const [cellForm, setCellForm] = useState<ScheduleCellFormState>(() => buildCellFormState(null));
+  const selectedCellKey = selectedCell
+    ? `${getClassroomId(selectedCell.classroom) ?? "unknown"}-${selectedCell.dayOfWeek}`
+    : "none";
+  const [cellFormState, setCellFormState] = useState<{
+    key: string;
+    form: ScheduleCellFormState;
+  }>(() => ({ key: "none", form: buildCellFormState(null) }));
   const [formError, setFormError] = useState<string | null>(null);
   const [periodColors, setPeriodColors] = useState<PeriodColorMap>(() => readStoredPeriodColors());
   const [isColorSettingsOpen, setIsColorSettingsOpen] = useState(false);
@@ -336,10 +343,19 @@ export function AdminLessonScheduleTables() {
     window.localStorage.setItem(PERIOD_COLOR_STORAGE_KEY, JSON.stringify(periodColors));
   }, [periodColors]);
 
-  useEffect(() => {
-    setCellForm(buildCellFormState(selectedCell));
-    setFormError(null);
-  }, [selectedCell]);
+  const cellForm =
+    cellFormState.key === selectedCellKey ? cellFormState.form : buildCellFormState(selectedCell);
+  const visibleFormError = cellFormState.key === selectedCellKey ? formError : null;
+  const setCellForm = (updater: SetStateAction<ScheduleCellFormState>) => {
+    setCellFormState((current) => {
+      const baseForm =
+        current.key === selectedCellKey ? current.form : buildCellFormState(selectedCell);
+      return {
+        key: selectedCellKey,
+        form: typeof updater === "function" ? updater(baseForm) : updater,
+      };
+    });
+  };
 
   const closeModal = () => {
     setSelectedCell(null);
@@ -595,7 +611,7 @@ export function AdminLessonScheduleTables() {
               </PeriodEditorList>
             </ModalBody>
 
-            {formError ? <InlineStatus role="alert">{formError}</InlineStatus> : null}
+            {visibleFormError ? <InlineStatus role="alert">{visibleFormError}</InlineStatus> : null}
             {teachersQuery.isError ? (
               <InlineStatus role="alert">교사 목록을 불러오지 못했습니다.</InlineStatus>
             ) : null}
