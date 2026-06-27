@@ -2,8 +2,8 @@ import type { ChannelResponseDto } from "@/api/channel/channel.dto";
 import type { PostDetailResponseDto, PostSummaryResponseDto } from "@/api/post/post.dto";
 
 export const EVENT_CHANNEL_TYPE = "EVENT";
-export const EVENTS_PER_PAGE = 6;
 export const EVENT_FETCH_SIZE = 100;
+export const EVENTS_PER_PAGE = 6;
 
 export function getEventPostTime(post: PostSummaryResponseDto) {
   const dateValue = post.createdAt ?? post.updatedAt;

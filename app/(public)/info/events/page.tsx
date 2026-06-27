@@ -5,7 +5,7 @@ import type { ChannelResponseDto } from "@/api/channel/channel.dto";
 import type { PostListResponseDto } from "@/api/post/post.dto";
 import {
   EVENT_CHANNEL_TYPE,
-  EVENT_FETCH_SIZE,
+  EVENTS_PER_PAGE,
   findEventChannel,
 } from "@/components/info/events/eventUtils";
 
@@ -31,8 +31,8 @@ export default async function Page({ searchParams }: PageProps) {
         channelType: EVENT_CHANNEL_TYPE,
         channelId: eventChannel.id,
         status: "PUBLISHED",
-        page: 0,
-        size: EVENT_FETCH_SIZE,
+        page: Math.max(0, initialPage - 1),
+        size: EVENTS_PER_PAGE,
       });
     }
   } catch {
