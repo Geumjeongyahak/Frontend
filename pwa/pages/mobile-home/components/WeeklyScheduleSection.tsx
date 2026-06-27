@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import styled, { css } from "styled-components";
 import {
   MOBILE_HOME_BODY_FONT,
@@ -36,7 +36,6 @@ type WeeklyScheduleSectionProps = {
   emptyMessage: string;
   onDaySelect: (day: MobileHomeDayValue) => void;
   onModeChange: (mode: MobileScheduleMode) => void;
-  onScheduleClick: (targetDate?: string) => void;
 };
 
 export default function WeeklyScheduleSection({
@@ -49,18 +48,15 @@ export default function WeeklyScheduleSection({
   emptyMessage,
   onDaySelect,
   onModeChange,
-  onScheduleClick,
 }: WeeklyScheduleSectionProps) {
-  const [showAllSchedules, setShowAllSchedules] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<MobileScheduleDetail | null>(null);
-
-  useEffect(() => {
-    setShowAllSchedules(false);
-  }, [mode, selectedDay]);
-
-  useEffect(() => {
-    setSelectedSchedule(null);
-  }, [mode, selectedDay]);
+  const scheduleScope = `${mode}-${selectedDay}`;
+  const [showAllSchedules, setShowAllSchedules] = useState({ scope: scheduleScope, value: false });
+  const [selectedSchedule, setSelectedSchedule] = useState<
+    (MobileScheduleDetail & { scope: string }) | null
+  >(null);
+  const isExpanded = showAllSchedules.scope === scheduleScope && showAllSchedules.value;
+  const activeSchedule =
+    selectedSchedule?.scope === scheduleScope ? selectedSchedule : null;
 
   if (isAuthLoading) {
     return (
@@ -72,12 +68,12 @@ export default function WeeklyScheduleSection({
     );
   }
 
-  const visibleSchedules = showAllSchedules ? allSchedules : allSchedules.slice(0, 3);
+  const visibleSchedules = isExpanded ? allSchedules : allSchedules.slice(0, 3);
   const canExpandSchedules = allSchedules.length > 3;
 
   return (
     <Section>
-      <Card $expanded={mode === "all" && showAllSchedules && canExpandSchedules}>
+      <Card $expanded={mode === "all" && isExpanded && canExpandSchedules}>
         <HeaderRow>
           <SectionTitle>이번주 일정</SectionTitle>
           <ToggleWrap>
@@ -129,6 +125,7 @@ export default function WeeklyScheduleSection({
                       kind: "lesson",
                       isCancelled: lesson.isCancelled,
                       periods: lesson.periods,
+                      scope: scheduleScope,
                     })
                   }
                   $background={getClassTone(lesson.classroomName).background}
@@ -143,7 +140,7 @@ export default function WeeklyScheduleSection({
         ) : (
           <ScheduleSection>
             <ScheduleList
-              $expanded={showAllSchedules}
+              $expanded={isExpanded}
               $compact={!loading && visibleSchedules.length > 0}
             >
               {loading ? (
@@ -167,6 +164,7 @@ export default function WeeklyScheduleSection({
                         isCancelled: schedule.isCancelled,
                         emoji: schedule.emoji,
                         description: schedule.description,
+                        scope: scheduleScope,
                       })
                     }
                   >
@@ -188,19 +186,24 @@ export default function WeeklyScheduleSection({
             {canExpandSchedules ? (
               <MoreButton
                 type="button"
-                onClick={() => setShowAllSchedules((current) => !current)}
-                aria-expanded={showAllSchedules}
+                onClick={() =>
+                  setShowAllSchedules((current) => ({
+                    scope: scheduleScope,
+                    value: current.scope === scheduleScope ? !current.value : true,
+                  }))
+                }
+                aria-expanded={isExpanded}
               >
-                {showAllSchedules ? "접기" : "더보기"}
-                <MoreArrow $expanded={showAllSchedules}>⌄</MoreArrow>
+                {isExpanded ? "접기" : "더보기"}
+                <MoreArrow $expanded={isExpanded}>⌄</MoreArrow>
               </MoreButton>
             ) : null}
           </ScheduleSection>
         )}
       </Card>
-      {selectedSchedule ? (
+      {activeSchedule ? (
         <ScheduleDetailModal
-          item={selectedSchedule}
+          item={activeSchedule}
           onClose={() => setSelectedSchedule(null)}
         />
       ) : null}

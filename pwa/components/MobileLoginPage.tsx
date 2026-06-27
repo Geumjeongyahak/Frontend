@@ -60,7 +60,7 @@ export default function MobileLoginPage() {
     <Page>
       <Header>
         <Eyebrow>금정열린배움터</Eyebrow>
-        <Title>어서오세요, 여기는 "금정열린배움터"입니다.</Title>
+        <Title>어서오세요, 여기는 &quot;금정열린배움터&quot;입니다.</Title>
       </Header>
 
       <Panel>

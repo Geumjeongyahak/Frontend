@@ -106,11 +106,6 @@ export default function MobileHomeScreen() {
           emptyMessage={screen.scheduleEmptyMessage}
           onDaySelect={screen.setSelectedDay}
           onModeChange={screen.setScheduleMode}
-          onScheduleClick={(targetDate) =>
-            screen.navigateWhenAuthenticated(
-              targetDate ? `/staff/calendar?date=${targetDate}` : "/staff/calendar",
-            )
-          }
         />
       </Page>
       {screen.popupVisible ? <AttendanceSuccessOverlay /> : null}

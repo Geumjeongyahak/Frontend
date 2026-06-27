@@ -2,7 +2,7 @@
 
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import {
@@ -54,12 +54,7 @@ export function useMobileHomeScreen() {
   const [selectedDay, setSelectedDay] = useState<MobileHomeDayValue>(getCurrentDayValue);
   const [scheduleMode, setScheduleMode] = useState<MobileScheduleMode>("all");
   const [isAttendanceResolving, setIsAttendanceResolving] = useState(false);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setScheduleMode("all");
-    }
-  }, [isAuthenticated]);
+  const effectiveScheduleMode = isAuthenticated ? scheduleMode : "all";
 
   const weekFrom = dayjs().startOf("isoWeek").format("YYYY-MM-DD");
   const weekTo = dayjs().endOf("isoWeek").format("YYYY-MM-DD");
@@ -244,7 +239,7 @@ export function useMobileHomeScreen() {
     navigateWhenAuthenticated,
     selectedDay,
     setSelectedDay,
-    scheduleMode,
+    scheduleMode: effectiveScheduleMode,
     setScheduleMode,
     unreadCount,
     popupVisible: popup.isVisible,
@@ -258,7 +253,7 @@ export function useMobileHomeScreen() {
     scheduleEmptyMessage:
       !isAuthenticated && scheduleMode === "mine"
         ? "로그인이 필요합니다."
-        : scheduleMode === "mine"
+        : effectiveScheduleMode === "mine"
           ? "해당 요일에 일정이 없습니다."
           : "일정이 없습니다.",
     attendanceTitle: todayLesson?.classroomName
