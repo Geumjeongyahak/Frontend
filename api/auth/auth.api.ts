@@ -4,6 +4,8 @@ import { clearTokens, setTokens } from "../client/tokenStorage";
 import type {
   AuthMessageResponseDto,
   AdminLoginRequestDto,
+  EmailVerificationConfirmRequestDto,
+  EmailVerificationResendRequestDto,
   GoogleLoginRequestDto,
   GoogleSignupRequestDto,
   LoginRequestDto,
@@ -13,10 +15,27 @@ import type {
   TokenResponseDto,
 } from "./auth.dto";
 
-// 회원가입 후 토큰을 발급받는 요청
+// 회원가입 — 이메일 인증 필요, 토큰 미발급
 export async function signup(body: SignupRequestDto) {
-  const response = await publicClient.post<TokenResponseDto>("/api/v1/auth/signup", body);
-  setTokens(response.data.accessToken, response.data.refreshToken);
+  const response = await publicClient.post<AuthMessageResponseDto>("/api/v1/auth/signup", body);
+  return response.data;
+}
+
+// 이메일 인증 코드 확인
+export async function confirmEmailVerification(body: EmailVerificationConfirmRequestDto) {
+  const response = await publicClient.post<AuthMessageResponseDto>(
+    "/api/v1/auth/email-verification/confirm",
+    body,
+  );
+  return response.data;
+}
+
+// 이메일 인증 코드 재발송
+export async function resendEmailVerification(body: EmailVerificationResendRequestDto) {
+  const response = await publicClient.post<AuthMessageResponseDto>(
+    "/api/v1/auth/email-verification/resend",
+    body,
+  );
   return response.data;
 }
 
@@ -71,6 +90,13 @@ export async function googleLogin(body: GoogleLoginRequestDto) {
 
 export async function connectLocalAccount(body: GoogleLoginRequestDto) {
   const response = await authClient.post<TokenResponseDto>("/api/v1/auth/google/connect", body);
+  setTokens(response.data.accessToken, response.data.refreshToken);
+  return response.data;
+}
+
+// 비로그인 상태에서 Google 계정과 기존 Local 계정 연결 (콜백 signupRequired+connectedToLocal 흐름)
+export async function connectGoogleToLocalAccount(body: GoogleLoginRequestDto) {
+  const response = await publicClient.post<TokenResponseDto>("/api/v1/auth/google/connect", body);
   setTokens(response.data.accessToken, response.data.refreshToken);
   return response.data;
 }

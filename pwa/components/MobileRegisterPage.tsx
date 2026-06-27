@@ -70,7 +70,7 @@ export default function MobileRegisterPage() {
         birthDate: form.birthDate,
         phoneNumber: form.phoneNumber.trim() || undefined,
       });
-      router.replace("/", { scroll: true });
+      router.replace(`/auth/email-verification?email=${encodeURIComponent(form.email.trim())}`);
     } catch {
       setStatusMessage("회원가입 정보를 확인해 주세요.");
     } finally {

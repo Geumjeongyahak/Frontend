@@ -78,8 +78,7 @@ export default function RegisterForm() {
         birthDate: form.birthDate,
         phoneNumber: form.phoneNumber.trim() || undefined,
       });
-      setStatusMessage("회원가입이 완료되었습니다. 잠시 후 메인으로 이동합니다.");
-      router.replace("/");
+      router.replace(`/auth/email-verification?email=${encodeURIComponent(form.email.trim())}`);
     } catch {
       setStatusMessage("회원가입 정보를 확인해 주세요.");
     } finally {
