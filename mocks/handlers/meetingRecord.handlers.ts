@@ -1,6 +1,7 @@
 import { HttpResponse, http, type RequestHandler } from "msw";
 import type {
   MeetingAbsenceReportResponseDto,
+  MeetingRecordAttachmentDto,
   MeetingRecordDetailResponseDto,
 } from "@/api/meetingRecord/meetingRecord.dto";
 
@@ -8,10 +9,12 @@ import { API_BASE_URL, REFRESHED_ACCESS_TOKEN, VALID_ACCESS_TOKEN } from "./auth
 
 let nextMeetingRecordId = 3;
 let nextAbsenceReportId = 10;
+let nextAttachmentIndex = 1;
 
 type MockMeetingRecord = MeetingRecordDetailResponseDto & {
   id: number;
   absenceReports: MeetingAbsenceReportResponseDto[];
+  attachments: MeetingRecordAttachmentDto[];
 };
 
 const MEETING_RECORDS: MockMeetingRecord[] = [
@@ -27,6 +30,7 @@ const MEETING_RECORDS: MockMeetingRecord[] = [
     discussion: "",
     suggestion: "",
     absenceReports: [],
+    attachments: [],
   },
   {
     id: 2,
@@ -40,6 +44,7 @@ const MEETING_RECORDS: MockMeetingRecord[] = [
     discussion: "행사 일정을 논의했습니다.",
     suggestion: "부서별 준비 항목을 확정했습니다.",
     absenceReports: [{ id: 1, authorId: 1, author: "Teacher One", reason: "수업", opinion: "" }],
+    attachments: [],
   },
 ];
 
@@ -99,6 +104,7 @@ export const meetingRecordHandlers: RequestHandler[] = [
       discussion: "",
       suggestion: "",
       absenceReports: [],
+      attachments: [],
       viewCount: 0,
     };
 
@@ -150,6 +156,66 @@ export const meetingRecordHandlers: RequestHandler[] = [
 
     return new HttpResponse(null, { status: 204 });
   }),
+  http.post(
+    `${API_BASE_URL}/api/v1/meeting-records/:recordId/attachments`,
+    async ({ request, params }) => {
+      const unauthorizedResponse = unauthorizedWhenNeeded(request);
+      if (unauthorizedResponse) return unauthorizedResponse;
+
+      const record = MEETING_RECORDS.find((item) => item.id === Number(params.recordId));
+      if (!record) {
+        return HttpResponse.json({ message: "Not Found" }, { status: 404 });
+      }
+
+      const contentType = request.headers.get("content-type") ?? "";
+      let attachment: MeetingRecordAttachmentDto;
+
+      if (contentType.includes("multipart/form-data")) {
+        const formData = await request.formData();
+        const file = formData.get("file");
+        const filename = file instanceof File ? file.name : `attachment-${nextAttachmentIndex}`;
+        attachment = {
+          fileId: `mock-file-${nextAttachmentIndex}`,
+          originalName: filename,
+          contentType: file instanceof File ? file.type : "application/octet-stream",
+          fileSize: file instanceof File ? file.size : 0,
+          isGoogleDrive: false,
+          downloadUrl: `https://example.com/files/mock-file-${nextAttachmentIndex}`,
+          sortOrder: record.attachments.length,
+        };
+      } else {
+        const body = (await request.json()) as { fileId?: string; sortOrder?: number };
+        attachment = {
+          fileId: body.fileId ?? `mock-file-${nextAttachmentIndex}`,
+          originalName: `file-${nextAttachmentIndex}.pdf`,
+          isGoogleDrive: true,
+          downloadUrl: `https://drive.google.com/mock/${nextAttachmentIndex}`,
+          sortOrder: body.sortOrder ?? record.attachments.length,
+        };
+      }
+
+      nextAttachmentIndex += 1;
+      record.attachments.push(attachment);
+
+      return HttpResponse.json(attachment);
+    },
+  ),
+  http.delete(
+    `${API_BASE_URL}/api/v1/meeting-records/:recordId/attachments/:fileId`,
+    ({ request, params }) => {
+      const unauthorizedResponse = unauthorizedWhenNeeded(request);
+      if (unauthorizedResponse) return unauthorizedResponse;
+
+      const record = MEETING_RECORDS.find((item) => item.id === Number(params.recordId));
+      if (!record) {
+        return HttpResponse.json({ message: "Not Found" }, { status: 404 });
+      }
+
+      record.attachments = record.attachments.filter((att) => att.fileId !== params.fileId);
+
+      return new HttpResponse(null, { status: 204 });
+    },
+  ),
   http.post(
     `${API_BASE_URL}/api/v1/meeting-records/:recordId/absence-reports`,
     async ({ request, params }) => {

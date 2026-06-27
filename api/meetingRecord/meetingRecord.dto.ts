@@ -40,6 +40,21 @@ export interface MeetingRecordAttachmentDto {
   originalName?: string;
   downloadUrl?: string;
   viewUrl?: string;
+  contentType?: string;
+  fileSize?: number;
+  ext?: string;
+  isGoogleDrive?: boolean;
+  sortOrder?: number;
+}
+
+export interface MeetingRecordAttachmentPathParamsDto {
+  recordId: number;
+  fileId: string;
+}
+
+export interface LinkMeetingRecordAttachmentRequestDto {
+  fileId: string;
+  sortOrder?: number;
 }
 
 export interface MeetingRecordDetailResponseDto extends MeetingRecordSummaryResponseDto {

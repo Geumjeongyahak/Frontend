@@ -4,9 +4,10 @@ import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { deleteAttachment } from "@/api/file/file.api";
 import {
+  attachMeetingRecordFile,
   createMeetingRecord,
+  deleteMeetingRecordAttachment,
   updateMeetingRecord,
 } from "@/api/meetingRecord/meetingRecord.api";
 import type {
@@ -18,7 +19,6 @@ import MeetingRecordFormFields, {
 } from "@/components/staff/archive/meeting-records/MeetingRecordFormFields";
 import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import {
-  embedMeetingRecordAttachments,
   extractMeetingRecordAttachments,
   type MeetingRecordAttachment,
 } from "@/components/staff/archive/meeting-records/meetingRecordAttachments";
@@ -30,7 +30,6 @@ import {
   ToolbarRight,
 } from "@/components/staff/archive/meeting-records/MeetingRecordDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { uploadMeetingRecordDocumentWithMetadata } from "@/lib/googleDrive";
 import { queryKeys } from "@/lib/queryKeys";
 
 type MeetingRecordFormPageProps = {
@@ -57,8 +56,20 @@ function createInitialValues(record?: MeetingRecordDetailResponseDto): MeetingRe
 }
 
 function createInitialAttachments(record?: MeetingRecordDetailResponseDto): MeetingRecordAttachment[] {
-  const parsedAgenda = extractMeetingRecordAttachments(record?.agenda);
-  return record?.attachments?.length ? (record.attachments as MeetingRecordAttachment[]) : parsedAgenda.attachments;
+  if (record?.attachments?.length) {
+    return record.attachments
+      .filter(
+        (att): att is typeof att & { fileId: string; originalName: string } =>
+          typeof att.fileId === "string" && typeof att.originalName === "string",
+      )
+      .map((att) => ({
+        fileId: att.fileId,
+        originalName: att.originalName,
+        downloadUrl: att.downloadUrl ?? "",
+        viewUrl: att.viewUrl,
+      }));
+  }
+  return extractMeetingRecordAttachments(record?.agenda).attachments;
 }
 
 function addRecordToFirstPageCache(
@@ -106,6 +117,7 @@ export default function MeetingRecordFormPage({
   const [attachments, setAttachments] = useState(() => createInitialAttachments(initialRecord));
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const shouldShowUploadToastRef = useRef(false);
+  const uploadErrorsRef = useRef(0);
   const isBeforeMeetingDisabled = mode === "edit" && initialRecord?.status === "AFTER_MEETING";
   const authorName =
     authStatus === "authenticated"
@@ -116,81 +128,80 @@ export default function MeetingRecordFormPage({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const hasFileUpload = selectedFiles.length > 0;
-      shouldShowUploadToastRef.current = hasFileUpload;
-      const uploadedAttachments =
-        hasFileUpload
-          ? await Promise.all(selectedFiles.map((file) => uploadMeetingRecordDocumentWithMetadata(file)))
-          : [];
-      const nextAttachments = [
-        ...attachments,
-        ...uploadedAttachments.map((file) => ({
-          fileId: file.fileId,
-          originalName: file.originalName,
-          downloadUrl: file.downloadUrl,
-          viewUrl: file.viewUrl,
-        })),
-      ];
-      const agendaWithAttachments = embedMeetingRecordAttachments(values.agenda.trim(), nextAttachments);
+      // Phase 1: 레코드 저장 (agenda에 첨부파일 임베딩 없음)
+      let savedRecord: MeetingRecordDetailResponseDto;
 
       if (mode === "edit" && initialRecord?.id) {
-        return updateMeetingRecord(
+        savedRecord = await updateMeetingRecord(
           { recordId: initialRecord.id },
           {
             title: values.title.trim(),
-            agenda: agendaWithAttachments,
+            agenda: values.agenda.trim(),
             discussion: values.discussion.trim(),
             suggestion: values.suggestion.trim(),
             status: values.status,
           },
         );
+      } else {
+        const created = await createMeetingRecord({
+          title: values.title.trim(),
+          agenda: values.agenda.trim(),
+        });
+
+        if (values.status === "AFTER_MEETING" && created.id) {
+          savedRecord = await updateMeetingRecord(
+            { recordId: created.id },
+            {
+              discussion: values.discussion.trim(),
+              suggestion: values.suggestion.trim(),
+              status: "AFTER_MEETING",
+            },
+          );
+        } else {
+          savedRecord = created;
+        }
       }
 
-      const created = await createMeetingRecord({
-        title: values.title.trim(),
-        agenda: agendaWithAttachments,
-      });
-
-      if (values.status === "AFTER_MEETING" && created.id) {
-        return updateMeetingRecord(
-          { recordId: created.id },
-          {
-            discussion: values.discussion.trim(),
-            suggestion: values.suggestion.trim(),
-            status: "AFTER_MEETING",
-          },
+      // Phase 2: 새 파일 업로드 (레코드 저장 후 recordId 확보된 상태)
+      if (selectedFiles.length > 0 && savedRecord.id) {
+        shouldShowUploadToastRef.current = true;
+        const recordId = savedRecord.id;
+        const results = await Promise.allSettled(
+          selectedFiles.map((file) => attachMeetingRecordFile({ recordId }, file, file.name)),
         );
+        uploadErrorsRef.current = results.filter((r) => r.status === "rejected").length;
       }
 
-      return created;
+      return savedRecord;
     },
     onSuccess: async (savedRecord) => {
+      const failedCount = uploadErrorsRef.current;
+      uploadErrorsRef.current = 0;
+
       if (shouldShowUploadToastRef.current) {
-        toast.success("파일 업로드가 완료되었습니다.");
+        if (failedCount > 0) {
+          toast.error(`파일 ${failedCount}개 업로드에 실패했습니다. 레코드는 저장되었습니다.`);
+        } else {
+          toast.success("파일 업로드가 완료되었습니다.");
+        }
       }
+      shouldShowUploadToastRef.current = false;
 
       const savedRecordId = savedRecord.id ?? initialRecord?.id;
-      const parsedAgenda = extractMeetingRecordAttachments(savedRecord.agenda);
-      const normalizedRecord = {
-        ...savedRecord,
-        agenda: parsedAgenda.content,
-        attachments: parsedAgenda.attachments,
-      };
 
-      setAttachments(parsedAgenda.attachments);
       setSelectedFiles([]);
 
       if (mode === "create") {
         queryClient.setQueriesData<MeetingRecordListResponseDto>(
           { queryKey: ["meeting-records", "list"] },
-          (current) => addRecordToFirstPageCache(current, normalizedRecord),
+          (current) => addRecordToFirstPageCache(current, savedRecord),
         );
       }
 
       if (mode === "edit" && savedRecordId) {
         queryClient.setQueryData<MeetingRecordDetailResponseDto>(
           queryKeys.meetingRecords.detail(savedRecordId),
-          (current) => ({ ...current, ...normalizedRecord }),
+          (current) => ({ ...current, ...savedRecord }),
         );
         await queryClient.invalidateQueries({ queryKey: ["meeting-records"] });
         onSaved?.(savedRecordId);
@@ -214,6 +225,7 @@ export default function MeetingRecordFormPage({
     },
     onError: () => {
       shouldShowUploadToastRef.current = false;
+      uploadErrorsRef.current = 0;
     },
   });
 
@@ -224,7 +236,9 @@ export default function MeetingRecordFormPage({
     !saveMutation.isPending;
 
   async function handleRemoveExistingAttachment(fileId: string) {
-    await deleteAttachment({ fileId });
+    const recordId = initialRecord?.id;
+    if (!recordId) return;
+    await deleteMeetingRecordAttachment({ recordId, fileId });
     setAttachments((current) => current.filter((file) => file.fileId !== fileId));
   }
 
