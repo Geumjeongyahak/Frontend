@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import type { SetStateAction } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   IconCalendarPlus,
@@ -439,7 +440,10 @@ export default function StaffCalendarPage({
   const isAdmin = status === "authenticated" && user?.role === "ADMIN";
 
   const [visibleMonth, setVisibleMonth] = useState({ year: initialYear, month: initialMonth });
-  const [events, setEvents] = useState<StaffCalendarEvent[]>([]);
+  const [eventState, setEventState] = useState<{
+    source?: unknown;
+    events: StaffCalendarEvent[];
+  }>({ events: [] });
   const [selectedIsoDate, setSelectedIsoDate] = useState<string | null>(initialSelectedDate ?? null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
@@ -472,15 +476,25 @@ export default function StaffCalendarPage({
     retry: false,
   });
 
-  useEffect(() => {
-    const nextEvents = sortEvents(
-      (eventsQuery.data?.content ?? [])
-        .map(mapEventResponseToCalendarEvent)
-        .filter((event): event is StaffCalendarEvent => event !== null),
-    );
-
-    setEvents(nextEvents);
-  }, [eventsQuery.data]);
+  const queryEvents = useMemo(
+    () =>
+      sortEvents(
+        (eventsQuery.data?.content ?? [])
+          .map(mapEventResponseToCalendarEvent)
+          .filter((event): event is StaffCalendarEvent => event !== null),
+      ),
+    [eventsQuery.data?.content],
+  );
+  const events = eventState.source === eventsQuery.data ? eventState.events : queryEvents;
+  const setEvents = (updater: SetStateAction<StaffCalendarEvent[]>) => {
+    setEventState((current) => {
+      const baseEvents = current.source === eventsQuery.data ? current.events : queryEvents;
+      return {
+        source: eventsQuery.data,
+        events: typeof updater === "function" ? updater(baseEvents) : updater,
+      };
+    });
+  };
 
   const createEventMutation = useMutation({
     mutationFn: async (draft: EventRangeFormValues) => {
@@ -563,16 +577,6 @@ export default function StaffCalendarPage({
     () => calendarDays.find((day) => day.isoDate === selectedIsoDate) ?? null,
     [calendarDays, selectedIsoDate],
   );
-
-  useEffect(() => {
-    if (!selectedIsoDate) {
-      return;
-    }
-
-    if (!calendarDays.some((day) => day.isoDate === selectedIsoDate)) {
-      setSelectedIsoDate(null);
-    }
-  }, [calendarDays, selectedIsoDate]);
 
   const moveMonth = (offset: number) => {
     setVisibleMonth((current) => {
