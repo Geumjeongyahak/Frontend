@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
@@ -50,7 +50,9 @@ export default function EventFormPageClient({
   const [title, setTitle] = useState<string | undefined>(undefined);
   const [contentHtml, setContentHtml] = useState<string | undefined>(undefined);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[]>([]);
+  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[] | null>(
+    null,
+  );
   const shouldShowUploadToastRef = useRef(false);
 
   const channelsQuery = useQuery({
@@ -71,9 +73,7 @@ export default function EventFormPageClient({
   const visibleAuthor = postDetailQuery.data?.authorName ?? currentUserName;
   const visibleContentHtml = contentHtml ?? postDetailQuery.data?.contentHtml ?? "";
   const existingAttachments = postDetailQuery.data?.attachments ?? [];
-  useEffect(() => {
-    setEditableAttachments(existingAttachments);
-  }, [existingAttachments]);
+  const visibleExistingAttachments = editableAttachments ?? existingAttachments;
   const isEditorReady = !isEditMode || Boolean(postDetailQuery.data);
   const canManagePost = !isEditMode
     ? status === "authenticated"
@@ -125,7 +125,7 @@ export default function EventFormPageClient({
             { channelId, postId: draftPost.id },
             {
               fileId: registered.fileId,
-              sortOrder: editableAttachments.length + index,
+              sortOrder: visibleExistingAttachments.length + index,
             },
           );
         }
@@ -177,8 +177,9 @@ export default function EventFormPageClient({
     !isPending;
 
   async function handleRemoveExistingAttachment(fileId: string) {
+    const currentAttachments = visibleExistingAttachments;
     await deleteAttachment({ fileId });
-    setEditableAttachments((current) => current.filter((file) => file.fileId !== fileId));
+    setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
   }
 
   function handleRemoveSelectedFile(file: File) {
@@ -240,7 +241,7 @@ export default function EventFormPageClient({
 
           <Label>자료</Label>
           <AttachmentEditorPanel
-            existingAttachments={editableAttachments.map((file, index) => ({
+            existingAttachments={visibleExistingAttachments.map((file, index) => ({
               id: file.fileId ?? `existing-${index}`,
               label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
             }))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
@@ -54,9 +54,10 @@ export default function ArchiveDocumentFormPage({
   const [isPinned, setIsPinned] = useState<boolean | undefined>(undefined);
   const [allowComment, setAllowComment] = useState<boolean | undefined>(undefined);
   const [files, setFiles] = useState<File[]>([]);
-  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[]>([]);
+  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[] | null>(
+    null,
+  );
   const shouldShowUploadToastRef = useRef(false);
-  const didInitializeAttachmentsRef = useRef(false);
 
   const channelsQuery = useQuery({
     queryKey: ["staff", "archive", "channels"],
@@ -83,16 +84,8 @@ export default function ArchiveDocumentFormPage({
   const visibleDescription = description ?? postDetailQuery.data?.contentHtml ?? "";
   const visibleIsPinned = isPinned ?? postDetailQuery.data?.isPinned ?? false;
   const visibleAllowComment = allowComment ?? postDetailQuery.data?.allowComment ?? true;
-  const existingAttachments = postDetailQuery.data?.attachments;
-
-  useEffect(() => {
-    if (!existingAttachments || didInitializeAttachmentsRef.current) return;
-
-    didInitializeAttachmentsRef.current = true;
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEditableAttachments(existingAttachments);
-  }, [existingAttachments]);
+  const existingAttachments = postDetailQuery.data?.attachments ?? [];
+  const visibleExistingAttachments = editableAttachments ?? existingAttachments;
 
   const canManagePost =
     !isEditMode ||
@@ -114,7 +107,7 @@ export default function ArchiveDocumentFormPage({
       const title = visibleTitle.trim();
       const contentHtml = visibleDescription.trim();
       const uploadArchiveDocument = getUploadArchiveDocument(config.category);
-      const sortOrderStart = isEditMode ? editableAttachments.length : 0;
+      const sortOrderStart = isEditMode ? visibleExistingAttachments.length : 0;
       const hasFileUpload = Boolean(uploadArchiveDocument) && files.length > 0;
       shouldShowUploadToastRef.current = hasFileUpload;
 
@@ -202,8 +195,9 @@ export default function ArchiveDocumentFormPage({
     !isEditMode || Boolean(postDetailQuery.data) || postDetailQuery.isError;
 
   async function handleRemoveExistingAttachment(fileId: string) {
+    const currentAttachments = visibleExistingAttachments;
     await deleteAttachment({ fileId });
-    setEditableAttachments((current) => current.filter((file) => file.fileId !== fileId));
+    setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
   }
 
   function handleRemoveSelectedFile(file: File) {
@@ -290,7 +284,7 @@ export default function ArchiveDocumentFormPage({
 
         <Label>자료</Label>
         <AttachmentEditorPanel
-          existingAttachments={editableAttachments.map((file, index) => ({
+          existingAttachments={visibleExistingAttachments.map((file, index) => ({
             id: file.fileId ?? `existing-${index}`,
             label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
           }))}
