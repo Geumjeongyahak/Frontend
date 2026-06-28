@@ -56,6 +56,7 @@ export default function ArchiveDocumentFormPage({
   const [files, setFiles] = useState<File[]>([]);
   const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[]>([]);
   const shouldShowUploadToastRef = useRef(false);
+  const didInitializeAttachmentsRef = useRef(false);
 
   const channelsQuery = useQuery({
     queryKey: ["staff", "archive", "channels"],
@@ -82,10 +83,17 @@ export default function ArchiveDocumentFormPage({
   const visibleDescription = description ?? postDetailQuery.data?.contentHtml ?? "";
   const visibleIsPinned = isPinned ?? postDetailQuery.data?.isPinned ?? false;
   const visibleAllowComment = allowComment ?? postDetailQuery.data?.allowComment ?? true;
-  const existingAttachments = postDetailQuery.data?.attachments ?? [];
+  const existingAttachments = postDetailQuery.data?.attachments;
+
   useEffect(() => {
+    if (!existingAttachments || didInitializeAttachmentsRef.current) return;
+
+    didInitializeAttachmentsRef.current = true;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEditableAttachments(existingAttachments);
   }, [existingAttachments]);
+
   const canManagePost =
     !isEditMode ||
     user?.role === "ADMIN" ||
