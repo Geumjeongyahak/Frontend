@@ -11,7 +11,7 @@ import { setAccessToken } from "../client/tokenStorage";
 import { createChannel, getChannel, getChannels, updateChannel } from "./channel.api";
 
 describe("channel.api", () => {
-  it("returns channels with authorization header and query params", async () => {
+  it("returns channels without authorization header and with query params", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     let observedAuthorizationHeader: string | null = null;
@@ -28,7 +28,7 @@ describe("channel.api", () => {
     const response = await getChannels({ channelType: "NOTICE", isActive: true });
 
     expect(response).toEqual(CHANNEL_LIST_RESPONSE);
-    expect(observedAuthorizationHeader).toBe(`Bearer ${VALID_ACCESS_TOKEN}`);
+    expect(observedAuthorizationHeader).toBeNull();
     expect(observedQueryString).toContain("channelType=NOTICE");
     expect(observedQueryString).toContain("isActive=true");
   });
