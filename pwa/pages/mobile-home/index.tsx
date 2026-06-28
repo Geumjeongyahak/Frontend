@@ -11,6 +11,7 @@ import {
 import AttendanceSection from "@/pwa/pages/mobile-home/components/AttendanceSection";
 import AttendanceSuccessOverlay from "@/pwa/pages/mobile-home/components/AttendanceSuccessOverlay";
 import HomeHeader from "@/pwa/pages/mobile-home/components/HomeHeader";
+import RequestShortcutSection from "@/pwa/pages/mobile-home/components/RequestShortcutSection";
 import WeeklyScheduleSection from "@/pwa/pages/mobile-home/components/WeeklyScheduleSection";
 import { useMobileHomeScreen } from "@/pwa/pages/mobile-home/hooks/useMobileHomeScreen";
 import { useSlideToConfirm } from "@/pwa/pages/mobile-home/hooks/useSlideToConfirm";
@@ -107,6 +108,11 @@ export default function MobileHomeScreen() {
           onDaySelect={screen.setSelectedDay}
           onModeChange={screen.setScheduleMode}
         />
+
+        <RequestShortcutSection
+          onPaymentClick={() => screen.navigateWhenAuthenticated("/requests/payment")}
+          onClassRequestClick={() => screen.navigateWhenAuthenticated("/requests/class")}
+        />
       </Page>
       {screen.popupVisible ? <AttendanceSuccessOverlay /> : null}
     </Shell>
@@ -114,19 +120,21 @@ export default function MobileHomeScreen() {
 }
 
 const Shell = styled.div`
-  min-height: 100lvh;
-  height: 100lvh;
+  min-height: 100dvh;
+  height: 100dvh;
   overflow-y: auto;
   background: ${MOBILE_HOME_SURFACE};
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 `;
 
 const Page = styled.main`
   width: 100%;
   max-width: ${MOBILE_HOME_PAGE_MAX_WIDTH};
-  min-height: 100lvh;
+  min-height: 100dvh;
   margin: 0 auto;
-  padding-bottom: 8lvh;
+  padding-bottom: calc(8rem + env(safe-area-inset-bottom, 0rem));
 
   &::after {
     content: "";

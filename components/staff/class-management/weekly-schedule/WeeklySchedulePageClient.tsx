@@ -24,6 +24,7 @@ import {
   buildScheduleOverrides,
   formatRelatedLessonDate,
   getDateForColumn,
+  getMonthRange,
   getPeriodSubject,
   getSubjectsForCell,
   getWeekRange,
@@ -201,9 +202,12 @@ function ScheduleTable({
                     date,
                   );
                   const firstOverride = [...overrides.values()][0];
+                  const firstStatusOverride = [...overrides.values()].find(
+                    (override) => override.status,
+                  );
                   const firstExchangeDate =
-                    firstOverride?.status === "EXCHANGED"
-                      ? formatRelatedLessonDate(firstOverride.relatedDate)
+                    firstStatusOverride?.status === "EXCHANGED"
+                      ? formatRelatedLessonDate(firstStatusOverride.relatedDate)
                       : "";
                   const hasRegisteredSubject = cellSubjects.length > 0;
                   const hasTeacher = hasAssignedTeacher(cellSubjects, firstOverride);
@@ -230,7 +234,7 @@ function ScheduleTable({
                     <ScheduleCellButton
                       key={`${classroomId}-${column.value}`}
                       type="button"
-                      $status={firstOverride?.status}
+                      $status={firstStatusOverride?.status}
                       onClick={() =>
                         onSelectCell({
                           classroomName: classroom.name ?? "이름 없음",
@@ -243,11 +247,11 @@ function ScheduleTable({
                       }
                     >
                       <TeacherRow>
-                        {firstOverride ? (
-                          <StatusPill $status={firstOverride.status}>
-                            {firstOverride.status === "EXCHANGED"
+                        {firstStatusOverride?.status ? (
+                          <StatusPill $status={firstStatusOverride.status}>
+                            {firstStatusOverride.status === "EXCHANGED"
                               ? "교환"
-                              : firstOverride.status === "SUBSTITUTED"
+                              : firstStatusOverride.status === "SUBSTITUTED"
                                 ? "대체"
                                 : "결강"}
                           </StatusPill>
@@ -300,6 +304,7 @@ export default function WeeklySchedulePageClient() {
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [selectedCell, setSelectedCell] = useState<ScheduleCellSelection | null>(null);
   const weekRange = useMemo(() => getWeekRange(anchorDate), [anchorDate]);
+  const monthRange = useMemo(() => getMonthRange(anchorDate), [anchorDate]);
   const datePickerRef = useRef<HTMLInputElement | null>(null);
 
   const classroomsQuery = useQuery({
@@ -313,8 +318,8 @@ export default function WeeklySchedulePageClient() {
   });
 
   const lessonsQuery = useQuery({
-    queryKey: queryKeys.lessons.weekly(weekRange.from, weekRange.to),
-    queryFn: () => getLessons({ from: weekRange.from, to: weekRange.to }),
+    queryKey: queryKeys.lessons.monthly(monthRange.from, monthRange.to),
+    queryFn: () => getLessons({ from: monthRange.from, to: monthRange.to }),
   });
 
   const classrooms = useMemo(

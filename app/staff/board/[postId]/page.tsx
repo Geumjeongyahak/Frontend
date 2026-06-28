@@ -7,6 +7,7 @@ type PageProps = {
   }>;
   searchParams?: Promise<{
     channelId?: string;
+    public?: string;
   }>;
 };
 
@@ -16,6 +17,7 @@ export default async function Page({ params, searchParams }: PageProps) {
   const parsedPostId = Number(postId);
   const rawChannelId = resolvedSearchParams?.channelId;
   const parsedChannelId = rawChannelId ? Number(rawChannelId) : undefined;
+  const allowPublicNotice = resolvedSearchParams?.public === "1";
 
   if (!Number.isInteger(parsedPostId) || parsedPostId < 1) {
     notFound();
@@ -24,6 +26,7 @@ export default async function Page({ params, searchParams }: PageProps) {
   return (
     <BoardDetailPageClient
       postId={parsedPostId}
+      allowPublicNotice={allowPublicNotice}
       channelId={
         Number.isInteger(parsedChannelId) && parsedChannelId && parsedChannelId > 0
           ? parsedChannelId

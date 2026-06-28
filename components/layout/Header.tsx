@@ -56,7 +56,8 @@ export default function Header() {
     pathname === "/notifications" ||
     pathname === "/login" ||
     pathname === "/register" ||
-    pathname === "/mypage";
+    pathname === "/mypage" ||
+    pathname.startsWith("/requests");
 
   async function handleLogout() {
     await signOut();
