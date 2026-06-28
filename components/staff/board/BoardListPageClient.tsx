@@ -79,6 +79,44 @@ function sortBoardPosts(posts: PostSummaryResponseDto[], pinnedChannelId?: numbe
   });
 }
 
+async function getAllBoardPosts(params: {
+  title?: string;
+  author?: string;
+  pageSize: number;
+}) {
+  const firstPage = await getPosts({
+    title: params.title,
+    author: params.author,
+    page: 0,
+    size: params.pageSize,
+  });
+
+  const totalPages = Math.max(1, firstPage.totalPages ?? 1);
+
+  if (totalPages === 1) {
+    return firstPage;
+  }
+
+  const restPages = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, index) =>
+      getPosts({
+        title: params.title,
+        author: params.author,
+        page: index + 1,
+        size: params.pageSize,
+      }),
+    ),
+  );
+
+  return {
+    ...firstPage,
+    content: [firstPage.content ?? [], ...restPages.map((page) => page.content ?? [])].flat(),
+    page: 0,
+    size: params.pageSize,
+    totalPages,
+  };
+}
+
 export default function BoardListPageClient({
   initialPage,
   initialBoardType = "all",
@@ -96,6 +134,7 @@ export default function BoardListPageClient({
   const requestedPage = Number.isInteger(initialPage) && initialPage >= 1 ? initialPage : 1;
   const isAuthenticated = authStatus === "authenticated";
   const isScopeDisabled = boardType === "all" || boardType === "NOTICE";
+  const isAllBoardView = boardType === "all";
   const currentAuthor = user?.name ?? user?.nickname ?? user?.email;
   const resetToFirstPage = () => {
     if (requestedPage > 1) {
@@ -192,14 +231,20 @@ export default function BoardListPageClient({
       refreshNonce,
     }),
     queryFn: () =>
-      getPosts({
-        channelType: boardType === "all" ? undefined : boardType,
-        channelId: selectedChannelId,
-        title: searchKeyword.trim() || undefined,
-        author: mineOnly ? currentAuthor : undefined,
-        page: Math.max(0, requestedPage - 1),
-        size: boardType === "NOTICE" ? NOTICE_POSTS_PER_PAGE : POSTS_PER_PAGE,
-      }),
+      isAllBoardView
+        ? getAllBoardPosts({
+            title: searchKeyword.trim() || undefined,
+            author: mineOnly ? currentAuthor : undefined,
+            pageSize: POSTS_PER_PAGE,
+          })
+        : getPosts({
+            channelType: boardType,
+            channelId: selectedChannelId,
+            title: searchKeyword.trim() || undefined,
+            author: mineOnly ? currentAuthor : undefined,
+            page: Math.max(0, requestedPage - 1),
+            size: boardType === "NOTICE" ? NOTICE_POSTS_PER_PAGE : POSTS_PER_PAGE,
+          }),
     enabled:
       isAuthenticated &&
       (boardScope === "all" || isScopeDisabled || typeof selectedChannelId === "number"),
@@ -229,13 +274,18 @@ export default function BoardListPageClient({
   const basePosts = boardType === "NOTICE" ? posts : posts.filter((post) => !isNoticePost(post));
   const filteredPosts = basePosts.filter((post) => !noticeIds.has(post.id));
   const sortedGeneralPosts = sortBoardPosts(filteredPosts, selectedChannelId);
-  const totalPages = Math.max(1, data?.totalPages ?? 1);
+  const generalPostsTotal = sortedGeneralPosts.length;
+  const totalPages = isAllBoardView
+    ? Math.max(1, Math.ceil(generalPostsTotal / POSTS_PER_PAGE))
+    : Math.max(1, data?.totalPages ?? 1);
   const currentPage = Math.min(requestedPage, totalPages);
-  const pagedGeneralPosts = sortedGeneralPosts;
+  const pagedGeneralPosts = isAllBoardView
+    ? sortedGeneralPosts.slice((currentPage - 1) * POSTS_PER_PAGE, currentPage * POSTS_PER_PAGE)
+    : sortedGeneralPosts;
   const sortedPosts = [...sortBoardPosts(noticePosts), ...pagedGeneralPosts];
 
   const generalPosts = sortedPosts.filter((post) => !isNoticePost(post));
-  const numericTotal = data?.totalElements ?? sortedGeneralPosts.length;
+  const numericTotal = isAllBoardView ? generalPostsTotal : (data?.totalElements ?? generalPostsTotal);
 
   const rows: ListPanelRow[] = sortedPosts.map((post, index) => {
     const isNotice = isNoticePost(post);
