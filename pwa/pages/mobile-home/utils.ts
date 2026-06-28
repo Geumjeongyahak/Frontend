@@ -136,7 +136,24 @@ export function toMyLessonCardItems(lessons: LessonSummaryResponseDto[] = []) {
   );
 }
 
-export function toAllScheduleItems(events: EventResponseDto[] = []) {
+export function toAllScheduleItems(
+  lessons: LessonSummaryResponseDto[] = [],
+  events: EventResponseDto[] = [],
+) {
+  const lessonItems = lessons.map<WeeklyScheduleListItem>((lesson, index) => ({
+    id: `lesson-${lesson.lessonId ?? `${lesson.date ?? "unknown"}-${lesson.period ?? index}`}`,
+    dayValue: getJsDayValue(lesson.date),
+    title: lesson.subjectName?.trim() || `${lesson.classroomName?.trim() || "수업"} 수업`,
+    timeLabel: formatTimeLabel(lesson.startTime, lesson.endTime),
+    date: lesson.date,
+    classroomName: lesson.classroomName?.trim() || undefined,
+    kind: "lesson",
+    isCancelled:
+      Boolean(lesson.isAbsent) ||
+      lesson.status === "CANCELED" ||
+      lesson.status === "CANCELLED",
+  }));
+
   const eventItems = events.map<WeeklyScheduleListItem>((event, index) => ({
     id: `event-${event.id ?? index}`,
     dayValue: getJsDayValue(event.eventDate),
@@ -149,5 +166,5 @@ export function toAllScheduleItems(events: EventResponseDto[] = []) {
     description: event.description?.trim() || undefined,
   }));
 
-  return sortByStartTime(eventItems);
+  return sortByStartTime([...lessonItems, ...eventItems]);
 }
