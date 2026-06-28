@@ -53,6 +53,7 @@ export default function Header() {
 
   const shouldHideOnMobile =
     pathname === "/" ||
+    pathname === "/schedule" ||
     pathname === "/notifications" ||
     pathname === "/login" ||
     pathname === "/register" ||

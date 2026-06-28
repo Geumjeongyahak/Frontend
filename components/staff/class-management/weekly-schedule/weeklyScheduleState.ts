@@ -42,14 +42,6 @@ export function getWeekRange(anchorDate = new Date()) {
   };
 }
 
-export function getMonthRange(anchorDate = new Date()) {
-  const anchor = dayjs(anchorDate);
-  return {
-    from: anchor.startOf("month").format("YYYY-MM-DD"),
-    to: anchor.endOf("month").format("YYYY-MM-DD"),
-  };
-}
-
 export function getDateForColumn(weekStartDate: string, isoWeekday: number) {
   return dayjs(weekStartDate).isoWeekday(isoWeekday).format("YYYY-MM-DD");
 }

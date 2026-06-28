@@ -11,7 +11,7 @@ import {
 } from "@/api/dailySchedule/dailySchedule.api";
 import { getAllEvents } from "@/api/event/event.api";
 import { filterEventsInDateRange } from "@/api/event/eventDisplay";
-import { getLessons, getMyLessons } from "@/api/lesson/lesson.api";
+import { getMyLessons } from "@/api/lesson/lesson.api";
 import { useNotificationInbox } from "@/pwa/hooks/useNotificationInbox";
 import { useAttendanceSuccessPopup } from "@/pwa/pages/mobile-home/hooks/useAttendanceSuccessPopup";
 import type { MobileHomeDayValue, MobileScheduleMode } from "@/pwa/pages/mobile-home/types";
@@ -60,13 +60,6 @@ export function useMobileHomeScreen() {
   const todayLessonsQuery = useQuery({
     queryKey: queryKeys.lessons.myWeekly(today, today),
     queryFn: () => getMyLessons({ from: today, to: today }),
-    enabled: isAuthenticated,
-    retry: false,
-  });
-
-  const allLessonsQuery = useQuery({
-    queryKey: queryKeys.lessons.weekly(weekFrom, weekTo),
-    queryFn: () => getLessons({ from: weekFrom, to: weekTo }),
     enabled: isAuthenticated,
     retry: false,
   });
@@ -134,10 +127,10 @@ export function useMobileHomeScreen() {
 
   const allScheduleItems = useMemo(() => {
     return toAllScheduleItems(
-      isAuthenticated ? (allLessonsQuery.data ?? []) : [],
+      isAuthenticated ? (myLessonsQuery.data ?? []) : [],
       weeklyEvents,
     ).filter((item) => item.dayValue === selectedDay);
-  }, [allLessonsQuery.data, isAuthenticated, selectedDay, weeklyEvents]);
+  }, [isAuthenticated, myLessonsQuery.data, selectedDay, weeklyEvents]);
 
   const hasCompletedAttendance =
     attendanceQuery.data?.teacherAttendance?.status === "PRESENT" ||
@@ -263,7 +256,7 @@ export function useMobileHomeScreen() {
     loadingSchedule:
       weeklyEventsQuery.isLoading ||
       (isAuthenticated &&
-        (allLessonsQuery.isLoading || myLessonsQuery.isLoading || todayLessonsQuery.isLoading)),
+        (myLessonsQuery.isLoading || todayLessonsQuery.isLoading)),
     completeAttendance,
   };
 }

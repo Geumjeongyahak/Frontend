@@ -12,6 +12,7 @@ import AttendanceSection from "@/pwa/pages/mobile-home/components/AttendanceSect
 import AttendanceSuccessOverlay from "@/pwa/pages/mobile-home/components/AttendanceSuccessOverlay";
 import HomeHeader from "@/pwa/pages/mobile-home/components/HomeHeader";
 import RequestShortcutSection from "@/pwa/pages/mobile-home/components/RequestShortcutSection";
+import TimetableShortcutSection from "@/pwa/pages/mobile-home/components/TimetableShortcutSection";
 import WeeklyScheduleSection from "@/pwa/pages/mobile-home/components/WeeklyScheduleSection";
 import { useMobileHomeScreen } from "@/pwa/pages/mobile-home/hooks/useMobileHomeScreen";
 import { useSlideToConfirm } from "@/pwa/pages/mobile-home/hooks/useSlideToConfirm";
@@ -107,6 +108,10 @@ export default function MobileHomeScreen() {
           emptyMessage={screen.scheduleEmptyMessage}
           onDaySelect={screen.setSelectedDay}
           onModeChange={screen.setScheduleMode}
+        />
+
+        <TimetableShortcutSection
+          onScheduleClick={() => screen.navigateWhenAuthenticated("/schedule")}
         />
 
         <RequestShortcutSection
