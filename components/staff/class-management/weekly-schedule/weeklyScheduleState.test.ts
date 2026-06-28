@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
 import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
-import { buildScheduleOverrides, getWeekRange } from "./weeklyScheduleState";
+import { buildScheduleOverrides, getMonthRange, getWeekRange } from "./weeklyScheduleState";
 
 const BASE_SUBJECTS: SubjectDetailResponseDto[] = [
   {
@@ -64,6 +64,34 @@ describe("weeklyScheduleState", () => {
     expect(getWeekRange(new Date("2026-06-18T09:00:00+09:00"))).toEqual({
       from: "2026-06-15",
       to: "2026-06-21",
+    });
+  });
+
+  it("returns the calendar month range for the given anchor date", () => {
+    expect(getMonthRange(new Date("2026-06-18T09:00:00+09:00"))).toEqual({
+      from: "2026-06-01",
+      to: "2026-06-30",
+    });
+  });
+
+  it("uses actual lesson subject and teacher info even without exchange status", () => {
+    const lessons: LessonSummaryResponseDto[] = [
+      {
+        lessonId: 300,
+        classroomId: 10,
+        date: "2026-06-15",
+        period: 1,
+        teacherName: "박교사",
+        subjectName: "수학",
+        status: "SCHEDULED",
+      },
+    ];
+
+    const overrides = buildScheduleOverrides(BASE_SUBJECTS, lessons, 10, "2026-06-15");
+
+    expect(overrides.get(1)).toEqual({
+      teacherName: "박교사",
+      subjectName: "수학",
     });
   });
 });

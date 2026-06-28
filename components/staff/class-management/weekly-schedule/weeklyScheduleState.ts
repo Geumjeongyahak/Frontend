@@ -23,7 +23,7 @@ export const DISPLAY_PERIODS = [1, 2, 3] as const;
 export type WeeklyScheduleStatus = "EXCHANGED" | "SUBSTITUTED" | "CANCELLED";
 
 export type WeeklyScheduleOverride = {
-  status: WeeklyScheduleStatus;
+  status?: WeeklyScheduleStatus;
   teacherName?: string;
   subjectName?: string;
   relatedDate?: string;
@@ -39,6 +39,14 @@ export function getWeekRange(anchorDate = new Date()) {
   return {
     from: anchor.startOf("isoWeek").format("YYYY-MM-DD"),
     to: anchor.endOf("isoWeek").format("YYYY-MM-DD"),
+  };
+}
+
+export function getMonthRange(anchorDate = new Date()) {
+  const anchor = dayjs(anchorDate);
+  return {
+    from: anchor.startOf("month").format("YYYY-MM-DD"),
+    to: anchor.endOf("month").format("YYYY-MM-DD"),
   };
 }
 
@@ -91,22 +99,30 @@ export function buildScheduleOverrides(
       continue;
     }
 
+    const lessonOverrideBase = {
+      teacherName: lesson.teacherName,
+      subjectName: lesson.subjectName,
+    };
+
     if (lesson.isAbsent || lesson.status === "CANCELED" || lesson.status === "CANCELLED") {
       overrides.set(lesson.period, {
+        ...lessonOverrideBase,
         status: "CANCELLED",
-        teacherName: lesson.teacherName,
-        subjectName: lesson.subjectName,
       });
       continue;
     }
 
     if (lesson.isExchanged) {
       overrides.set(lesson.period, {
+        ...lessonOverrideBase,
         status: lesson.exchangedLessonDate ? "EXCHANGED" : "SUBSTITUTED",
-        teacherName: lesson.teacherName,
-        subjectName: lesson.subjectName,
         relatedDate: lesson.exchangedLessonDate ?? undefined,
       });
+      continue;
+    }
+
+    if (lesson.teacherName?.trim() || lesson.subjectName?.trim()) {
+      overrides.set(lesson.period, lessonOverrideBase);
     }
   }
 

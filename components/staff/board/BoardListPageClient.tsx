@@ -313,7 +313,11 @@ export default function BoardListPageClient({
       date: formatUtcToKstShortDate(post.createdAt ?? post.updatedAt),
       status: "",
       detailHref: `/staff/board/${post.id ?? ""}${
-        typeof post.channelId === "number" ? `?channelId=${post.channelId}` : ""
+        typeof post.channelId === "number"
+          ? `?channelId=${post.channelId}${isPublicNoticeView ? "&public=1" : ""}`
+          : isPublicNoticeView
+            ? "?public=1"
+            : ""
       }`,
       isNotice,
       isPinned: post.isPinned,

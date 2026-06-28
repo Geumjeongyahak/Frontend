@@ -16,8 +16,8 @@ function buildNoticeHref(notice: PostSummaryResponseDto) {
   if (typeof postId !== "number") return "/staff/board?type=NOTICE";
 
   return typeof notice.channelId === "number"
-    ? `/staff/board/${postId}?channelId=${notice.channelId}`
-    : `/staff/board/${postId}`;
+    ? `/staff/board/${postId}?channelId=${notice.channelId}&public=1`
+    : `/staff/board/${postId}?public=1`;
 }
 
 export default function NoticeCard() {

@@ -59,10 +59,11 @@ async function refreshAccessToken() {
 authClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const accessToken = getAccessToken();
 
-  if (!accessToken || !config.headers) {
+  if (!accessToken) {
     return config;
   }
 
+  config.headers = config.headers ?? new axios.AxiosHeaders();
   setAuthorizationHeader(config.headers as AxiosRequestHeaders, accessToken);
   return config;
 });
@@ -87,12 +88,11 @@ authClient.interceptors.response.use(
 
       const tokens = await refreshAccessToken();
 
-      if (originalRequest.headers) {
-        setAuthorizationHeader(
-          originalRequest.headers as AxiosRequestHeaders,
-          tokens.accessToken,
-        );
-      }
+      originalRequest.headers = originalRequest.headers ?? new axios.AxiosHeaders();
+      setAuthorizationHeader(
+        originalRequest.headers as AxiosRequestHeaders,
+        tokens.accessToken,
+      );
 
       return authClient(originalRequest);
     } catch (refreshError) {
