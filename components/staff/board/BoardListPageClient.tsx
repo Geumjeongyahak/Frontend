@@ -9,7 +9,7 @@ import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
 import type { PostSummaryResponseDto } from "@/api/post/post.dto";
-import { getPosts } from "@/api/post/post.api";
+import { getPosts, getPublicPosts } from "@/api/post/post.api";
 import BoardDropdown, { type DropdownOption } from "@/components/staff/board/BoardDropdown";
 import BoardShell from "@/components/staff/board/BoardShell";
 import {
@@ -25,7 +25,6 @@ import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const POSTS_PER_PAGE = 7;
-const FETCH_SIZE = 100;
 const NOTICE_LIMIT = 2;
 const NOTICE_POSTS_PER_PAGE = POSTS_PER_PAGE + NOTICE_LIMIT;
 const BOARD_STABLE_TABLE_ROWS = NOTICE_POSTS_PER_PAGE;
@@ -80,6 +79,44 @@ function sortBoardPosts(posts: PostSummaryResponseDto[], pinnedChannelId?: numbe
   });
 }
 
+async function getAllBoardPosts(params: {
+  title?: string;
+  author?: string;
+  pageSize: number;
+}) {
+  const firstPage = await getPosts({
+    title: params.title,
+    author: params.author,
+    page: 0,
+    size: params.pageSize,
+  });
+
+  const totalPages = Math.max(1, firstPage.totalPages ?? 1);
+
+  if (totalPages === 1) {
+    return firstPage;
+  }
+
+  const restPages = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, index) =>
+      getPosts({
+        title: params.title,
+        author: params.author,
+        page: index + 1,
+        size: params.pageSize,
+      }),
+    ),
+  );
+
+  return {
+    ...firstPage,
+    content: [firstPage.content ?? [], ...restPages.map((page) => page.content ?? [])].flat(),
+    page: 0,
+    size: params.pageSize,
+    totalPages,
+  };
+}
+
 export default function BoardListPageClient({
   initialPage,
   initialBoardType = "all",
@@ -96,7 +133,9 @@ export default function BoardListPageClient({
 
   const requestedPage = Number.isInteger(initialPage) && initialPage >= 1 ? initialPage : 1;
   const isAuthenticated = authStatus === "authenticated";
+  const isPublicNoticeView = !isAuthenticated && boardType === "NOTICE";
   const isScopeDisabled = boardType === "all" || boardType === "NOTICE";
+  const isAllBoardView = boardType === "all";
   const currentAuthor = user?.name ?? user?.nickname ?? user?.email;
   const resetToFirstPage = () => {
     if (requestedPage > 1) {
@@ -193,20 +232,34 @@ export default function BoardListPageClient({
       refreshNonce,
     }),
     queryFn: () =>
-      getPosts({
-        channelType: boardType === "all" ? undefined : boardType,
-        channelId: selectedChannelId,
-        title: searchKeyword.trim() || undefined,
-        page: 0,
-        size: FETCH_SIZE,
-      }),
+      isAllBoardView
+        ? getAllBoardPosts({
+            title: searchKeyword.trim() || undefined,
+            author: mineOnly ? currentAuthor : undefined,
+            pageSize: POSTS_PER_PAGE,
+          })
+        : isPublicNoticeView
+          ? getPublicPosts({
+              channelType: "NOTICE",
+              title: searchKeyword.trim() || undefined,
+              page: Math.max(0, requestedPage - 1),
+              size: NOTICE_POSTS_PER_PAGE,
+            })
+        : getPosts({
+            channelType: boardType,
+            channelId: selectedChannelId,
+            title: searchKeyword.trim() || undefined,
+            author: mineOnly ? currentAuthor : undefined,
+            page: Math.max(0, requestedPage - 1),
+            size: boardType === "NOTICE" ? NOTICE_POSTS_PER_PAGE : POSTS_PER_PAGE,
+          }),
     enabled:
-      isAuthenticated &&
+      (isAuthenticated || isPublicNoticeView) &&
       (boardScope === "all" || isScopeDisabled || typeof selectedChannelId === "number"),
     retry: false,
   });
 
-  const rawPosts = (isAuthenticated ? (data?.content ?? []) : []).filter(
+  const rawPosts = ((isAuthenticated || isPublicNoticeView) ? (data?.content ?? []) : []).filter(
     (post) => !isArchiveDocumentPost(post) && !isEventPost(post) && !isSchoolRulesPost(post),
   );
   const posts = rawPosts.filter((post) => {
@@ -229,22 +282,18 @@ export default function BoardListPageClient({
   const basePosts = boardType === "NOTICE" ? posts : posts.filter((post) => !isNoticePost(post));
   const filteredPosts = basePosts.filter((post) => !noticeIds.has(post.id));
   const sortedGeneralPosts = sortBoardPosts(filteredPosts, selectedChannelId);
-  const totalPages =
-    boardType === "NOTICE"
-      ? Math.max(1, Math.ceil(sortedGeneralPosts.length / NOTICE_POSTS_PER_PAGE))
-      : Math.max(1, Math.ceil(sortedGeneralPosts.length / POSTS_PER_PAGE));
-  const currentPage = requestedPage > totalPages ? 1 : requestedPage;
-  const pagedGeneralPosts =
-    boardType === "NOTICE"
-      ? sortedGeneralPosts.slice(
-          (currentPage - 1) * NOTICE_POSTS_PER_PAGE,
-          currentPage * NOTICE_POSTS_PER_PAGE,
-        )
-      : sortedGeneralPosts.slice((currentPage - 1) * POSTS_PER_PAGE, currentPage * POSTS_PER_PAGE);
+  const generalPostsTotal = sortedGeneralPosts.length;
+  const totalPages = isAllBoardView
+    ? Math.max(1, Math.ceil(generalPostsTotal / POSTS_PER_PAGE))
+    : Math.max(1, data?.totalPages ?? 1);
+  const currentPage = Math.min(requestedPage, totalPages);
+  const pagedGeneralPosts = isAllBoardView
+    ? sortedGeneralPosts.slice((currentPage - 1) * POSTS_PER_PAGE, currentPage * POSTS_PER_PAGE)
+    : sortedGeneralPosts;
   const sortedPosts = [...sortBoardPosts(noticePosts), ...pagedGeneralPosts];
 
   const generalPosts = sortedPosts.filter((post) => !isNoticePost(post));
-  const numericTotal = sortedGeneralPosts.length;
+  const numericTotal = isAllBoardView ? generalPostsTotal : (data?.totalElements ?? generalPostsTotal);
 
   const rows: ListPanelRow[] = sortedPosts.map((post, index) => {
     const isNotice = isNoticePost(post);
@@ -276,7 +325,7 @@ export default function BoardListPageClient({
   const emptyMessage =
     authStatus === "loading"
       ? "사용자 정보를 확인하는 중입니다."
-      : !isAuthenticated
+      : !isAuthenticated && !isPublicNoticeView
         ? "로그인이 필요합니다."
         : isListLoading
           ? "게시글을 불러오는 중입니다."
@@ -292,22 +341,22 @@ export default function BoardListPageClient({
         writeHref="/staff/board/new"
         showWriteButton={isAuthenticated}
         listPath="/staff/board"
-        rows={isAuthenticated ? rows : []}
+        rows={isAuthenticated || isPublicNoticeView ? rows : []}
         currentPage={currentPage}
         totalPages={totalPages}
         stableTableRows={BOARD_STABLE_TABLE_ROWS}
         mineOnly={mineOnly}
-        showMineOnlyToggle
+        showMineOnlyToggle={isAuthenticated}
         toggleLabel="내가 작성한 글만 보기"
         toggleAriaLabel="내가 작성한 글만 보기"
         onMineOnlyToggle={() => setMineOnly((current) => !current)}
         showStatusColumn={false}
         classHeader="채널"
         emptyMessage={emptyMessage}
-        headerTone="archive"
-        writeIcon={<IconEdit aria-hidden="true" size={16} stroke={2} />}
-        filterSlot={
-          <FilterBar aria-label="게시판 필터">
+      headerTone="archive"
+      writeIcon={<IconEdit aria-hidden="true" size={16} stroke={2} />}
+      filterSlot={
+        <FilterBar aria-label="게시판 필터">
             <BoardDropdown
               label="게시판 유형"
               options={BOARD_TYPE_OPTIONS}
@@ -329,7 +378,7 @@ export default function BoardListPageClient({
               label="게시판 선택"
               options={scopeOptions}
               value={boardScope}
-              disabled={isScopeDisabled}
+              disabled={isScopeDisabled || !isAuthenticated}
               isOpen={openDropdown === "scope"}
               onToggle={() =>
                 setOpenDropdown((current) =>
@@ -347,11 +396,11 @@ export default function BoardListPageClient({
             />
           </FilterBar>
         }
-        searchSlot={
-          <SearchForm
-            role="search"
-            onSubmit={(event) => {
-              event.preventDefault();
+      searchSlot={
+        <SearchForm
+          role="search"
+          onSubmit={(event) => {
+            event.preventDefault();
               resetToFirstPage();
               setSearchKeyword(searchInput);
               setRefreshNonce((current) => current + 1);

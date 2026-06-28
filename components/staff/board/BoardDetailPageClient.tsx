@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
-import { deletePost, getPost } from "@/api/post/post.api";
+import { deletePost, getPost, getPublicPost } from "@/api/post/post.api";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import BoardCommentSection from "@/components/staff/board/BoardCommentSection";
 import { AttachmentDownloadList } from "@/components/common/AttachmentField";
@@ -24,7 +24,6 @@ import {
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { handlePostDeleteSuccess } from "@/lib/post/postDeleteCache";
 import { queryKeys } from "@/lib/queryKeys";
-import { colors, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type BoardDetailPageClientProps = {
@@ -35,7 +34,8 @@ type BoardDetailPageClientProps = {
 export default function BoardDetailPageClient({ postId, channelId }: BoardDetailPageClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user } = useAuthSession();
+  const { user, status } = useAuthSession();
+  const isAuthenticated = status === "authenticated";
   const hasChannelId = typeof channelId === "number" && Number.isFinite(channelId);
 
   const deletePostMutation = useMutation({
@@ -63,7 +63,10 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.posts.boardDetail(channelId ?? 0, postId),
-    queryFn: () => getPost({ channelId: channelId ?? 0, postId }),
+    queryFn: () =>
+      isAuthenticated
+        ? getPost({ channelId: channelId ?? 0, postId })
+        : getPublicPost({ channelId: channelId ?? 0, postId }),
     enabled: hasChannelId && !isDeletingPost,
     retry: false,
   });
@@ -156,7 +159,7 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
             }))}
           />
 
-          {hasChannelId && visiblePost?.allowComment !== false ? (
+          {isAuthenticated && hasChannelId && visiblePost?.allowComment !== false ? (
             <BoardCommentSection channelId={channelId} postId={postId} />
           ) : null}
         </ContentStack>

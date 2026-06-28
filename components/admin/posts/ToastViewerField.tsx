@@ -31,8 +31,6 @@ export default function ToastViewerField({ value }: ToastViewerFieldProps) {
         // Toast UI may still have queued DOM work from a previous render.
       }
 
-      rootRef.current.replaceChildren();
-
       const viewer = new Viewer({
         el: rootRef.current,
         initialValue: value,

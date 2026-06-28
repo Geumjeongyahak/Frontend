@@ -1,7 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-import { colors, radii, spacing, typography } from "@/styles/tokens";
+import { colors, spacing, typography } from "@/styles/tokens";
 
 type GoogleLoginButtonProps = {
   type?: "button" | "submit";

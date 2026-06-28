@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import type { SetStateAction } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   IconCalendarPlus,
@@ -10,7 +11,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import styled from "styled-components";
-import { createEvent, deleteEvent, getEvents, updateEvent } from "@/api/event/event.api";
+import { createEvent, deleteEvent, getAllEvents, updateEvent } from "@/api/event/event.api";
 import type {
   CreateEventRequestDto,
   EventResponseDto,
@@ -197,19 +198,59 @@ function decorateEventTitle(title: string, emoji: string) {
   return `${emoji} ${strippedTitle || trimmedTitle}`.trim();
 }
 
+function createFallbackEventId(eventDate: string, title: string, startTime?: string, endTime?: string) {
+  const seed = `${eventDate}|${title}|${startTime ?? ""}|${endTime ?? ""}`;
+  let hash = 0;
+
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) | 0;
+  }
+
+  return -Math.abs(hash || 1);
+}
+
 function mapEventResponseToCalendarEvent(event: EventResponseDto): StaffCalendarEvent | null {
-  if (typeof event.id !== "number" || !event.eventDate || !event.title) {
+  const rawEvent = event as EventResponseDto & Record<string, unknown>;
+  const eventDate =
+    typeof event.eventDate === "string"
+      ? event.eventDate
+      : typeof rawEvent.date === "string"
+        ? rawEvent.date
+        : typeof rawEvent.startDate === "string"
+          ? rawEvent.startDate
+          : undefined;
+  const rawTitle =
+    typeof event.title === "string"
+      ? event.title
+      : typeof rawEvent.name === "string"
+        ? rawEvent.name
+        : typeof rawEvent.eventName === "string"
+          ? rawEvent.eventName
+          : "기관 일정";
+  const numericId =
+    typeof event.id === "number"
+      ? event.id
+      : typeof event.id === "string" && Number.isFinite(Number(event.id))
+        ? Number(event.id)
+        : createFallbackEventId(
+            eventDate ?? "",
+            rawTitle,
+            typeof event.startTime === "string" ? event.startTime : undefined,
+            typeof event.endTime === "string" ? event.endTime : undefined,
+          );
+
+  if (!eventDate) {
     return null;
   }
 
-  const { emoji, title } = splitEmojiFromTitle(event.title);
+  const { emoji, title } = splitEmojiFromTitle(rawTitle);
   const startTime = toFormTime(event.startTime);
   const endTime = toFormTime(event.endTime);
 
   return {
-    id: event.id,
-    date: event.eventDate,
-    title: title || event.title,
+    id: numericId,
+    date: eventDate,
+    title: title || rawTitle,
     emoji,
     startTime,
     endTime,
@@ -439,7 +480,10 @@ export default function StaffCalendarPage({
   const isAdmin = status === "authenticated" && user?.role === "ADMIN";
 
   const [visibleMonth, setVisibleMonth] = useState({ year: initialYear, month: initialMonth });
-  const [events, setEvents] = useState<StaffCalendarEvent[]>([]);
+  const [eventState, setEventState] = useState<{
+    source?: unknown;
+    events: StaffCalendarEvent[];
+  }>({ events: [] });
   const [selectedIsoDate, setSelectedIsoDate] = useState<string | null>(initialSelectedDate ?? null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
@@ -463,7 +507,7 @@ export default function StaffCalendarPage({
   const eventsQuery = useQuery({
     queryKey: queryKeys.events.monthly(monthRange.startIsoDate, monthRange.endIsoDate),
     queryFn: () =>
-      getEvents({
+      getAllEvents({
         startDate: monthRange.startIsoDate,
         endDate: monthRange.endIsoDate,
         page: 0,
@@ -472,15 +516,25 @@ export default function StaffCalendarPage({
     retry: false,
   });
 
-  useEffect(() => {
-    const nextEvents = sortEvents(
-      (eventsQuery.data?.content ?? [])
-        .map(mapEventResponseToCalendarEvent)
-        .filter((event): event is StaffCalendarEvent => event !== null),
-    );
-
-    setEvents(nextEvents);
-  }, [eventsQuery.data]);
+  const queryEvents = useMemo(
+    () =>
+      sortEvents(
+        (eventsQuery.data?.content ?? [])
+          .map(mapEventResponseToCalendarEvent)
+          .filter((event): event is StaffCalendarEvent => event !== null),
+      ),
+    [eventsQuery.data?.content],
+  );
+  const events = eventState.source === eventsQuery.data ? eventState.events : queryEvents;
+  const setEvents = (updater: SetStateAction<StaffCalendarEvent[]>) => {
+    setEventState((current) => {
+      const baseEvents = current.source === eventsQuery.data ? current.events : queryEvents;
+      return {
+        source: eventsQuery.data,
+        events: typeof updater === "function" ? updater(baseEvents) : updater,
+      };
+    });
+  };
 
   const createEventMutation = useMutation({
     mutationFn: async (draft: EventRangeFormValues) => {
@@ -563,16 +617,6 @@ export default function StaffCalendarPage({
     () => calendarDays.find((day) => day.isoDate === selectedIsoDate) ?? null,
     [calendarDays, selectedIsoDate],
   );
-
-  useEffect(() => {
-    if (!selectedIsoDate) {
-      return;
-    }
-
-    if (!calendarDays.some((day) => day.isoDate === selectedIsoDate)) {
-      setSelectedIsoDate(null);
-    }
-  }, [calendarDays, selectedIsoDate]);
 
   const moveMonth = (offset: number) => {
     setVisibleMonth((current) => {

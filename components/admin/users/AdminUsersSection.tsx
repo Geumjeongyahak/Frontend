@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import styled from "styled-components";
 import type { DepartmentListItemDto } from "@/api/department/department.dto";
@@ -32,7 +31,7 @@ import { toBirthDateInputValue } from "@/utils/birthDate";
 import { openDatePicker } from "@/utils/datePicker";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
 
-const USERS_PER_PAGE = 11;
+export const ADMIN_USERS_PER_PAGE = 11;
 
 function getDepartmentLabel(item: UserListItemDto, departments: DepartmentListItemDto[]) {
   if (item.department?.name) {
@@ -112,6 +111,8 @@ type AdminUsersSectionProps = {
   canUseGlobalPermission: boolean;
   canUseTargetPermission: boolean;
   usersQuery: QueryState<unknown>;
+  currentPage: number;
+  totalPages: number;
   userDetailQuery: QueryState<UserResponseDto>;
   userPermissionsQuery: QueryState<PermissionResponseDto[]>;
   createUserMutation: VoidMutationAction;
@@ -126,6 +127,7 @@ type AdminUsersSectionProps = {
   setUserSearch: Dispatch<SetStateAction<string>>;
   setUserForm: Dispatch<SetStateAction<UserFormState>>;
   setPermissionForm: Dispatch<SetStateAction<PermissionFormState>>;
+  onPageChange: (page: number) => void;
   selectUser: (item: UserListItemDto) => void;
   emptyUserForm: UserFormState;
 };
@@ -143,6 +145,8 @@ export function AdminUsersSection({
   permissionOptions,
   availableActions,
   usersQuery,
+  currentPage,
+  totalPages,
   userDetailQuery,
   userPermissionsQuery,
   createUserMutation,
@@ -157,18 +161,13 @@ export function AdminUsersSection({
   setUserSearch,
   setUserForm,
   setPermissionForm,
+  onPageChange,
   selectUser,
   emptyUserForm,
 }: AdminUsersSectionProps) {
   const isDetailOpen = selectedUserId !== null;
-  const [pagination, setPagination] = useState({ page: 1, search: "" });
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
-  const requestedPage = pagination.search === userSearch ? pagination.page : 1;
-  const safeCurrentPage = Math.min(requestedPage, totalPages);
-  const pagedUsers = filteredUsers.slice(
-    (safeCurrentPage - 1) * USERS_PER_PAGE,
-    safeCurrentPage * USERS_PER_PAGE,
-  );
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pagedUsers = filteredUsers;
   const permissionResources = Array.from(
     new Set(permissionOptions.map((option) => option.resourceCode).filter(Boolean)),
   );
@@ -298,7 +297,10 @@ export function AdminUsersSection({
         <ControlRow>
           <TextInput
             value={userSearch}
-            onChange={(event) => setUserSearch(event.target.value)}
+            onChange={(event) => {
+              setUserSearch(event.target.value);
+              onPageChange(1);
+            }}
             placeholder="이름, 이메일, 역할 검색"
           />
         </ControlRow>
@@ -339,9 +341,7 @@ export function AdminUsersSection({
             type="button"
             aria-label="이전 페이지"
             disabled={safeCurrentPage === 1}
-            onClick={() =>
-              setPagination({ page: Math.max(1, safeCurrentPage - 1), search: userSearch })
-            }
+            onClick={() => onPageChange(Math.max(1, safeCurrentPage - 1))}
           >
             ◀
           </PageArrowButton>
@@ -354,7 +354,7 @@ export function AdminUsersSection({
                 type="button"
                 $isActive={pageNumber === safeCurrentPage}
                 aria-current={pageNumber === safeCurrentPage ? "page" : undefined}
-                onClick={() => setPagination({ page: pageNumber, search: userSearch })}
+                onClick={() => onPageChange(pageNumber)}
               >
                 {pageNumber}
               </PageNumberButton>
@@ -364,12 +364,7 @@ export function AdminUsersSection({
             type="button"
             aria-label="다음 페이지"
             disabled={safeCurrentPage === totalPages}
-            onClick={() =>
-              setPagination({
-                page: Math.min(totalPages, safeCurrentPage + 1),
-                search: userSearch,
-              })
-            }
+            onClick={() => onPageChange(Math.min(totalPages, safeCurrentPage + 1))}
           >
             ▶
           </PageArrowButton>

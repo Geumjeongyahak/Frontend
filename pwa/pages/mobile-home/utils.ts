@@ -1,4 +1,9 @@
 import dayjs from "dayjs";
+import {
+  getEventDisplayDate,
+  getEventDisplayId,
+  getEventDisplayTitle,
+} from "@/api/event/eventDisplay";
 import type { EventResponseDto } from "@/api/event/event.dto";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
 import type {
@@ -121,10 +126,7 @@ export function toMyLessonCardItems(lessons: LessonSummaryResponseDto[] = []) {
         title: isCancelled ? "결강" : `${classroomName} 수업`,
         classroomName,
         subjectName: undefined,
-        timeLabel: formatTimeLabel(
-          ordered[0]?.startTime,
-          ordered[ordered.length - 1]?.endTime,
-        ),
+        timeLabel: formatTimeLabel(ordered[0]?.startTime, ordered[ordered.length - 1]?.endTime),
         date: date || undefined,
         isCancelled,
         periods: ordered.map((lesson) => ({
@@ -143,17 +145,42 @@ export function toAllScheduleItems(
   lessons: LessonSummaryResponseDto[] = [],
   events: EventResponseDto[] = [],
 ) {
-  const eventItems = events.map<WeeklyScheduleListItem>((event, index) => ({
-    id: `event-${event.id ?? index}`,
-    dayValue: getJsDayValue(event.eventDate),
-    title: stripLeadingEventEmoji(event.title) || "기관 일정",
-    timeLabel: formatTimeLabel(event.startTime, event.endTime),
-    date: event.eventDate,
-    kind: "event",
-    isCancelled: false,
-    emoji: getEventEmoji(event.title),
-    description: event.description?.trim() || undefined,
+  const lessonItems = lessons.map<WeeklyScheduleListItem>((lesson, index) => ({
+    id: `lesson-${lesson.lessonId ?? `${lesson.date ?? "unknown"}-${lesson.period ?? index}`}`,
+    dayValue: getJsDayValue(lesson.date),
+    title: lesson.subjectName?.trim() || `${lesson.classroomName?.trim() || "수업"} 수업`,
+    timeLabel: formatTimeLabel(lesson.startTime, lesson.endTime),
+    date: lesson.date,
+    classroomName: lesson.classroomName?.trim() || undefined,
+    kind: "lesson",
+    isCancelled:
+      Boolean(lesson.isAbsent) ||
+      lesson.status === "CANCELED" ||
+      lesson.status === "CANCELLED",
   }));
 
-  return sortByStartTime(eventItems);
+  const eventItems = events
+    .map<WeeklyScheduleListItem | null>((event, index) => {
+      const eventDate = getEventDisplayDate(event);
+      if (!eventDate) {
+        return null;
+      }
+
+      const rawTitle = getEventDisplayTitle(event);
+
+      return {
+        id: `event-${getEventDisplayId(event, index)}`,
+        dayValue: getJsDayValue(eventDate),
+        title: stripLeadingEventEmoji(rawTitle) || "기관 일정",
+        timeLabel: formatTimeLabel(event.startTime, event.endTime),
+        date: eventDate,
+        kind: "event",
+        isCancelled: false,
+        emoji: getEventEmoji(rawTitle),
+        description: event.description?.trim() || undefined,
+      };
+    })
+    .filter((item): item is WeeklyScheduleListItem => item !== null);
+
+  return sortByStartTime([...lessonItems, ...eventItems]);
 }

@@ -1,5 +1,5 @@
 import ArchiveDocumentFormPage from "@/components/staff/archive/archive-document-section/ArchiveDocumentFormPage";
-import { archiveDocumentConfigs } from "@/mocks/archiveDocuments";
+import { archiveDocumentConfigs } from "@/config/archiveDocuments";
 
 type PageProps = {
   searchParams?: Promise<{

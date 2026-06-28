@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import {
@@ -14,10 +14,26 @@ import HomeHeader from "@/pwa/pages/mobile-home/components/HomeHeader";
 import WeeklyScheduleSection from "@/pwa/pages/mobile-home/components/WeeklyScheduleSection";
 import { useMobileHomeScreen } from "@/pwa/pages/mobile-home/hooks/useMobileHomeScreen";
 import { useSlideToConfirm } from "@/pwa/pages/mobile-home/hooks/useSlideToConfirm";
+import { syncPushSubscription } from "@/pwa/lib/pushNotifications";
+
+function readNotificationPermission(isAuthenticated: boolean) {
+  if (
+    !isAuthenticated ||
+    typeof window === "undefined" ||
+    !("Notification" in window) ||
+    !("serviceWorker" in navigator)
+  ) {
+    return null;
+  }
+
+  return Notification.permission;
+}
 
 export default function MobileHomeScreen() {
   const router = useRouter();
   const shellRef = useRef<HTMLDivElement | null>(null);
+  const [notificationPermission, setNotificationPermission] =
+    useState<NotificationPermission | null>(null);
   const screen = useMobileHomeScreen();
   const slider = useSlideToConfirm({
     disabled:
@@ -27,11 +43,21 @@ export default function MobileHomeScreen() {
 
   const isAttendanceCompleted = screen.hasCompletedAttendance;
   const sliderProgress = isAttendanceCompleted ? 1 : slider.progress;
+  const currentNotificationPermission =
+    notificationPermission ?? readNotificationPermission(screen.isAuthenticated);
 
   useEffect(() => {
     shellRef.current?.scrollTo({ top: 0, behavior: "auto" });
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [screen.isAuthenticated]);
+
+  async function handlePushOptInClick() {
+    await syncPushSubscription({ requestPermission: true }).catch(() => undefined);
+
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }
 
   return (
     <Shell ref={shellRef}>
@@ -49,6 +75,8 @@ export default function MobileHomeScreen() {
               screen.isAuthenticated ? "/notifications" : "/login",
             )
           }
+          showPushOptIn={screen.isAuthenticated && currentNotificationPermission === "default"}
+          onPushOptInClick={handlePushOptInClick}
           onLoginClick={() => router.push("/login")}
         />
 
@@ -78,11 +106,6 @@ export default function MobileHomeScreen() {
           emptyMessage={screen.scheduleEmptyMessage}
           onDaySelect={screen.setSelectedDay}
           onModeChange={screen.setScheduleMode}
-          onScheduleClick={(targetDate) =>
-            screen.navigateWhenAuthenticated(
-              targetDate ? `/staff/calendar?date=${targetDate}` : "/staff/calendar",
-            )
-          }
         />
       </Page>
       {screen.popupVisible ? <AttendanceSuccessOverlay /> : null}

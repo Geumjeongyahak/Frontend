@@ -1,15 +1,5 @@
 export type ArchiveDocumentCategory = "handover" | "exam" | "forms";
 
-export type ArchiveDocument = {
-  id: number;
-  category: ArchiveDocumentCategory;
-  title: string;
-  author: string;
-  date: string;
-  description: string;
-  files: string[];
-};
-
 export type ArchiveDocumentConfig = {
   category: ArchiveDocumentCategory;
   channelId: number;
@@ -27,7 +17,7 @@ export const ARCHIVE_DOCUMENTS_PER_PAGE = 9;
 export const archiveDocumentConfigs: Record<ArchiveDocumentCategory, ArchiveDocumentConfig> = {
   handover: {
     category: "handover",
-    channelId: 20, //채널 id 변경시 수정
+    channelId: 20,
     listPath: "/staff/archive/handover-documents",
     title: "인수인계서",
     writeTitle: "인수인계서 작성하기",
@@ -38,7 +28,7 @@ export const archiveDocumentConfigs: Record<ArchiveDocumentCategory, ArchiveDocu
   },
   exam: {
     category: "exam",
-    channelId: 22, //채널 id 변경시 수정
+    channelId: 22,
     listPath: "/staff/archive/exam-materials",
     title: "시험 문제 자료",
     writeTitle: "시험 문제 자료 작성하기",
@@ -49,7 +39,7 @@ export const archiveDocumentConfigs: Record<ArchiveDocumentCategory, ArchiveDocu
   },
   forms: {
     category: "forms",
-    channelId: 23, //채널 id 변경시 수정
+    channelId: 23,
     listPath: "/staff/archive/document-forms",
     title: "서류 양식",
     writeTitle: "서류 양식 작성하기",
@@ -59,36 +49,3 @@ export const archiveDocumentConfigs: Record<ArchiveDocumentCategory, ArchiveDocu
     fileBaseName: "서류양식자료",
   },
 };
-
-function createDocuments(category: ArchiveDocumentCategory) {
-  const config = archiveDocumentConfigs[category];
-
-  return Array.from({ length: 45 }, (_, index): ArchiveDocument => {
-    const id = index + 1;
-    const day = String((index % 24) + 1).padStart(2, "0");
-
-    return {
-      id,
-      category,
-      title: config.titleTemplate,
-      author: id % 4 === 0 ? "홍길동" : "작성자",
-      date: `26.04.${day}`,
-      description: `${config.title} 관련 자료 설명입니다.`,
-      files: [`${config.fileBaseName}.pdf`, `${config.fileBaseName}.png`],
-    };
-  });
-}
-
-export const archiveDocuments: Record<ArchiveDocumentCategory, ArchiveDocument[]> = {
-  handover: createDocuments("handover"),
-  exam: createDocuments("exam"),
-  forms: createDocuments("forms"),
-};
-
-export function getArchiveDocuments(category: ArchiveDocumentCategory) {
-  return archiveDocuments[category];
-}
-
-export function getArchiveDocumentById(category: ArchiveDocumentCategory, id: number) {
-  return archiveDocuments[category].find((document) => document.id === id);
-}

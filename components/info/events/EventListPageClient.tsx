@@ -13,7 +13,6 @@ import type { PostListResponseDto } from "@/api/post/post.dto";
 import EventInfoLayout from "@/components/info/events/EventInfoLayout";
 import {
   EVENT_CHANNEL_TYPE,
-  EVENT_FETCH_SIZE,
   EVENTS_PER_PAGE,
   findEventChannel,
   sortEventPosts,
@@ -50,15 +49,15 @@ export default function EventListPageClient({
   const eventChannel = findEventChannel(channelsQuery.data);
 
   const postsQuery = useQuery({
-    queryKey: ["info", "events", "posts", eventChannel?.id, searchKeyword],
+    queryKey: ["info", "events", "posts", eventChannel?.id, searchKeyword, requestedPage],
     queryFn: () =>
       getPosts({
         channelType: EVENT_CHANNEL_TYPE,
         channelId: eventChannel?.id,
         title: searchKeyword.trim() || undefined,
         status: "PUBLISHED",
-        page: 0,
-        size: EVENT_FETCH_SIZE,
+        page: Math.max(0, requestedPage - 1),
+        size: EVENTS_PER_PAGE,
       }),
     enabled: typeof eventChannel?.id === "number",
     initialData: searchKeyword ? undefined : initialPosts,
@@ -70,12 +69,9 @@ export default function EventListPageClient({
     () => sortEventPosts(postsQuery.data?.content ?? []),
     [postsQuery.data?.content],
   );
-  const totalPages = Math.max(1, Math.ceil(sortedPosts.length / EVENTS_PER_PAGE));
-  const currentPage = requestedPage > totalPages ? 1 : requestedPage;
-  const pagedPosts = sortedPosts.slice(
-    (currentPage - 1) * EVENTS_PER_PAGE,
-    currentPage * EVENTS_PER_PAGE,
-  );
+  const totalPages = Math.max(1, postsQuery.data?.totalPages ?? 1);
+  const currentPage = Math.min(requestedPage, totalPages);
+  const pagedPosts = sortedPosts;
   const canWrite = status === "authenticated";
   const hasLoadedPosts = typeof postsQuery.data !== "undefined";
   const isLoading = channelsQuery.isLoading || (postsQuery.isLoading && !hasLoadedPosts);

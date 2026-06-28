@@ -10,7 +10,7 @@ export interface EventPathParamsDto {
 }
 
 export interface EventResponseDto {
-  id?: number;
+  id?: number | string;
   title?: string;
   description?: string;
   eventDate?: string;

@@ -1,4 +1,5 @@
 import authClient from "../client/authClient";
+import publicClient from "../client/publicClient";
 import type { FileUploadResponseDto } from "../file/file.dto";
 import type {
   AttachPostFileRequestDto,
@@ -49,6 +50,13 @@ export async function getPosts(query?: PostListQueryParamsDto) {
   return response.data;
 }
 
+export async function getPublicPosts(query?: PostListQueryParamsDto) {
+  const response = await publicClient.get<PostListResponseDto>("/api/v1/posts", {
+    params: query,
+  });
+  return response.data;
+}
+
 // 특정 채널의 게시글 목록을 조회하는 요청
 export async function getChannelPosts(
   pathParams: ChannelPathParamsDto,
@@ -75,6 +83,13 @@ export async function createPost(pathParams: ChannelPathParamsDto, body: CreateP
 // 특정 채널의 특정 게시글 상세 정보를 조회하는 요청
 export async function getPost(pathParams: PostPathParamsDto) {
   const response = await authClient.get<PostDetailResponseDto>(
+    `/api/v1/channels/${pathParams.channelId}/posts/${pathParams.postId}`,
+  );
+  return response.data;
+}
+
+export async function getPublicPost(pathParams: PostPathParamsDto) {
+  const response = await publicClient.get<PostDetailResponseDto>(
     `/api/v1/channels/${pathParams.channelId}/posts/${pathParams.postId}`,
   );
   return response.data;

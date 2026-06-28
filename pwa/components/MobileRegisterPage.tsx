@@ -229,13 +229,6 @@ const Title = styled.h1`
   word-break: keep-all;
 `;
 
-const Description = styled.p`
-  color: #66725f;
-  font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight150};
-  word-break: keep-all;
-`;
-
 const Panel = styled.section`
   padding: 1.5rem;
   border-radius: 1.5rem;

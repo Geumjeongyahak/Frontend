@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import ArchiveDocumentListPage from "@/components/staff/archive/archive-document-section/ArchiveDocumentListPage";
-import { archiveDocumentConfigs } from "@/mocks/archiveDocuments";
+import { archiveDocumentConfigs } from "@/config/archiveDocuments";
 
 type PageProps = {
   searchParams?: Promise<{

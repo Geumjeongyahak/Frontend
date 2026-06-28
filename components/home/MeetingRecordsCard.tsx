@@ -66,11 +66,21 @@ export default function MeetingRecordsCard() {
 
 const Card = styled(HomeCard)`
   height: 100%;
+  min-height: 17.5rem;
+
+  @media (min-width: 120rem) {
+    min-height: 24.5rem;
+  }
 `;
 
 const List = styled.div`
   display: flex;
   flex-direction: column;
+  min-height: 13.125rem;
+
+  @media (min-width: 120rem) {
+    min-height: 18.4375rem;
+  }
 `;
 
 const Title = styled.h3`

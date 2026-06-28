@@ -15,7 +15,7 @@ export function snapLessonTimeToFiveMinutes(value: string) {
 
   const [hourText, minuteText] = normalized.split(":");
   let hour = Number(hourText);
-  let minute = Number(minuteText);
+  const minute = Number(minuteText);
 
   if (!Number.isInteger(hour) || !Number.isInteger(minute)) return normalized;
 

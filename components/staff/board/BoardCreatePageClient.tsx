@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
@@ -64,7 +64,9 @@ export default function BoardCreatePageClient({
   const [isPinned, setIsPinned] = useState<boolean | undefined>(undefined);
   const [allowComment, setAllowComment] = useState<boolean | undefined>(undefined);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[]>([]);
+  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[] | null>(
+    null,
+  );
   const shouldShowUploadToastRef = useRef(false);
 
   const channelsQuery = useQuery({
@@ -163,7 +165,7 @@ export default function BoardCreatePageClient({
     }
 
     return scopeOptions[0]?.value ?? "";
-  }, [editChannelName, editPostChannel?.refId, scopeOptions, selectedBoardType]);
+  }, [editChannelName, editPostChannel, scopeOptions, selectedBoardType]);
 
   const selectedBoardScope =
     selectedBoardType === "NOTICE"
@@ -200,9 +202,7 @@ export default function BoardCreatePageClient({
   const visibleIsPinned = isPinned ?? initialPinned;
   const visibleAllowComment = allowComment ?? postDetailQuery.data?.allowComment ?? true;
   const existingAttachments = postDetailQuery.data?.attachments ?? [];
-  useEffect(() => {
-    setEditableAttachments(existingAttachments);
-  }, [existingAttachments]);
+  const visibleExistingAttachments = editableAttachments ?? existingAttachments;
   const isEditorReady = !isEditMode || Boolean(postDetailQuery.data);
   const cancelHref =
     isEditMode && typeof editPostId === "number" && typeof editChannelId === "number"
@@ -280,7 +280,7 @@ export default function BoardCreatePageClient({
             { channelId, postId: draftPost.id },
             {
               fileId: registered.fileId,
-              sortOrder: (isEditMode ? editableAttachments.length : 0) + index,
+              sortOrder: (isEditMode ? visibleExistingAttachments.length : 0) + index,
             },
           );
         }
@@ -362,8 +362,10 @@ export default function BoardCreatePageClient({
     !isPending;
 
   async function handleRemoveExistingAttachment(fileId: string) {
+    const currentAttachments = visibleExistingAttachments;
+
     await deleteAttachment({ fileId });
-    setEditableAttachments((current) => current.filter((file) => file.fileId !== fileId));
+    setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
   }
 
   function handleRemoveSelectedFile(file: File) {
@@ -491,7 +493,7 @@ export default function BoardCreatePageClient({
 
           <Label>자료</Label>
           <AttachmentEditorPanel
-            existingAttachments={editableAttachments.map((file, index) => ({
+            existingAttachments={visibleExistingAttachments.map((file, index) => ({
               id: file.fileId ?? `existing-${index}`,
               label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
             }))}

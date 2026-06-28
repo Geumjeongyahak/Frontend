@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { assignSubjectTeacher } from "@/api/subject/subject.api";
@@ -35,10 +35,14 @@ export function useAdminSubjectTeacherAssign({ subject }: UseAdminSubjectTeacher
   const assignedTeacherId = getSubjectTeacherId(subject);
   const isTeacherUnassigned = assignedTeacherId == null;
 
-  const [selectedTeacherId, setSelectedTeacherId] = useState<number | typeof TEACHER_UNSELECTED | null>(
-    null,
-  );
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [selectedTeacherState, setSelectedTeacherState] = useState<{
+    subjectId: number | null;
+    teacherId: number | typeof TEACHER_UNSELECTED | null;
+  }>({ subjectId: null, teacherId: null });
+  const [submitErrorState, setSubmitErrorState] = useState<{
+    subjectId: number | null;
+    message: string | null;
+  }>({ subjectId: null, message: null });
 
   const teachersQuery = useQuery({
     queryKey: queryKeys.admin.activeVolunteerTeachers(),
@@ -51,11 +55,15 @@ export function useAdminSubjectTeacherAssign({ subject }: UseAdminSubjectTeacher
   });
 
   const teachers = teachersQuery.data?.content ?? [];
-
-  useEffect(() => {
-    setSelectedTeacherId(null);
-    setSubmitError(null);
-  }, [subjectId]);
+  const selectedTeacherId =
+    selectedTeacherState.subjectId === subjectId ? selectedTeacherState.teacherId : null;
+  const submitError = submitErrorState.subjectId === subjectId ? submitErrorState.message : null;
+  const setSelectedTeacherId = (teacherId: number | typeof TEACHER_UNSELECTED | null) => {
+    setSelectedTeacherState({ subjectId, teacherId });
+  };
+  const setSubmitError = (message: string | null) => {
+    setSubmitErrorState({ subjectId, message });
+  };
 
   const assignTeacherMutation = useMutation({
     mutationFn: async (teacherId: number | null) => {

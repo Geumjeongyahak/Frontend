@@ -11,13 +11,19 @@ import { StatePanel } from "@/components/admin/AdminDashboardSectionParts";
 import { AdminChannelsSection } from "@/components/admin/channels/AdminChannelsSection";
 import { AdminClassroomsSection } from "@/components/admin/classes/AdminClassroomsSection";
 import { AdminDepartmentsSection } from "@/components/admin/departments/AdminDepartmentsSection";
-import { AdminPostsSection } from "@/components/admin/posts/AdminPostsSection";
+import {
+  ADMIN_POSTS_PER_PAGE,
+  AdminPostsSection,
+} from "@/components/admin/posts/AdminPostsSection";
 import { AdminAbsenceRequestsSection } from "@/components/admin/absence-requests/AdminAbsenceRequestsSection";
 import { AdminLessonExchangeSection } from "@/components/admin/lesson-exchange/AdminLessonExchangeSection";
 import { AdminPurchasesSection } from "@/components/admin/purchase-requests/AdminPurchasesSection";
 import { AdminTeacherApplicationsSection } from "@/components/admin/teacher-applications/AdminTeacherApplicationsSection";
 import { AdminLessonManagementSection } from "@/components/admin/lesson-management/AdminLessonManagementSection";
-import { AdminUsersSection } from "@/components/admin/users/AdminUsersSection";
+import {
+  ADMIN_USERS_PER_PAGE,
+  AdminUsersSection,
+} from "@/components/admin/users/AdminUsersSection";
 import type {
   AdminMenu,
   ChannelFormState,
@@ -418,9 +424,11 @@ export default function AdminDashboardPage() {
   const [selectedClassroomId, setSelectedClassroomId] = useState<number | null>(null);
   const [selectedPurchaseId, setSelectedPurchaseId] = useState<number | null>(null);
   const [userSearch, setUserSearch] = useState("");
+  const [userPage, setUserPage] = useState(1);
   const [departmentSearch, setDepartmentSearch] = useState("");
   const [channelSearch, setChannelSearch] = useState("");
   const [postTitleSearch, setPostTitleSearch] = useState("");
+  const [postPage, setPostPage] = useState(1);
   const [postChannelTypeFilter, setPostChannelTypeFilter] = useState("all");
   const [postScopeFilter, setPostScopeFilter] = useState("all");
   const [classroomSearch, setClassroomSearch] = useState("");
@@ -489,9 +497,23 @@ export default function AdminDashboardPage() {
   }, [router, status, user?.role]);
 
   const usersQuery = useQuery({
-    queryKey: queryKeys.admin.users(0, 50),
-    queryFn: () => getUsers({ page: 0, size: 50 }),
+    queryKey: [
+      "admin",
+      "users",
+      {
+        page: userPage - 1,
+        size: ADMIN_USERS_PER_PAGE,
+        name: userSearch.trim() || undefined,
+      },
+    ],
+    queryFn: () =>
+      getUsers({
+        page: userPage - 1,
+        size: ADMIN_USERS_PER_PAGE,
+        name: userSearch.trim() || undefined,
+      }),
     enabled: isAdmin,
+    placeholderData: (previousData) => previousData,
   });
   const departmentsQuery = useQuery({
     queryKey: queryKeys.admin.departments(),
@@ -529,8 +551,8 @@ export default function AdminDashboardPage() {
       "admin",
       "posts",
       {
-        page: 0,
-        size: 50,
+        page: postPage - 1,
+        size: ADMIN_POSTS_PER_PAGE,
         title: postTitleSearch || undefined,
         channelType: postChannelTypeFilter === "all" ? undefined : postChannelTypeFilter,
         scope: postScopeFilter,
@@ -538,8 +560,8 @@ export default function AdminDashboardPage() {
     ],
     queryFn: () =>
       getPosts({
-        page: 0,
-        size: 50,
+        page: postPage - 1,
+        size: ADMIN_POSTS_PER_PAGE,
         title: postTitleSearch || undefined,
         channelType: postChannelTypeFilter === "all" ? undefined : postChannelTypeFilter,
         classroomId:
@@ -550,8 +572,9 @@ export default function AdminDashboardPage() {
           postChannelTypeFilter === "DEPARTMENT" && postScopeFilter !== "all"
             ? (toNumber(postScopeFilter) ?? undefined)
             : undefined,
-      }),
+    }),
     enabled: isAdmin,
+    placeholderData: (previousData) => previousData,
   });
   const purchasesQuery = useQuery({
     queryKey: queryKeys.admin.purchaseRequests({
@@ -913,7 +936,7 @@ export default function AdminDashboardPage() {
       notifySuccess("사용자를 생성했습니다.");
       setIsUserCreateModalOpen(false);
       setUserForm(emptyUserForm);
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       invalidateDepartmentMembershipQueries();
     },
     onError: (error) => notifyError(getErrorMessage(error, "사용자 생성에 실패했습니다.")),
@@ -924,7 +947,7 @@ export default function AdminDashboardPage() {
     onSuccess: () => {
       notifySuccess("사용자를 수정했습니다.");
       setIsUserEditing(false);
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       invalidateDepartmentMembershipQueries();
       if (selectedUserId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.admin.userDetail(selectedUserId) });
@@ -940,7 +963,7 @@ export default function AdminDashboardPage() {
       setIsUserEditing(false);
       setIsUserDeleteConfirmOpen(false);
       setUserForm(emptyUserForm);
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.users(0, 50) });
+      queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       invalidateDepartmentMembershipQueries();
     },
     onError: (error) => notifyError(getErrorMessage(error, "사용자 삭제에 실패했습니다.")),
@@ -1527,6 +1550,8 @@ export default function AdminDashboardPage() {
               canUseGlobalPermission={canUseGlobalPermission}
               canUseTargetPermission={canUseTargetPermission}
               usersQuery={usersQuery}
+              currentPage={userPage}
+              totalPages={Math.max(1, usersQuery.data?.totalPages ?? 1)}
               userDetailQuery={userDetailQuery}
               userPermissionsQuery={userPermissionsQuery}
               createUserMutation={createUserMutation}
@@ -1541,6 +1566,7 @@ export default function AdminDashboardPage() {
               setUserSearch={setUserSearch}
               setUserForm={setUserForm}
               setPermissionForm={setPermissionForm}
+              onPageChange={setUserPage}
               selectUser={selectUser}
               emptyUserForm={emptyUserForm}
             />
@@ -1584,6 +1610,8 @@ export default function AdminDashboardPage() {
               isPostEditing={isPostEditing}
               isPostCreateModalOpen={isPostCreateModalOpen}
               postsQuery={postsQuery}
+              currentPage={postPage}
+              totalPages={Math.max(1, postsQuery.data?.totalPages ?? 1)}
               postDetailQuery={postDetailQuery}
               createPostMutation={createPostMutation}
               updatePostMutation={updatePostMutation}
@@ -1596,6 +1624,7 @@ export default function AdminDashboardPage() {
               setPostEdit={setPostEdit}
               setIsPostEditing={setIsPostEditing}
               setIsPostCreateModalOpen={setIsPostCreateModalOpen}
+              onPageChange={setPostPage}
               selectPost={selectPost}
               closePostDetail={closePostDetail}
             />

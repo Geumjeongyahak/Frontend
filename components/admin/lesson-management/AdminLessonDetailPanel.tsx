@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import styled from "styled-components";
 import { getLessonDetail } from "@/api/lesson/lesson.api";
@@ -41,11 +41,11 @@ export function AdminLessonDetailPanel({
   selectedLessonSummary,
   onClearSelection,
 }: AdminLessonDetailPanelProps) {
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-
-  useEffect(() => {
-    setIsConfirmOpen(false);
-  }, [selectedLessonId]);
+  const [confirmState, setConfirmState] = useState<{ lessonId: number | null; open: boolean }>({
+    lessonId: null,
+    open: false,
+  });
+  const isConfirmOpen = confirmState.lessonId === selectedLessonId && confirmState.open;
 
   const detailQuery = useQuery({
     queryKey: ["admin", "lessons", "detail", selectedLessonId],
@@ -56,7 +56,7 @@ export function AdminLessonDetailPanel({
 
   const { deleteLessonById, isDeleting } = useLessonDelete({
     onDeleted: () => {
-      setIsConfirmOpen(false);
+      setConfirmState({ lessonId: null, open: false });
       onClearSelection();
     },
   });
@@ -119,7 +119,11 @@ export function AdminLessonDetailPanel({
             </DetailGrid>
 
             <ButtonRow>
-              <DangerButton type="button" disabled={isDeleting} onClick={() => setIsConfirmOpen(true)}>
+              <DangerButton
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setConfirmState({ lessonId: selectedLessonId, open: true })}
+              >
                 삭제
               </DangerButton>
             </ButtonRow>
@@ -131,7 +135,7 @@ export function AdminLessonDetailPanel({
         open={isConfirmOpen}
         message={deleteMessage}
         isPending={isDeleting}
-        onCancel={() => setIsConfirmOpen(false)}
+        onCancel={() => setConfirmState({ lessonId: selectedLessonId, open: false })}
         onConfirm={() => {
           if (selectedLessonId != null) deleteLessonById(selectedLessonId);
         }}

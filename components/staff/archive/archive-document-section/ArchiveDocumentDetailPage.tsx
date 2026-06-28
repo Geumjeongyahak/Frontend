@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
@@ -11,10 +11,7 @@ import { deletePost, getPost, pinPost, updatePost } from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
-import {
-  AttachmentDownloadList,
-  AttachmentEditorPanel,
-} from "@/components/common/AttachmentField";
+import { AttachmentDownloadList, AttachmentEditorPanel } from "@/components/common/AttachmentField";
 import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import BoardCommentSection from "@/components/staff/board/BoardCommentSection";
@@ -38,10 +35,10 @@ import {
   getUploadArchiveDocument,
   publishArchivePostWithNewFiles,
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
+import type { ArchiveDocumentConfig } from "@/config/archiveDocuments";
 import { handlePostDeleteSuccess } from "@/lib/post/postDeleteCache";
 import { queryKeys } from "@/lib/queryKeys";
-import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
-import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type ArchiveDocumentDetailPageProps = {
@@ -114,10 +111,7 @@ export default function ArchiveDocumentDetailPage({
   const title = visiblePost?.title ?? "제목";
   const author = visiblePost?.authorName ?? "홍길동";
   const content = visiblePost?.contentHtml?.trim() || "설명";
-  const attachments = visiblePost?.attachments ?? [];
-  useEffect(() => {
-    setEditableAttachments(attachments);
-  }, [attachments]);
+  const attachments = visiblePost?.attachments;
   const canManagePost =
     user?.role === "ADMIN" ||
     (typeof user?.id === "number" && visiblePost?.authorId === user.id) ||
@@ -235,7 +229,7 @@ export default function ArchiveDocumentDetailPage({
     setEditFiles([]);
     shouldShowUploadToastRef.current = false;
     setIsUploadingFiles(false);
-    setEditableAttachments(attachments);
+    setEditableAttachments(attachments ?? []);
   }
 
   async function handleRemoveExistingAttachment(fileId: string) {
@@ -245,7 +239,9 @@ export default function ArchiveDocumentDetailPage({
 
   function handleRemoveSelectedFile(file: File) {
     setEditFiles((current) =>
-      current.filter((item) => !(item.name === file.name && item.lastModified === file.lastModified)),
+      current.filter(
+        (item) => !(item.name === file.name && item.lastModified === file.lastModified),
+      ),
     );
   }
 
@@ -262,7 +258,9 @@ export default function ArchiveDocumentDetailPage({
         <ToolbarRight>
           {isEditing ? (
             <>
-              {updatePostMutation.isPending && isUploadingFiles ? <FileUploadProgressNotice /> : null}
+              {updatePostMutation.isPending && isUploadingFiles ? (
+                <FileUploadProgressNotice />
+              ) : null}
               <ArchiveActionButton
                 type="submit"
                 form={`${config.category}-detail-edit-form`}
@@ -382,7 +380,7 @@ export default function ArchiveDocumentDetailPage({
           />
         ) : (
           <AttachmentDownloadList
-            attachments={attachments.map((file, index) => ({
+            attachments={(attachments ?? []).map((file, index) => ({
               id: file.fileId ?? `${file.originalName}-${index}`,
               fileId: file.fileId,
               label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
@@ -499,4 +497,3 @@ const EditorBox = styled.div`
     border: 0;
   }
 `;
-

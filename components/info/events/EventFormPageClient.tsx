@@ -1,19 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { deleteAttachment } from "@/api/file/file.api";
-import {
-  attachPostFile,
-  createPost,
-  getPost,
-  publishPost,
-  updatePost,
-} from "@/api/post/post.api";
+import { attachPostFile, createPost, getPost, publishPost, updatePost } from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
@@ -45,7 +39,10 @@ type EventFormPageClientProps = {
   editChannelId?: number;
 };
 
-export default function EventFormPageClient({ editPostId, editChannelId }: EventFormPageClientProps) {
+export default function EventFormPageClient({
+  editPostId,
+  editChannelId,
+}: EventFormPageClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { status, user } = useAuthSession();
@@ -53,7 +50,9 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
   const [title, setTitle] = useState<string | undefined>(undefined);
   const [contentHtml, setContentHtml] = useState<string | undefined>(undefined);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[]>([]);
+  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[] | null>(
+    null,
+  );
   const shouldShowUploadToastRef = useRef(false);
 
   const channelsQuery = useQuery({
@@ -74,12 +73,11 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
   const visibleAuthor = postDetailQuery.data?.authorName ?? currentUserName;
   const visibleContentHtml = contentHtml ?? postDetailQuery.data?.contentHtml ?? "";
   const existingAttachments = postDetailQuery.data?.attachments ?? [];
-  useEffect(() => {
-    setEditableAttachments(existingAttachments);
-  }, [existingAttachments]);
+  const visibleExistingAttachments = editableAttachments ?? existingAttachments;
   const isEditorReady = !isEditMode || Boolean(postDetailQuery.data);
-  const canManagePost =
-    !isEditMode ? status === "authenticated" : canManageEventPost(user, postDetailQuery.data);
+  const canManagePost = !isEditMode
+    ? status === "authenticated"
+    : canManageEventPost(user, postDetailQuery.data);
 
   const { mutate, isPending, isError } = useMutation({
     mutationFn: async () => {
@@ -107,17 +105,16 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
 
       if (hasFileUpload) {
         const draftPost = isEditMode
-          ? await updatePost(
-              { channelId, postId: editPostId },
-              { ...publishBody, status: "DRAFT" },
-            )
+          ? await updatePost({ channelId, postId: editPostId }, { ...publishBody, status: "DRAFT" })
           : await createPost({ channelId }, { ...publishBody, status: "DRAFT" });
 
         if (typeof draftPost.id !== "number") {
           throw new Error("행사 정보 초안을 저장하지 못했습니다.");
         }
 
-        const registeredFiles = await Promise.all(selectedFiles.map((file) => uploadEventDocument(file)));
+        const registeredFiles = await Promise.all(
+          selectedFiles.map((file) => uploadEventDocument(file)),
+        );
 
         for (const [index, registered] of registeredFiles.entries()) {
           if (!registered.fileId) {
@@ -128,7 +125,7 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
             { channelId, postId: draftPost.id },
             {
               fileId: registered.fileId,
-              sortOrder: editableAttachments.length + index,
+              sortOrder: visibleExistingAttachments.length + index,
             },
           );
         }
@@ -137,7 +134,10 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
       }
 
       if (isEditMode) {
-        return updatePost({ channelId, postId: editPostId }, { ...publishBody, status: "PUBLISHED" });
+        return updatePost(
+          { channelId, postId: editPostId },
+          { ...publishBody, status: "PUBLISHED" },
+        );
       }
 
       return createPost({ channelId }, { ...publishBody, status: "PUBLISHED" });
@@ -177,13 +177,16 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
     !isPending;
 
   async function handleRemoveExistingAttachment(fileId: string) {
+    const currentAttachments = visibleExistingAttachments;
     await deleteAttachment({ fileId });
-    setEditableAttachments((current) => current.filter((file) => file.fileId !== fileId));
+    setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
   }
 
   function handleRemoveSelectedFile(file: File) {
     setSelectedFiles((current) =>
-      current.filter((item) => !(item.name === file.name && item.lastModified === file.lastModified)),
+      current.filter(
+        (item) => !(item.name === file.name && item.lastModified === file.lastModified),
+      ),
     );
   }
 
@@ -238,7 +241,7 @@ export default function EventFormPageClient({ editPostId, editChannelId }: Event
 
           <Label>자료</Label>
           <AttachmentEditorPanel
-            existingAttachments={editableAttachments.map((file, index) => ({
+            existingAttachments={visibleExistingAttachments.map((file, index) => ({
               id: file.fileId ?? `existing-${index}`,
               label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
             }))}

@@ -102,7 +102,6 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
       } catch {
         // Toast UI can schedule DOM updates while React is unmounting the editor.
       }
-      rootRef.current?.replaceChildren();
     };
   }, []);
 
