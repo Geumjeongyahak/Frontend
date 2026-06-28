@@ -62,4 +62,14 @@ export interface EmailVerificationResendRequestDto {
   email: string;
 }
 
+export interface PasswordResetRequestDto {
+  email: string;
+}
+
+export interface PasswordResetConfirmRequestDto {
+  email: string;
+  resetCode: string;
+  newPassword: string;
+}
+
 export type AdminLoginRequestDto = LoginRequestDto;

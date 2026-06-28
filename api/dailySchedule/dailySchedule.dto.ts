@@ -37,6 +37,9 @@ export interface DailyTeacherAttendanceResponseDto {
   attendanceId?: number;
   status?: DailyTeacherAttendanceStatus;
   attendedAt?: string | null;
+  isAttended?: boolean;
+  checkedOutAt?: string | null;
+  isCheckedOut?: boolean;
   latitude?: number | null;
   longitude?: number | null;
   volunteerServiceMinutes?: number;
@@ -64,6 +67,8 @@ export interface DailyScheduleSummaryResponseDto {
   isAbsent?: boolean;
   exchangedLessonDate?: string | null;
   teacherAttendanceStatus?: DailyTeacherAttendanceStatus | null;
+  isTeacherAttended?: boolean;
+  isTeacherCheckedOut?: boolean;
   lessonCount: number;
   lessons?: DailyScheduleLessonResponseDto[];
 }
@@ -111,6 +116,12 @@ export interface UpdateDailyTeacherAttendanceRequestDto {
   status: DailyTeacherAttendanceStatus;
   latitude?: number;
   longitude?: number;
+}
+
+export interface UpdateDailyTeacherAttendanceCorrectionRequestDto {
+  status: DailyTeacherAttendanceStatus;
+  attendedAt?: string | null;
+  checkedOutAt?: string | null;
 }
 
 export interface UpdateDailyStudentAttendanceItemRequestDto {

@@ -17,10 +17,14 @@ import { setAccessToken } from "../client/tokenStorage";
 
 import {
   approvePurchaseRequest,
+  createAdminPurchaseRequest,
   createPurchaseRequest,
   createLessonExchangeRequest,
   getAbsenceRequests,
+  getLessonExchangeRequests,
+  reportAdminPurchase,
   reportPurchase,
+  updateAdminPurchaseRequest,
   updateAdminPurchaseItemReceipts,
   updatePurchaseItemReceipts,
 } from "./request.api";
@@ -91,6 +95,35 @@ describe("request.api", () => {
       content: "Need a replacement",
       expiresAt: "2026-06-07T22:00:00",
     });
+  });
+
+  it("returns lesson exchange requests as paginated data", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedQueryString = "";
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/lesson-exchange-requests`, ({ request }) => {
+        observedQueryString = new URL(request.url).search;
+        return HttpResponse.json({
+          content: [LESSON_EXCHANGE_REQUEST_RESPONSE],
+          page: 0,
+          size: 10,
+          totalElements: 1,
+          totalPages: 1,
+        });
+      }),
+    );
+
+    const response = await getLessonExchangeRequests({
+      status: "PENDING",
+      mine: true,
+      keyword: "교환",
+    });
+
+    expect(response.content).toEqual([LESSON_EXCHANGE_REQUEST_RESPONSE]);
+    expect(observedQueryString).toContain("status=PENDING");
+    expect(observedQueryString).toContain("mine=true");
   });
 
   it("approves a purchase request through the admin endpoint", async () => {
@@ -198,6 +231,106 @@ describe("request.api", () => {
         },
       ],
     });
+  });
+
+  it("creates and updates admin purchase requests through admin endpoints", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedCreateBody: unknown;
+    let observedUpdateBody: unknown;
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/admin/purchase-requests`, async ({ request }) => {
+        observedCreateBody = await request.json();
+        return HttpResponse.json({ id: 50, status: "PENDING" });
+      }),
+      http.patch(`${API_BASE_URL}/api/v1/admin/purchase-requests/50`, async ({ request }) => {
+        observedUpdateBody = await request.json();
+        return HttpResponse.json({ id: 50, status: "PENDING", title: "수정됨" });
+      }),
+    );
+
+    await createAdminPurchaseRequest({
+      requestedById: 3,
+      title: "대리 구입 요청",
+      content: "관리자가 대신 등록",
+      classroomId: 1,
+      items: [
+        {
+          name: "프린트 용지",
+          quantity: 2,
+          paymentType: "ACTUAL",
+        },
+      ],
+    });
+
+    await updateAdminPurchaseRequest(
+      { requestId: 50 },
+      {
+        title: "수정됨",
+        content: "품목 수정",
+        items: [
+          {
+            name: "프린트 용지",
+            quantity: 3,
+            paymentType: "ACTUAL",
+          },
+        ],
+      },
+    );
+
+    expect(observedCreateBody).toEqual({
+      requestedById: 3,
+      title: "대리 구입 요청",
+      content: "관리자가 대신 등록",
+      classroomId: 1,
+      items: [
+        {
+          name: "프린트 용지",
+          quantity: 2,
+          paymentType: "ACTUAL",
+        },
+      ],
+    });
+    expect(observedUpdateBody).toEqual({
+      title: "수정됨",
+      content: "품목 수정",
+      items: [
+        {
+          name: "프린트 용지",
+          quantity: 3,
+          paymentType: "ACTUAL",
+        },
+      ],
+    });
+  });
+
+  it("reports admin purchase completion through the admin endpoint", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedPathname = "";
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/admin/purchase-requests/4/report`, ({ request }) => {
+        observedPathname = new URL(request.url).pathname;
+        return HttpResponse.json({ id: 4, status: "PURCHASED" });
+      }),
+    );
+
+    await reportAdminPurchase(
+      { requestId: 4 },
+      {
+        transactions: [
+          {
+            vendorId: 2,
+            itemNames: ["국어 교재"],
+            amount: 15000,
+          },
+        ],
+      },
+    );
+
+    expect(observedPathname).toBe("/api/v1/admin/purchase-requests/4/report");
   });
 
   it("updates purchase item receipts through the requester endpoint", async () => {
