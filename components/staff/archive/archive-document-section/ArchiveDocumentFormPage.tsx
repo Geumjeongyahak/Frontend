@@ -32,7 +32,7 @@ import {
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
-import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 type ArchiveDocumentFormPageProps = {
   config: ArchiveDocumentConfig;
@@ -133,9 +133,9 @@ export default function ArchiveDocumentFormPage({
 
       if (isEditMode) {
         const updatedPost = await updatePost(
-            { channelId, postId: editPostId },
-            { title, contentHtml, status: "PUBLISHED", allowComment: visibleAllowComment },
-          );
+          { channelId, postId: editPostId },
+          { title, contentHtml, status: "PUBLISHED", allowComment: visibleAllowComment },
+        );
 
         if (visibleIsPinned !== (postDetailQuery.data?.isPinned ?? false)) {
           await pinPost({ channelId, postId: editPostId }, { isPinned: visibleIsPinned });
@@ -144,15 +144,18 @@ export default function ArchiveDocumentFormPage({
         return updatedPost;
       }
 
-      return createPost({
-        channelId,
-      }, {
-        title,
-        contentHtml,
-        status: "PUBLISHED",
-        allowComment: visibleAllowComment,
-        isPinned: visibleIsPinned,
-      });
+      return createPost(
+        {
+          channelId,
+        },
+        {
+          title,
+          contentHtml,
+          status: "PUBLISHED",
+          allowComment: visibleAllowComment,
+          isPinned: visibleIsPinned,
+        },
+      );
     },
     onSuccess: async (post) => {
       if (shouldShowUploadToastRef.current) {
@@ -197,7 +200,9 @@ export default function ArchiveDocumentFormPage({
 
   function handleRemoveSelectedFile(file: File) {
     setFiles((current) =>
-      current.filter((item) => !(item.name === file.name && item.lastModified === file.lastModified)),
+      current.filter(
+        (item) => !(item.name === file.name && item.lastModified === file.lastModified),
+      ),
     );
   }
 
@@ -350,76 +355,5 @@ const EditorBox = styled.div`
 
   .toastui-editor-defaultUI {
     border: 0;
-  }
-`;
-
-const FileUploadPanel = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: ${spacing.space20};
-  width: 100%;
-  min-height: 6.875rem;
-  border: 1px solid ${colors.muted};
-  background-color: ${colors.white};
-  padding: ${spacing.space20};
-
-  > span {
-    color: ${colors.text};
-    font-size: ${typography.fontSize14};
-    font-weight: 500;
-    line-height: ${typography.lineHeight130};
-    text-decoration: underline;
-    text-underline-position: from-font;
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 9.6875rem;
-    gap: 1.875rem;
-
-    > span {
-      font-size: ${typography.fontSize20};
-    }
-  }
-`;
-
-const FileSelectLabel = styled.label`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: ${spacing.space4};
-  min-height: 1.9375rem;
-  border: 1px solid ${colors.point};
-  border-radius: ${radii.radius15};
-  background-color: ${colors.pointSoft};
-  padding: 0.5rem 0.625rem;
-  color: ${colors.point};
-  font-size: ${typography.fontSize13};
-  font-weight: 600;
-  line-height: ${typography.lineHeight130};
-  cursor: pointer;
-
-  svg {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  &:hover {
-    background-color: #e5f5db;
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 2.75rem;
-    padding: 0.625rem 0.9375rem;
-    font-size: ${typography.fontSize20};
-
-    svg {
-      width: 1.5rem;
-      height: 1.5rem;
-    }
-  }
-
-  @media (max-width: ${layout.breakpointMobile}) {
-    width: 100%;
   }
 `;

@@ -121,10 +121,7 @@ export function toMyLessonCardItems(lessons: LessonSummaryResponseDto[] = []) {
         title: isCancelled ? "결강" : `${classroomName} 수업`,
         classroomName,
         subjectName: undefined,
-        timeLabel: formatTimeLabel(
-          ordered[0]?.startTime,
-          ordered[ordered.length - 1]?.endTime,
-        ),
+        timeLabel: formatTimeLabel(ordered[0]?.startTime, ordered[ordered.length - 1]?.endTime),
         date: date || undefined,
         isCancelled,
         periods: ordered.map((lesson) => ({
@@ -139,10 +136,7 @@ export function toMyLessonCardItems(lessons: LessonSummaryResponseDto[] = []) {
   );
 }
 
-export function toAllScheduleItems(
-  lessons: LessonSummaryResponseDto[] = [],
-  events: EventResponseDto[] = [],
-) {
+export function toAllScheduleItems(events: EventResponseDto[] = []) {
   const eventItems = events.map<WeeklyScheduleListItem>((event, index) => ({
     id: `event-${event.id ?? index}`,
     dayValue: getJsDayValue(event.eventDate),

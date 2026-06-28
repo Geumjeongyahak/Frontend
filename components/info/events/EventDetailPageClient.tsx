@@ -23,7 +23,6 @@ import {
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
-import { colors, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type EventDetailPageClientProps = {
@@ -140,4 +139,3 @@ export default function EventDetailPageClient({ postId, channelId }: EventDetail
 const ActionToolbar = styled(Toolbar)`
   justify-content: flex-end;
 `;
-

@@ -1,15 +1,12 @@
 "use client";
 
 import styled, { keyframes } from "styled-components";
-import { mobileHomeTone } from "@/pwa/pages/mobile-home/constants";
 
 type AuthStatusSpinnerProps = {
   size?: string;
 };
 
-export default function AuthStatusSpinner({
-  size = "2.625rem",
-}: AuthStatusSpinnerProps) {
+export default function AuthStatusSpinner({ size = "2.625rem" }: AuthStatusSpinnerProps) {
   return <Spinner aria-hidden="true" $size={size} />;
 }
 

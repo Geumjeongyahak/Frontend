@@ -11,10 +11,7 @@ import { deletePost, getPost, pinPost, updatePost } from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
-import {
-  AttachmentDownloadList,
-  AttachmentEditorPanel,
-} from "@/components/common/AttachmentField";
+import { AttachmentDownloadList, AttachmentEditorPanel } from "@/components/common/AttachmentField";
 import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import BoardCommentSection from "@/components/staff/board/BoardCommentSection";
@@ -41,7 +38,7 @@ import {
 import { handlePostDeleteSuccess } from "@/lib/post/postDeleteCache";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
-import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type ArchiveDocumentDetailPageProps = {
@@ -245,7 +242,9 @@ export default function ArchiveDocumentDetailPage({
 
   function handleRemoveSelectedFile(file: File) {
     setEditFiles((current) =>
-      current.filter((item) => !(item.name === file.name && item.lastModified === file.lastModified)),
+      current.filter(
+        (item) => !(item.name === file.name && item.lastModified === file.lastModified),
+      ),
     );
   }
 
@@ -262,7 +261,9 @@ export default function ArchiveDocumentDetailPage({
         <ToolbarRight>
           {isEditing ? (
             <>
-              {updatePostMutation.isPending && isUploadingFiles ? <FileUploadProgressNotice /> : null}
+              {updatePostMutation.isPending && isUploadingFiles ? (
+                <FileUploadProgressNotice />
+              ) : null}
               <ArchiveActionButton
                 type="submit"
                 form={`${config.category}-detail-edit-form`}
@@ -499,4 +500,3 @@ const EditorBox = styled.div`
     border: 0;
   }
 `;
-

@@ -188,8 +188,18 @@ function ScheduleTable({
                 </ClassroomCell>
                 {columns.map((column) => {
                   const date = getDateForColumn(weekStartDate, column.isoWeekday);
-                  const cellSubjects = getSubjectsForCell(subjects, classroomId, column.value, date);
-                  const overrides = buildScheduleOverrides(cellSubjects, lessons, classroomId, date);
+                  const cellSubjects = getSubjectsForCell(
+                    subjects,
+                    classroomId,
+                    column.value,
+                    date,
+                  );
+                  const overrides = buildScheduleOverrides(
+                    cellSubjects,
+                    lessons,
+                    classroomId,
+                    date,
+                  );
                   const firstOverride = [...overrides.values()][0];
                   const firstExchangeDate =
                     firstOverride?.status === "EXCHANGED"
@@ -249,7 +259,9 @@ function ScheduleTable({
                         ) : (
                           <EmptyText>담당 교사 미배정</EmptyText>
                         )}
-                        {firstExchangeDate ? <ExchangeDateText>{firstExchangeDate}</ExchangeDateText> : null}
+                        {firstExchangeDate ? (
+                          <ExchangeDateText>{firstExchangeDate}</ExchangeDateText>
+                        ) : null}
                       </TeacherRow>
                       <PeriodList>
                         {DISPLAY_PERIODS.map((period) => {
@@ -850,10 +862,10 @@ const SubjectBlock = styled.span<{
   min-height: 1.25rem;
   padding: 0 ${spacing.space8};
   border-radius: ${radii.radius999};
-  background-color: ${({ $status, $empty, $period }) => {
+  background-color: ${({ $empty, $period }) => {
     return $empty ? "#f1f3f2" : DEFAULT_PERIOD_COLORS[$period as PeriodNumber];
   }};
-  color: ${({ $status, $empty, $period }) => {
+  color: ${({ $empty, $period }) => {
     return $empty ? "#7c8581" : (PERIOD_COLOR_TEXT[$period as PeriodNumber] ?? "#1f2b28");
   }};
   font-size: ${typography.fontSize13};
