@@ -1,8 +1,11 @@
 import authClient from "../client/authClient";
 import type {
   CreateMeetingRecordRequestDto,
+  LinkMeetingRecordAttachmentRequestDto,
   MeetingAbsenceReportPathParamsDto,
   MeetingAbsenceReportResponseDto,
+  MeetingRecordAttachmentDto,
+  MeetingRecordAttachmentPathParamsDto,
   MeetingRecordDetailResponseDto,
   MeetingRecordListQueryParamsDto,
   MeetingRecordListResponseDto,
@@ -82,5 +85,42 @@ export async function updateAbsenceReport(
 export async function deleteAbsenceReport(pathParams: MeetingAbsenceReportPathParamsDto) {
   await authClient.delete(
     `/api/v1/meeting-records/${pathParams.recordId}/absence-reports/${pathParams.absenceReportId}`,
+  );
+}
+
+// 교학 회의록에 파일을 직접 업로드하는 요청 (multipart/form-data)
+export async function attachMeetingRecordFile(
+  pathParams: MeetingRecordPathParamsDto,
+  file: Blob,
+  filename?: string,
+) {
+  const formData = new FormData();
+  formData.append("file", filename ? new File([file], filename) : file);
+  const response = await authClient.post<MeetingRecordAttachmentDto>(
+    `/api/v1/meeting-records/${pathParams.recordId}/attachments`,
+    formData,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return response.data;
+}
+
+// 이미 등록된 파일을 교학 회의록에 연결하는 요청
+export async function linkMeetingRecordAttachment(
+  pathParams: MeetingRecordPathParamsDto,
+  body: LinkMeetingRecordAttachmentRequestDto,
+) {
+  const response = await authClient.post<MeetingRecordAttachmentDto>(
+    `/api/v1/meeting-records/${pathParams.recordId}/attachments`,
+    body,
+  );
+  return response.data;
+}
+
+// 교학 회의록 첨부파일을 삭제하는 요청
+export async function deleteMeetingRecordAttachment(
+  pathParams: MeetingRecordAttachmentPathParamsDto,
+) {
+  await authClient.delete(
+    `/api/v1/meeting-records/${pathParams.recordId}/attachments/${pathParams.fileId}`,
   );
 }
