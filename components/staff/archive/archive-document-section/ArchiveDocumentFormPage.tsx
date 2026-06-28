@@ -30,8 +30,8 @@ import {
   getUploadArchiveDocument,
   publishArchivePostWithNewFiles,
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
+import type { ArchiveDocumentConfig } from "@/config/archiveDocuments";
 import { queryKeys } from "@/lib/queryKeys";
-import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 type ArchiveDocumentFormPageProps = {

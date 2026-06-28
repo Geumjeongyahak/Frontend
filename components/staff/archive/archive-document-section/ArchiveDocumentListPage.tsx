@@ -8,14 +8,14 @@ import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { getPosts } from "@/api/post/post.api";
 import type { PostSummaryResponseDto } from "@/api/post/post.dto";
+import {
+  ARCHIVE_DOCUMENTS_PER_PAGE,
+  type ArchiveDocumentConfig,
+} from "@/config/archiveDocuments";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
-import {
-  ARCHIVE_DOCUMENTS_PER_PAGE,
-  type ArchiveDocumentConfig,
-} from "@/mocks/archiveDocuments";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 

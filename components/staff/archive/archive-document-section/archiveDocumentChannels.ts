@@ -1,6 +1,6 @@
 import type { ChannelResponseDto, ChannelType } from "@/api/channel/channel.dto";
 import type { PostSummaryResponseDto } from "@/api/post/post.dto";
-import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
+import type { ArchiveDocumentConfig } from "@/config/archiveDocuments";
 
 export const ARCHIVE_DOCUMENT_CHANNEL_TYPES = ["CUSTOM", "RESOURCE"] as const;
 

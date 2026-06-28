@@ -35,9 +35,9 @@ import {
   getUploadArchiveDocument,
   publishArchivePostWithNewFiles,
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
+import type { ArchiveDocumentConfig } from "@/config/archiveDocuments";
 import { handlePostDeleteSuccess } from "@/lib/post/postDeleteCache";
 import { queryKeys } from "@/lib/queryKeys";
-import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
 import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
