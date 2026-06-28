@@ -45,7 +45,9 @@ async function refreshAccessToken() {
         setTokens(tokens.accessToken, tokens.refreshToken);
         return tokens;
       } catch (error) {
-        clearTokens();
+        if (getRefreshToken() === refreshToken) {
+          clearTokens();
+        }
         throw error;
       } finally {
         refreshPromise = null;
@@ -96,7 +98,6 @@ authClient.interceptors.response.use(
 
       return authClient(originalRequest);
     } catch (refreshError) {
-      clearTokens();
       return Promise.reject(refreshError);
     }
   },
