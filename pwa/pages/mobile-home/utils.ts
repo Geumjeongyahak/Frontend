@@ -1,4 +1,9 @@
 import dayjs from "dayjs";
+import {
+  getEventDisplayDate,
+  getEventDisplayId,
+  getEventDisplayTitle,
+} from "@/api/event/eventDisplay";
 import type { EventResponseDto } from "@/api/event/event.dto";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
 import type {
@@ -154,17 +159,28 @@ export function toAllScheduleItems(
       lesson.status === "CANCELLED",
   }));
 
-  const eventItems = events.map<WeeklyScheduleListItem>((event, index) => ({
-    id: `event-${event.id ?? index}`,
-    dayValue: getJsDayValue(event.eventDate),
-    title: stripLeadingEventEmoji(event.title) || "기관 일정",
-    timeLabel: formatTimeLabel(event.startTime, event.endTime),
-    date: event.eventDate,
-    kind: "event",
-    isCancelled: false,
-    emoji: getEventEmoji(event.title),
-    description: event.description?.trim() || undefined,
-  }));
+  const eventItems = events
+    .map<WeeklyScheduleListItem | null>((event, index) => {
+      const eventDate = getEventDisplayDate(event);
+      if (!eventDate) {
+        return null;
+      }
+
+      const rawTitle = getEventDisplayTitle(event);
+
+      return {
+        id: `event-${getEventDisplayId(event, index)}`,
+        dayValue: getJsDayValue(eventDate),
+        title: stripLeadingEventEmoji(rawTitle) || "기관 일정",
+        timeLabel: formatTimeLabel(event.startTime, event.endTime),
+        date: eventDate,
+        kind: "event",
+        isCancelled: false,
+        emoji: getEventEmoji(rawTitle),
+        description: event.description?.trim() || undefined,
+      };
+    })
+    .filter((item): item is WeeklyScheduleListItem => item !== null);
 
   return sortByStartTime([...lessonItems, ...eventItems]);
 }

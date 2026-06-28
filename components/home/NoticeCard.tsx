@@ -60,11 +60,21 @@ export default function NoticeCard() {
 
 const Card = styled(HomeCard)`
   height: 100%;
+  min-height: 17.5rem;
+
+  @media (min-width: 120rem) {
+    min-height: 24.5rem;
+  }
 `;
 
 const List = styled.div`
   display: flex;
   flex-direction: column;
+  min-height: 13.125rem;
+
+  @media (min-width: 120rem) {
+    min-height: 18.4375rem;
+  }
 `;
 
 const Title = styled.h3`
@@ -114,6 +124,9 @@ const Date = styled.time`
 `;
 
 const Fallback = styled.p`
+  display: flex;
+  flex: 1;
+  align-items: center;
   color: ${colors.muted};
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight150};

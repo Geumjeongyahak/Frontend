@@ -9,14 +9,12 @@ import {
   getDailyScheduleDetailIfExists,
   updateTeacherAttendance,
 } from "@/api/dailySchedule/dailySchedule.api";
-import { getEvents } from "@/api/event/event.api";
+import { getAllEvents } from "@/api/event/event.api";
+import { filterEventsInDateRange } from "@/api/event/eventDisplay";
 import { getLessons, getMyLessons } from "@/api/lesson/lesson.api";
 import { useNotificationInbox } from "@/pwa/hooks/useNotificationInbox";
 import { useAttendanceSuccessPopup } from "@/pwa/pages/mobile-home/hooks/useAttendanceSuccessPopup";
-import type {
-  MobileHomeDayValue,
-  MobileScheduleMode,
-} from "@/pwa/pages/mobile-home/types";
+import type { MobileHomeDayValue, MobileScheduleMode } from "@/pwa/pages/mobile-home/types";
 import {
   getCurrentDayValue,
   toAllScheduleItems,
@@ -54,7 +52,6 @@ export function useMobileHomeScreen() {
   const [selectedDay, setSelectedDay] = useState<MobileHomeDayValue>(getCurrentDayValue);
   const [scheduleMode, setScheduleMode] = useState<MobileScheduleMode>("all");
   const [isAttendanceResolving, setIsAttendanceResolving] = useState(false);
-  const effectiveScheduleMode = isAuthenticated ? scheduleMode : "all";
 
   const weekFrom = dayjs().startOf("isoWeek").format("YYYY-MM-DD");
   const weekTo = dayjs().endOf("isoWeek").format("YYYY-MM-DD");
@@ -83,10 +80,13 @@ export function useMobileHomeScreen() {
 
   const weeklyEventsQuery = useQuery({
     queryKey: queryKeys.events.weekly(weekFrom, weekTo),
-    queryFn: () => getEvents({ startDate: weekFrom, endDate: weekTo, page: 0, size: 100 }),
-    enabled: isAuthenticated,
+    queryFn: () => getAllEvents({ page: 0, size: 100 }),
     retry: false,
   });
+  const weeklyEvents = useMemo(
+    () => filterEventsInDateRange(weeklyEventsQuery.data?.content ?? [], weekFrom, weekTo),
+    [weekFrom, weekTo, weeklyEventsQuery.data?.content],
+  );
 
   const todayLesson = useMemo(() => {
     if (!isAuthenticated) {
@@ -98,7 +98,9 @@ export function useMobileHomeScreen() {
         (lesson) =>
           !lesson.isAbsent && lesson.status !== "CANCELED" && lesson.status !== "CANCELLED",
       )
-      .sort((left, right) => (left.startTime ?? "99:99").localeCompare(right.startTime ?? "99:99"))[0];
+      .sort((left, right) =>
+        (left.startTime ?? "99:99").localeCompare(right.startTime ?? "99:99"),
+      )[0];
   }, [isAuthenticated, todayLessonsQuery.data]);
 
   const attendanceQuery = useQuery({
@@ -125,18 +127,17 @@ export function useMobileHomeScreen() {
       return [];
     }
 
-    return toMyLessonCardItems(myLessonsQuery.data ?? []).filter((item) => item.dayValue === selectedDay);
+    return toMyLessonCardItems(myLessonsQuery.data ?? []).filter(
+      (item) => item.dayValue === selectedDay,
+    );
   }, [isAuthenticated, myLessonsQuery.data, selectedDay]);
 
   const allScheduleItems = useMemo(() => {
-    if (!isAuthenticated) {
-      return [];
-    }
-
-    return toAllScheduleItems(allLessonsQuery.data ?? [], weeklyEventsQuery.data?.content ?? []).filter(
-      (item) => item.dayValue === selectedDay,
-    );
-  }, [allLessonsQuery.data, isAuthenticated, selectedDay, weeklyEventsQuery.data?.content]);
+    return toAllScheduleItems(
+      isAuthenticated ? (allLessonsQuery.data ?? []) : [],
+      weeklyEvents,
+    ).filter((item) => item.dayValue === selectedDay);
+  }, [allLessonsQuery.data, isAuthenticated, selectedDay, weeklyEvents]);
 
   const hasCompletedAttendance =
     attendanceQuery.data?.teacherAttendance?.status === "PRESENT" ||
@@ -239,7 +240,7 @@ export function useMobileHomeScreen() {
     navigateWhenAuthenticated,
     selectedDay,
     setSelectedDay,
-    scheduleMode: effectiveScheduleMode,
+    scheduleMode,
     setScheduleMode,
     unreadCount,
     popupVisible: popup.isVisible,
@@ -253,18 +254,16 @@ export function useMobileHomeScreen() {
     scheduleEmptyMessage:
       !isAuthenticated && scheduleMode === "mine"
         ? "로그인이 필요합니다."
-        : effectiveScheduleMode === "mine"
+        : scheduleMode === "mine"
           ? "해당 요일에 일정이 없습니다."
           : "일정이 없습니다.",
     attendanceTitle: todayLesson?.classroomName
       ? `${todayLesson.classroomName}\u00A0수업`
       : "오늘 수업이 없습니다",
     loadingSchedule:
-      isAuthenticated &&
-      (allLessonsQuery.isLoading ||
-        myLessonsQuery.isLoading ||
-        weeklyEventsQuery.isLoading ||
-        todayLessonsQuery.isLoading),
+      weeklyEventsQuery.isLoading ||
+      (isAuthenticated &&
+        (allLessonsQuery.isLoading || myLessonsQuery.isLoading || todayLessonsQuery.isLoading)),
     completeAttendance,
   };
 }

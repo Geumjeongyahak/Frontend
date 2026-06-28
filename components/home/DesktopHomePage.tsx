@@ -117,6 +117,11 @@ const NoticeArea = styled.div`
 
 const MeetingArea = styled.div`
   grid-area: meeting;
+  min-height: 19.5rem;
+
+  @media (min-width: 120rem) {
+    min-height: 27.25rem;
+  }
 `;
 
 const EventArea = styled.div`
