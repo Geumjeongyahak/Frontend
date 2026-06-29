@@ -20,7 +20,13 @@ import {
 import { server } from "../../mocks/server";
 
 import authClient from "./authClient";
-import { getAccessToken, getRefreshToken, setAccessToken, setTokens } from "./tokenStorage";
+import {
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+  setAccessToken,
+  setTokens,
+} from "./tokenStorage";
 
 describe("authClient", () => {
   it("injects the Bearer token when an access token is stored", async () => {
@@ -171,6 +177,40 @@ describe("authClient", () => {
     await expect(request).rejects.toMatchObject({ response: { status: 401 } });
     expect(getAccessToken()).toBe(REFRESHED_ACCESS_TOKEN);
     expect(getRefreshToken()).toBe(REFRESHED_REFRESH_TOKEN);
+  });
+
+  it("does not restore tokens when logout clears storage during an in-flight refresh", async () => {
+    let releaseRefresh: () => void = () => undefined;
+    const refreshStarted = new Promise<void>((resolve) => {
+      server.use(
+        http.get(`${API_BASE_URL}/api/v1/protected/profile`, () => {
+          return HttpResponse.json({ message: "Access token expired" }, { status: 401 });
+        }),
+        http.post(`${API_BASE_URL}/api/v1/auth/refresh`, async () => {
+          resolve();
+          await new Promise<void>((release) => {
+            releaseRefresh = release;
+          });
+          return HttpResponse.json({
+            accessToken: REFRESHED_ACCESS_TOKEN,
+            refreshToken: REFRESHED_REFRESH_TOKEN,
+            tokenType: "Bearer",
+          });
+        }),
+      );
+    });
+
+    setTokens(EXPIRED_ACCESS_TOKEN, VALID_REFRESH_TOKEN);
+
+    const request = authClient.get("/api/v1/protected/profile");
+    await refreshStarted;
+
+    clearTokens();
+    releaseRefresh();
+
+    await expect(request).rejects.toThrow("Auth state changed while refreshing token.");
+    expect(getAccessToken()).toBeNull();
+    expect(getRefreshToken()).toBeNull();
   });
 
   it("stops after a single retry to prevent infinite refresh loops", async () => {

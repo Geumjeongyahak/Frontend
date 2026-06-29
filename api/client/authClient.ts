@@ -7,7 +7,13 @@ import type {
 
 import type { TokenResponseDto } from "../auth/auth.dto";
 import { baseClientConfig, publicClient } from "./publicClient";
-import { clearTokens, getAccessToken, getRefreshToken, setTokens } from "./tokenStorage";
+import {
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+  getTokenStateVersion,
+  setTokens,
+} from "./tokenStorage";
 
 const authClient = axios.create(baseClientConfig);
 
@@ -24,6 +30,7 @@ function setAuthorizationHeader(headers: AxiosRequestHeaders, accessToken: strin
 
 async function refreshAccessToken() {
   const refreshToken = getRefreshToken();
+  const tokenStateAtRequestStart = getTokenStateVersion();
 
   if (!refreshToken) {
     clearTokens();
@@ -42,10 +49,20 @@ async function refreshAccessToken() {
         );
         const tokens = response.data;
 
+        if (
+          getTokenStateVersion() !== tokenStateAtRequestStart ||
+          getRefreshToken() !== refreshToken
+        ) {
+          throw new Error("Auth state changed while refreshing token.");
+        }
+
         setTokens(tokens.accessToken, tokens.refreshToken);
         return tokens;
       } catch (error) {
-        if (getRefreshToken() === refreshToken) {
+        if (
+          getTokenStateVersion() === tokenStateAtRequestStart &&
+          getRefreshToken() === refreshToken
+        ) {
           clearTokens();
         }
         throw error;
