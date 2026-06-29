@@ -13,6 +13,7 @@ import type {
   UpdateDailyScheduleStatusRequestDto,
   UpdateDailyStudentAttendancesRequestDto,
   UpdateDailyTeacherAttendanceRequestDto,
+  UpdateDailyTeacherAttendanceCorrectionRequestDto,
 } from "./dailySchedule.dto";
 
 // 조건에 맞는 하루 일정 목록을 조회하는 요청
@@ -115,6 +116,28 @@ export async function updateTeacherAttendance(
 ) {
   const response = await authClient.patch<DailyScheduleDetailResponseDto>(
     `/api/v1/daily-schedules/${pathParams.dailyScheduleId}/teacher-attendance`,
+    body,
+  );
+
+  return response.data;
+}
+
+// 특정 하루 일정의 교사 퇴근을 처리하는 요청
+export async function checkOutTeacherAttendance(pathParams: DailySchedulePathParamsDto) {
+  const response = await authClient.patch<DailyScheduleDetailResponseDto>(
+    `/api/v1/daily-schedules/${pathParams.dailyScheduleId}/teacher-attendance/check-out`,
+  );
+
+  return response.data;
+}
+
+// 특정 하루 일정의 교사 출석 정보를 관리자가 보정하는 요청
+export async function correctTeacherAttendance(
+  pathParams: DailySchedulePathParamsDto,
+  body: UpdateDailyTeacherAttendanceCorrectionRequestDto,
+) {
+  const response = await authClient.patch<DailyScheduleDetailResponseDto>(
+    `/api/v1/daily-schedules/${pathParams.dailyScheduleId}/teacher-attendance/adjustment`,
     body,
   );
 

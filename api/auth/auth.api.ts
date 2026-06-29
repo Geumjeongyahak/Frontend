@@ -10,6 +10,8 @@ import type {
   GoogleSignupRequestDto,
   LoginRequestDto,
   LogoutRequestDto,
+  PasswordResetConfirmRequestDto,
+  PasswordResetRequestDto,
   RefreshTokenRequestDto,
   SignupRequestDto,
   TokenResponseDto,
@@ -34,6 +36,24 @@ export async function confirmEmailVerification(body: EmailVerificationConfirmReq
 export async function resendEmailVerification(body: EmailVerificationResendRequestDto) {
   const response = await publicClient.post<AuthMessageResponseDto>(
     "/api/v1/auth/email-verification/resend",
+    body,
+  );
+  return response.data;
+}
+
+// 비밀번호 재설정 인증 코드를 요청하는 요청
+export async function requestPasswordReset(body: PasswordResetRequestDto) {
+  const response = await publicClient.post<AuthMessageResponseDto>(
+    "/api/v1/auth/password-reset/request",
+    body,
+  );
+  return response.data;
+}
+
+// 비밀번호 재설정을 확정하는 요청
+export async function confirmPasswordReset(body: PasswordResetConfirmRequestDto) {
+  const response = await publicClient.post<AuthMessageResponseDto>(
+    "/api/v1/auth/password-reset/confirm",
     body,
   );
   return response.data;

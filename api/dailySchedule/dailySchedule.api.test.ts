@@ -8,6 +8,7 @@ import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
 import {
+  checkOutTeacherAttendance,
   createJournal,
   getDailyScheduleDetail,
   getDailyScheduleDetailIfExists,
@@ -172,7 +173,7 @@ describe("dailySchedule.api", () => {
           observedStudentBody = await request.json();
           return HttpResponse.json({
             ...DAILY_SCHEDULE_DETAIL,
-            studentAttendances: [{ attendanceId: 1, studentId: 5, status: "ABSENT" }],
+            studentAttendances: [{ attendanceId: 1, studentId: 5, status: "LATE" }],
           });
         },
       ),
@@ -184,7 +185,7 @@ describe("dailySchedule.api", () => {
     );
     await updateStudentAttendances(
       { dailyScheduleId: 1 },
-      { attendances: [{ studentId: 5, status: "ABSENT" }] },
+      { attendances: [{ studentId: 5, status: "LATE" }] },
     );
 
     expect(observedTeacherBody).toEqual({
@@ -192,6 +193,34 @@ describe("dailySchedule.api", () => {
       latitude: 35.2,
       longitude: 129.1,
     });
-    expect(observedStudentBody).toEqual({ attendances: [{ studentId: 5, status: "ABSENT" }] });
+    expect(observedStudentBody).toEqual({ attendances: [{ studentId: 5, status: "LATE" }] });
+  });
+
+  it("checks out teacher attendance through the checkout endpoint", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedPathname = "";
+
+    server.use(
+      http.patch(
+        `${API_BASE_URL}/api/v1/daily-schedules/1/teacher-attendance/check-out`,
+        ({ request }) => {
+          observedPathname = new URL(request.url).pathname;
+          return HttpResponse.json({
+            ...DAILY_SCHEDULE_DETAIL,
+            teacherAttendance: {
+              attendanceId: 1,
+              status: "PRESENT",
+              isCheckedOut: true,
+            },
+          });
+        },
+      ),
+    );
+
+    const response = await checkOutTeacherAttendance({ dailyScheduleId: 1 });
+
+    expect(observedPathname).toBe("/api/v1/daily-schedules/1/teacher-attendance/check-out");
+    expect(response.teacherAttendance).toMatchObject({ isCheckedOut: true });
   });
 });

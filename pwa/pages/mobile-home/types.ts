@@ -36,4 +36,11 @@ export type WeeklyScheduleListItem = {
   isCancelled: boolean;
   emoji?: string;
   description?: string;
+  periods?: Array<{
+    period?: number;
+    subjectName?: string;
+    startTime?: string;
+    endTime?: string;
+    status?: string;
+  }>;
 };

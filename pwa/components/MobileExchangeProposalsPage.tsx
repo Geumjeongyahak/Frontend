@@ -900,10 +900,11 @@ const DetailStatusText = styled.span<{ $status?: string }>`
 
 const DetailBlock = styled.div`
   display: grid;
-  gap: ${spacing.space8};
+  gap: ${spacing.space4};
 `;
 
 const DetailBody = styled.p`
+  margin: 0;
   color: ${colors.text};
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight150};

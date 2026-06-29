@@ -145,19 +145,54 @@ export function toAllScheduleItems(
   lessons: LessonSummaryResponseDto[] = [],
   events: EventResponseDto[] = [],
 ) {
-  const lessonItems = lessons.map<WeeklyScheduleListItem>((lesson, index) => ({
-    id: `lesson-${lesson.lessonId ?? `${lesson.date ?? "unknown"}-${lesson.period ?? index}`}`,
-    dayValue: getJsDayValue(lesson.date),
-    title: lesson.subjectName?.trim() || `${lesson.classroomName?.trim() || "수업"} 수업`,
-    timeLabel: formatTimeLabel(lesson.startTime, lesson.endTime),
-    date: lesson.date,
-    classroomName: lesson.classroomName?.trim() || undefined,
-    kind: "lesson",
-    isCancelled:
-      Boolean(lesson.isAbsent) ||
-      lesson.status === "CANCELED" ||
-      lesson.status === "CANCELLED",
-  }));
+  const grouped = new Map<string, LessonSummaryResponseDto[]>();
+
+  lessons.forEach((lesson) => {
+    const classroomName = lesson.classroomName?.trim() || "미정 반";
+    const dayValue = getJsDayValue(lesson.date);
+    const key = `${dayValue}:${lesson.date ?? ""}:${classroomName}`;
+    const current = grouped.get(key);
+
+    if (current) {
+      current.push(lesson);
+      return;
+    }
+
+    grouped.set(key, [lesson]);
+  });
+
+  const lessonItems = Array.from(grouped.entries()).map<WeeklyScheduleListItem>(
+    ([key, groupedLessons]) => {
+      const [dayText, date, classroomName] = key.split(":");
+      const ordered = [...groupedLessons].sort((left, right) =>
+        (left.startTime ?? "99:99").localeCompare(right.startTime ?? "99:99"),
+      );
+      const isCancelled = ordered.every(
+        (lesson) =>
+          Boolean(lesson.isAbsent) ||
+          lesson.status === "CANCELED" ||
+          lesson.status === "CANCELLED",
+      );
+
+      return {
+        id: `lesson-${key}`,
+        dayValue: Number(dayText) as MobileHomeDayValue,
+        title: classroomName || "미정 반",
+        timeLabel: formatTimeLabel(ordered[0]?.startTime, ordered[ordered.length - 1]?.endTime),
+        date: date || undefined,
+        classroomName: classroomName || undefined,
+        kind: "lesson",
+        isCancelled,
+        periods: ordered.map((lesson) => ({
+          period: lesson.period,
+          subjectName: lesson.subjectName,
+          startTime: lesson.startTime,
+          endTime: lesson.endTime,
+          status: lesson.isAbsent ? "CANCELLED" : lesson.status,
+        })),
+      };
+    },
+  );
 
   const eventItems = events
     .map<WeeklyScheduleListItem | null>((event, index) => {
