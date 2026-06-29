@@ -131,6 +131,19 @@ function isAdminMenu(value: string | null): value is AdminMenu {
   return Boolean(value && navigationItems.some((item) => item.key === value));
 }
 
+function isReloadNavigation() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const navigationEntries = window.performance.getEntriesByType("navigation");
+  const navigationEntry = navigationEntries[0];
+
+  return navigationEntry instanceof PerformanceNavigationTiming
+    ? navigationEntry.type === "reload"
+    : false;
+}
+
 const fallbackPermissions: PermissionDefinitionDto[] = [
   {
     permissionCode: "user:manage:*",
@@ -408,11 +421,11 @@ export default function AdminDashboardPage() {
   const { status, user, signOut } = useAuthSession();
   const isAdmin = status === "authenticated" && user?.role === "ADMIN";
   const [activeMenu, setActiveMenu] = useState<AdminMenu>(() => {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || !isReloadNavigation()) {
       return "dashboard";
     }
 
-    const storedMenu = window.localStorage.getItem(ADMIN_ACTIVE_MENU_STORAGE_KEY);
+    const storedMenu = window.sessionStorage.getItem(ADMIN_ACTIVE_MENU_STORAGE_KEY);
     return isAdminMenu(storedMenu) ? storedMenu : "dashboard";
   });
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -487,7 +500,10 @@ export default function AdminDashboardPage() {
   function handleActiveMenuChange(menu: AdminMenu) {
     resetTransientPanels();
     setActiveMenu(menu);
-    window.localStorage.setItem(ADMIN_ACTIVE_MENU_STORAGE_KEY, menu);
+
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(ADMIN_ACTIVE_MENU_STORAGE_KEY, menu);
+    }
   }
 
   useEffect(() => {

@@ -33,6 +33,7 @@ import {
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { formatPhoneNumber } from "@/utils/phoneNumber";
 
 const CLASSROOMS_PER_PAGE = 11;
 
@@ -764,7 +765,7 @@ function StudentCreateFields({ form, disabled, setStudentCreateForm }: StudentCr
           onChange={(event) =>
             setStudentCreateForm((current) => ({
               ...current,
-              phoneNumber: event.target.value,
+              phoneNumber: formatPhoneNumber(event.target.value),
             }))
           }
         />
