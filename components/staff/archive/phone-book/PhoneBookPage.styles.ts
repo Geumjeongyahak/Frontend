@@ -132,9 +132,9 @@ export const ContactCard = styled.div`
 export const Divider = styled.span`
   display: block;
   flex: 0 0 auto;
-  width: 1px;
+  width: 0;
   height: 0.875rem;
-  background-color: #000000;
+  border-left: 1px solid #000000;
 
   @media (min-width: 120rem) {
     height: 1.3125rem;
