@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { IconChevronLeft } from "@tabler/icons-react";
 import styled from "styled-components";
+import { useAppBackNavigation } from "@/hooks/useAppBackNavigation";
 import { useNotificationInbox } from "@/pwa/hooks/useNotificationInbox";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
@@ -18,6 +19,7 @@ function formatDateLabel(value: string) {
 
 export default function MobileNotificationPage() {
   const router = useRouter();
+  const { handleBack } = useAppBackNavigation({ fallbackHref: "/" });
   const { notifications, markAllAsRead } = useNotificationInbox();
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export default function MobileNotificationPage() {
   return (
     <Page>
       <Header>
-        <BackButton type="button" onClick={() => router.push("/")}>
+        <BackButton type="button" onClick={handleBack}>
           <IconChevronLeft size={26} stroke={1.8} />
         </BackButton>
       </Header>

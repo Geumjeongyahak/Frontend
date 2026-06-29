@@ -1,9 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useRouter } from "next/navigation";
 import { IconChevronLeft } from "@tabler/icons-react";
 import styled from "styled-components";
+import { useAppBackNavigation } from "@/hooks/useAppBackNavigation";
 import { colors, spacing, typography } from "@/styles/tokens";
 
 type MobileRequestShellProps = {
@@ -23,12 +23,12 @@ export default function MobileRequestShell({
   backHref = "/",
   children,
 }: MobileRequestShellProps) {
-  const router = useRouter();
+  const { handleBack } = useAppBackNavigation({ fallbackHref: backHref });
 
   return (
     <Page>
       <Header>
-        <BackButton type="button" onClick={() => router.push(backHref)}>
+        <BackButton type="button" onClick={handleBack}>
           <IconChevronLeft size={24} stroke={1.9} />
         </BackButton>
         {action}
