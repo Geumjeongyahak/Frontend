@@ -28,11 +28,25 @@ export type WeeklyScheduleStatus =
   | "ATTENDED"
   | "CHECKED_OUT";
 
+export type WeeklyScheduleLessonStatus = Extract<
+  WeeklyScheduleStatus,
+  "EXCHANGED" | "SUBSTITUTED" | "CANCELLED"
+>;
+
+export type WeeklyScheduleAttendanceStatus = Extract<
+  WeeklyScheduleStatus,
+  "ABSENT" | "ATTENDED" | "CHECKED_OUT"
+>;
+
 export type WeeklyScheduleOverride = {
   status?: WeeklyScheduleStatus;
+  lessonStatus?: WeeklyScheduleLessonStatus;
+  attendanceStatus?: WeeklyScheduleAttendanceStatus;
   teacherName?: string;
   subjectName?: string;
   relatedDate?: string;
+  attendedAt?: string;
+  checkedOutAt?: string;
 };
 
 export function formatRelatedLessonDate(value?: string) {
@@ -83,6 +97,70 @@ export function getPeriodSubject(subjects: SubjectDetailResponseDto[], period: n
   return subjects.find((subject) => subject.period === period);
 }
 
+function hasLessonStarted(date?: string, startTime?: string) {
+  if (!date || !startTime) {
+    return false;
+  }
+
+  const startAt = dayjs(`${date}T${startTime}`);
+
+  if (!startAt.isValid()) {
+    return false;
+  }
+
+  return !startAt.isAfter(dayjs());
+}
+
+function getAttendanceStatus(
+  lesson: LessonSummaryResponseDto,
+  hasAssignedTeacher: boolean,
+  canShowAttendanceStatus: boolean,
+) {
+  if (!hasAssignedTeacher || !canShowAttendanceStatus) {
+    return undefined;
+  }
+
+  const isTeacherAttended = lesson.teacherAttendance?.isAttended === true;
+  const isTeacherCheckedOut = lesson.teacherAttendance?.isCheckedOut === true;
+
+  if (isTeacherCheckedOut) {
+    return "CHECKED_OUT" as const;
+  }
+
+  if (isTeacherAttended) {
+    return "ATTENDED" as const;
+  }
+
+  if (
+    lesson.teacherAttendance &&
+    lesson.teacherAttendance.isAttended === false &&
+    lesson.teacherAttendance.isCheckedOut === false
+  ) {
+    return "ABSENT" as const;
+  }
+
+  return undefined;
+}
+
+export function formatWeeklyScheduleStatusLabel(status?: WeeklyScheduleStatus) {
+  if (status === "EXCHANGED") return "교환";
+  if (status === "SUBSTITUTED") return "대체";
+  if (status === "CANCELLED") return "결강";
+  if (status === "ABSENT") return "결근";
+  if (status === "ATTENDED") return "출근";
+  if (status === "CHECKED_OUT") return "퇴근";
+  return "";
+}
+
+export function formatTeacherAttendanceTime(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format("HH:mm") : "";
+}
+
 export function buildScheduleOverrides(
   cellSubjects: SubjectDetailResponseDto[],
   lessons: LessonSummaryResponseDto[],
@@ -97,62 +175,55 @@ export function buildScheduleOverrides(
       continue;
     }
 
+    const periodSubject = getPeriodSubject(cellSubjects, lesson.period);
     const lessonOverrideBase = {
       teacherName: lesson.teacherName,
       subjectName: lesson.subjectName,
+      attendedAt: lesson.teacherAttendance?.attendedAt ?? undefined,
+      checkedOutAt: lesson.teacherAttendance?.checkedOutAt ?? undefined,
     };
 
     if (lesson.isAbsent || lesson.status === "CANCELED" || lesson.status === "CANCELLED") {
       overrides.set(lesson.period, {
         ...lessonOverrideBase,
         status: "CANCELLED",
+        lessonStatus: "CANCELLED",
       });
       continue;
     }
 
+    const hasAssignedTeacher =
+      Boolean(lesson.teacherName?.trim()) || Boolean(periodSubject?.teacherName?.trim());
+    const canShowAttendanceStatus = hasLessonStarted(
+      lesson.date,
+      lesson.startTime ?? periodSubject?.startTime,
+    );
+    const attendanceStatus = getAttendanceStatus(
+      lesson,
+      hasAssignedTeacher,
+      canShowAttendanceStatus,
+    );
+
     if (lesson.isExchanged) {
+      const lessonStatus = lesson.exchangedLessonDate ? "EXCHANGED" : "SUBSTITUTED";
+
       overrides.set(lesson.period, {
         ...lessonOverrideBase,
-        status: lesson.exchangedLessonDate ? "EXCHANGED" : "SUBSTITUTED",
+        status: attendanceStatus ?? lessonStatus,
+        lessonStatus,
+        attendanceStatus,
         relatedDate: lesson.exchangedLessonDate ?? undefined,
       });
       continue;
     }
 
-    const periodSubject = getPeriodSubject(cellSubjects, lesson.period);
-    const hasAssignedTeacher =
-      Boolean(lesson.teacherName?.trim()) || Boolean(periodSubject?.teacherName?.trim());
-    const isTeacherAttended = lesson.teacherAttendance?.isAttended === true;
-    const isTeacherCheckedOut = lesson.teacherAttendance?.isCheckedOut === true;
-
-    if (hasAssignedTeacher) {
-      if (isTeacherCheckedOut) {
-        overrides.set(lesson.period, {
-          ...lessonOverrideBase,
-          status: "CHECKED_OUT",
-        });
-        continue;
-      }
-
-      if (isTeacherAttended) {
-        overrides.set(lesson.period, {
-          ...lessonOverrideBase,
-          status: "ATTENDED",
-        });
-        continue;
-      }
-
-      if (
-        lesson.teacherAttendance &&
-        lesson.teacherAttendance.isAttended === false &&
-        lesson.teacherAttendance.isCheckedOut === false
-      ) {
-        overrides.set(lesson.period, {
-          ...lessonOverrideBase,
-          status: "ABSENT",
-        });
-        continue;
-      }
+    if (attendanceStatus) {
+      overrides.set(lesson.period, {
+        ...lessonOverrideBase,
+        status: attendanceStatus,
+        attendanceStatus,
+      });
+      continue;
     }
 
     if (lesson.teacherName?.trim() || lesson.subjectName?.trim()) {

@@ -45,6 +45,20 @@ function getTodayIsoDate() {
   return dayjs().format("YYYY-MM-DD");
 }
 
+function hasLessonStartedToday(startTime?: string) {
+  if (!startTime) {
+    return false;
+  }
+
+  const startedAt = dayjs(`${getTodayIsoDate()}T${startTime}`);
+
+  if (!startedAt.isValid()) {
+    return false;
+  }
+
+  return !startedAt.isAfter(dayjs());
+}
+
 export function useMobileHomeScreen() {
   const { isAuthenticated, isAuthLoading, navigateWhenAuthenticated, user } =
     useProtectedHomeNavigation();
@@ -139,6 +153,7 @@ export function useMobileHomeScreen() {
   const hasCheckedOut =
     attendanceQuery.data?.teacherAttendance?.isCheckedOut === true ||
     attendanceQuery.data?.isTeacherCheckedOut === true;
+  const hasLessonStarted = hasLessonStartedToday(todayLesson?.startTime);
 
   const attendanceMutation = useMutation({
     mutationFn: ({ latitude, longitude }: { latitude: number; longitude: number }) =>
@@ -165,10 +180,12 @@ export function useMobileHomeScreen() {
     isAuthenticated &&
     isAttendanceLocationConfigured() &&
     typeof attendanceQuery.data?.dailyScheduleId === "number" &&
+    hasLessonStarted &&
     !hasCompletedAttendance;
   const isCheckoutReady =
     isAuthenticated &&
     typeof attendanceQuery.data?.dailyScheduleId === "number" &&
+    hasLessonStarted &&
     hasCompletedAttendance &&
     !hasCheckedOut;
   const sliderMode: "attendance" | "checkout" | "completed" = hasCheckedOut
@@ -183,8 +200,10 @@ export function useMobileHomeScreen() {
       ? "오늘 진행 예정인 수업이 없습니다."
       : !isAttendanceLocationConfigured()
         ? "환경 변수에 출석 위치가 설정되지 않았습니다."
-        : typeof attendanceQuery.data?.dailyScheduleId !== "number"
+      : typeof attendanceQuery.data?.dailyScheduleId !== "number"
           ? "오늘 수업 일정이 아직 생성되지 않았습니다."
+          : !hasLessonStarted
+            ? "수업 시간이 되면 출석할 수 있습니다."
           : hasCheckedOut
             ? "오늘 수업의 출석과 퇴근을 모두 완료했습니다."
             : hasCompletedAttendance

@@ -23,11 +23,15 @@ import {
   WEEKDAY_COLUMNS,
   WEEKEND_COLUMNS,
   buildScheduleOverrides,
+  formatTeacherAttendanceTime,
+  formatWeeklyScheduleStatusLabel,
   formatRelatedLessonDate,
   getDateForColumn,
   getPeriodSubject,
   getSubjectsForCell,
   getWeekRange,
+  type WeeklyScheduleAttendanceStatus,
+  type WeeklyScheduleLessonStatus,
   type WeeklyScheduleOverride,
 } from "./weeklyScheduleState";
 
@@ -49,7 +53,12 @@ type ScheduleCellSelection = {
   classroomName: string;
   classroomType?: ClassroomType;
   status?: WeeklyScheduleOverride["status"];
+  lessonStatus?: WeeklyScheduleLessonStatus;
+  attendanceStatus?: WeeklyScheduleAttendanceStatus;
   assignmentDateRange?: string;
+  relatedDate?: string;
+  attendedAt?: string;
+  checkedOutAt?: string;
   date: string;
   dayLabel: string;
   teacherName: string;
@@ -113,16 +122,6 @@ function hasAssignedTeacher(
 function formatSubjectName(subject?: SubjectDetailResponseDto, override?: WeeklyScheduleOverride) {
   if (override?.subjectName?.trim()) return override.subjectName;
   return subject?.name?.trim() || "미등록";
-}
-
-function formatStatusLabel(status?: WeeklyScheduleOverride["status"]) {
-  if (status === "EXCHANGED") return "교환";
-  if (status === "SUBSTITUTED") return "대체";
-  if (status === "CANCELLED") return "결강";
-  if (status === "ABSENT") return "결근";
-  if (status === "ATTENDED") return "출근";
-  if (status === "CHECKED_OUT") return "퇴근";
-  return "";
 }
 
 function formatWeekNavigatorLabel(weekStartDate: string) {
@@ -213,6 +212,7 @@ function ScheduleTable({
                     (override) => override.status,
                   );
                   const firstExchangeDate =
+                    firstStatusOverride?.lessonStatus === "EXCHANGED" ||
                     firstStatusOverride?.status === "EXCHANGED"
                       ? formatRelatedLessonDate(firstStatusOverride.relatedDate)
                       : "";
@@ -246,7 +246,12 @@ function ScheduleTable({
                           classroomName: classroom.name ?? "이름 없음",
                           classroomType: classroom.type,
                           status: firstStatusOverride?.status,
+                          lessonStatus: firstStatusOverride?.lessonStatus,
+                          attendanceStatus: firstStatusOverride?.attendanceStatus,
                           assignmentDateRange,
+                          relatedDate: firstStatusOverride?.relatedDate,
+                          attendedAt: firstStatusOverride?.attendedAt,
+                          checkedOutAt: firstStatusOverride?.checkedOutAt,
                           date,
                           dayLabel: column.label,
                           teacherName,
@@ -257,7 +262,7 @@ function ScheduleTable({
                       <TeacherRow>
                         {firstStatusOverride?.status ? (
                           <StatusPill $status={firstStatusOverride.status}>
-                            {formatStatusLabel(firstStatusOverride.status)}
+                            {formatWeeklyScheduleStatusLabel(firstStatusOverride.status)}
                           </StatusPill>
                         ) : null}
                         {hasRegisteredSubject ? (
@@ -445,9 +450,15 @@ export default function WeeklySchedulePageClient() {
                   <ModalTitle id="weekly-schedule-detail-title">
                     {selectedCell.classroomName} {selectedCell.dayLabel}요일 수업
                   </ModalTitle>
-                  {selectedCell.status ? (
+                  {selectedCell.lessonStatus ? (
+                    <ModalStatusPill $status={selectedCell.lessonStatus}>
+                      {formatWeeklyScheduleStatusLabel(selectedCell.lessonStatus)}
+                    </ModalStatusPill>
+                  ) : null}
+                  {selectedCell.status &&
+                  selectedCell.status !== selectedCell.lessonStatus ? (
                     <ModalStatusPill $status={selectedCell.status}>
-                      {formatStatusLabel(selectedCell.status)}
+                      {formatWeeklyScheduleStatusLabel(selectedCell.status)}
                     </ModalStatusPill>
                   ) : null}
                 </ModalTitleRow>
@@ -457,6 +468,16 @@ export default function WeeklySchedulePageClient() {
                 <ModalDescription>
                   {selectedCell.date} · {selectedCell.teacherName}
                 </ModalDescription>
+                {selectedCell.attendedAt ? (
+                  <ModalDescription>
+                    출근 시간 {formatTeacherAttendanceTime(selectedCell.attendedAt)}
+                  </ModalDescription>
+                ) : null}
+                {selectedCell.checkedOutAt ? (
+                  <ModalDescription>
+                    퇴근 시간 {formatTeacherAttendanceTime(selectedCell.checkedOutAt)}
+                  </ModalDescription>
+                ) : null}
               </ModalHeaderContent>
               <CloseButton type="button" onClick={() => setSelectedCell(null)}>
                 닫기
