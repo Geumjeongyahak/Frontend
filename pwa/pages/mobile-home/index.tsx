@@ -35,6 +35,9 @@ function readNotificationPermission(isAuthenticated: boolean) {
 export default function MobileHomeScreen() {
   const router = useRouter();
   const shellRef = useRef<HTMLDivElement | null>(null);
+  const previousSliderModeRef = useRef<ReturnType<typeof useMobileHomeScreen>["sliderMode"] | null>(
+    null,
+  );
   const [notificationPermission, setNotificationPermission] =
     useState<NotificationPermission | null>(null);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
@@ -48,8 +51,10 @@ export default function MobileHomeScreen() {
       isCheckoutModalOpen,
     onConfirm: ({ reset }) => {
       if (screen.sliderMode === "checkout") {
-        reset();
-        setIsCheckoutModalOpen(true);
+        screen.completeCheckout({
+          reset,
+          onRequireJournal: () => setIsCheckoutModalOpen(true),
+        });
         return;
       }
 
@@ -66,6 +71,17 @@ export default function MobileHomeScreen() {
     shellRef.current?.scrollTo({ top: 0, behavior: "auto" });
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [screen.isAuthenticated]);
+
+  useEffect(() => {
+    if (
+      previousSliderModeRef.current === "attendance" &&
+      screen.sliderMode === "checkout"
+    ) {
+      slider.reset();
+    }
+
+    previousSliderModeRef.current = screen.sliderMode;
+  }, [screen.sliderMode, slider.reset]);
 
   async function handlePushOptInClick() {
     await syncPushSubscription({ requestPermission: true }).catch(() => undefined);

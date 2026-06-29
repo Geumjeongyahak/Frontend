@@ -30,7 +30,7 @@ import {
 } from "./request.api";
 
 describe("request.api", () => {
-  it("returns absence requests with auth header and status query", async () => {
+  it("returns absence requests with auth header and supports mine filtering", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     let observedAuthorizationHeader: string | null = null;
@@ -50,7 +50,7 @@ describe("request.api", () => {
       }),
     );
 
-    const response = await getAbsenceRequests({ status: "PENDING" });
+    const response = await getAbsenceRequests({ status: "PENDING", mine: true });
 
     expect(response).toEqual({
       content: [ABSENCE_REQUEST_RESPONSE],
@@ -61,6 +61,7 @@ describe("request.api", () => {
     });
     expect(observedAuthorizationHeader).toBe(`Bearer ${VALID_ACCESS_TOKEN}`);
     expect(observedQueryString).toContain("status=PENDING");
+    expect(observedQueryString).toContain("mine=true");
   });
 
   it("creates a lesson exchange request with the expected body", async () => {
@@ -154,7 +155,7 @@ describe("request.api", () => {
     expect(observedBody).toEqual({ note: "승인합니다." });
   });
 
-  it("creates a purchase request with payment type and without expected price", async () => {
+  it("creates a purchase request with department affiliation and payment type", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     let observedBody: unknown;
@@ -169,7 +170,7 @@ describe("request.api", () => {
     await createPurchaseRequest({
       title: "교재 결제 신청",
       content: "신청자: 홍길동",
-      classroomId: 1,
+      departmentId: 7,
       items: [
         {
           name: "국어 교재",
@@ -183,7 +184,7 @@ describe("request.api", () => {
     expect(observedBody).toEqual({
       title: "교재 결제 신청",
       content: "신청자: 홍길동",
-      classroomId: 1,
+      departmentId: 7,
       items: [
         {
           name: "국어 교재",

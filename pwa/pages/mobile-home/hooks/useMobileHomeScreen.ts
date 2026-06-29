@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import {
+  checkOutTeacherAttendance,
   getDailyScheduleDetailIfExists,
   updateTeacherAttendance,
 } from "@/api/dailySchedule/dailySchedule.api";
@@ -18,6 +19,7 @@ import { useAttendanceSuccessPopup } from "@/pwa/pages/mobile-home/hooks/useAtte
 import type { MobileHomeDayValue, MobileScheduleMode } from "@/pwa/pages/mobile-home/types";
 import {
   getCurrentDayValue,
+  hasWrittenClassJournal,
   toAllScheduleItems,
   toMyLessonCardItems,
 } from "@/pwa/pages/mobile-home/utils";
@@ -67,6 +69,7 @@ export function useMobileHomeScreen() {
   const [selectedDay, setSelectedDay] = useState<MobileHomeDayValue>(getCurrentDayValue);
   const [scheduleMode, setScheduleMode] = useState<MobileScheduleMode>("all");
   const [isAttendanceResolving, setIsAttendanceResolving] = useState(false);
+  const [isCheckoutResolving, setIsCheckoutResolving] = useState(false);
 
   const weekFrom = dayjs().startOf("isoWeek").format("YYYY-MM-DD");
   const weekTo = dayjs().endOf("isoWeek").format("YYYY-MM-DD");
@@ -153,6 +156,7 @@ export function useMobileHomeScreen() {
   const hasCheckedOut =
     attendanceQuery.data?.teacherAttendance?.isCheckedOut === true ||
     attendanceQuery.data?.isTeacherCheckedOut === true;
+  const hasWrittenJournal = hasWrittenClassJournal(attendanceQuery.data);
   const hasLessonStarted = hasLessonStartedToday(todayLesson?.startTime);
 
   const attendanceMutation = useMutation({
@@ -188,6 +192,21 @@ export function useMobileHomeScreen() {
     hasLessonStarted &&
     hasCompletedAttendance &&
     !hasCheckedOut;
+
+  const checkoutMutation = useMutation({
+    mutationFn: (dailyScheduleId: number) => checkOutTeacherAttendance({ dailyScheduleId }),
+    onSuccess: () => {
+      setIsCheckoutResolving(false);
+      popup.show("checkout");
+      toast.success("퇴근이 완료되었습니다.");
+      attendanceQuery.refetch().catch(() => undefined);
+    },
+    onError: () => {
+      setIsCheckoutResolving(false);
+      toast.error("퇴근 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    },
+  });
+
   const sliderMode: "attendance" | "checkout" | "completed" = hasCheckedOut
     ? "completed"
     : isCheckoutReady
@@ -207,7 +226,9 @@ export function useMobileHomeScreen() {
           : hasCheckedOut
             ? "오늘 수업의 출석과 퇴근을 모두 완료했습니다."
             : hasCompletedAttendance
-              ? "퇴근을 완료하려면 수업 일지를 작성해야 합니다."
+              ? hasWrittenJournal
+                ? "수업 일지가 확인되었습니다. 밀어서 바로 퇴근할 수 있습니다."
+                : "퇴근을 완료하려면 수업 일지를 작성해야 합니다."
             : `${ATTENDANCE_TARGET_LABEL} 반경 ${ATTENDANCE_TARGET_RADIUS_METERS}m 안에서 출석할 수 있습니다.`;
 
   useEffect(() => {
@@ -267,6 +288,53 @@ export function useMobileHomeScreen() {
     );
   }
 
+  async function completeCheckout({
+    reset,
+    onRequireJournal,
+  }: {
+    reset: () => void;
+    onRequireJournal: () => void;
+  }) {
+    if (!isCheckoutReady || checkoutMutation.isPending || isCheckoutResolving) {
+      reset();
+      return;
+    }
+
+    setIsCheckoutResolving(true);
+
+    try {
+      const latestSchedule = (await attendanceQuery.refetch()).data;
+      const dailyScheduleId = latestSchedule?.dailyScheduleId;
+
+      if (typeof dailyScheduleId !== "number") {
+        setIsCheckoutResolving(false);
+        reset();
+        toast.error("오늘 수업 일정을 다시 확인해 주세요.");
+        return;
+      }
+
+      if (latestSchedule?.teacherAttendance?.isCheckedOut || latestSchedule?.isTeacherCheckedOut) {
+        setIsCheckoutResolving(false);
+        popup.show("checkout");
+        reset();
+        return;
+      }
+
+      if (!hasWrittenClassJournal(latestSchedule)) {
+        setIsCheckoutResolving(false);
+        reset();
+        onRequireJournal();
+        return;
+      }
+
+      checkoutMutation.mutate(dailyScheduleId);
+    } catch {
+      setIsCheckoutResolving(false);
+      reset();
+      toast.error("수업 일지 확인에 실패했습니다. 잠시 후 다시 시도해주세요.");
+    }
+  }
+
   function openCheckoutJournal() {
     navigateWhenAuthenticated("/journal/write");
   }
@@ -291,9 +359,10 @@ export function useMobileHomeScreen() {
     isAttendanceReady,
     isCheckoutReady,
     isAttendancePending: isAttendanceResolving || attendanceMutation.isPending,
-    isCheckoutPending: false,
+    isCheckoutPending: isCheckoutResolving || checkoutMutation.isPending,
     hasCompletedAttendance,
     hasCheckedOut,
+    hasWrittenJournal,
     attendanceGuide,
     scheduleEmptyMessage:
       !isAuthenticated && scheduleMode === "mine"
@@ -309,6 +378,7 @@ export function useMobileHomeScreen() {
       (isAuthenticated &&
         (myLessonsQuery.isLoading || todayLessonsQuery.isLoading)),
     completeAttendance,
+    completeCheckout,
     openCheckoutJournal,
   };
 }

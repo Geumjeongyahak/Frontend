@@ -38,13 +38,24 @@ export default function TeacherContactSection() {
 }
 
 function TeacherContactCard({ contact }: { contact: TeacherContact }) {
+  const className = contact.className.trim();
+  const phone = contact.phone.trim();
+
   return (
     <S.ContactCard>
       <strong>{contact.name}</strong>
-      <S.Divider aria-hidden="true" />
-      <S.ContactValue>{contact.className}</S.ContactValue>
-      <S.Divider aria-hidden="true" />
-      <S.ContactValue>{contact.phone}</S.ContactValue>
+      {className ? (
+        <>
+          <S.Divider aria-hidden="true" />
+          <S.ContactValue>{className}</S.ContactValue>
+        </>
+      ) : null}
+      {phone ? (
+        <>
+          <S.Divider aria-hidden="true" />
+          <S.ContactValue>{phone}</S.ContactValue>
+        </>
+      ) : null}
     </S.ContactCard>
   );
 }

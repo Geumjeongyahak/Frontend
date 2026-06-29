@@ -131,6 +131,19 @@ function isAdminMenu(value: string | null): value is AdminMenu {
   return Boolean(value && navigationItems.some((item) => item.key === value));
 }
 
+function isReloadNavigation() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  const navigationEntries = window.performance.getEntriesByType("navigation");
+  const navigationEntry = navigationEntries[0];
+
+  return navigationEntry instanceof PerformanceNavigationTiming
+    ? navigationEntry.type === "reload"
+    : false;
+}
+
 const fallbackPermissions: PermissionDefinitionDto[] = [
   {
     permissionCode: "user:manage:*",
@@ -407,14 +420,7 @@ export default function AdminDashboardPage() {
   const queryClient = useQueryClient();
   const { status, user, signOut } = useAuthSession();
   const isAdmin = status === "authenticated" && user?.role === "ADMIN";
-  const [activeMenu, setActiveMenu] = useState<AdminMenu>(() => {
-    if (typeof window === "undefined") {
-      return "dashboard";
-    }
-
-    const storedMenu = window.localStorage.getItem(ADMIN_ACTIVE_MENU_STORAGE_KEY);
-    return isAdminMenu(storedMenu) ? storedMenu : "dashboard";
-  });
+  const [activeMenu, setActiveMenu] = useState<AdminMenu>("dashboard");
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const [selectedPost, setSelectedPost] = useState<{ channelId: number; postId: number } | null>(
@@ -487,7 +493,10 @@ export default function AdminDashboardPage() {
   function handleActiveMenuChange(menu: AdminMenu) {
     resetTransientPanels();
     setActiveMenu(menu);
-    window.localStorage.setItem(ADMIN_ACTIVE_MENU_STORAGE_KEY, menu);
+
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(ADMIN_ACTIVE_MENU_STORAGE_KEY, menu);
+    }
   }
 
   useEffect(() => {
@@ -495,6 +504,18 @@ export default function AdminDashboardPage() {
       router.replace("/admin/login");
     }
   }, [router, status, user?.role]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !isReloadNavigation()) {
+      return;
+    }
+
+    const storedMenu = window.sessionStorage.getItem(ADMIN_ACTIVE_MENU_STORAGE_KEY);
+
+    if (isAdminMenu(storedMenu)) {
+      setActiveMenu(storedMenu);
+    }
+  }, []);
 
   const usersQuery = useQuery({
     queryKey: [

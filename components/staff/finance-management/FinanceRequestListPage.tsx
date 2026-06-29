@@ -39,6 +39,10 @@ function getRequestTime(createdAt?: string) {
   return Number.isNaN(time) ? 0 : time;
 }
 
+function getAffiliationLabel(request: { departmentName?: string; classroomName?: string }) {
+  return request.departmentName ?? request.classroomName ?? "-";
+}
+
 export default function FinanceRequestListPage({ currentPage }: FinanceRequestListPageProps) {
   const router = useRouter();
   const { user, status: authStatus } = useAuthSession();
@@ -78,7 +82,7 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
         normalizedKeyword.length === 0 ||
         [
           request.title,
-          request.classroomName,
+          getAffiliationLabel(request),
           request.requestedByName,
           statusLabel,
           formatUtcToKstShortDate(request.createdAt),
@@ -100,7 +104,7 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
   const rows: ListPanelRow[] = visibleRequests.map((request, index) => ({
     id: request.id ?? index,
     no: String(Math.max(1, requests.length - (startIndex + index))).padStart(2, "0"),
-    className: request.classroomName ?? "-",
+    className: getAffiliationLabel(request),
     title: request.title ?? "제목 없음",
     author: request.requestedByName ?? "-",
     date: formatUtcToKstShortDate(request.createdAt),
