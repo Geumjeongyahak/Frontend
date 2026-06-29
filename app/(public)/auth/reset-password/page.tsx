@@ -1,4 +1,4 @@
-import EmailVerificationForm from "@/components/auth/EmailVerificationForm";
+import PasswordResetForm from "@/components/auth/PasswordResetForm";
 
 type PageProps = {
   searchParams?: Promise<{ email?: string; code?: string }>;
@@ -8,9 +8,9 @@ export default async function Page({ searchParams }: PageProps) {
   const { email = "", code = "" } = (await searchParams) ?? {};
 
   return (
-    <EmailVerificationForm
+    <PasswordResetForm
       email={decodeURIComponent(email)}
-      verificationCode={decodeURIComponent(code)}
+      resetCode={decodeURIComponent(code)}
     />
   );
 }

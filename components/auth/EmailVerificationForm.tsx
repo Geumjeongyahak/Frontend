@@ -1,35 +1,39 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import styled from "styled-components";
+import { IconAlertTriangle, IconCircleCheck, IconMailCheck } from "@tabler/icons-react";
 import { confirmEmailVerification, resendEmailVerification } from "@/api/auth/auth.api";
-import {
-  Field,
-  FieldGroup,
-  Form,
-  Input,
-  Label,
-  Status,
-  SubmitButton,
-} from "@/components/auth/AuthFormParts";
-import AuthShell from "@/components/auth/AuthShell";
-import { colors, spacing, typography } from "@/styles/tokens";
+import AuthActionCard, {
+  ActionButton,
+  ActionForm,
+  InlineActionButton,
+  type ActionTone,
+} from "@/components/auth/AuthActionCard";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
 type EmailVerificationFormProps = {
   email: string;
+  verificationCode: string;
 };
 
-export default function EmailVerificationForm({ email }: EmailVerificationFormProps) {
+export default function EmailVerificationForm({
+  email,
+  verificationCode,
+}: EmailVerificationFormProps) {
   const router = useRouter();
-  const [code, setCode] = useState("");
-  const [statusMessage, setStatusMessage] = useState("");
-  const [statusTone, setStatusTone] = useState<"default" | "error">("default");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasVerificationLink = Boolean(email && verificationCode);
+  const [statusMessage, setStatusMessage] = useState(
+    hasVerificationLink
+      ? "이메일 인증을 확인하고 있습니다."
+      : "메일의 인증하기 버튼을 눌러 인증을 완료해 주세요.",
+  );
+  const [statusTone, setStatusTone] = useState<ActionTone>("default");
+  const [isSubmitting, setIsSubmitting] = useState(hasVerificationLink);
   const [cooldown, setCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoSubmittedRef = useRef(false);
 
   const startCooldown = useCallback(() => {
     setCooldown(RESEND_COOLDOWN_SECONDS);
@@ -50,34 +54,33 @@ export default function EmailVerificationForm({ email }: EmailVerificationFormPr
     };
   }, []);
 
-  const canSubmit = code.length === 6 && !isSubmitting;
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!canSubmit) return;
-
-    setIsSubmitting(true);
-    setStatusMessage("");
-
-    try {
-      await confirmEmailVerification({ email, verificationCode: code });
-      setStatusTone("default");
-      setStatusMessage("이메일 인증이 완료되었습니다. 로그인해 주세요.");
-      router.replace("/login");
-    } catch {
-      setStatusTone("error");
-      setStatusMessage("인증 코드가 올바르지 않습니다. 다시 확인해 주세요.");
-    } finally {
-      setIsSubmitting(false);
+  useEffect(() => {
+    if (!email || !verificationCode || autoSubmittedRef.current) {
+      return;
     }
-  }
+
+    autoSubmittedRef.current = true;
+    confirmEmailVerification({ email, verificationCode })
+      .then(() => {
+        setStatusTone("success");
+        setStatusMessage("이메일 인증이 완료되었습니다. 로그인 화면으로 이동합니다.");
+        setTimeout(() => router.replace("/login"), 900);
+      })
+      .catch(() => {
+        setStatusTone("error");
+        setStatusMessage("인증 링크가 만료되었거나 올바르지 않습니다. 인증 메일을 다시 받아 주세요.");
+      })
+      .finally(() => {
+        setIsSubmitting(false);
+      });
+  }, [email, router, verificationCode]);
 
   async function handleResend() {
-    if (cooldown > 0) return;
+    if (!email || cooldown > 0) return;
 
     try {
       await resendEmailVerification({ email });
-      setStatusTone("default");
+      setStatusTone("success");
       setStatusMessage("인증 메일을 다시 발송했습니다.");
       startCooldown();
     } catch {
@@ -86,103 +89,54 @@ export default function EmailVerificationForm({ email }: EmailVerificationFormPr
     }
   }
 
+  const isError = statusTone === "error";
+  const isComplete = statusTone === "success" && hasVerificationLink && !isSubmitting;
+  const icon = isError ? (
+    <IconAlertTriangle aria-hidden="true" />
+  ) : isComplete ? (
+    <IconCircleCheck aria-hidden="true" />
+  ) : (
+    <IconMailCheck aria-hidden="true" />
+  );
+  const title = isError
+    ? "인증 링크를 다시 받아 주세요"
+    : isSubmitting
+      ? "이메일 인증을 확인하고 있어요"
+      : hasVerificationLink
+        ? "이메일 인증이 완료되었습니다"
+        : "메일함을 확인해 주세요";
+  const description = email ? (
+    <>
+      <strong>{email}</strong>으로 발송된 인증 링크로 회원가입을 완료합니다.
+    </>
+  ) : (
+    "인증할 이메일 정보가 없습니다. 회원가입 후 받은 메일의 버튼을 다시 열어 주세요."
+  );
+
   return (
-    <AuthShell switchText="다른 계정으로 가입하시겠어요?" switchLabel="회원가입" switchHref="/register">
-      <Form onSubmit={handleSubmit} aria-label="이메일 인증 폼">
-        <Description>
-          <strong>{email}</strong>으로 발송된 6자리 인증번호를 입력해 주세요.
-        </Description>
-
-        <FieldGroup>
-          <Field>
-            <Label htmlFor="email-verification-code">인증번호</Label>
-            <Input
-              id="email-verification-code"
-              name="verificationCode"
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="6자리 숫자 입력"
-              maxLength={6}
-              value={code}
-              onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
-              required
-            />
-          </Field>
-        </FieldGroup>
-
-        <Status
-          role="status"
-          aria-live="polite"
-          $tone={statusTone}
-          $visible={Boolean(statusMessage)}
-        >
-          {statusMessage || " "}
-        </Status>
-
-        <SubmitButton type="submit" disabled={!canSubmit}>
-          {isSubmitting ? "확인 중" : "인증 완료"}
-        </SubmitButton>
-
-        <ResendRow>
-          <ResendText>메일을 받지 못하셨나요?</ResendText>
-          <ResendButton type="button" onClick={handleResend} disabled={cooldown > 0}>
-            {cooldown > 0 ? `재발송 (${cooldown}초)` : "인증 메일 재발송"}
-          </ResendButton>
-        </ResendRow>
-      </Form>
-    </AuthShell>
+    <AuthActionCard
+      icon={icon}
+      title={title}
+      description={description}
+      status={statusMessage}
+      statusTone={statusTone}
+      showProgress={isSubmitting}
+      footer={
+        <>
+          메일을 받지 못하셨나요?{" "}
+          <InlineActionButton type="button" onClick={handleResend} disabled={!email || cooldown > 0}>
+            {cooldown > 0 ? `재발송 ${cooldown}초` : "인증 메일 재발송"}
+          </InlineActionButton>
+        </>
+      }
+    >
+      {hasVerificationLink ? (
+        <ActionForm as="div">
+          <ActionButton type="button" onClick={() => router.replace("/login")} disabled={isSubmitting}>
+            {isSubmitting ? "인증 확인 중" : "로그인으로 이동"}
+          </ActionButton>
+        </ActionForm>
+      ) : null}
+    </AuthActionCard>
   );
 }
-
-const Description = styled.p`
-  margin: 0;
-  color: ${colors.text};
-  font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight150};
-  word-break: keep-all;
-
-  strong {
-    color: ${colors.point};
-    font-weight: 700;
-  }
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
-`;
-
-const ResendRow = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: ${spacing.space8};
-`;
-
-const ResendText = styled.span`
-  color: ${colors.muted};
-  font-size: ${typography.fontSize13};
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize16};
-  }
-`;
-
-const ResendButton = styled.button`
-  border: 0;
-  background: none;
-  color: ${colors.point};
-  font-family: inherit;
-  font-size: ${typography.fontSize13};
-  font-weight: 700;
-  cursor: pointer;
-
-  &:disabled {
-    color: ${colors.muted};
-    cursor: not-allowed;
-  }
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize16};
-  }
-`;
