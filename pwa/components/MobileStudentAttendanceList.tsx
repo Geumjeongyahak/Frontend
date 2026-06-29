@@ -36,7 +36,23 @@ export default function MobileStudentAttendanceList({
   onAdd,
 }: MobileStudentAttendanceListProps) {
   if (!entries.length) {
-    return <EmptyState>출석을 기록할 학생이 없습니다.</EmptyState>;
+    return (
+      <>
+        <EmptyState>출석을 기록할 학생이 없습니다.</EmptyState>
+        {isEditing ? (
+          <AddRow>
+            <AddButton
+              type="button"
+              disabled={disabled}
+              aria-label="학생 항목 추가"
+              onClick={onAdd}
+            >
+              <IconPlus size={16} stroke={2.4} aria-hidden="true" />
+            </AddButton>
+          </AddRow>
+        ) : null}
+      </>
+    );
   }
 
   return (
