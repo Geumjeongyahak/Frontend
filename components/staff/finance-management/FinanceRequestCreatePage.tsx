@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getClassrooms } from "@/api/classroom/classroom.api";
+import { getDepartments } from "@/api/department/department.api";
 import { createPurchaseRequest } from "@/api/request/request.api";
 import type { CreatePurchaseRequestDto } from "@/api/request/request.dto";
 import { getVendors } from "@/api/vendor/vendor.api";
@@ -27,6 +28,7 @@ type AffiliationOption = {
   id: number;
   label: string;
   value: string;
+  type: "classroom" | "department";
 };
 
 const initialItem: FinanceItemForm = {
@@ -50,6 +52,11 @@ export default function FinanceRequestCreatePage() {
     queryFn: () => getClassrooms({ page: 0, size: 100 }),
     retry: false,
   });
+  const { data: departmentData } = useQuery({
+    queryKey: ["departments", "finance-request-create"],
+    queryFn: () => getDepartments(),
+    retry: false,
+  });
   const { data: vendorData } = useQuery({
     queryKey: queryKeys.vendors.list(),
     queryFn: () => getVendors(),
@@ -57,16 +64,27 @@ export default function FinanceRequestCreatePage() {
   });
 
   const classrooms = useMemo(() => classroomData?.content ?? [], [classroomData]);
+  const departments = useMemo(() => departmentData?.departments ?? [], [departmentData]);
   const affiliationOptions = useMemo<AffiliationOption[]>(
-    () =>
-      classrooms
+    () => [
+      ...classrooms
         .filter((classroom) => typeof classroom.id === "number")
         .map((classroom) => ({
           id: classroom.id as number,
           label: classroom.name ?? `반 ${classroom.id}`,
           value: `classroom:${classroom.id}`,
+          type: "classroom" as const,
         })),
-    [classrooms],
+      ...departments
+        .filter((department) => typeof department.id === "number")
+        .map((department) => ({
+          id: department.id as number,
+          label: department.name ?? `부서 ${department.id}`,
+          value: `department:${department.id}`,
+          type: "department" as const,
+        })),
+    ],
+    [classrooms, departments],
   );
   const selectedAffiliation = affiliationOptions.find((option) => option.value === affiliationValue);
   const vendorBalances = useMemo(
@@ -165,7 +183,9 @@ export default function FinanceRequestCreatePage() {
     mutation.mutate({
       title: title.trim(),
       content: `소속: ${selectedOption.label}\n신청자: ${applicantName}\n\n${itemContent}`,
-      classroomId: selectedOption.id,
+      ...(selectedOption.type === "classroom"
+        ? { classroomId: selectedOption.id }
+        : { departmentId: selectedOption.id }),
       items: normalizedItems.map((item) => ({
         name: item.name,
         quantity: item.quantity ?? 1,

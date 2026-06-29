@@ -81,7 +81,8 @@ export type AbsenceRequestListItemDto = AbsenceRequestResponseDto;
 export interface CreatePurchaseRequestDto {
   title: string;
   content: string;
-  classroomId: number;
+  classroomId?: number;
+  departmentId?: number;
   items: PurchaseRequestItemDto[];
 }
 
@@ -114,6 +115,8 @@ export interface ReviewPurchaseRequestDto {
 export interface UpdateAdminPurchaseRequestDto {
   title: string;
   content: string;
+  classroomId?: number;
+  departmentId?: number;
   items: PurchaseRequestItemDto[];
 }
 
@@ -141,7 +144,10 @@ export interface PurchaseTransactionResponseDto {
 
 export interface PurchaseRequestSummaryResponseDto {
   id?: number;
+  classroomId?: number;
   classroomName?: string;
+  departmentId?: number;
+  departmentName?: string;
   requestedByName?: string;
   title?: string;
   totalPrice?: number;
@@ -150,7 +156,6 @@ export interface PurchaseRequestSummaryResponseDto {
 }
 
 export interface PurchaseRequestResponseDto extends PurchaseRequestSummaryResponseDto {
-  classroomId?: number;
   requestedById?: number;
   content?: string;
   vendorName?: string;

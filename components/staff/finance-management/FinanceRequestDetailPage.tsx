@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getClassrooms } from "@/api/classroom/classroom.api";
+import { getDepartments } from "@/api/department/department.api";
 import { uploadPurchaseItemImage } from "@/api/file/file.api";
 import {
   deletePurchaseRequest,
@@ -43,6 +44,7 @@ type AffiliationOption = {
   id: number;
   label: string;
   value: string;
+  type: "classroom" | "department";
 };
 
 type ExtendedPurchaseItem = PurchaseRequestItemResponseDto;
@@ -50,6 +52,10 @@ type ExtendedPurchaseItem = PurchaseRequestItemResponseDto;
 type ExtendedPurchaseRequest = PurchaseRequestResponseDto;
 
 const fallbackVendorNames = ["예소디자인", "목민서관", "지성문구", "마트"] as const;
+
+function getAffiliationLabel(request?: PurchaseRequestResponseDto) {
+  return request?.departmentName ?? request?.classroomName ?? "-";
+}
 
 type EditableItem = {
   id: number;
@@ -222,6 +228,11 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     queryFn: () => getClassrooms({ page: 0, size: 100 }),
     retry: false,
   });
+  const { data: departmentData } = useQuery({
+    queryKey: ["departments", "finance-request-detail"],
+    queryFn: () => getDepartments(),
+    retry: false,
+  });
 
   const deleteMutation = useMutation({
     mutationFn: () => deletePurchaseRequest({ requestId }),
@@ -240,25 +251,40 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const initialReportItems = useMemo(() => mapPurchaseItemsToReportItems(purchase), [purchase]);
   const activeReportItems = reportItems.length ? reportItems : initialReportItems;
   const classrooms = useMemo(() => classroomData?.content ?? [], [classroomData]);
+  const departments = useMemo(() => departmentData?.departments ?? [], [departmentData]);
   const affiliationOptions = useMemo<AffiliationOption[]>(
-    () =>
-      classrooms
+    () => [
+      ...classrooms
         .filter((classroom) => typeof classroom.id === "number")
         .map((classroom) => ({
           id: classroom.id as number,
           label: classroom.name ?? `반 ${classroom.id}`,
           value: `classroom:${classroom.id}`,
+          type: "classroom" as const,
         })),
-    [classrooms],
+      ...departments
+        .filter((department) => typeof department.id === "number")
+        .map((department) => ({
+          id: department.id as number,
+          label: department.name ?? `부서 ${department.id}`,
+          value: `department:${department.id}`,
+          type: "department" as const,
+        })),
+    ],
+    [classrooms, departments],
   );
   const selectedAffiliation = affiliationOptions.find(
     (option) => option.value === editAffiliationValue,
   );
   const requestAffiliationValue = useMemo(() => {
     const currentAffiliation = affiliationOptions.find((option) =>
-      typeof request?.classroomId === "number"
-        ? option.id === request.classroomId
-        : option.label === request?.classroomName,
+      option.type === "department"
+        ? (typeof request?.departmentId === "number"
+            ? option.id === request.departmentId
+            : option.label === request?.departmentName)
+        : typeof request?.classroomId === "number"
+          ? option.id === request.classroomId
+          : option.label === request?.classroomName,
     );
 
     return currentAffiliation?.value ?? "";
@@ -471,8 +497,22 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     const nextRequest = {
       ...request,
       title: editTitle.trim() || request.title,
-      classroomId: selectedAffiliation?.id ?? request.classroomId,
-      classroomName: selectedAffiliation?.label ?? request.classroomName,
+      classroomId:
+        selectedAffiliation?.type === "classroom"
+          ? selectedAffiliation.id
+          : request.classroomId,
+      classroomName:
+        selectedAffiliation?.type === "classroom"
+          ? selectedAffiliation.label
+          : request.classroomName,
+      departmentId:
+        selectedAffiliation?.type === "department"
+          ? selectedAffiliation.id
+          : request.departmentId,
+      departmentName:
+        selectedAffiliation?.type === "department"
+          ? selectedAffiliation.label
+          : request.departmentName,
       items: (editItems.length ? editItems : initialEditItems).map((item) => ({
         id: item.id,
         name: item.name.trim(),
@@ -594,7 +634,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                       ))}
                     </EditSelect>
                   ) : (
-                    <InlineField>{request.classroomName ?? "-"}</InlineField>
+                    <InlineField>{getAffiliationLabel(request)}</InlineField>
                   )}
                   <InlineLabel>신청자</InlineLabel>
                   <InlineField>{request.requestedByName ?? "-"}</InlineField>

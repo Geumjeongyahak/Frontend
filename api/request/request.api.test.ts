@@ -155,7 +155,7 @@ describe("request.api", () => {
     expect(observedBody).toEqual({ note: "승인합니다." });
   });
 
-  it("creates a purchase request with payment type and without expected price", async () => {
+  it("creates a purchase request with department affiliation and payment type", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     let observedBody: unknown;
@@ -170,7 +170,7 @@ describe("request.api", () => {
     await createPurchaseRequest({
       title: "교재 결제 신청",
       content: "신청자: 홍길동",
-      classroomId: 1,
+      departmentId: 7,
       items: [
         {
           name: "국어 교재",
@@ -184,7 +184,7 @@ describe("request.api", () => {
     expect(observedBody).toEqual({
       title: "교재 결제 신청",
       content: "신청자: 홍길동",
-      classroomId: 1,
+      departmentId: 7,
       items: [
         {
           name: "국어 교재",

@@ -104,7 +104,8 @@ export async function createPurchaseRequest(body: CreatePurchaseRequestDto) {
   const requestBody: CreatePurchaseRequestDto = {
     title: body.title,
     content: body.content,
-    classroomId: body.classroomId,
+    ...(typeof body.classroomId === "number" ? { classroomId: body.classroomId } : {}),
+    ...(typeof body.departmentId === "number" ? { departmentId: body.departmentId } : {}),
     items: body.items.map((item) => ({
       name: item.name,
       quantity: item.quantity,
