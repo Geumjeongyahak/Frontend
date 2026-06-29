@@ -2,7 +2,6 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isAxiosError } from "axios";
 import styled from "styled-components";
 import { signup } from "@/api/auth/auth.api";
 import {
@@ -15,6 +14,8 @@ import {
   SubmitButton,
 } from "@/components/auth/AuthFormParts";
 import AuthShell from "@/components/auth/AuthShell";
+import { getSignupErrorMessage } from "@/components/auth/authErrorMessages";
+import { setPendingEmailVerificationEmail } from "@/components/auth/emailVerificationSession";
 import { colors } from "@/styles/tokens";
 import { openDatePicker } from "@/utils/datePicker";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
@@ -36,16 +37,6 @@ const initialState: RegisterFormState = {
   birthDate: "",
   phoneNumber: "",
 };
-
-function getSignupErrorMessage(error: unknown) {
-  if (isAxiosError(error)) {
-    const data = error.response?.data;
-    if (data && typeof data === "object" && "detail" in data && typeof data.detail === "string") {
-      return data.detail;
-    }
-  }
-  return "회원가입 정보를 확인해 주세요.";
-}
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -82,14 +73,16 @@ export default function RegisterForm() {
     setStatusMessage("");
 
     try {
+      const email = form.email.trim();
       await signup({
         password: form.password,
         name: form.name.trim(),
-        email: form.email.trim(),
+        email,
         birthDate: form.birthDate,
         phoneNumber: form.phoneNumber.trim() || undefined,
       });
-      router.replace(`/auth/email-verification?email=${encodeURIComponent(form.email.trim())}`);
+      setPendingEmailVerificationEmail(email);
+      router.replace("/auth/email-verification");
     } catch (error) {
       setStatusMessage(getSignupErrorMessage(error));
     } finally {

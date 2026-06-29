@@ -4,12 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IconAlertTriangle, IconCircleCheck, IconMailCheck } from "@tabler/icons-react";
 import { confirmEmailVerification, resendEmailVerification } from "@/api/auth/auth.api";
+import { getVerificationStatusMessage } from "@/components/auth/authErrorMessages";
 import AuthActionCard, {
   ActionButton,
   ActionForm,
   InlineActionButton,
   type ActionTone,
 } from "@/components/auth/AuthActionCard";
+import {
+  clearPendingEmailVerificationEmail,
+  getPendingEmailVerificationEmail,
+} from "@/components/auth/emailVerificationSession";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -17,22 +22,25 @@ type EmailVerificationFormProps = {
   email: string;
   verificationCode: string;
   resultStatus?: string;
+  errorCode?: string;
 };
 
 export default function EmailVerificationForm({
   email,
   verificationCode,
   resultStatus = "",
+  errorCode = "",
 }: EmailVerificationFormProps) {
   const router = useRouter();
   const isSuccessRedirect = resultStatus === "success";
   const isFailureRedirect = resultStatus === "invalid" || resultStatus === "expired";
   const hasVerificationLink = Boolean(email && verificationCode);
+  const [resendEmail] = useState(() => email || getPendingEmailVerificationEmail() || "");
   const [statusMessage, setStatusMessage] = useState(
     isSuccessRedirect
-      ? "이메일 인증이 완료되었습니다. 로그인해 주세요."
+      ? getVerificationStatusMessage("success")
       : isFailureRedirect
-        ? "인증 링크가 만료되었거나 올바르지 않습니다. 인증 메일을 다시 받아 주세요."
+        ? getVerificationStatusMessage(resultStatus, errorCode)
         : hasVerificationLink
           ? "이메일 인증을 확인하고 있습니다."
           : "메일의 인증하기 버튼을 눌러 인증을 완료해 주세요.",
@@ -72,24 +80,28 @@ export default function EmailVerificationForm({
     autoSubmittedRef.current = true;
     confirmEmailVerification({ email, verificationCode })
       .then(() => {
-        setStatusTone("success");
-        setStatusMessage("이메일 인증이 완료되었습니다. 로그인 화면으로 이동합니다.");
-        setTimeout(() => router.replace("/login"), 900);
+        clearPendingEmailVerificationEmail();
+        router.replace("/auth/email-verification?status=success");
       })
       .catch(() => {
-        setStatusTone("error");
-        setStatusMessage("인증 링크가 만료되었거나 올바르지 않습니다. 인증 메일을 다시 받아 주세요.");
+        router.replace("/auth/email-verification?status=invalid&errorCode=AUTH014");
       })
       .finally(() => {
         setIsSubmitting(false);
       });
   }, [email, resultStatus, router, verificationCode]);
 
+  useEffect(() => {
+    if (isSuccessRedirect) {
+      clearPendingEmailVerificationEmail();
+    }
+  }, [isSuccessRedirect]);
+
   async function handleResend() {
-    if (!email || cooldown > 0) return;
+    if (!resendEmail || cooldown > 0) return;
 
     try {
-      await resendEmailVerification({ email });
+      await resendEmailVerification({ email: resendEmail });
       setStatusTone("success");
       setStatusMessage("인증 메일을 다시 발송했습니다.");
       startCooldown();
@@ -117,11 +129,11 @@ export default function EmailVerificationForm({
         ? "이메일 인증이 완료되었습니다"
         : "메일함을 확인해 주세요";
   const description = email ? (
-    <>
-      <strong>{email}</strong>으로 발송된 인증 링크로 회원가입을 완료합니다.
-    </>
+    "인증 링크를 확인하고 있습니다."
+  ) : resendEmail ? (
+    "가입한 이메일로 발송된 인증 링크로 회원가입을 완료합니다."
   ) : (
-    "인증할 이메일 정보가 없습니다. 회원가입 후 받은 메일의 버튼을 다시 열어 주세요."
+    "회원가입 후 받은 메일의 인증하기 버튼을 열어 주세요."
   );
 
   return (
@@ -135,7 +147,7 @@ export default function EmailVerificationForm({
       footer={
         <>
           메일을 받지 못하셨나요?{" "}
-          <InlineActionButton type="button" onClick={handleResend} disabled={!email || cooldown > 0}>
+          <InlineActionButton type="button" onClick={handleResend} disabled={!resendEmail || cooldown > 0}>
             {cooldown > 0 ? `재발송 ${cooldown}초` : "인증 메일 재발송"}
           </InlineActionButton>
         </>
