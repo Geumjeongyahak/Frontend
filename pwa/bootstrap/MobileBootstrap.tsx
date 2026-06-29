@@ -1,15 +1,36 @@
 "use client";
 
 import { useEffect } from "react";
+import { getAnalytics, isSupported as isAnalyticsSupported } from "firebase/analytics";
 import { getApps, initializeApp } from "firebase/app";
-import { getMessaging, getToken, isSupported, onMessage } from "firebase/messaging";
+import {
+  getMessaging,
+  getToken,
+  isSupported as isMessagingSupported,
+  onMessage,
+} from "firebase/messaging";
 import { getAdminPushConfig, subscribePush } from "@/api/push/push.api";
 import type { AdminPushConfigResponseDto } from "@/api/push/push.dto";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { addNotificationRecord } from "@/pwa/lib/notificationStore";
+import {
+  hasFirebaseAppConfig,
+  shouldRequestNotificationPermission,
+} from "./notificationPermission";
 
 const PUSH_TOKEN_STORAGE_KEY = "geumjeongyahak:pwa-push-token";
 const PUSH_SW_URL = "/sw.js";
+const FALLBACK_FIREBASE_CONFIG: AdminPushConfigResponseDto = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "AIzaSyBYG96-_KCDAI8UHZ07XwUjG9jIWwHIHhs",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "geumjeong-school.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "geumjeong-school",
+  storageBucket:
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ?? "geumjeong-school.firebasestorage.app",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? "278017749414",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "1:278017749414:web:93b8511fc90b8483b5df67",
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID ?? "G-4LXHE8V7VB",
+  vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+};
 
 type NotificationLikePayload = {
   notification?: {
@@ -35,16 +56,12 @@ function buildNotificationRecord(payload: NotificationLikePayload) {
   };
 }
 
-function hasFirebaseConfig(config: AdminPushConfigResponseDto) {
-  return Boolean(
-    config.apiKey &&
-      config.authDomain &&
-      config.projectId &&
-      config.storageBucket &&
-      config.messagingSenderId &&
-      config.appId &&
-      config.vapidKey,
-  );
+function resolveFirebaseConfig(config?: AdminPushConfigResponseDto) {
+  return {
+    ...FALLBACK_FIREBASE_CONFIG,
+    ...config,
+    vapidKey: config?.vapidKey ?? FALLBACK_FIREBASE_CONFIG.vapidKey,
+  };
 }
 
 function getOrCreateFirebaseApp(config: AdminPushConfigResponseDto) {
@@ -60,6 +77,7 @@ function getOrCreateFirebaseApp(config: AdminPushConfigResponseDto) {
     storageBucket: config.storageBucket,
     messagingSenderId: config.messagingSenderId,
     appId: config.appId,
+    measurementId: config.measurementId,
   });
 }
 
@@ -75,11 +93,29 @@ export default function MobileBootstrap() {
   }, []);
 
   useEffect(() => {
+    const config = resolveFirebaseConfig();
+    if (!hasFirebaseAppConfig(config)) {
+      return;
+    }
+
+    const app = getOrCreateFirebaseApp(config);
+    isAnalyticsSupported()
+      .then((supported) => {
+        if (supported) {
+          getAnalytics(app);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
       return;
     }
 
-    function handleMessage(event: MessageEvent<{ type?: string; payload?: NotificationLikePayload }>) {
+    function handleMessage(
+      event: MessageEvent<{ type?: string; payload?: NotificationLikePayload }>,
+    ) {
       if (event.data?.type !== "PWA_NOTIFICATION_RECEIVED" || !event.data.payload) {
         return;
       }
@@ -102,15 +138,15 @@ export default function MobileBootstrap() {
     let cancelled = false;
 
     async function enablePush() {
-      const supported = await isSupported().catch(() => false);
+      const supported = await isMessagingSupported().catch(() => false);
       if (!supported || !("serviceWorker" in navigator) || !("Notification" in window)) {
         return;
       }
 
       const registration = await navigator.serviceWorker.ready;
-      const config = await getAdminPushConfig();
+      const config = resolveFirebaseConfig(await getAdminPushConfig().catch(() => undefined));
 
-      if (!hasFirebaseConfig(config) || !config.vapidKey) {
+      if (!hasFirebaseAppConfig(config)) {
         return;
       }
 
@@ -123,15 +159,19 @@ export default function MobileBootstrap() {
           storageBucket: config.storageBucket,
           messagingSenderId: config.messagingSenderId,
           appId: config.appId,
+          measurementId: config.measurementId,
         },
       });
 
-      const permission =
-        Notification.permission === "granted"
-          ? "granted"
-          : await Notification.requestPermission();
+      const permission = shouldRequestNotificationPermission(config, Notification.permission)
+        ? await Notification.requestPermission()
+        : Notification.permission;
 
       if (cancelled || permission !== "granted") {
+        return;
+      }
+
+      if (!config.vapidKey) {
         return;
       }
 

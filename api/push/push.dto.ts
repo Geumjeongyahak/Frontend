@@ -28,6 +28,7 @@ export interface AdminPushConfigResponseDto {
   storageBucket?: string;
   messagingSenderId?: string;
   appId?: string;
+  measurementId?: string;
   vapidKey?: string;
 }
 
