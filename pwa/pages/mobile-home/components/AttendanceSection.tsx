@@ -20,6 +20,7 @@ type AttendanceSectionProps = {
   classroomName?: string;
   title: string;
   guide: string;
+  sliderMode: "attendance" | "checkout" | "completed";
   isReady: boolean;
   isPending: boolean;
   isCompleted: boolean;
@@ -36,6 +37,7 @@ export default function AttendanceSection({
   classroomName,
   title,
   guide,
+  sliderMode,
   isReady,
   isPending,
   isCompleted,
@@ -46,6 +48,7 @@ export default function AttendanceSection({
   onSliderStart,
 }: AttendanceSectionProps) {
   const isProcessingAttendance = isPending;
+  const isCheckoutMode = sliderMode === "checkout";
 
   if (isAuthLoading) {
     return (
@@ -108,9 +111,9 @@ export default function AttendanceSection({
           type="button"
           disabled={!isReady || isPending || isCompleted}
           onPointerDown={onSliderStart}
-          $completed={isCompleted}
+          $mode={sliderMode}
         >
-          <SliderFill $progress={progress} $completed={isCompleted} $dragging={isDragging} />
+          <SliderFill $progress={progress} $mode={sliderMode} $dragging={isDragging} />
           <SliderThumb
             $progress={progress}
             $completed={isCompleted}
@@ -121,12 +124,16 @@ export default function AttendanceSection({
           </SliderThumb>
           <SliderLabel $centered={isProcessingAttendance || isCompleted}>
             {isCompleted
-              ? "출석 완료!"
+              ? "출석 완료"
               : isProcessingAttendance
-                ? "출석 중..."
+                ? isCheckoutMode
+                  ? "퇴근 준비 중..."
+                  : "출석 중..."
                 : isDragging
                   ? ""
-                  : "밀어서 출석을 완료해주세요"}
+                  : isCheckoutMode
+                    ? "밀어서 퇴근을 완료해주세요"
+                    : "밀어서 출석을 완료해주세요"}
           </SliderLabel>
         </SliderButton>
         <GuideText>{guide}</GuideText>
@@ -230,7 +237,7 @@ const TitleText = styled.h2`
   word-break: keep-all;
 `;
 
-const SliderButton = styled.button<{ $completed: boolean }>`
+const SliderButton = styled.button<{ $mode: "attendance" | "checkout" | "completed" }>`
   --slider-thumb-inset: 0.375rem;
   position: absolute;
   right: 5vw;
@@ -242,8 +249,12 @@ const SliderButton = styled.button<{ $completed: boolean }>`
   overflow: hidden;
   border: 0;
   border-radius: 999px;
-  background: ${({ $completed }) =>
-    $completed ? mobileHomeTone.dark : mobileHomeTone.successGradient};
+  background: ${({ $mode }) =>
+    $mode === "completed"
+      ? mobileHomeTone.dark
+      : $mode === "checkout"
+        ? "linear-gradient(90deg, #e49a94 0%, #d87472 100%)"
+        : mobileHomeTone.successGradient};
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -254,14 +265,18 @@ const SliderButton = styled.button<{ $completed: boolean }>`
   }
 `;
 
-const SliderFill = styled.span<{ $progress: number; $completed: boolean; $dragging: boolean }>`
+const SliderFill = styled.span<{
+  $progress: number;
+  $mode: "attendance" | "checkout" | "completed";
+  $dragging: boolean;
+}>`
   position: absolute;
   inset: 0;
   width: ${({ $progress }) => `${Math.max($progress, 0) * 100}%`};
-  background: ${({ $completed }) =>
-    $completed ? mobileHomeTone.dark : "rgba(255, 255, 255, 0.15)"};
-  transition: ${({ $dragging, $completed }) =>
-    $dragging || $completed ? "none" : "width 0.18s ease"};
+  background: ${({ $mode }) =>
+    $mode === "completed" ? mobileHomeTone.dark : "rgba(255, 255, 255, 0.15)"};
+  transition: ${({ $dragging, $mode }) =>
+    $dragging || $mode === "completed" ? "none" : "width 0.18s ease"};
 `;
 
 const SliderThumb = styled.span<{

@@ -2,7 +2,7 @@
 
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import {
@@ -13,6 +13,7 @@ import { getAllEvents } from "@/api/event/event.api";
 import { filterEventsInDateRange } from "@/api/event/eventDisplay";
 import { getMyLessons } from "@/api/lesson/lesson.api";
 import { useNotificationInbox } from "@/pwa/hooks/useNotificationInbox";
+import { consumePendingAttendanceSuccessOverlay } from "@/pwa/pages/mobile-home/attendanceSuccessFlag";
 import { useAttendanceSuccessPopup } from "@/pwa/pages/mobile-home/hooks/useAttendanceSuccessPopup";
 import type { MobileHomeDayValue, MobileScheduleMode } from "@/pwa/pages/mobile-home/types";
 import {
@@ -135,6 +136,9 @@ export function useMobileHomeScreen() {
   const hasCompletedAttendance =
     attendanceQuery.data?.teacherAttendance?.status === "PRESENT" ||
     attendanceQuery.data?.teacherAttendanceStatus === "PRESENT";
+  const hasCheckedOut =
+    attendanceQuery.data?.teacherAttendance?.isCheckedOut === true ||
+    attendanceQuery.data?.isTeacherCheckedOut === true;
 
   const attendanceMutation = useMutation({
     mutationFn: ({ latitude, longitude }: { latitude: number; longitude: number }) =>
@@ -157,12 +161,21 @@ export function useMobileHomeScreen() {
       toast.error("출석 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
     },
   });
-
   const isAttendanceReady =
     isAuthenticated &&
     isAttendanceLocationConfigured() &&
     typeof attendanceQuery.data?.dailyScheduleId === "number" &&
     !hasCompletedAttendance;
+  const isCheckoutReady =
+    isAuthenticated &&
+    typeof attendanceQuery.data?.dailyScheduleId === "number" &&
+    hasCompletedAttendance &&
+    !hasCheckedOut;
+  const sliderMode: "attendance" | "checkout" | "completed" = hasCheckedOut
+    ? "completed"
+    : isCheckoutReady
+      ? "checkout"
+      : "attendance";
 
   const attendanceGuide = !isAuthenticated
     ? "로그인 후 이용해 주세요"
@@ -172,9 +185,17 @@ export function useMobileHomeScreen() {
         ? "환경 변수에 출석 위치가 설정되지 않았습니다."
         : typeof attendanceQuery.data?.dailyScheduleId !== "number"
           ? "오늘 수업 일정이 아직 생성되지 않았습니다."
-          : hasCompletedAttendance
-            ? "오늘 출석을 이미 완료했습니다."
+          : hasCheckedOut
+            ? "오늘 수업의 출석과 퇴근을 모두 완료했습니다."
+            : hasCompletedAttendance
+              ? "퇴근을 완료하려면 수업 일지를 작성해야 합니다."
             : `${ATTENDANCE_TARGET_LABEL} 반경 ${ATTENDANCE_TARGET_RADIUS_METERS}m 안에서 출석할 수 있습니다.`;
+
+  useEffect(() => {
+    if (consumePendingAttendanceSuccessOverlay()) {
+      popup.show();
+    }
+  }, [popup.show]);
 
   function completeAttendance({ reset }: { reset: () => void }) {
     if (!isAttendanceReady || attendanceMutation.isPending || isAttendanceResolving) {
@@ -225,6 +246,10 @@ export function useMobileHomeScreen() {
     );
   }
 
+  function openCheckoutJournal() {
+    navigateWhenAuthenticated("/journal/write");
+  }
+
   return {
     userName: user?.name ?? "선생님",
     isAuthLoading,
@@ -240,9 +265,13 @@ export function useMobileHomeScreen() {
     todayLesson,
     myLessonCards,
     allScheduleItems,
+    sliderMode,
     isAttendanceReady,
+    isCheckoutReady,
     isAttendancePending: isAttendanceResolving || attendanceMutation.isPending,
+    isCheckoutPending: false,
     hasCompletedAttendance,
+    hasCheckedOut,
     attendanceGuide,
     scheduleEmptyMessage:
       !isAuthenticated && scheduleMode === "mine"
@@ -258,5 +287,6 @@ export function useMobileHomeScreen() {
       (isAuthenticated &&
         (myLessonsQuery.isLoading || todayLessonsQuery.isLoading)),
     completeAttendance,
+    openCheckoutJournal,
   };
 }
