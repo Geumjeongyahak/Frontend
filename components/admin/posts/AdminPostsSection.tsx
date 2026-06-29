@@ -33,7 +33,7 @@ import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
-const POSTS_PER_PAGE = 11;
+export const ADMIN_POSTS_PER_PAGE = 11;
 
 type QueryState<TData> = {
   data?: TData;
@@ -65,6 +65,8 @@ type AdminPostsSectionProps = {
   isPostEditing: boolean;
   isPostCreateModalOpen: boolean;
   postsQuery: QueryState<unknown>;
+  currentPage: number;
+  totalPages: number;
   postDetailQuery: QueryState<PostDetailResponseDto>;
   createPostMutation: VoidMutationAction;
   updatePostMutation: VoidMutationAction;
@@ -77,6 +79,7 @@ type AdminPostsSectionProps = {
   setPostEdit: Dispatch<SetStateAction<PostEditState>>;
   setIsPostEditing: Dispatch<SetStateAction<boolean>>;
   setIsPostCreateModalOpen: Dispatch<SetStateAction<boolean>>;
+  onPageChange: (page: number) => void;
   selectPost: (item: PostSummaryResponseDto) => void;
   closePostDetail: () => void;
 };
@@ -95,6 +98,8 @@ export function AdminPostsSection({
   isPostEditing,
   isPostCreateModalOpen,
   postsQuery,
+  currentPage,
+  totalPages,
   postDetailQuery,
   createPostMutation,
   updatePostMutation,
@@ -107,10 +112,10 @@ export function AdminPostsSection({
   setPostEdit,
   setIsPostEditing,
   setIsPostCreateModalOpen,
+  onPageChange,
   selectPost,
   closePostDetail,
 }: AdminPostsSectionProps) {
-  const [pagination, setPagination] = useState({ page: 1, search: "" });
   const [isPostDeleteConfirmOpen, setIsPostDeleteConfirmOpen] = useState(false);
   const noticeChannelId =
     channels.find((channel) => channel.channelType === "NOTICE" && typeof channel.id === "number")
@@ -180,14 +185,8 @@ export function AdminPostsSection({
   const isPostScopeDisabled =
     postChannelTypeFilter === "all" || postChannelTypeFilter === "NOTICE";
   const postView = postDetailQuery.data ? mapPostDetailToEditState(postDetailQuery.data) : postEdit;
-  const paginationKey = `${postTitleSearch}|${postChannelTypeFilter}|${postScopeFilter}`;
-  const totalPages = Math.max(1, Math.ceil(posts.length / POSTS_PER_PAGE));
-  const requestedPage = pagination.search === paginationKey ? pagination.page : 1;
-  const safeCurrentPage = Math.min(requestedPage, totalPages);
-  const pagedPosts = posts.slice(
-    (safeCurrentPage - 1) * POSTS_PER_PAGE,
-    safeCurrentPage * POSTS_PER_PAGE,
-  );
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const pagedPosts = posts;
 
   function closeCreateModal() {
     if (createPostMutation.isPending) {
@@ -456,6 +455,7 @@ export function AdminPostsSection({
             onChange={(event) => {
               setPostChannelTypeFilter(event.target.value);
               setPostScopeFilter("all");
+              onPageChange(1);
             }}
           >
             <option value="all">전체</option>
@@ -467,7 +467,10 @@ export function AdminPostsSection({
             value={postScopeFilter}
             aria-label="게시판 선택"
             disabled={isPostScopeDisabled}
-            onChange={(event) => setPostScopeFilter(event.target.value)}
+            onChange={(event) => {
+              setPostScopeFilter(event.target.value);
+              onPageChange(1);
+            }}
           >
             {postScopeOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -477,7 +480,10 @@ export function AdminPostsSection({
           </FilterSelect>
           <TextInput
             value={postTitleSearch}
-            onChange={(event) => setPostTitleSearch(event.target.value)}
+            onChange={(event) => {
+              setPostTitleSearch(event.target.value);
+              onPageChange(1);
+            }}
             placeholder="제목 검색"
           />
         </PostControlRow>
@@ -521,9 +527,7 @@ export function AdminPostsSection({
             type="button"
             aria-label="이전 페이지"
             disabled={safeCurrentPage === 1}
-            onClick={() =>
-              setPagination({ page: Math.max(1, safeCurrentPage - 1), search: paginationKey })
-            }
+            onClick={() => onPageChange(Math.max(1, safeCurrentPage - 1))}
           >
             ◀
           </PageArrowButton>
@@ -536,7 +540,7 @@ export function AdminPostsSection({
                 type="button"
                 $isActive={pageNumber === safeCurrentPage}
                 aria-current={pageNumber === safeCurrentPage ? "page" : undefined}
-                onClick={() => setPagination({ page: pageNumber, search: paginationKey })}
+                onClick={() => onPageChange(pageNumber)}
               >
                 {pageNumber}
               </PageNumberButton>
@@ -546,12 +550,7 @@ export function AdminPostsSection({
             type="button"
             aria-label="다음 페이지"
             disabled={safeCurrentPage === totalPages}
-            onClick={() =>
-              setPagination({
-                page: Math.min(totalPages, safeCurrentPage + 1),
-                search: paginationKey,
-              })
-            }
+            onClick={() => onPageChange(Math.min(totalPages, safeCurrentPage + 1))}
           >
             ▶
           </PageArrowButton>

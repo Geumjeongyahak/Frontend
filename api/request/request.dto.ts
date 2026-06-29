@@ -1,5 +1,12 @@
 export type RequestStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type AbsenceRequestStatus = RequestStatus | "CANCELLED" | "EXPIRED";
+export type LessonExchangeRequestStatus =
+  | "PENDING"
+  | "APPROVED"
+  | "REJECTED"
+  | "COMPLETED"
+  | "EXPIRED"
+  | "CANCELLED";
 export type PurchaseRequestStatus =
   | "PENDING"
   | "APPROVED"
@@ -17,6 +24,14 @@ export interface RequestStatusQueryParamsDto {
 
 export interface PurchaseRequestStatusQueryParamsDto {
   status?: PurchaseRequestStatus;
+}
+
+export interface LessonExchangeRequestStatusQueryParamsDto {
+  status?: LessonExchangeRequestStatus;
+  mine?: boolean;
+  keyword?: string;
+  page?: number;
+  size?: number;
 }
 
 export interface RequestPathParamsDto {
@@ -69,6 +84,10 @@ export interface CreatePurchaseRequestDto {
   items: PurchaseRequestItemDto[];
 }
 
+export interface CreateAdminPurchaseRequestDto extends CreatePurchaseRequestDto {
+  requestedById: number;
+}
+
 export interface PurchaseRequestItemDto {
   name: string;
   quantity: number;
@@ -89,6 +108,12 @@ export interface ReportPurchaseRequestDto {
 
 export interface ReviewPurchaseRequestDto {
   note: string;
+}
+
+export interface UpdateAdminPurchaseRequestDto {
+  title: string;
+  content: string;
+  items: PurchaseRequestItemDto[];
 }
 
 export interface RequestReconfirmationResponseDto {
@@ -159,7 +184,7 @@ export interface LessonExchangeRequestResponseDto {
   requestedByName?: string;
   title?: string;
   content?: string;
-  status?: RequestStatus;
+  status?: LessonExchangeRequestStatus;
   approvalAt?: string;
   approvalByName?: string;
   note?: string;
@@ -173,6 +198,14 @@ export interface LessonExchangeRequestResponseDto {
 }
 
 export type LessonExchangeRequestListItemDto = LessonExchangeRequestResponseDto;
+
+export interface LessonExchangeRequestListResponseDto {
+  content: LessonExchangeRequestListItemDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
 
 export interface ApproveLessonExchangeRequestDto {
   exchangeWithUserId: number;

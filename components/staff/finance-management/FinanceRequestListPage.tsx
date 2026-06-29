@@ -5,12 +5,13 @@ import { IconEdit, IconSearch } from "@tabler/icons-react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { useQuery } from "@tanstack/react-query";
+import { getAccessToken, getRefreshToken } from "@/api/client/tokenStorage";
 import { getPurchaseRequests } from "@/api/request/request.api";
 import type { PurchaseRequestStatus } from "@/api/request/request.dto";
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
+import { FINANCE_REQUESTS_PER_PAGE } from "@/components/staff/finance-management/financeRequestConstants";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { FINANCE_REQUESTS_PER_PAGE } from "@/mocks/staffFinance";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
@@ -45,11 +46,12 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
   const [searchInput, setSearchInput] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
   const isAuthenticated = authStatus === "authenticated";
+  const hasStoredToken = Boolean(getAccessToken() || getRefreshToken());
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.requests.purchaseList(),
     queryFn: () => getPurchaseRequests(),
-    enabled: isAuthenticated,
+    enabled: hasStoredToken,
     retry: false,
   });
 
@@ -110,7 +112,7 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
   const emptyMessage =
     authStatus === "loading"
       ? "사용자 정보를 확인하는 중입니다."
-      : !isAuthenticated
+      : !hasStoredToken
         ? "로그인이 필요합니다."
         : isLoading
           ? "결제 신청 내역을 불러오는 중입니다."

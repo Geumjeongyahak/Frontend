@@ -143,6 +143,36 @@ describe("authClient", () => {
     expect(getRefreshToken()).toBeNull();
   });
 
+  it("keeps newer tokens when an older refresh request fails", async () => {
+    let releaseRefresh: () => void = () => undefined;
+    const refreshStarted = new Promise<void>((resolve) => {
+      server.use(
+        http.get(`${API_BASE_URL}/api/v1/protected/profile`, () => {
+          return HttpResponse.json({ message: "Access token expired" }, { status: 401 });
+        }),
+        http.post(`${API_BASE_URL}/api/v1/auth/refresh`, async () => {
+          resolve();
+          await new Promise<void>((release) => {
+            releaseRefresh = release;
+          });
+          return HttpResponse.json({ message: "Refresh expired" }, { status: 401 });
+        }),
+      );
+    });
+
+    setTokens(EXPIRED_ACCESS_TOKEN, VALID_REFRESH_TOKEN);
+
+    const request = authClient.get("/api/v1/protected/profile");
+    await refreshStarted;
+
+    setTokens(REFRESHED_ACCESS_TOKEN, REFRESHED_REFRESH_TOKEN);
+    releaseRefresh();
+
+    await expect(request).rejects.toMatchObject({ response: { status: 401 } });
+    expect(getAccessToken()).toBe(REFRESHED_ACCESS_TOKEN);
+    expect(getRefreshToken()).toBe(REFRESHED_REFRESH_TOKEN);
+  });
+
   it("stops after a single retry to prevent infinite refresh loops", async () => {
     let protectedRequestCount = 0;
     let refreshRequestCount = 0;

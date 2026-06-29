@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import {
@@ -8,30 +8,72 @@ import {
   MOBILE_HOME_PAGE_MAX_WIDTH,
   MOBILE_HOME_SURFACE,
 } from "@/pwa/pages/mobile-home/constants";
+import AttendanceCheckoutModal from "@/pwa/pages/mobile-home/components/AttendanceCheckoutModal";
 import AttendanceSection from "@/pwa/pages/mobile-home/components/AttendanceSection";
 import AttendanceSuccessOverlay from "@/pwa/pages/mobile-home/components/AttendanceSuccessOverlay";
 import HomeHeader from "@/pwa/pages/mobile-home/components/HomeHeader";
+import RequestShortcutSection from "@/pwa/pages/mobile-home/components/RequestShortcutSection";
+import TimetableShortcutSection from "@/pwa/pages/mobile-home/components/TimetableShortcutSection";
 import WeeklyScheduleSection from "@/pwa/pages/mobile-home/components/WeeklyScheduleSection";
 import { useMobileHomeScreen } from "@/pwa/pages/mobile-home/hooks/useMobileHomeScreen";
 import { useSlideToConfirm } from "@/pwa/pages/mobile-home/hooks/useSlideToConfirm";
+import { syncPushSubscription } from "@/pwa/lib/pushNotifications";
+
+function readNotificationPermission(isAuthenticated: boolean) {
+  if (
+    !isAuthenticated ||
+    typeof window === "undefined" ||
+    !("Notification" in window) ||
+    !("serviceWorker" in navigator)
+  ) {
+    return null;
+  }
+
+  return Notification.permission;
+}
 
 export default function MobileHomeScreen() {
   const router = useRouter();
   const shellRef = useRef<HTMLDivElement | null>(null);
+  const [notificationPermission, setNotificationPermission] =
+    useState<NotificationPermission | null>(null);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const screen = useMobileHomeScreen();
   const slider = useSlideToConfirm({
     disabled:
-      !screen.isAttendanceReady || screen.isAttendancePending || screen.hasCompletedAttendance,
-    onConfirm: screen.completeAttendance,
+      (!screen.isAttendanceReady && !screen.isCheckoutReady) ||
+      screen.isAttendancePending ||
+      screen.isCheckoutPending ||
+      screen.hasCheckedOut ||
+      isCheckoutModalOpen,
+    onConfirm: ({ reset }) => {
+      if (screen.sliderMode === "checkout") {
+        reset();
+        setIsCheckoutModalOpen(true);
+        return;
+      }
+
+      screen.completeAttendance({ reset });
+    },
   });
 
-  const isAttendanceCompleted = screen.hasCompletedAttendance;
+  const isAttendanceCompleted = screen.hasCheckedOut;
   const sliderProgress = isAttendanceCompleted ? 1 : slider.progress;
+  const currentNotificationPermission =
+    notificationPermission ?? readNotificationPermission(screen.isAuthenticated);
 
   useEffect(() => {
     shellRef.current?.scrollTo({ top: 0, behavior: "auto" });
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [screen.isAuthenticated]);
+
+  async function handlePushOptInClick() {
+    await syncPushSubscription({ requestPermission: true }).catch(() => undefined);
+
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }
 
   return (
     <Shell ref={shellRef}>
@@ -49,6 +91,8 @@ export default function MobileHomeScreen() {
               screen.isAuthenticated ? "/notifications" : "/login",
             )
           }
+          showPushOptIn={screen.isAuthenticated && currentNotificationPermission === "default"}
+          onPushOptInClick={handlePushOptInClick}
           onLoginClick={() => router.push("/login")}
         />
 
@@ -58,8 +102,9 @@ export default function MobileHomeScreen() {
           classroomName={screen.todayLesson?.classroomName}
           title={screen.attendanceTitle}
           guide={screen.attendanceGuide}
-          isReady={screen.isAttendanceReady}
-          isPending={screen.isAttendancePending}
+          sliderMode={screen.sliderMode}
+          isReady={screen.isAttendanceReady || screen.isCheckoutReady}
+          isPending={screen.isAttendancePending || screen.isCheckoutPending}
           isCompleted={isAttendanceCompleted}
           progress={sliderProgress}
           isDragging={slider.isDragging}
@@ -78,32 +123,47 @@ export default function MobileHomeScreen() {
           emptyMessage={screen.scheduleEmptyMessage}
           onDaySelect={screen.setSelectedDay}
           onModeChange={screen.setScheduleMode}
-          onScheduleClick={(targetDate) =>
-            screen.navigateWhenAuthenticated(
-              targetDate ? `/staff/calendar?date=${targetDate}` : "/staff/calendar",
-            )
-          }
+        />
+
+        <TimetableShortcutSection
+          onScheduleClick={() => screen.navigateWhenAuthenticated("/schedule")}
+        />
+
+        <RequestShortcutSection
+          onPaymentClick={() => screen.navigateWhenAuthenticated("/requests/payment")}
+          onClassRequestClick={() => screen.navigateWhenAuthenticated("/requests/class")}
         />
       </Page>
-      {screen.popupVisible ? <AttendanceSuccessOverlay /> : null}
+      {screen.popupVisible ? <AttendanceSuccessOverlay variant={screen.popupVariant} /> : null}
+      {isCheckoutModalOpen ? (
+        <AttendanceCheckoutModal
+          onCancel={() => setIsCheckoutModalOpen(false)}
+          onConfirm={() => {
+            setIsCheckoutModalOpen(false);
+            screen.openCheckoutJournal();
+          }}
+        />
+      ) : null}
     </Shell>
   );
 }
 
 const Shell = styled.div`
-  min-height: 100lvh;
-  height: 100lvh;
+  min-height: 100dvh;
+  height: 100dvh;
   overflow-y: auto;
   background: ${MOBILE_HOME_SURFACE};
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
 `;
 
 const Page = styled.main`
   width: 100%;
   max-width: ${MOBILE_HOME_PAGE_MAX_WIDTH};
-  min-height: 100lvh;
+  min-height: 100dvh;
   margin: 0 auto;
-  padding-bottom: 8lvh;
+  padding-bottom: calc(8rem + env(safe-area-inset-bottom, 0rem));
 
   &::after {
     content: "";

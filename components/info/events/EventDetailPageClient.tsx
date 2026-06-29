@@ -1,11 +1,11 @@
 "use client";
 
-import { IconDownload } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { deletePost, getPost } from "@/api/post/post.api";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
+import { AttachmentDownloadList } from "@/components/common/AttachmentField";
 import EventDocumentLayout from "@/components/info/events/EventDocumentLayout";
 import { canManageEventPost } from "@/components/info/events/eventUtils";
 import {
@@ -13,10 +13,7 @@ import {
   ActionLink,
   ContentStack,
   DocumentSection,
-  DownloadBadge,
   FieldBox,
-  FileLink,
-  FileList,
   Label,
   MetaBar,
   StateMessage,
@@ -26,7 +23,6 @@ import {
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
-import { colors, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type EventDetailPageClientProps = {
@@ -125,24 +121,15 @@ export default function EventDetailPageClient({ postId, channelId }: EventDetail
           </ViewerBox>
 
           <Label>자료</Label>
-          <FileList>
-            {attachments.length > 0 ? (
-              attachments.map((file) => {
-                const href = file.downloadUrl ?? "#";
-                const label = file.originalName ?? file.fileId ?? "첨부파일";
-                return (
-                  <FileLink key={`${file.fileId ?? label}-${file.sortOrder ?? 0}`} href={href}>
-                    <span>{label}</span>
-                    <DownloadBadge aria-hidden="true">
-                      <IconDownload size={16} stroke={2.25} />
-                    </DownloadBadge>
-                  </FileLink>
-                );
-              })
-            ) : (
-              <EmptyAttachmentText>등록된 자료가 없습니다.</EmptyAttachmentText>
-            )}
-          </FileList>
+          <AttachmentDownloadList
+            attachments={attachments.map((file, index) => ({
+              id: file.fileId ?? `${file.originalName}-${index}`,
+              fileId: file.fileId,
+              label: file.originalName ?? file.fileId ?? "첨부파일",
+              href: file.downloadUrl ?? "#",
+            }))}
+            emptyText="첨부된 자료가 없습니다."
+          />
         </ContentStack>
       </DocumentSection>
     </EventDocumentLayout>
@@ -151,14 +138,4 @@ export default function EventDetailPageClient({ postId, channelId }: EventDetail
 
 const ActionToolbar = styled(Toolbar)`
   justify-content: flex-end;
-`;
-
-const EmptyAttachmentText = styled.span`
-  color: ${colors.placeholder};
-  font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight130};
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
 `;

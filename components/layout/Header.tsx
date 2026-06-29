@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import styled from "styled-components";
+import { headerMenus } from "@/config/headerMenus";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { headerMenus } from "@/mocks/home";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const HEADER_MENU_COLUMN_WIDTH_720 = "3rem";
@@ -53,10 +53,13 @@ export default function Header() {
 
   const shouldHideOnMobile =
     pathname === "/" ||
+    pathname === "/schedule" ||
+    pathname.startsWith("/journal") ||
     pathname === "/notifications" ||
     pathname === "/login" ||
     pathname === "/register" ||
-    pathname === "/mypage";
+    pathname === "/mypage" ||
+    pathname.startsWith("/requests");
 
   async function handleLogout() {
     await signOut();

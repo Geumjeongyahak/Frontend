@@ -1,0 +1,1 @@
+export const FINANCE_REQUESTS_PER_PAGE = 9;

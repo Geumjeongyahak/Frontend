@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import AppToastContainer from "@/components/providers/AppToastContainer";
 import QueryProvider from "@/components/providers/QueryProvider";
 import Header from "@/components/layout/Header";
+import AppBackNavigationGuard from "@/components/navigation/AppBackNavigationGuard";
 import StyledComponentsRegistry from "@/lib/styled-components-registry";
 import MobileBootstrap from "@/pwa/bootstrap/MobileBootstrap";
 import "react-toastify/dist/ReactToastify.css";
@@ -26,6 +28,9 @@ export default function RootLayout({
         <StyledComponentsRegistry>
           <QueryProvider>
             <MobileBootstrap />
+            <Suspense fallback={null}>
+              <AppBackNavigationGuard />
+            </Suspense>
             <Header />
             {children}
             <AppToastContainer />

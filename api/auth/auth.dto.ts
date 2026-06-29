@@ -45,7 +45,31 @@ export interface GoogleLoginRequestDto {
 export interface GoogleCallbackRedirectQueryParamsDto {
   tempToken?: string;
   signupRequired?: string;
+  connectedToLocal?: string;
+  email?: string;
+  name?: string;
+  profileImageUrl?: string;
+  error?: string;
   errorCode?: string;
+}
+
+export interface EmailVerificationConfirmRequestDto {
+  email: string;
+  verificationCode: string;
+}
+
+export interface EmailVerificationResendRequestDto {
+  email: string;
+}
+
+export interface PasswordResetRequestDto {
+  email: string;
+}
+
+export interface PasswordResetConfirmRequestDto {
+  email: string;
+  resetCode: string;
+  newPassword: string;
 }
 
 export type AdminLoginRequestDto = LoginRequestDto;

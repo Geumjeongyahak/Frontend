@@ -13,6 +13,7 @@ import { getSubjects } from "@/api/subject/subject.api";
 import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
 import {
   filterActiveSubjects,
+  formatSubjectDateRange,
   formatSubjectTeacherName,
 } from "@/components/admin/subjects/shared/subjectDisplay";
 import { queryKeys } from "@/lib/queryKeys";
@@ -22,11 +23,15 @@ import {
   WEEKDAY_COLUMNS,
   WEEKEND_COLUMNS,
   buildScheduleOverrides,
+  formatTeacherAttendanceTime,
+  formatWeeklyScheduleStatusLabel,
   formatRelatedLessonDate,
   getDateForColumn,
   getPeriodSubject,
   getSubjectsForCell,
   getWeekRange,
+  type WeeklyScheduleAttendanceStatus,
+  type WeeklyScheduleLessonStatus,
   type WeeklyScheduleOverride,
 } from "./weeklyScheduleState";
 
@@ -47,14 +52,19 @@ type PeriodNumber = (typeof DISPLAY_PERIODS)[number];
 type ScheduleCellSelection = {
   classroomName: string;
   classroomType?: ClassroomType;
+  status?: WeeklyScheduleOverride["status"];
+  lessonStatus?: WeeklyScheduleLessonStatus;
+  attendanceStatus?: WeeklyScheduleAttendanceStatus;
+  assignmentDateRange?: string;
+  relatedDate?: string;
+  attendedAt?: string;
+  checkedOutAt?: string;
   date: string;
   dayLabel: string;
   teacherName: string;
   periods: Array<{
     period: number;
     subjectName: string;
-    status?: WeeklyScheduleOverride["status"];
-    exchangeDescription?: string;
     startTime?: string;
     endTime?: string;
   }>;
@@ -114,13 +124,6 @@ function formatSubjectName(subject?: SubjectDetailResponseDto, override?: Weekly
   return subject?.name?.trim() || "미등록";
 }
 
-function formatExchangeDescription(override: WeeklyScheduleOverride) {
-  if (override.status === "SUBSTITUTED") return "대체";
-  if (override.status !== "EXCHANGED") return "";
-  if (!override.relatedDate) return "교환";
-  return `${override.relatedDate} 수업과 교환`;
-}
-
 function formatWeekNavigatorLabel(weekStartDate: string) {
   const start = dayjs(weekStartDate);
   const month = start.format("MM");
@@ -132,14 +135,18 @@ function formatHeaderDate(weekStartDate: string, isoWeekday: number) {
   return dayjs(getDateForColumn(weekStartDate, isoWeekday)).format("MM/DD");
 }
 
-function formatLessonTime(
+function getLessonTimeRange(
   subject: SubjectDetailResponseDto | undefined,
   lesson: LessonSummaryResponseDto | undefined,
 ) {
   const startTime = lesson?.startTime ?? subject?.startTime;
   const endTime = lesson?.endTime ?? subject?.endTime;
-  if (!startTime || !endTime) return "";
-  return `${startTime.slice(0, 5)} - ${endTime.slice(0, 5)}`;
+  if (!startTime || !endTime) return null;
+
+  return {
+    startTime: startTime.slice(0, 5),
+    endTime: endTime.slice(0, 5),
+  };
 }
 
 function getLessonForCell(
@@ -188,12 +195,26 @@ function ScheduleTable({
                 </ClassroomCell>
                 {columns.map((column) => {
                   const date = getDateForColumn(weekStartDate, column.isoWeekday);
-                  const cellSubjects = getSubjectsForCell(subjects, classroomId, column.value, date);
-                  const overrides = buildScheduleOverrides(cellSubjects, lessons, classroomId, date);
+                  const cellSubjects = getSubjectsForCell(
+                    subjects,
+                    classroomId,
+                    column.value,
+                    date,
+                  );
+                  const overrides = buildScheduleOverrides(
+                    cellSubjects,
+                    lessons,
+                    classroomId,
+                    date,
+                  );
                   const firstOverride = [...overrides.values()][0];
+                  const firstStatusOverride = [...overrides.values()].find(
+                    (override) => override.status,
+                  );
                   const firstExchangeDate =
-                    firstOverride?.status === "EXCHANGED"
-                      ? formatRelatedLessonDate(firstOverride.relatedDate)
+                    firstStatusOverride?.lessonStatus === "EXCHANGED" ||
+                    firstStatusOverride?.status === "EXCHANGED"
+                      ? formatRelatedLessonDate(firstStatusOverride.relatedDate)
                       : "";
                   const hasRegisteredSubject = cellSubjects.length > 0;
                   const hasTeacher = hasAssignedTeacher(cellSubjects, firstOverride);
@@ -202,29 +223,35 @@ function ScheduleTable({
                     const subject = getPeriodSubject(cellSubjects, period);
                     const override = overrides.get(period);
                     const lesson = getLessonForCell(lessons, classroomId, date, period);
+                    const lessonTimeRange = getLessonTimeRange(subject, lesson);
 
                     return {
                       period,
                       subjectName: formatSubjectName(subject, override),
-                      status: override?.status,
-                      exchangeDescription:
-                        override?.status === "EXCHANGED"
-                          ? formatExchangeDescription(override)
-                          : undefined,
-                      startTime: formatLessonTime(subject, lesson) || undefined,
-                      endTime: undefined,
+                      startTime: lessonTimeRange?.startTime,
+                      endTime: lessonTimeRange?.endTime,
                     };
                   });
+                  const assignmentDateRange = cellSubjects
+                    .map((subject) => formatSubjectDateRange(subject.startAt, subject.endAt))
+                    .find((value) => value.trim().length > 0);
 
                   return (
                     <ScheduleCellButton
                       key={`${classroomId}-${column.value}`}
                       type="button"
-                      $status={firstOverride?.status}
+                      $status={firstStatusOverride?.status}
                       onClick={() =>
                         onSelectCell({
                           classroomName: classroom.name ?? "이름 없음",
                           classroomType: classroom.type,
+                          status: firstStatusOverride?.status,
+                          lessonStatus: firstStatusOverride?.lessonStatus,
+                          attendanceStatus: firstStatusOverride?.attendanceStatus,
+                          assignmentDateRange,
+                          relatedDate: firstStatusOverride?.relatedDate,
+                          attendedAt: firstStatusOverride?.attendedAt,
+                          checkedOutAt: firstStatusOverride?.checkedOutAt,
                           date,
                           dayLabel: column.label,
                           teacherName,
@@ -233,13 +260,9 @@ function ScheduleTable({
                       }
                     >
                       <TeacherRow>
-                        {firstOverride ? (
-                          <StatusPill $status={firstOverride.status}>
-                            {firstOverride.status === "EXCHANGED"
-                              ? "교환"
-                              : firstOverride.status === "SUBSTITUTED"
-                                ? "대체"
-                                : "결강"}
+                        {firstStatusOverride?.status ? (
+                          <StatusPill $status={firstStatusOverride.status}>
+                            {formatWeeklyScheduleStatusLabel(firstStatusOverride.status)}
                           </StatusPill>
                         ) : null}
                         {hasRegisteredSubject ? (
@@ -249,7 +272,9 @@ function ScheduleTable({
                         ) : (
                           <EmptyText>담당 교사 미배정</EmptyText>
                         )}
-                        {firstExchangeDate ? <ExchangeDateText>{firstExchangeDate}</ExchangeDateText> : null}
+                        {firstExchangeDate ? (
+                          <ExchangeDateText>{firstExchangeDate}</ExchangeDateText>
+                        ) : null}
                       </TeacherRow>
                       <PeriodList>
                         {DISPLAY_PERIODS.map((period) => {
@@ -420,14 +445,40 @@ export default function WeeklySchedulePageClient() {
             onMouseDown={(event) => event.stopPropagation()}
           >
             <ModalHeader>
-              <div>
-                <ModalTitle id="weekly-schedule-detail-title">
-                  {selectedCell.classroomName} {selectedCell.dayLabel}요일 수업
-                </ModalTitle>
+              <ModalHeaderContent>
+                <ModalTitleRow>
+                  <ModalTitle id="weekly-schedule-detail-title">
+                    {selectedCell.classroomName} {selectedCell.dayLabel}요일 수업
+                  </ModalTitle>
+                  {selectedCell.lessonStatus ? (
+                    <ModalStatusPill $status={selectedCell.lessonStatus}>
+                      {formatWeeklyScheduleStatusLabel(selectedCell.lessonStatus)}
+                    </ModalStatusPill>
+                  ) : null}
+                  {selectedCell.status &&
+                  selectedCell.status !== selectedCell.lessonStatus ? (
+                    <ModalStatusPill $status={selectedCell.status}>
+                      {formatWeeklyScheduleStatusLabel(selectedCell.status)}
+                    </ModalStatusPill>
+                  ) : null}
+                </ModalTitleRow>
+                {selectedCell.assignmentDateRange ? (
+                  <ModalDescription>배정 기간 {selectedCell.assignmentDateRange}</ModalDescription>
+                ) : null}
                 <ModalDescription>
                   {selectedCell.date} · {selectedCell.teacherName}
                 </ModalDescription>
-              </div>
+                {selectedCell.attendedAt ? (
+                  <ModalDescription>
+                    출근 시간 {formatTeacherAttendanceTime(selectedCell.attendedAt)}
+                  </ModalDescription>
+                ) : null}
+                {selectedCell.checkedOutAt ? (
+                  <ModalDescription>
+                    퇴근 시간 {formatTeacherAttendanceTime(selectedCell.checkedOutAt)}
+                  </ModalDescription>
+                ) : null}
+              </ModalHeaderContent>
               <CloseButton type="button" onClick={() => setSelectedCell(null)}>
                 닫기
               </CloseButton>
@@ -437,17 +488,10 @@ export default function WeeklySchedulePageClient() {
                 <ModalPeriodCard key={period.period}>
                   <ModalPeriodHeading>{period.period}교시</ModalPeriodHeading>
                   <ModalPeriodSubject>{period.subjectName}</ModalPeriodSubject>
-                  {period.startTime ? <ModalPeriodTime>{period.startTime}</ModalPeriodTime> : null}
-                  {period.status === "EXCHANGED" ? (
-                    <ModalStatusText $status="EXCHANGED">
-                      교환 · {period.exchangeDescription ?? "교환"}
-                    </ModalStatusText>
-                  ) : null}
-                  {period.status === "SUBSTITUTED" ? (
-                    <ModalStatusText $status="SUBSTITUTED">대체</ModalStatusText>
-                  ) : null}
-                  {period.status === "CANCELLED" ? (
-                    <ModalStatusText $status="CANCELLED">결강</ModalStatusText>
+                  {period.startTime && period.endTime ? (
+                    <ModalPeriodTime>
+                      {period.startTime} - {period.endTime}
+                    </ModalPeriodTime>
                   ) : null}
                 </ModalPeriodCard>
               ))}
@@ -717,7 +761,9 @@ const ClassroomType = styled.span`
   line-height: ${typography.lineHeight130};
 `;
 
-const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
+const ScheduleCellButton = styled.button<{
+  $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" | "ABSENT" | "ATTENDED" | "CHECKED_OUT";
+}>`
   display: grid;
   align-content: start;
   gap: ${spacing.space4};
@@ -730,6 +776,9 @@ const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "SUBSTITUTED"
     if ($status === "EXCHANGED") return "#f4efff";
     if ($status === "SUBSTITUTED") return "#fff8dc";
     if ($status === "CANCELLED") return "#fff4f3";
+    if ($status === "ABSENT") return "#fff4f3";
+    if ($status === "ATTENDED") return "#eef9e6";
+    if ($status === "CHECKED_OUT") return "#fff1f6";
     return colors.white;
   }};
   text-align: left;
@@ -740,6 +789,9 @@ const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "SUBSTITUTED"
       if ($status === "EXCHANGED") return "#efe8ff";
       if ($status === "SUBSTITUTED") return "#fff2b8";
       if ($status === "CANCELLED") return "#ffeceb";
+      if ($status === "ABSENT") return "#ffeceb";
+      if ($status === "ATTENDED") return "#e4f6d9";
+      if ($status === "CHECKED_OUT") return "#ffe6f0";
       return "#fbfcfb";
     }};
   }
@@ -755,7 +807,9 @@ const TeacherRow = styled.div`
   min-height: 1.5rem;
 `;
 
-const StatusPill = styled.span<{ $status: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
+const StatusPill = styled.span<{
+  $status: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" | "ABSENT" | "ATTENDED" | "CHECKED_OUT";
+}>`
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
@@ -764,13 +818,37 @@ const StatusPill = styled.span<{ $status: "EXCHANGED" | "SUBSTITUTED" | "CANCELL
   min-height: 1.125rem;
   border: 1px solid
     ${({ $status }) =>
-      $status === "EXCHANGED" ? "#d7cafc" : $status === "SUBSTITUTED" ? "#eadb86" : "#f3b8b2"};
+      $status === "EXCHANGED"
+        ? "#d7cafc"
+        : $status === "SUBSTITUTED"
+          ? "#eadb86"
+          : $status === "ATTENDED"
+            ? "#b7df9d"
+            : $status === "CHECKED_OUT"
+              ? "#f0b7cd"
+              : "#f3b8b2"};
   border-radius: ${radii.radius999};
   background-color: ${({ $status }) =>
-    $status === "EXCHANGED" ? "#eee7ff" : $status === "SUBSTITUTED" ? "#fff4b5" : "#fde4e2"};
+    $status === "EXCHANGED"
+      ? "#eee7ff"
+      : $status === "SUBSTITUTED"
+        ? "#fff4b5"
+        : $status === "ATTENDED"
+          ? "#edf8e4"
+          : $status === "CHECKED_OUT"
+            ? "#fde8f1"
+            : "#fde4e2"};
   padding: 0 ${spacing.space8};
   color: ${({ $status }) =>
-    $status === "EXCHANGED" ? "#6846c9" : $status === "SUBSTITUTED" ? "#9e7a00" : colors.notice};
+    $status === "EXCHANGED"
+      ? "#6846c9"
+      : $status === "SUBSTITUTED"
+        ? "#9e7a00"
+        : $status === "ATTENDED"
+          ? "#3e8f2a"
+          : $status === "CHECKED_OUT"
+            ? "#c64f83"
+            : colors.notice};
   font-size: 0.6875rem;
   font-weight: 900;
   line-height: ${typography.lineHeight130};
@@ -838,7 +916,7 @@ const PeriodBadge = styled.span`
 `;
 
 const SubjectBlock = styled.span<{
-  $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED";
+  $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" | "ABSENT" | "ATTENDED" | "CHECKED_OUT";
   $empty: boolean;
   $period: number;
 }>`
@@ -850,10 +928,10 @@ const SubjectBlock = styled.span<{
   min-height: 1.25rem;
   padding: 0 ${spacing.space8};
   border-radius: ${radii.radius999};
-  background-color: ${({ $status, $empty, $period }) => {
+  background-color: ${({ $empty, $period }) => {
     return $empty ? "#f1f3f2" : DEFAULT_PERIOD_COLORS[$period as PeriodNumber];
   }};
-  color: ${({ $status, $empty, $period }) => {
+  color: ${({ $empty, $period }) => {
     return $empty ? "#7c8581" : (PERIOD_COLOR_TEXT[$period as PeriodNumber] ?? "#1f2b28");
   }};
   font-size: ${typography.fontSize13};
@@ -906,6 +984,18 @@ const ModalHeader = styled.div`
   gap: ${spacing.space12};
 `;
 
+const ModalHeaderContent = styled.div`
+  display: grid;
+`;
+
+const ModalTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space8};
+  flex-wrap: wrap;
+  margin-bottom: 0.125rem;
+`;
+
 const ModalTitle = styled.h2`
   margin: 0;
   color: #111111;
@@ -914,11 +1004,17 @@ const ModalTitle = styled.h2`
   line-height: ${typography.lineHeight130};
 `;
 
+const ModalStatusPill = styled(StatusPill)`
+  position: static;
+  transform: none;
+  flex: 0 0 auto;
+`;
+
 const ModalDescription = styled.p`
-  margin: ${spacing.space4} 0 0;
   color: #64706c;
   font-size: ${typography.fontSize13};
   line-height: ${typography.lineHeight150};
+  margin-bottom: -0.25rem;
 `;
 
 const CloseButton = styled.button`
@@ -966,14 +1062,5 @@ const ModalPeriodTime = styled.p`
   margin: 0;
   color: #64706c;
   font-size: ${typography.fontSize13};
-  line-height: ${typography.lineHeight130};
-`;
-
-const ModalStatusText = styled.p<{ $status: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
-  margin: 0;
-  color: ${({ $status }) =>
-    $status === "EXCHANGED" ? "#6846c9" : $status === "SUBSTITUTED" ? "#9e7a00" : colors.notice};
-  font-size: ${typography.fontSize13};
-  font-weight: 800;
   line-height: ${typography.lineHeight130};
 `;

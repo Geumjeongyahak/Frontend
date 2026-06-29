@@ -1,5 +1,12 @@
 export type LessonStatus = "SCHEDULED" | "COMPLETED" | "CANCELED";
 
+export interface LessonTeacherAttendanceResponseDto {
+  isAttended?: boolean;
+  isCheckedOut?: boolean;
+  attendedAt?: string | null;
+  checkedOutAt?: string | null;
+}
+
 export interface LessonRangeQueryParamsDto {
   from: string;
   to: string;
@@ -41,6 +48,7 @@ export interface LessonSummaryResponseDto {
   isExchanged?: boolean;
   isAbsent?: boolean;
   exchangedLessonDate?: string | null;
+  teacherAttendance?: LessonTeacherAttendanceResponseDto | null;
 }
 
 export type LessonListItemDto = LessonSummaryResponseDto;

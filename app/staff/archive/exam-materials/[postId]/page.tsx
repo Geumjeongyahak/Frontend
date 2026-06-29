@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import ArchiveDocumentDetailPage from "@/components/staff/archive/archive-document-section/ArchiveDocumentDetailPage";
-import { archiveDocumentConfigs } from "@/mocks/archiveDocuments";
+import { archiveDocumentConfigs } from "@/config/archiveDocuments";
 
 type PageProps = {
   params: Promise<{

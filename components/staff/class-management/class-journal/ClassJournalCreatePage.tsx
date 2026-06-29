@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import styled from "styled-components";
 import type {
   DailyScheduleLessonResponseDto,
+  DailyStudentAttendanceStatus,
   LessonJournalRequestDto,
   UpdateDailyStudentAttendanceItemRequestDto,
 } from "@/api/dailySchedule/dailySchedule.dto";
@@ -21,17 +22,15 @@ import type { StudentListResponseDto } from "@/api/student/student.dto";
 import { getStudents } from "@/api/student/student.api";
 import { getMyAssignedSubjects } from "@/api/subject/subject.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { buildClassAttendanceSheetPayload } from "@/lib/googleSheet/classAttendance/classAttendanceSheetPayload";
-import { sendClassAttendanceToGoogleSheet } from "@/lib/googleSheet/classAttendance/sendClassAttendanceToGoogleSheet";
-import {
-  buildClassJournalSheetPayloadFromFormData,
-  formatPhone,
-} from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
-import { sendClassJournalToGoogleSheet } from "@/lib/googleSheet/classJournal/sendClassJournalToGoogleSheet";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
+import { formatPhone } from "@/utils/formatPhone";
 import { getKstTodayIsoDate, parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import {
+  dailyStudentAttendanceOptions,
+  getDailyStudentAttendanceStatusOrDefault,
+} from "@/utils/dailyStudentAttendance";
 import {
   buildTodayLessonOptions,
   buildTodayLessonOptionsFromSubjects,
@@ -69,12 +68,16 @@ function buildStudentAttendances(
     const rowIndex = Math.floor(index / attendanceColumns.length);
     const column = index % attendanceColumns.length;
     const statusIndex = rowIndex * attendanceColumns.length + column + 1;
-    const isPresent = formData.get(`attendanceStatus${statusIndex}`) === "on";
+    const status = getDailyStudentAttendanceStatusOrDefault(
+      formData.get(`attendanceStatus${statusIndex}`)?.toString() as
+        | DailyStudentAttendanceStatus
+        | undefined,
+    );
 
     return [
       {
         studentId: student.id,
-        status: isPresent ? "PRESENT" : "ABSENT",
+        status,
       },
     ];
   });
@@ -187,36 +190,16 @@ export default function ClassJournalCreatePage() {
     mutationFn: async ({
       journalBody,
       attendances,
-      googleSheet,
     }: {
       journalBody: Parameters<typeof createJournal>[0];
       attendances: UpdateDailyStudentAttendanceItemRequestDto[];
-      googleSheet: {
-        journal: ReturnType<typeof buildClassJournalSheetPayloadFromFormData>;
-        attendance: ReturnType<typeof buildClassAttendanceSheetPayload>;
-      };
     }) => {
       const journal = await createJournal(journalBody);
       const dailyScheduleId = journal.dailyScheduleId;
 
-      const schedule =
-        typeof dailyScheduleId === "number" && attendances.length > 0
-          ? await updateStudentAttendances({ dailyScheduleId }, { attendances })
-          : journal;
-
-      try {
-        await sendClassJournalToGoogleSheet(googleSheet.journal);
-
-        if (googleSheet.attendance.attendances.length > 0) {
-          await sendClassAttendanceToGoogleSheet(googleSheet.attendance);
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "구글 시트 연동에 실패했습니다.";
-        throw new Error(`수업 일지는 저장되었으나 ${message}`);
-      }
-
-      return schedule;
+      return typeof dailyScheduleId === "number" && attendances.length > 0
+        ? await updateStudentAttendances({ dailyScheduleId }, { attendances })
+        : journal;
     },
     onSuccess: async (data) => {
       await queryClient.invalidateQueries({ queryKey: ["daily-schedules", "list"] });
@@ -344,15 +327,6 @@ export default function ClassJournalCreatePage() {
         personalInfoConsent,
         residentRegistrationNumberPrefix,
         lessonJournals,
-      },
-      googleSheet: {
-        journal: buildClassJournalSheetPayloadFromFormData(formData),
-        attendance: buildClassAttendanceSheetPayload(
-          formData,
-          enrolledStudents,
-          classroomNameValue,
-          lessonDateValue.trim(),
-        ),
       },
     });
   };
@@ -509,14 +483,20 @@ export default function ClassJournalCreatePage() {
                     const statusIndex = rowIndex * 10 + column + 1;
 
                     return (
-                      <AttendanceCheckboxCell key={`attendance-${rowIndex}-${column}`}>
-                        <ConsentCheckbox
-                          type="checkbox"
+                      <AttendanceStatusCell key={`attendance-${rowIndex}-${column}`}>
+                        <AttendanceStatusSelect
+                          defaultValue="ABSENT"
                           name={`attendanceStatus${statusIndex}`}
-                          aria-label={`${statusIndex}번 출석`}
+                          aria-label={`${statusIndex}번 학생 출석 상태`}
                           disabled={!hasTodayLessons}
-                        />
-                      </AttendanceCheckboxCell>
+                        >
+                          {dailyStudentAttendanceOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </AttendanceStatusSelect>
+                      </AttendanceStatusCell>
                     );
                   })}
                 </AttendanceGrid>
@@ -892,7 +872,7 @@ const AttendanceInput = styled.input`
   }
 `;
 
-const AttendanceCheckboxCell = styled.div`
+const AttendanceStatusCell = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -904,6 +884,37 @@ const AttendanceCheckboxCell = styled.div`
 
   @media (min-width: 120rem) {
     min-height: 3.875rem;
+  }
+`;
+
+const AttendanceStatusSelect = styled.select`
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: ${spacing.space8} 2rem ${spacing.space8} ${spacing.space8};
+  border: 0;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.25 6 6.25l5-5' fill='none' stroke='%23262626' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  appearance: none;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  text-align: center;
+  text-align-last: center;
+  outline: none;
+  cursor: pointer;
+
+  &:disabled {
+    color: #6d6d6d;
+    cursor: not-allowed;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 3.875rem;
+    font-size: ${typography.fontSize20};
   }
 `;
 

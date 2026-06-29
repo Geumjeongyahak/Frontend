@@ -9,6 +9,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    # GitHub Environment Variables에 값을 넣어둔 경우 필요함.
+    # Repository Variables에만 넣어둔 경우 없어도 되지만, 둬도 문제 없음.
+    environment: production
+
     permissions:
       contents: read
       id-token: write
@@ -20,7 +24,13 @@ jobs:
       AR_REPOSITORY: ${{ vars.AR_REPOSITORY_PROD }}
       IMAGE_NAME: ${{ vars.IMAGE_NAME_PROD }}
       CLOUD_RUN_SERVICE: ${{ vars.CLOUD_RUN_SERVICE_PROD }}
+
       NEXT_PUBLIC_API_BASE_URL: ${{ vars.NEXT_PUBLIC_API_BASE_URL_PROD }}
+      NEXT_PUBLIC_ATTENDANCE_TARGET_LATITUDE: ${{ vars.NEXT_PUBLIC_ATTENDANCE_TARGET_LATITUDE_PROD }}
+      NEXT_PUBLIC_ATTENDANCE_TARGET_LONGITUDE: ${{ vars.NEXT_PUBLIC_ATTENDANCE_TARGET_LONGITUDE_PROD }}
+      NEXT_PUBLIC_ATTENDANCE_TARGET_RADIUS_METERS: ${{ vars.NEXT_PUBLIC_ATTENDANCE_TARGET_RADIUS_METERS_PROD }}
+      NEXT_PUBLIC_ATTENDANCE_TARGET_LABEL: ${{ vars.NEXT_PUBLIC_ATTENDANCE_TARGET_LABEL_PROD }}
+      NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_FILE_API_URL: ${{ vars.NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_FILE_API_URL_PROD }}
       NEXT_PUBLIC_DEPLOY_TARGET: PROD
       NEXT_PUBLIC_FIREBASE_VAPID_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}
       KEEP_COUNT: 3
@@ -43,12 +53,32 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY_REGION }}-docker.pkg.dev --quiet
 
+      - name: Debug public env
+        run: |
+          echo "PROJECT_ID=${{ env.PROJECT_ID }}"
+          echo "CLOUD_RUN_REGION=${{ env.CLOUD_RUN_REGION }}"
+          echo "ARTIFACT_REGISTRY_REGION=${{ env.ARTIFACT_REGISTRY_REGION }}"
+          echo "AR_REPOSITORY=${{ env.AR_REPOSITORY }}"
+          echo "IMAGE_NAME=${{ env.IMAGE_NAME }}"
+          echo "CLOUD_RUN_SERVICE=${{ env.CLOUD_RUN_SERVICE }}"
+          echo "NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }}"
+          echo "NEXT_PUBLIC_ATTENDANCE_TARGET_LATITUDE=${{ env.NEXT_PUBLIC_ATTENDANCE_TARGET_LATITUDE }}"
+          echo "NEXT_PUBLIC_ATTENDANCE_TARGET_LONGITUDE=${{ env.NEXT_PUBLIC_ATTENDANCE_TARGET_LONGITUDE }}"
+          echo "NEXT_PUBLIC_ATTENDANCE_TARGET_RADIUS_METERS=${{ env.NEXT_PUBLIC_ATTENDANCE_TARGET_RADIUS_METERS }}"
+          echo "NEXT_PUBLIC_ATTENDANCE_TARGET_LABEL=${{ env.NEXT_PUBLIC_ATTENDANCE_TARGET_LABEL }}"
+          echo "NEXT_PUBLIC_DEPLOY_TARGET=${{ env.NEXT_PUBLIC_DEPLOY_TARGET }}"
+
       - name: Build Docker image
         run: |
           docker build \
-            --build-arg NEXT_PUBLIC_API_BASE_URL=${{ env.NEXT_PUBLIC_API_BASE_URL }} \
-            --build-arg NEXT_PUBLIC_DEPLOY_TARGET=${{ env.NEXT_PUBLIC_DEPLOY_TARGET }} \
-            --build-arg NEXT_PUBLIC_FIREBASE_VAPID_KEY=${{ env.NEXT_PUBLIC_FIREBASE_VAPID_KEY }} \
+            --build-arg NEXT_PUBLIC_API_BASE_URL="${{ env.NEXT_PUBLIC_API_BASE_URL }}" \
+            --build-arg NEXT_PUBLIC_ATTENDANCE_TARGET_LATITUDE="${{ env.NEXT_PUBLIC_ATTENDANCE_TARGET_LATITUDE }}" \
+            --build-arg NEXT_PUBLIC_ATTENDANCE_TARGET_LONGITUDE="${{ env.NEXT_PUBLIC_ATTENDANCE_TARGET_LONGITUDE }}" \
+            --build-arg NEXT_PUBLIC_ATTENDANCE_TARGET_RADIUS_METERS="${{ env.NEXT_PUBLIC_ATTENDANCE_TARGET_RADIUS_METERS }}" \
+            --build-arg NEXT_PUBLIC_ATTENDANCE_TARGET_LABEL="${{ env.NEXT_PUBLIC_ATTENDANCE_TARGET_LABEL }}" \
+            --build-arg NEXT_PUBLIC_DEPLOY_TARGET="${{ env.NEXT_PUBLIC_DEPLOY_TARGET }}" \
+            --build-arg NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_FILE_API_URL="${{ env.NEXT_PUBLIC_GOOGLE_APPS_SCRIPT_FILE_API_URL }}" \
+            --build-arg NEXT_PUBLIC_FIREBASE_VAPID_KEY="${{ env.NEXT_PUBLIC_FIREBASE_VAPID_KEY }}" \
             -t ${{ env.ARTIFACT_REGISTRY_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPOSITORY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} \
             -t ${{ env.ARTIFACT_REGISTRY_REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPOSITORY }}/${{ env.IMAGE_NAME }}:latest \
             .

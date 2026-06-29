@@ -3,11 +3,17 @@
 import styled, { keyframes } from "styled-components";
 import { mobileHomeTone } from "@/pwa/pages/mobile-home/constants";
 
-export default function AttendanceSuccessOverlay() {
+type AttendanceSuccessOverlayProps = {
+  variant: "attendance" | "checkout";
+};
+
+export default function AttendanceSuccessOverlay({
+  variant,
+}: AttendanceSuccessOverlayProps) {
   return (
     <Overlay>
       <OverlayImage src="/check-hole-overlay.svg" alt="" aria-hidden="true" />
-      <OverlayText>출석 완료!</OverlayText>
+      <OverlayText>{variant === "checkout" ? "퇴근 완료!" : "출근 완료!"}</OverlayText>
     </Overlay>
   );
 }

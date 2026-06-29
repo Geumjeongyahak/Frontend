@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
+import { getEventDisplayDate, getEventDisplayId, getEventDisplayTitle } from "../api/event/eventDisplay";
 import type { EventResponseDto } from "@/api/event/event.dto";
 import type { SubjectDayOfWeek } from "@/api/subject/subject.dto";
 import type { UserTeacherAssignmentResponseDto } from "@/api/user/user.dto";
@@ -109,22 +110,24 @@ export function mapLessonsToWeeklySchedule(
   const grouped = new Map<WeekDay, WeeklyItem[]>();
   for (const day of WEEK_ORDER) grouped.set(day, []);
 
-  events.forEach((event) => {
-    if (!event.eventDate) return;
+  events.forEach((event, index) => {
+    const eventDate = getEventDisplayDate(event);
+    if (!eventDate) return;
 
-    const isoDay = dayjs(event.eventDate).isoWeekday();
+    const isoDay = dayjs(eventDate).isoWeekday();
     if (isoDay < 1 || isoDay > 7) return;
 
     const day = WEEK_ORDER[isoDay - 1];
-    const { emoji, title } = splitEmojiFromTitle(event.title);
+    const rawTitle = getEventDisplayTitle(event);
+    const { emoji, title } = splitEmojiFromTitle(rawTitle);
 
     grouped.get(day)?.push({
-      id: event.id,
+      id: Number(getEventDisplayId(event, index)) || undefined,
       type: "event",
       emoji,
-      date: event.eventDate,
+      date: eventDate,
       time: formatTimeRange(event.startTime, event.endTime),
-      title: title || event.title || "기관 일정",
+      title: title || rawTitle,
     });
   });
 

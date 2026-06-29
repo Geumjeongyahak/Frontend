@@ -70,7 +70,7 @@ export default function MobileRegisterPage() {
         birthDate: form.birthDate,
         phoneNumber: form.phoneNumber.trim() || undefined,
       });
-      router.replace("/", { scroll: true });
+      router.replace(`/auth/email-verification?email=${encodeURIComponent(form.email.trim())}`);
     } catch {
       setStatusMessage("회원가입 정보를 확인해 주세요.");
     } finally {
@@ -226,13 +226,6 @@ const Title = styled.h1`
   font-size: 2rem;
   font-weight: 800;
   line-height: 1.25;
-  word-break: keep-all;
-`;
-
-const Description = styled.p`
-  color: #66725f;
-  font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight150};
   word-break: keep-all;
 `;
 

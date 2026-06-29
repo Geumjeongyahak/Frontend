@@ -2,11 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import styled from "styled-components";
-import { getPosts } from "@/api/post/post.api";
+import { getPublicPosts } from "@/api/post/post.api";
 import type { PostSummaryResponseDto } from "@/api/post/post.dto";
 import HomeCard from "@/components/home/HomeCard";
-import { useProtectedHomeNavigation } from "@/components/home/useProtectedHomeNavigation";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
@@ -16,21 +16,20 @@ function buildNoticeHref(notice: PostSummaryResponseDto) {
   if (typeof postId !== "number") return "/staff/board?type=NOTICE";
 
   return typeof notice.channelId === "number"
-    ? `/staff/board/${postId}?channelId=${notice.channelId}`
-    : `/staff/board/${postId}`;
+    ? `/staff/board/${postId}?channelId=${notice.channelId}&public=1`
+    : `/staff/board/${postId}?public=1`;
 }
 
 export default function NoticeCard() {
-  const { isAuthenticated, navigateWhenAuthenticated } = useProtectedHomeNavigation();
+  const router = useRouter();
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.posts.noticeTop12(),
     queryFn: () =>
-      getPosts({
+      getPublicPosts({
         channelType: "NOTICE",
         page: 0,
         size: 12,
       }),
-    enabled: isAuthenticated,
     retry: false,
   });
 
@@ -40,17 +39,13 @@ export default function NoticeCard() {
     <Card
       title="공지사항"
       actionLabel="더보기"
-      onActionClick={() => navigateWhenAuthenticated("/staff/board?type=NOTICE")}
+      onActionClick={() => router.push("/staff/board?type=NOTICE")}
     >
       <List>
-        {!isAuthenticated && <Fallback>로그인이 필요합니다.</Fallback>}
-        {isAuthenticated && isLoading && <Fallback>공지사항 불러오는 중...</Fallback>}
-        {isAuthenticated && isError && <Fallback>공지사항을 불러오지 못했습니다.</Fallback>}
-        {isAuthenticated && !isLoading && !isError && notices.length === 0 && (
-          <Fallback>공지사항이 없습니다.</Fallback>
-        )}
-        {isAuthenticated &&
-          !isLoading &&
+        {isLoading && <Fallback>공지사항 불러오는 중...</Fallback>}
+        {isError && <Fallback>공지사항을 불러오지 못했습니다.</Fallback>}
+        {!isLoading && !isError && notices.length === 0 && <Fallback>공지사항이 없습니다.</Fallback>}
+        {!isLoading &&
           !isError &&
           notices.map((notice, index) => (
             <ListItem key={`${notice.id ?? "notice"}-${index}`} href={buildNoticeHref(notice)}>
@@ -65,11 +60,21 @@ export default function NoticeCard() {
 
 const Card = styled(HomeCard)`
   height: 100%;
+  min-height: 17.5rem;
+
+  @media (min-width: 120rem) {
+    min-height: 24.5rem;
+  }
 `;
 
 const List = styled.div`
   display: flex;
   flex-direction: column;
+  min-height: 13.125rem;
+
+  @media (min-width: 120rem) {
+    min-height: 18.4375rem;
+  }
 `;
 
 const Title = styled.h3`
@@ -119,6 +124,9 @@ const Date = styled.time`
 `;
 
 const Fallback = styled.p`
+  display: flex;
+  flex: 1;
+  align-items: center;
   color: ${colors.muted};
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight150};

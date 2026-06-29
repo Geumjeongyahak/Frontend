@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import type { SetStateAction } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import { deleteSubject, updateSubject, updateSubjectSchedule } from "@/api/subject/subject.api";
@@ -24,39 +25,103 @@ type UseAdminSubjectDetailParams = {
   onClearSelection: () => void;
 };
 
+const emptyInfoForm: SubjectInfoFormValues = { name: "", description: "" };
+const emptyScheduleForm: SubjectScheduleFormValues = {
+  startAt: "",
+  endAt: "",
+  dayOfWeek: null,
+  startTime: "",
+  endTime: "",
+  period: "1",
+};
+
 export function useAdminSubjectDetail({ subject, onClearSelection }: UseAdminSubjectDetailParams) {
   const queryClient = useQueryClient();
   const subjectId = subject ? getSubjectId(subject) : null;
 
-  const [isEditingInfo, setIsEditingInfo] = useState(false);
-  const [isEditingSchedule, setIsEditingSchedule] = useState(false);
-  const [infoForm, setInfoForm] = useState<SubjectInfoFormValues>({ name: "", description: "" });
-  const [scheduleForm, setScheduleForm] = useState<SubjectScheduleFormValues>({
-    startAt: "",
-    endAt: "",
-    dayOfWeek: null,
-    startTime: "",
-    endTime: "",
-    period: "1",
+  const [editState, setEditState] = useState({
+    subjectId: null as number | null,
+    isEditingInfo: false,
+    isEditingSchedule: false,
+    actionError: null as string | null,
   });
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setIsEditingInfo(false);
-    setIsEditingSchedule(false);
-    setActionError(null);
-  }, [subjectId]);
-
-  useEffect(() => {
-    if (!subject) return;
-
-    if (!isEditingInfo) {
-      setInfoForm(mapSubjectToInfoForm(subject));
-    }
-    if (!isEditingSchedule) {
-      setScheduleForm(mapSubjectToScheduleForm(subject));
-    }
-  }, [subject, isEditingInfo, isEditingSchedule]);
+  const [formState, setFormState] = useState<{
+    subjectId: number | null;
+    infoForm: SubjectInfoFormValues;
+    scheduleForm: SubjectScheduleFormValues;
+  }>({
+    subjectId: null,
+    infoForm: emptyInfoForm,
+    scheduleForm: emptyScheduleForm,
+  });
+  const isCurrentSubject = editState.subjectId === subjectId;
+  const isEditingInfo = isCurrentSubject && editState.isEditingInfo;
+  const isEditingSchedule = isCurrentSubject && editState.isEditingSchedule;
+  const actionError = isCurrentSubject ? editState.actionError : null;
+  const infoForm =
+    formState.subjectId === subjectId && isEditingInfo
+      ? formState.infoForm
+      : subject
+        ? mapSubjectToInfoForm(subject)
+        : emptyInfoForm;
+  const scheduleForm =
+    formState.subjectId === subjectId && isEditingSchedule
+      ? formState.scheduleForm
+      : subject
+        ? mapSubjectToScheduleForm(subject)
+        : emptyScheduleForm;
+  const updateEditState = (
+    patch: Partial<Omit<typeof editState, "subjectId">>,
+  ) => {
+    setEditState((current) => ({
+      ...(current.subjectId === subjectId
+        ? current
+        : { subjectId, isEditingInfo: false, isEditingSchedule: false, actionError: null }),
+      ...patch,
+      subjectId,
+    }));
+  };
+  const setActionError = (actionError: string | null) => updateEditState({ actionError });
+  const setInfoForm = (updater: SetStateAction<SubjectInfoFormValues>) => {
+    setFormState((current) => {
+      const baseForm =
+        current.subjectId === subjectId
+          ? current.infoForm
+          : subject
+            ? mapSubjectToInfoForm(subject)
+            : emptyInfoForm;
+      return {
+        subjectId,
+        infoForm: typeof updater === "function" ? updater(baseForm) : updater,
+        scheduleForm:
+          current.subjectId === subjectId
+            ? current.scheduleForm
+            : subject
+              ? mapSubjectToScheduleForm(subject)
+              : emptyScheduleForm,
+      };
+    });
+  };
+  const setScheduleForm = (updater: SetStateAction<SubjectScheduleFormValues>) => {
+    setFormState((current) => {
+      const baseForm =
+        current.subjectId === subjectId
+          ? current.scheduleForm
+          : subject
+            ? mapSubjectToScheduleForm(subject)
+            : emptyScheduleForm;
+      return {
+        subjectId,
+        infoForm:
+          current.subjectId === subjectId
+            ? current.infoForm
+            : subject
+              ? mapSubjectToInfoForm(subject)
+              : emptyInfoForm,
+        scheduleForm: typeof updater === "function" ? updater(baseForm) : updater,
+      };
+    });
+  };
 
   const invalidateSubjects = async () => {
     await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
@@ -70,7 +135,7 @@ export function useAdminSubjectDetail({ subject, onClearSelection }: UseAdminSub
     onSuccess: async () => {
       toast.success("과목 정보를 수정했습니다.");
       setActionError(null);
-      setIsEditingInfo(false);
+      updateEditState({ isEditingInfo: false });
       await invalidateSubjects();
     },
     onError: (error) => {
@@ -86,7 +151,7 @@ export function useAdminSubjectDetail({ subject, onClearSelection }: UseAdminSub
     onSuccess: async () => {
       toast.success("과목 일정을 수정했습니다.");
       setActionError(null);
-      setIsEditingSchedule(false);
+      updateEditState({ isEditingSchedule: false });
       await invalidateSubjects();
     },
     onError: (error) => {
@@ -116,9 +181,9 @@ export function useAdminSubjectDetail({ subject, onClearSelection }: UseAdminSub
   const startInfoEdit = () => {
     if (!subject) return;
     setActionError(null);
-    setIsEditingSchedule(false);
+    updateEditState({ isEditingSchedule: false });
     setInfoForm(mapSubjectToInfoForm(subject));
-    setIsEditingInfo(true);
+    updateEditState({ isEditingInfo: true });
   };
 
   const cancelInfoEdit = () => {
@@ -126,15 +191,15 @@ export function useAdminSubjectDetail({ subject, onClearSelection }: UseAdminSub
       setInfoForm(mapSubjectToInfoForm(subject));
     }
     setActionError(null);
-    setIsEditingInfo(false);
+    updateEditState({ isEditingInfo: false });
   };
 
   const startScheduleEdit = () => {
     if (!subject) return;
     setActionError(null);
-    setIsEditingInfo(false);
+    updateEditState({ isEditingInfo: false });
     setScheduleForm(mapSubjectToScheduleForm(subject));
-    setIsEditingSchedule(true);
+    updateEditState({ isEditingSchedule: true });
   };
 
   const cancelScheduleEdit = () => {
@@ -142,7 +207,7 @@ export function useAdminSubjectDetail({ subject, onClearSelection }: UseAdminSub
       setScheduleForm(mapSubjectToScheduleForm(subject));
     }
     setActionError(null);
-    setIsEditingSchedule(false);
+    updateEditState({ isEditingSchedule: false });
   };
 
   const saveInfo = () => {

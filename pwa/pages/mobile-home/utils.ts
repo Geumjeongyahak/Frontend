@@ -1,4 +1,9 @@
 import dayjs from "dayjs";
+import {
+  getEventDisplayDate,
+  getEventDisplayId,
+  getEventDisplayTitle,
+} from "../../../api/event/eventDisplay";
 import type { EventResponseDto } from "@/api/event/event.dto";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
 import type {
@@ -121,10 +126,7 @@ export function toMyLessonCardItems(lessons: LessonSummaryResponseDto[] = []) {
         title: isCancelled ? "결강" : `${classroomName} 수업`,
         classroomName,
         subjectName: undefined,
-        timeLabel: formatTimeLabel(
-          ordered[0]?.startTime,
-          ordered[ordered.length - 1]?.endTime,
-        ),
+        timeLabel: formatTimeLabel(ordered[0]?.startTime, ordered[ordered.length - 1]?.endTime),
         date: date || undefined,
         isCancelled,
         periods: ordered.map((lesson) => ({
@@ -143,17 +145,77 @@ export function toAllScheduleItems(
   lessons: LessonSummaryResponseDto[] = [],
   events: EventResponseDto[] = [],
 ) {
-  const eventItems = events.map<WeeklyScheduleListItem>((event, index) => ({
-    id: `event-${event.id ?? index}`,
-    dayValue: getJsDayValue(event.eventDate),
-    title: stripLeadingEventEmoji(event.title) || "기관 일정",
-    timeLabel: formatTimeLabel(event.startTime, event.endTime),
-    date: event.eventDate,
-    kind: "event",
-    isCancelled: false,
-    emoji: getEventEmoji(event.title),
-    description: event.description?.trim() || undefined,
-  }));
+  const grouped = new Map<string, LessonSummaryResponseDto[]>();
 
-  return sortByStartTime(eventItems);
+  lessons.forEach((lesson) => {
+    const classroomName = lesson.classroomName?.trim() || "미정 반";
+    const dayValue = getJsDayValue(lesson.date);
+    const key = `${dayValue}:${lesson.date ?? ""}:${classroomName}`;
+    const current = grouped.get(key);
+
+    if (current) {
+      current.push(lesson);
+      return;
+    }
+
+    grouped.set(key, [lesson]);
+  });
+
+  const lessonItems = Array.from(grouped.entries()).map<WeeklyScheduleListItem>(
+    ([key, groupedLessons]) => {
+      const [dayText, date, classroomName] = key.split(":");
+      const ordered = [...groupedLessons].sort((left, right) =>
+        (left.startTime ?? "99:99").localeCompare(right.startTime ?? "99:99"),
+      );
+      const isCancelled = ordered.every(
+        (lesson) =>
+          Boolean(lesson.isAbsent) ||
+          lesson.status === "CANCELED" ||
+          lesson.status === "CANCELLED",
+      );
+
+      return {
+        id: `lesson-${key}`,
+        dayValue: Number(dayText) as MobileHomeDayValue,
+        title: classroomName || "미정 반",
+        timeLabel: formatTimeLabel(ordered[0]?.startTime, ordered[ordered.length - 1]?.endTime),
+        date: date || undefined,
+        classroomName: classroomName || undefined,
+        kind: "lesson",
+        isCancelled,
+        periods: ordered.map((lesson) => ({
+          period: lesson.period,
+          subjectName: lesson.subjectName,
+          startTime: lesson.startTime,
+          endTime: lesson.endTime,
+          status: lesson.isAbsent ? "CANCELLED" : lesson.status,
+        })),
+      };
+    },
+  );
+
+  const eventItems = events
+    .map<WeeklyScheduleListItem | null>((event, index) => {
+      const eventDate = getEventDisplayDate(event);
+      if (!eventDate) {
+        return null;
+      }
+
+      const rawTitle = getEventDisplayTitle(event);
+
+      return {
+        id: `event-${getEventDisplayId(event, index)}`,
+        dayValue: getJsDayValue(eventDate),
+        title: stripLeadingEventEmoji(rawTitle) || "기관 일정",
+        timeLabel: formatTimeLabel(event.startTime, event.endTime),
+        date: eventDate,
+        kind: "event",
+        isCancelled: false,
+        emoji: getEventEmoji(rawTitle),
+        description: event.description?.trim() || undefined,
+      };
+    })
+    .filter((item): item is WeeklyScheduleListItem => item !== null);
+
+  return sortByStartTime([...lessonItems, ...eventItems]);
 }

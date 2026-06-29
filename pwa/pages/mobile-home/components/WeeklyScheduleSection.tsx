@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useState } from "react";
 import styled, { css } from "styled-components";
 import {
   MOBILE_HOME_BODY_FONT,
@@ -36,7 +37,6 @@ type WeeklyScheduleSectionProps = {
   emptyMessage: string;
   onDaySelect: (day: MobileHomeDayValue) => void;
   onModeChange: (mode: MobileScheduleMode) => void;
-  onScheduleClick: (targetDate?: string) => void;
 };
 
 export default function WeeklyScheduleSection({
@@ -49,18 +49,14 @@ export default function WeeklyScheduleSection({
   emptyMessage,
   onDaySelect,
   onModeChange,
-  onScheduleClick,
 }: WeeklyScheduleSectionProps) {
-  const [showAllSchedules, setShowAllSchedules] = useState(false);
-  const [selectedSchedule, setSelectedSchedule] = useState<MobileScheduleDetail | null>(null);
-
-  useEffect(() => {
-    setShowAllSchedules(false);
-  }, [mode, selectedDay]);
-
-  useEffect(() => {
-    setSelectedSchedule(null);
-  }, [mode, selectedDay]);
+  const scheduleScope = `${mode}-${selectedDay}`;
+  const [showAllSchedules, setShowAllSchedules] = useState({ scope: scheduleScope, value: false });
+  const [selectedSchedule, setSelectedSchedule] = useState<
+    (MobileScheduleDetail & { scope: string }) | null
+  >(null);
+  const isExpanded = showAllSchedules.scope === scheduleScope && showAllSchedules.value;
+  const activeSchedule = selectedSchedule?.scope === scheduleScope ? selectedSchedule : null;
 
   if (isAuthLoading) {
     return (
@@ -72,12 +68,12 @@ export default function WeeklyScheduleSection({
     );
   }
 
-  const visibleSchedules = showAllSchedules ? allSchedules : allSchedules.slice(0, 3);
+  const visibleSchedules = isExpanded ? allSchedules : allSchedules.slice(0, 3);
   const canExpandSchedules = allSchedules.length > 3;
 
   return (
     <Section>
-      <Card $expanded={mode === "all" && showAllSchedules && canExpandSchedules}>
+      <Card $expanded={mode === "all" && isExpanded && canExpandSchedules}>
         <HeaderRow>
           <SectionTitle>이번주 일정</SectionTitle>
           <ToggleWrap>
@@ -129,6 +125,7 @@ export default function WeeklyScheduleSection({
                       kind: "lesson",
                       isCancelled: lesson.isCancelled,
                       periods: lesson.periods,
+                      scope: scheduleScope,
                     })
                   }
                   $background={getClassTone(lesson.classroomName).background}
@@ -142,10 +139,7 @@ export default function WeeklyScheduleSection({
           </MyLessonsArea>
         ) : (
           <ScheduleSection>
-            <ScheduleList
-              $expanded={showAllSchedules}
-              $compact={!loading && visibleSchedules.length > 0}
-            >
+            <ScheduleList $expanded={isExpanded} $compact={!loading && visibleSchedules.length > 0}>
               {loading ? (
                 <EmptyText $authMessage={false}>로딩 중...</EmptyText>
               ) : visibleSchedules.length === 0 ? (
@@ -167,13 +161,13 @@ export default function WeeklyScheduleSection({
                         isCancelled: schedule.isCancelled,
                         emoji: schedule.emoji,
                         description: schedule.description,
+                        periods: schedule.periods,
+                        scope: scheduleScope,
                       })
                     }
                   >
                     {schedule.kind === "event" ? (
-                      <ScheduleLead $event>
-                        {schedule.emoji ?? "•"}
-                      </ScheduleLead>
+                      <ScheduleLead $event>{schedule.emoji ?? "•"}</ScheduleLead>
                     ) : (
                       <ScheduleIconWrap>
                         <ClassBadgeIcon classroomName={schedule.classroomName} size="1.125rem" />
@@ -188,21 +182,25 @@ export default function WeeklyScheduleSection({
             {canExpandSchedules ? (
               <MoreButton
                 type="button"
-                onClick={() => setShowAllSchedules((current) => !current)}
-                aria-expanded={showAllSchedules}
+                onClick={() =>
+                  setShowAllSchedules((current) => ({
+                    scope: scheduleScope,
+                    value: current.scope === scheduleScope ? !current.value : true,
+                  }))
+                }
+                aria-expanded={isExpanded}
               >
-                {showAllSchedules ? "접기" : "더보기"}
-                <MoreArrow $expanded={showAllSchedules}>⌄</MoreArrow>
+                {isExpanded ? "접기" : "펼치기"}
+                <MoreArrow $expanded={isExpanded}>
+                  <Image src="/down-arrow.svg" alt="" width={16} height={16} />
+                </MoreArrow>
               </MoreButton>
             ) : null}
           </ScheduleSection>
         )}
       </Card>
-      {selectedSchedule ? (
-        <ScheduleDetailModal
-          item={selectedSchedule}
-          onClose={() => setSelectedSchedule(null)}
-        />
+      {activeSchedule ? (
+        <ScheduleDetailModal item={activeSchedule} onClose={() => setSelectedSchedule(null)} />
       ) : null}
     </Section>
   );
@@ -422,8 +420,18 @@ const MoreButton = styled.button`
 
 const MoreArrow = styled.span<{ $expanded: boolean }>`
   display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+  align-items: center;
+  justify-content: center;
   transform: rotate(${({ $expanded }) => ($expanded ? "180deg" : "0deg")});
   transition: transform 0.2s ease;
+
+  img {
+    width: 100%;
+    height: 100%;
+    filter: brightness(0);
+  }
 `;
 
 const ScheduleTime = styled.span`

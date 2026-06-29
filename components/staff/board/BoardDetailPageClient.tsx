@@ -1,22 +1,19 @@
 "use client";
 
-import { IconDownload } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
-import { deletePost, getPost } from "@/api/post/post.api";
+import { deletePost, getPost, getPublicPost } from "@/api/post/post.api";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
 import BoardCommentSection from "@/components/staff/board/BoardCommentSection";
+import { AttachmentDownloadList } from "@/components/common/AttachmentField";
 import BoardShell from "@/components/staff/board/BoardShell";
 import {
   ActionButton,
   ActionLink,
   ContentStack,
   DocumentSection,
-  DownloadBadge,
   FieldBox,
-  FileLink,
-  FileList,
   Label,
   MetaBar,
   StateMessage,
@@ -27,19 +24,27 @@ import {
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { handlePostDeleteSuccess } from "@/lib/post/postDeleteCache";
 import { queryKeys } from "@/lib/queryKeys";
-import { colors, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type BoardDetailPageClientProps = {
   postId: number;
   channelId?: number;
+  allowPublicNotice?: boolean;
 };
 
-export default function BoardDetailPageClient({ postId, channelId }: BoardDetailPageClientProps) {
+export default function BoardDetailPageClient({
+  postId,
+  channelId,
+  allowPublicNotice = false,
+}: BoardDetailPageClientProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user } = useAuthSession();
+  const { user, status } = useAuthSession();
+  const isAuthenticated = status === "authenticated";
+  const isAuthPending = status === "loading";
+  const canReadPublicNotice = status === "unauthenticated" && allowPublicNotice;
   const hasChannelId = typeof channelId === "number" && Number.isFinite(channelId);
+  const requestMode = isAuthenticated ? "authenticated" : canReadPublicNotice ? "public" : "blocked";
 
   const deletePostMutation = useMutation({
     mutationFn: () => deletePost({ channelId: channelId ?? 0, postId }),
@@ -65,9 +70,16 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
   const isDeletingPost = deletePostMutation.isPending || deletePostMutation.isSuccess;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: queryKeys.posts.boardDetail(channelId ?? 0, postId),
-    queryFn: () => getPost({ channelId: channelId ?? 0, postId }),
-    enabled: hasChannelId && !isDeletingPost,
+    queryKey: [...queryKeys.posts.boardDetail(channelId ?? 0, postId), requestMode],
+    queryFn: () =>
+      requestMode === "public"
+        ? getPublicPost({ channelId: channelId ?? 0, postId })
+        : getPost({ channelId: channelId ?? 0, postId }),
+    enabled:
+      hasChannelId &&
+      !isDeletingPost &&
+      !isAuthPending &&
+      requestMode !== "blocked",
     retry: false,
   });
 
@@ -94,12 +106,16 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
   const stateMessage =
     !visiblePost && !hasChannelId
       ? "게시글 채널 정보가 없어 상세 내용을 불러오지 못했습니다."
+      : isAuthPending
+        ? "사용자 정보를 확인하는 중입니다."
       : deletePostMutation.isPending
         ? "게시글을 삭제하는 중입니다."
         : isLoading
           ? "게시글을 불러오는 중입니다."
           : isError && !visiblePost && !isDeletingPost
-            ? "게시글을 불러오지 못했습니다."
+            ? requestMode === "blocked"
+              ? "로그인이 필요한 게시글입니다."
+              : "게시글을 불러오지 못했습니다."
             : deletePostMutation.isError
               ? "게시글 삭제에 실패했습니다."
               : "";
@@ -150,31 +166,16 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
           </ViewerBox>
 
           <Label>자료</Label>
-          <FileList>
-            {attachments.length > 0 ? (
-              attachments.map((file, index) => {
-                const fileName = file.originalName ?? file.fileId ?? `자료 ${index + 1}`;
-                const fileUrl = file.downloadUrl ?? "#";
+          <AttachmentDownloadList
+            attachments={attachments.map((file, index) => ({
+              id: file.fileId ?? `${file.originalName}-${index}`,
+              fileId: file.fileId,
+              label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
+              href: file.downloadUrl ?? "#",
+            }))}
+          />
 
-                return (
-                  <FileLink
-                    key={`${file.fileId ?? fileName}-${index}`}
-                    href={fileUrl}
-                    aria-label={`${fileName} 다운로드`}
-                  >
-                    <span>{fileName}</span>
-                    <DownloadBadge aria-hidden="true">
-                      <IconDownload size={16} stroke={2.25} />
-                    </DownloadBadge>
-                  </FileLink>
-                );
-              })
-            ) : (
-              <EmptyAttachmentText>첨부된 자료가 없습니다.</EmptyAttachmentText>
-            )}
-          </FileList>
-
-          {hasChannelId && visiblePost?.allowComment !== false ? (
+          {isAuthenticated && hasChannelId && visiblePost?.allowComment !== false ? (
             <BoardCommentSection channelId={channelId} postId={postId} />
           ) : null}
         </ContentStack>
@@ -185,17 +186,4 @@ export default function BoardDetailPageClient({ postId, channelId }: BoardDetail
 
 const ActionToolbar = styled(Toolbar)`
   justify-content: flex-end;
-`;
-
-const EmptyAttachmentText = styled.span`
-  color: ${colors.placeholder};
-  font-size: ${typography.fontSize14};
-  font-weight: 500;
-  line-height: ${typography.lineHeight130};
-  cursor: default;
-  user-select: text;
-
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
 `;

@@ -17,6 +17,44 @@ export async function getEvents(query?: EventListQueryParamsDto) {
   return response.data;
 }
 
+export async function getAllEvents(query?: EventListQueryParamsDto) {
+  const initialPage = query?.page ?? 0;
+  const pageSize = query?.size ?? 100;
+  const firstPage = await getEvents({
+    ...query,
+    page: initialPage,
+    size: pageSize,
+  });
+  const totalPages = Math.max(firstPage.totalPages ?? 1, 1);
+
+  if (totalPages <= 1) {
+    return firstPage;
+  }
+
+  const remainingPages = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, index) =>
+      getEvents({
+        ...query,
+        page: initialPage + index + 1,
+        size: pageSize,
+      }),
+    ),
+  );
+
+  return {
+    ...firstPage,
+    content: [firstPage.content ?? [], ...remainingPages.map((page) => page.content ?? [])].flat(),
+    page: initialPage,
+    size: pageSize,
+    totalElements:
+      firstPage.totalElements ??
+      [firstPage.content ?? [], ...remainingPages.map((page) => page.content ?? [])]
+        .flat()
+        .length,
+    totalPages,
+  };
+}
+
 // 공개 행사 상세를 조회하는 요청
 export async function getEvent(pathParams: EventPathParamsDto) {
   const response = await publicClient.get<EventResponseDto>(

@@ -8,18 +8,16 @@ import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { getPosts } from "@/api/post/post.api";
 import type { PostSummaryResponseDto } from "@/api/post/post.dto";
+import {
+  ARCHIVE_DOCUMENTS_PER_PAGE,
+  type ArchiveDocumentConfig,
+} from "@/config/archiveDocuments";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
-import {
-  ARCHIVE_DOCUMENTS_PER_PAGE,
-  type ArchiveDocumentConfig,
-} from "@/mocks/archiveDocuments";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
-
-const FETCH_SIZE = 100;
 
 type ArchiveDocumentListPageProps = {
   config: ArchiveDocumentConfig;
@@ -87,8 +85,8 @@ export default function ArchiveDocumentListPage({
         channelType,
         channelId,
         title: searchKeyword.trim() || undefined,
-        page: 0,
-        size: FETCH_SIZE,
+        page: Math.max(0, requestedPage - 1),
+        size: ARCHIVE_DOCUMENTS_PER_PAGE,
     }),
     enabled: isAuthenticated && Boolean(channelId),
     retry: false,
@@ -111,13 +109,13 @@ export default function ArchiveDocumentListPage({
       return getPostTime(b) - getPostTime(a);
     });
 
-  const totalPages = Math.max(1, Math.ceil(filteredPosts.length / ARCHIVE_DOCUMENTS_PER_PAGE));
-  const currentPage = requestedPage > totalPages ? 1 : requestedPage;
-  const pagedPosts = filteredPosts.slice(
-    (currentPage - 1) * ARCHIVE_DOCUMENTS_PER_PAGE,
-    currentPage * ARCHIVE_DOCUMENTS_PER_PAGE,
-  );
-  const totalCount = filteredPosts.length;
+  // ponytail: mine-only stays page-local until the archive API has a confirmed author filter.
+  const totalPages = mineOnly
+    ? Math.max(1, Math.ceil(filteredPosts.length / ARCHIVE_DOCUMENTS_PER_PAGE))
+    : Math.max(1, postsQuery.data?.totalPages ?? 1);
+  const currentPage = Math.min(requestedPage, totalPages);
+  const pagedPosts = filteredPosts;
+  const totalCount = mineOnly ? filteredPosts.length : (postsQuery.data?.totalElements ?? filteredPosts.length);
 
   const rows: ListPanelRow[] = pagedPosts.map((post, index) => ({
     id: post.id ?? index + 1,

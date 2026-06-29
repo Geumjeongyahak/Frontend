@@ -13,20 +13,22 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     icons: [
       {
-        src: "/logo.svg",
+        src: "/pwa-logo.png",
         sizes: "84x84",
-        type: "image/svg+xml",
+        type: "image/png",
+        purpose: "any",
       },
       {
-        src: "/logo.svg",
+        src: "/pwa-logo.png",
         sizes: "84x84",
-        type: "image/svg+xml",
+        type: "image/png",
         purpose: "maskable",
       },
       {
-        src: "/icon",
+        src: "/pwa-splash-logo.png",
         sizes: "512x512",
         type: "image/png",
+        purpose: "any",
       },
     ],
   };

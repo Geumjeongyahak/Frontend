@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { IconPaperclip } from "@tabler/icons-react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
+import { deleteAttachment } from "@/api/file/file.api";
 import { createPost, getPost, pinPost, updatePost } from "@/api/post/post.api";
+import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
+import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
+import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import {
   ActionButton,
@@ -15,7 +19,6 @@ import {
   CheckboxLabel,
   DocumentSection,
   Form,
-  HiddenFileInput,
   Label,
   OptionRow,
   PageTitle,
@@ -27,9 +30,9 @@ import {
   getUploadArchiveDocument,
   publishArchivePostWithNewFiles,
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
+import type { ArchiveDocumentConfig } from "@/config/archiveDocuments";
 import { queryKeys } from "@/lib/queryKeys";
-import type { ArchiveDocumentConfig } from "@/mocks/archiveDocuments";
-import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { colors, layout, spacing, typography } from "@/styles/tokens";
 
 type ArchiveDocumentFormPageProps = {
   config: ArchiveDocumentConfig;
@@ -51,6 +54,10 @@ export default function ArchiveDocumentFormPage({
   const [isPinned, setIsPinned] = useState<boolean | undefined>(undefined);
   const [allowComment, setAllowComment] = useState<boolean | undefined>(undefined);
   const [files, setFiles] = useState<File[]>([]);
+  const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[] | null>(
+    null,
+  );
+  const shouldShowUploadToastRef = useRef(false);
 
   const channelsQuery = useQuery({
     queryKey: ["staff", "archive", "channels"],
@@ -78,6 +85,8 @@ export default function ArchiveDocumentFormPage({
   const visibleIsPinned = isPinned ?? postDetailQuery.data?.isPinned ?? false;
   const visibleAllowComment = allowComment ?? postDetailQuery.data?.allowComment ?? true;
   const existingAttachments = postDetailQuery.data?.attachments ?? [];
+  const visibleExistingAttachments = editableAttachments ?? existingAttachments;
+
   const canManagePost =
     !isEditMode ||
     user?.role === "ADMIN" ||
@@ -98,9 +107,11 @@ export default function ArchiveDocumentFormPage({
       const title = visibleTitle.trim();
       const contentHtml = visibleDescription.trim();
       const uploadArchiveDocument = getUploadArchiveDocument(config.category);
-      const sortOrderStart = isEditMode ? existingAttachments.length : 0;
+      const sortOrderStart = isEditMode ? visibleExistingAttachments.length : 0;
+      const hasFileUpload = Boolean(uploadArchiveDocument) && files.length > 0;
+      shouldShowUploadToastRef.current = hasFileUpload;
 
-      if (uploadArchiveDocument && files.length > 0) {
+      if (hasFileUpload && uploadArchiveDocument) {
         return publishArchivePostWithNewFiles({
           channelId,
           title,
@@ -123,9 +134,9 @@ export default function ArchiveDocumentFormPage({
 
       if (isEditMode) {
         const updatedPost = await updatePost(
-            { channelId, postId: editPostId },
-            { title, contentHtml, status: "PUBLISHED", allowComment: visibleAllowComment },
-          );
+          { channelId, postId: editPostId },
+          { title, contentHtml, status: "PUBLISHED", allowComment: visibleAllowComment },
+        );
 
         if (visibleIsPinned !== (postDetailQuery.data?.isPinned ?? false)) {
           await pinPost({ channelId, postId: editPostId }, { isPinned: visibleIsPinned });
@@ -134,17 +145,24 @@ export default function ArchiveDocumentFormPage({
         return updatedPost;
       }
 
-      return createPost({
-        channelId,
-      }, {
-        title,
-        contentHtml,
-        status: "PUBLISHED",
-        allowComment: visibleAllowComment,
-        isPinned: visibleIsPinned,
-      });
+      return createPost(
+        {
+          channelId,
+        },
+        {
+          title,
+          contentHtml,
+          status: "PUBLISHED",
+          allowComment: visibleAllowComment,
+          isPinned: visibleIsPinned,
+        },
+      );
     },
     onSuccess: async (post) => {
+      if (shouldShowUploadToastRef.current) {
+        toast.success("파일 업로드가 완료되었습니다.");
+      }
+
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["posts"] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.admin.posts(0, 50) }),
@@ -162,6 +180,9 @@ export default function ArchiveDocumentFormPage({
 
       router.push(config.listPath);
     },
+    onError: () => {
+      shouldShowUploadToastRef.current = false;
+    },
   });
 
   const canSubmit =
@@ -173,13 +194,30 @@ export default function ArchiveDocumentFormPage({
   const canShowDescriptionEditor =
     !isEditMode || Boolean(postDetailQuery.data) || postDetailQuery.isError;
 
+  async function handleRemoveExistingAttachment(fileId: string) {
+    const currentAttachments = visibleExistingAttachments;
+    await deleteAttachment({ fileId });
+    setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
+  }
+
+  function handleRemoveSelectedFile(file: File) {
+    setFiles((current) =>
+      current.filter(
+        (item) => !(item.name === file.name && item.lastModified === file.lastModified),
+      ),
+    );
+  }
+
   return (
     <DocumentSection>
       <Toolbar>
         <PageTitle>{isEditMode ? `${config.title} 수정하기` : config.writeTitle}</PageTitle>
-        <ActionButton type="submit" form={`${config.category}-form`} disabled={!canSubmit}>
-          {isEditMode ? "수정 완료" : "작성 완료"}
-        </ActionButton>
+        <ToolbarActions>
+          {isPending && files.length > 0 ? <FileUploadProgressNotice /> : null}
+          <ActionButton type="submit" form={`${config.category}-form`} disabled={!canSubmit}>
+            {isEditMode ? "수정 완료" : "작성 완료"}
+          </ActionButton>
+        </ToolbarActions>
       </Toolbar>
 
       <Form
@@ -245,30 +283,17 @@ export default function ArchiveDocumentFormPage({
         )}
 
         <Label>자료</Label>
-        <FileUploadPanel>
-          {existingAttachments.map((file, index) => (
-            <span key={`${file.fileId ?? file.originalName}-${index}`}>
-              {file.originalName ?? file.fileId ?? `자료 ${index + 1}`}
-            </span>
-          ))}
-          {files.length > 0 ? (
-            files.map((file) => <span key={`${file.name}-${file.lastModified}`}>{file.name}</span>)
-          ) : existingAttachments.length === 0 ? (
-            <span>선택된 파일이 없습니다.</span>
-          ) : null}
-          <FileSelectLabel>
-            <IconPaperclip aria-hidden="true" size={16} stroke={2.25} />
-            <span>파일 선택</span>
-            <HiddenFileInput
-              type="file"
-              name="files"
-              multiple
-              onChange={(event) => {
-                setFiles(Array.from(event.target.files ?? []));
-              }}
-            />
-          </FileSelectLabel>
-        </FileUploadPanel>
+        <AttachmentEditorPanel
+          existingAttachments={visibleExistingAttachments.map((file, index) => ({
+            id: file.fileId ?? `existing-${index}`,
+            label: file.originalName ?? file.fileId ?? `자료 ${index + 1}`,
+          }))}
+          selectedFiles={files}
+          onSelectFiles={(nextFiles) => setFiles((current) => [...current, ...nextFiles])}
+          onRemoveExisting={handleRemoveExistingAttachment}
+          onRemoveSelected={handleRemoveSelectedFile}
+          disabled={isPending}
+        />
 
         {postDetailQuery.isError ? (
           <StateMessage>수정할 {config.title} 내용을 불러오지 못했습니다.</StateMessage>
@@ -313,6 +338,18 @@ const ArchiveInput = styled.input`
   }
 `;
 
+const ToolbarActions = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space20};
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+`;
+
 const EditorBox = styled.div`
   width: 100%;
   border: 1px solid ${colors.muted};
@@ -320,76 +357,5 @@ const EditorBox = styled.div`
 
   .toastui-editor-defaultUI {
     border: 0;
-  }
-`;
-
-const FileUploadPanel = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: ${spacing.space20};
-  width: 100%;
-  min-height: 6.875rem;
-  border: 1px solid ${colors.muted};
-  background-color: ${colors.white};
-  padding: ${spacing.space20};
-
-  > span {
-    color: ${colors.text};
-    font-size: ${typography.fontSize14};
-    font-weight: 500;
-    line-height: ${typography.lineHeight130};
-    text-decoration: underline;
-    text-underline-position: from-font;
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 9.6875rem;
-    gap: 1.875rem;
-
-    > span {
-      font-size: ${typography.fontSize20};
-    }
-  }
-`;
-
-const FileSelectLabel = styled.label`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: ${spacing.space4};
-  min-height: 1.9375rem;
-  border: 1px solid ${colors.point};
-  border-radius: ${radii.radius15};
-  background-color: ${colors.pointSoft};
-  padding: 0.5rem 0.625rem;
-  color: ${colors.point};
-  font-size: ${typography.fontSize13};
-  font-weight: 600;
-  line-height: ${typography.lineHeight130};
-  cursor: pointer;
-
-  svg {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  &:hover {
-    background-color: #e5f5db;
-  }
-
-  @media (min-width: 120rem) {
-    min-height: 2.75rem;
-    padding: 0.625rem 0.9375rem;
-    font-size: ${typography.fontSize20};
-
-    svg {
-      width: 1.5rem;
-      height: 1.5rem;
-    }
-  }
-
-  @media (max-width: ${layout.breakpointMobile}) {
-    width: 100%;
   }
 `;

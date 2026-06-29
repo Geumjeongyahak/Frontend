@@ -9,14 +9,13 @@ import {
   getDailyScheduleDetailIfExists,
   updateTeacherAttendance,
 } from "@/api/dailySchedule/dailySchedule.api";
-import { getEvents } from "@/api/event/event.api";
-import { getLessons, getMyLessons } from "@/api/lesson/lesson.api";
+import { getAllEvents } from "@/api/event/event.api";
+import { filterEventsInDateRange } from "@/api/event/eventDisplay";
+import { getMyLessons } from "@/api/lesson/lesson.api";
 import { useNotificationInbox } from "@/pwa/hooks/useNotificationInbox";
+import { consumePendingAttendanceSuccessOverlay } from "@/pwa/pages/mobile-home/attendanceSuccessFlag";
 import { useAttendanceSuccessPopup } from "@/pwa/pages/mobile-home/hooks/useAttendanceSuccessPopup";
-import type {
-  MobileHomeDayValue,
-  MobileScheduleMode,
-} from "@/pwa/pages/mobile-home/types";
+import type { MobileHomeDayValue, MobileScheduleMode } from "@/pwa/pages/mobile-home/types";
 import {
   getCurrentDayValue,
   toAllScheduleItems,
@@ -46,6 +45,20 @@ function getTodayIsoDate() {
   return dayjs().format("YYYY-MM-DD");
 }
 
+function hasLessonStartedToday(startTime?: string) {
+  if (!startTime) {
+    return false;
+  }
+
+  const startedAt = dayjs(`${getTodayIsoDate()}T${startTime}`);
+
+  if (!startedAt.isValid()) {
+    return false;
+  }
+
+  return !startedAt.isAfter(dayjs());
+}
+
 export function useMobileHomeScreen() {
   const { isAuthenticated, isAuthLoading, navigateWhenAuthenticated, user } =
     useProtectedHomeNavigation();
@@ -55,12 +68,6 @@ export function useMobileHomeScreen() {
   const [scheduleMode, setScheduleMode] = useState<MobileScheduleMode>("all");
   const [isAttendanceResolving, setIsAttendanceResolving] = useState(false);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setScheduleMode("all");
-    }
-  }, [isAuthenticated]);
-
   const weekFrom = dayjs().startOf("isoWeek").format("YYYY-MM-DD");
   const weekTo = dayjs().endOf("isoWeek").format("YYYY-MM-DD");
   const today = getTodayIsoDate();
@@ -68,13 +75,6 @@ export function useMobileHomeScreen() {
   const todayLessonsQuery = useQuery({
     queryKey: queryKeys.lessons.myWeekly(today, today),
     queryFn: () => getMyLessons({ from: today, to: today }),
-    enabled: isAuthenticated,
-    retry: false,
-  });
-
-  const allLessonsQuery = useQuery({
-    queryKey: queryKeys.lessons.weekly(weekFrom, weekTo),
-    queryFn: () => getLessons({ from: weekFrom, to: weekTo }),
     enabled: isAuthenticated,
     retry: false,
   });
@@ -88,10 +88,13 @@ export function useMobileHomeScreen() {
 
   const weeklyEventsQuery = useQuery({
     queryKey: queryKeys.events.weekly(weekFrom, weekTo),
-    queryFn: () => getEvents({ startDate: weekFrom, endDate: weekTo, page: 0, size: 100 }),
-    enabled: isAuthenticated,
+    queryFn: () => getAllEvents({ page: 0, size: 100 }),
     retry: false,
   });
+  const weeklyEvents = useMemo(
+    () => filterEventsInDateRange(weeklyEventsQuery.data?.content ?? [], weekFrom, weekTo),
+    [weekFrom, weekTo, weeklyEventsQuery.data?.content],
+  );
 
   const todayLesson = useMemo(() => {
     if (!isAuthenticated) {
@@ -103,7 +106,9 @@ export function useMobileHomeScreen() {
         (lesson) =>
           !lesson.isAbsent && lesson.status !== "CANCELED" && lesson.status !== "CANCELLED",
       )
-      .sort((left, right) => (left.startTime ?? "99:99").localeCompare(right.startTime ?? "99:99"))[0];
+      .sort((left, right) =>
+        (left.startTime ?? "99:99").localeCompare(right.startTime ?? "99:99"),
+      )[0];
   }, [isAuthenticated, todayLessonsQuery.data]);
 
   const attendanceQuery = useQuery({
@@ -130,22 +135,25 @@ export function useMobileHomeScreen() {
       return [];
     }
 
-    return toMyLessonCardItems(myLessonsQuery.data ?? []).filter((item) => item.dayValue === selectedDay);
+    return toMyLessonCardItems(myLessonsQuery.data ?? []).filter(
+      (item) => item.dayValue === selectedDay,
+    );
   }, [isAuthenticated, myLessonsQuery.data, selectedDay]);
 
   const allScheduleItems = useMemo(() => {
-    if (!isAuthenticated) {
-      return [];
-    }
-
-    return toAllScheduleItems(allLessonsQuery.data ?? [], weeklyEventsQuery.data?.content ?? []).filter(
-      (item) => item.dayValue === selectedDay,
-    );
-  }, [allLessonsQuery.data, isAuthenticated, selectedDay, weeklyEventsQuery.data?.content]);
+    return toAllScheduleItems(
+      isAuthenticated ? (myLessonsQuery.data ?? []) : [],
+      weeklyEvents,
+    ).filter((item) => item.dayValue === selectedDay);
+  }, [isAuthenticated, myLessonsQuery.data, selectedDay, weeklyEvents]);
 
   const hasCompletedAttendance =
     attendanceQuery.data?.teacherAttendance?.status === "PRESENT" ||
     attendanceQuery.data?.teacherAttendanceStatus === "PRESENT";
+  const hasCheckedOut =
+    attendanceQuery.data?.teacherAttendance?.isCheckedOut === true ||
+    attendanceQuery.data?.isTeacherCheckedOut === true;
+  const hasLessonStarted = hasLessonStartedToday(todayLesson?.startTime);
 
   const attendanceMutation = useMutation({
     mutationFn: ({ latitude, longitude }: { latitude: number; longitude: number }) =>
@@ -159,8 +167,8 @@ export function useMobileHomeScreen() {
       ),
     onSuccess: () => {
       setIsAttendanceResolving(false);
-      popup.show();
-      toast.success("출석이 완료되었습니다.");
+      popup.show("attendance");
+      toast.success("출근이 완료되었습니다.");
       attendanceQuery.refetch().catch(() => undefined);
     },
     onError: () => {
@@ -168,12 +176,23 @@ export function useMobileHomeScreen() {
       toast.error("출석 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
     },
   });
-
   const isAttendanceReady =
     isAuthenticated &&
     isAttendanceLocationConfigured() &&
     typeof attendanceQuery.data?.dailyScheduleId === "number" &&
+    hasLessonStarted &&
     !hasCompletedAttendance;
+  const isCheckoutReady =
+    isAuthenticated &&
+    typeof attendanceQuery.data?.dailyScheduleId === "number" &&
+    hasLessonStarted &&
+    hasCompletedAttendance &&
+    !hasCheckedOut;
+  const sliderMode: "attendance" | "checkout" | "completed" = hasCheckedOut
+    ? "completed"
+    : isCheckoutReady
+      ? "checkout"
+      : "attendance";
 
   const attendanceGuide = !isAuthenticated
     ? "로그인 후 이용해 주세요"
@@ -181,11 +200,23 @@ export function useMobileHomeScreen() {
       ? "오늘 진행 예정인 수업이 없습니다."
       : !isAttendanceLocationConfigured()
         ? "환경 변수에 출석 위치가 설정되지 않았습니다."
-        : typeof attendanceQuery.data?.dailyScheduleId !== "number"
+      : typeof attendanceQuery.data?.dailyScheduleId !== "number"
           ? "오늘 수업 일정이 아직 생성되지 않았습니다."
-          : hasCompletedAttendance
-            ? "오늘 출석을 이미 완료했습니다."
+          : !hasLessonStarted
+            ? "수업 시간이 되면 출석할 수 있습니다."
+          : hasCheckedOut
+            ? "오늘 수업의 출석과 퇴근을 모두 완료했습니다."
+            : hasCompletedAttendance
+              ? "퇴근을 완료하려면 수업 일지를 작성해야 합니다."
             : `${ATTENDANCE_TARGET_LABEL} 반경 ${ATTENDANCE_TARGET_RADIUS_METERS}m 안에서 출석할 수 있습니다.`;
+
+  useEffect(() => {
+    const pendingOverlayVariant = consumePendingAttendanceSuccessOverlay();
+
+    if (pendingOverlayVariant) {
+      popup.show(pendingOverlayVariant);
+    }
+  }, [popup.show]);
 
   function completeAttendance({ reset }: { reset: () => void }) {
     if (!isAttendanceReady || attendanceMutation.isPending || isAttendanceResolving) {
@@ -236,6 +267,10 @@ export function useMobileHomeScreen() {
     );
   }
 
+  function openCheckoutJournal() {
+    navigateWhenAuthenticated("/journal/write");
+  }
+
   return {
     userName: user?.name ?? "선생님",
     isAuthLoading,
@@ -248,12 +283,17 @@ export function useMobileHomeScreen() {
     setScheduleMode,
     unreadCount,
     popupVisible: popup.isVisible,
+    popupVariant: popup.variant,
     todayLesson,
     myLessonCards,
     allScheduleItems,
+    sliderMode,
     isAttendanceReady,
+    isCheckoutReady,
     isAttendancePending: isAttendanceResolving || attendanceMutation.isPending,
+    isCheckoutPending: false,
     hasCompletedAttendance,
+    hasCheckedOut,
     attendanceGuide,
     scheduleEmptyMessage:
       !isAuthenticated && scheduleMode === "mine"
@@ -265,11 +305,10 @@ export function useMobileHomeScreen() {
       ? `${todayLesson.classroomName}\u00A0수업`
       : "오늘 수업이 없습니다",
     loadingSchedule:
-      isAuthenticated &&
-      (allLessonsQuery.isLoading ||
-        myLessonsQuery.isLoading ||
-        weeklyEventsQuery.isLoading ||
-        todayLessonsQuery.isLoading),
+      weeklyEventsQuery.isLoading ||
+      (isAuthenticated &&
+        (myLessonsQuery.isLoading || todayLessonsQuery.isLoading)),
     completeAttendance,
+    openCheckoutJournal,
   };
 }

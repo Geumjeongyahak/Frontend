@@ -83,10 +83,7 @@ function toDescriptionItems(value: string) {
     .filter(Boolean);
 }
 
-function mapClassItems(
-  groupId: ClassGroupId,
-  items: SiteContentClassResponseDto[] | undefined,
-) {
+function mapClassItems(groupId: ClassGroupId, items: SiteContentClassResponseDto[] | undefined) {
   return (
     items
       ?.map((item) => {
@@ -780,18 +777,6 @@ const EmptyState = styled.p`
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize20};
   }
-`;
-
-const VisuallyHidden = styled.h3`
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
 `;
 
 const EditorBackdrop = styled.div`

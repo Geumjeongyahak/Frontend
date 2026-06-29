@@ -8,8 +8,10 @@ import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
 import {
+  attachMeetingRecordFile,
   createAbsenceReport,
   createMeetingRecord,
+  deleteMeetingRecordAttachment,
   getMeetingRecords,
   updateMeetingRecord,
 } from "./meetingRecord.api";
@@ -62,6 +64,56 @@ describe("meetingRecord.api", () => {
 
     expect(observedCreateBody).toEqual({ title: "회의", agenda: "안건" });
     expect(observedUpdateBody).toEqual({ discussion: "논의" });
+  });
+
+  it("uploads a file to a meeting record via multipart", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedUrl = "";
+    let observedContentType = "";
+
+    server.use(
+      http.post(
+        `${API_BASE_URL}/api/v1/meeting-records/1/attachments`,
+        ({ request }) => {
+          observedUrl = request.url;
+          observedContentType = request.headers.get("content-type") ?? "";
+          return HttpResponse.json({
+            fileId: "mock-uuid",
+            originalName: "test.pdf",
+            isGoogleDrive: false,
+          });
+        },
+      ),
+    );
+
+    const file = new File(["content"], "test.pdf", { type: "application/pdf" });
+    const response = await attachMeetingRecordFile({ recordId: 1 }, file, "test.pdf");
+
+    expect(response.fileId).toBe("mock-uuid");
+    expect(response.originalName).toBe("test.pdf");
+    expect(observedUrl).toContain("/meeting-records/1/attachments");
+    expect(observedContentType).toContain("multipart/form-data");
+  });
+
+  it("deletes a meeting record attachment", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedUrl = "";
+
+    server.use(
+      http.delete(
+        `${API_BASE_URL}/api/v1/meeting-records/1/attachments/file-abc`,
+        ({ request }) => {
+          observedUrl = request.url;
+          return new HttpResponse(null, { status: 204 });
+        },
+      ),
+    );
+
+    await deleteMeetingRecordAttachment({ recordId: 1, fileId: "file-abc" });
+
+    expect(observedUrl).toContain("/meeting-records/1/attachments/file-abc");
   });
 
   it("creates an absence report for a meeting record", async () => {

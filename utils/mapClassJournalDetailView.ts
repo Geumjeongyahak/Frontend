@@ -3,7 +3,8 @@ import type {
   DailyScheduleLessonResponseDto,
   UpdateDailyScheduleJournalRequestDto,
 } from "@/api/dailySchedule/dailySchedule.dto";
-import { formatPhone } from "@/lib/googleSheet/classJournal/classJournalSheetPayload";
+import { getDailyStudentAttendanceLabel } from "@/utils/dailyStudentAttendance";
+import { formatPhone } from "@/utils/formatPhone";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const LESSON_PERIOD_COUNT = 3;
@@ -54,13 +55,6 @@ export function buildUpdateJournalBody(
   };
 }
 
-function formatAttendanceStatus(status?: string) {
-  if (status === "PRESENT") return "O";
-  if (status === "ABSENT") return "X";
-  if (status === "LATE") return "X";
-  return "";
-}
-
 export type ClassJournalDetailView = {
   createdAt: string;
   writer: string;
@@ -93,7 +87,7 @@ export function mapClassJournalDetailView(
       if (!student) return { name: "", status: "" };
       return {
         name: student.studentName ?? "",
-        status: formatAttendanceStatus(student.status),
+        status: getDailyStudentAttendanceLabel(student.status),
       };
     }),
   };

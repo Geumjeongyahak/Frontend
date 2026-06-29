@@ -70,28 +70,6 @@ export default function TeacherApplyFormPage() {
     }
   }, [router, status]);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      return;
-    }
-
-    setForm((current) => ({
-      ...current,
-      birthDate:
-        current.birthDate ||
-        toBirthDateInputValue(user?.birthDate ?? user?.residentRegistrationNumberPrefix) ||
-        "",
-      email: current.email || user?.email || "",
-      phoneNumber: current.phoneNumber || user?.phoneNumber || "",
-    }));
-  }, [
-    isAuthenticated,
-    user?.birthDate,
-    user?.email,
-    user?.phoneNumber,
-    user?.residentRegistrationNumberPrefix,
-  ]);
-
   const applicationQuery = useQuery({
     queryKey: queryKeys.teacherApplications.my(),
     queryFn: getMyTeacherApplication,
@@ -120,14 +98,28 @@ export default function TeacherApplyFormPage() {
     [schedulesQuery.data],
   );
 
-  useEffect(() => {
-    if (!form.preferredSubjectId && scheduleOptions[0]) {
-      setForm((current) => ({
-        ...current,
-        preferredSubjectId: String(scheduleOptions[0].preferredSubjectId),
-      }));
-    }
-  }, [form.preferredSubjectId, scheduleOptions]);
+  const resolvedForm = useMemo<FormState>(
+    () => ({
+      ...form,
+      birthDate:
+        form.birthDate ||
+        toBirthDateInputValue(user?.birthDate ?? user?.residentRegistrationNumberPrefix) ||
+        "",
+      email: form.email || user?.email || "",
+      phoneNumber: form.phoneNumber || user?.phoneNumber || "",
+      preferredSubjectId:
+        form.preferredSubjectId ||
+        (scheduleOptions[0] ? String(scheduleOptions[0].preferredSubjectId) : ""),
+    }),
+    [
+      form,
+      scheduleOptions,
+      user?.birthDate,
+      user?.email,
+      user?.phoneNumber,
+      user?.residentRegistrationNumberPrefix,
+    ],
+  );
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateTeacherApplicationRequestDto) => createTeacherApplication(payload),
@@ -178,7 +170,7 @@ export default function TeacherApplyFormPage() {
       return;
     }
 
-    const preferredSubjectId = Number(form.preferredSubjectId);
+    const preferredSubjectId = Number(resolvedForm.preferredSubjectId);
     if (!Number.isFinite(preferredSubjectId)) {
       setSubmitSuccess("");
       setSubmitError("지원 희망 과목을 선택해 주세요.");
@@ -186,15 +178,15 @@ export default function TeacherApplyFormPage() {
     }
 
     createMutation.mutate({
-      birthDate: form.birthDate,
-      phoneNumber: form.phoneNumber.trim(),
-      email: form.email.trim(),
-      address: form.address.trim(),
-      educationAndMajor: form.educationAndMajor.trim(),
+      birthDate: resolvedForm.birthDate,
+      phoneNumber: resolvedForm.phoneNumber.trim(),
+      email: resolvedForm.email.trim(),
+      address: resolvedForm.address.trim(),
+      educationAndMajor: resolvedForm.educationAndMajor.trim(),
       preferredSubjectId,
-      motivation: form.motivation.trim(),
-      desiredTeacherImage: form.desiredTeacherImage.trim(),
-      meaningOfSharing: form.meaningOfSharing.trim(),
+      motivation: resolvedForm.motivation.trim(),
+      desiredTeacherImage: resolvedForm.desiredTeacherImage.trim(),
+      meaningOfSharing: resolvedForm.meaningOfSharing.trim(),
     });
   }
 
@@ -233,7 +225,7 @@ export default function TeacherApplyFormPage() {
               id="birthDate"
               name="birthDate"
               type="date"
-              value={form.birthDate}
+              value={resolvedForm.birthDate}
               readOnly
               required
             />
@@ -251,7 +243,7 @@ export default function TeacherApplyFormPage() {
               name="phoneNumber"
               type="tel"
               placeholder="000-0000-0000"
-              value={form.phoneNumber}
+              value={resolvedForm.phoneNumber}
               readOnly
               required
             />
@@ -264,7 +256,7 @@ export default function TeacherApplyFormPage() {
               name="email"
               type="email"
               placeholder="이메일"
-              value={form.email}
+              value={resolvedForm.email}
               readOnly
               required
             />
@@ -277,7 +269,7 @@ export default function TeacherApplyFormPage() {
               name="address"
               type="text"
               placeholder="주소"
-              value={form.address}
+              value={resolvedForm.address}
               onChange={(event) => handleInputChange("address", event.target.value)}
               required
             />
@@ -290,7 +282,7 @@ export default function TeacherApplyFormPage() {
               name="educationAndMajor"
               type="text"
               placeholder="학력, 전공 순으로 작성해주세요"
-              value={form.educationAndMajor}
+              value={resolvedForm.educationAndMajor}
               onChange={(event) => handleInputChange("educationAndMajor", event.target.value)}
               required
             />
@@ -310,7 +302,7 @@ export default function TeacherApplyFormPage() {
               <SelectInput
                 id="preferredSubjectId"
                 name="preferredSubjectId"
-                value={form.preferredSubjectId}
+                value={resolvedForm.preferredSubjectId}
                 onChange={(event) => handleInputChange("preferredSubjectId", event.target.value)}
                 required
               >
@@ -329,7 +321,7 @@ export default function TeacherApplyFormPage() {
               <TextArea
                 id={question.id}
                 name={question.id}
-                value={form[question.id]}
+                value={resolvedForm[question.id]}
                 onChange={(event) => handleInputChange(question.id, event.target.value)}
                 placeholder="답변을 작성해주세요"
                 required

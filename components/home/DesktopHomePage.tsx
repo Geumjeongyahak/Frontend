@@ -86,6 +86,7 @@ const BottomGrid = styled.div`
   grid-template-areas:
     "notice meeting"
     "notice event";
+  align-items: start;
   gap: 1.5rem 1.9375rem;
 
   @media (min-width: 120rem) {
@@ -116,8 +117,14 @@ const NoticeArea = styled.div`
 
 const MeetingArea = styled.div`
   grid-area: meeting;
+  min-height: 19.5rem;
+
+  @media (min-width: 120rem) {
+    min-height: 27.25rem;
+  }
 `;
 
 const EventArea = styled.div`
   grid-area: event;
+  align-self: start;
 `;

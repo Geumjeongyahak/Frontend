@@ -56,20 +56,6 @@ export default function TeacherApplyStatusPage() {
     return applicationQuery.data?.exists && application ? [application] : [];
   }, [applicationQuery.data?.application, applicationQuery.data?.exists]);
 
-  useEffect(() => {
-    if (!applications.length) {
-      setSelectedApplicationId(null);
-      setIsDetailOpen(false);
-      return;
-    }
-
-    setSelectedApplicationId((current) =>
-      current && applications.some((application) => application.id === current)
-        ? current
-        : applications[0]?.id ?? null,
-    );
-  }, [applications]);
-
   if (!isAuthenticated) {
     return (
       <ApplyLayout activeItem="status">
@@ -81,8 +67,11 @@ export default function TeacherApplyStatusPage() {
   }
 
   const selectedApplication =
-    applications.find((application) => application.id === selectedApplicationId) ?? null;
+    applications.find((application) => application.id === selectedApplicationId) ??
+    applications[0] ??
+    null;
   const fields = getTeacherApplicationFields(selectedApplication);
+  const isApplicationDetailOpen = isDetailOpen && selectedApplication !== null;
 
   function handleCancel() {
     if (!selectedApplication?.id || cancelMutation.isPending) {
@@ -105,7 +94,7 @@ export default function TeacherApplyStatusPage() {
           <StateMessage role="alert">지원 현황을 불러오지 못했습니다.</StateMessage>
         ) : applications.length === 0 ? (
           <StateMessage>지원 현황이 없습니다.</StateMessage>
-        ) : !isDetailOpen ? (
+        ) : !isApplicationDetailOpen ? (
           <ApplicationListSection>
             <SectionTitle>지원 목록</SectionTitle>
             <ApplicationList>
