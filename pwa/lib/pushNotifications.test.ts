@@ -2,12 +2,13 @@ import "../../test/setup";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { subscribePush } from "../../api/push/push.api";
+import { getAdminPushConfig, subscribePush } from "../../api/push/push.api";
 
 import { PUSH_TOKEN_STORAGE_KEY, syncPushSubscription } from "./pushNotifications";
 
 vi.mock("../../api/push/push.api", () => ({
   getAdminPushConfig: vi.fn(async () => ({
+    enabled: true,
     apiKey: "api-key",
     authDomain: "auth.example.com",
     projectId: "project-id",
@@ -79,5 +80,21 @@ describe("syncPushSubscription", () => {
     expect(requestPermission).toHaveBeenCalledTimes(1);
     expect(subscribePush).toHaveBeenCalledWith({ token: "fcm-token", deviceType: "WEB" });
     expect(window.localStorage.getItem(PUSH_TOKEN_STORAGE_KEY)).toBe("fcm-token");
+  });
+
+  it("does not subscribe when backend push config is disabled", async () => {
+    vi.mocked(getAdminPushConfig).mockResolvedValueOnce({
+      enabled: false,
+      apiKey: "api-key",
+      projectId: "project-id",
+      messagingSenderId: "sender-id",
+      appId: "app-id",
+      vapidKey: "vapid-key",
+    });
+    setNotification("granted");
+
+    await syncPushSubscription();
+
+    expect(subscribePush).not.toHaveBeenCalled();
   });
 });

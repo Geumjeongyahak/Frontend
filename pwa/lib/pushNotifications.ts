@@ -13,10 +13,9 @@ type SyncPushSubscriptionOptions = {
 
 function hasFirebaseConfig(config: AdminPushConfigResponseDto) {
   return Boolean(
-    config.apiKey &&
-      config.authDomain &&
+    config.enabled &&
+      config.apiKey &&
       config.projectId &&
-      config.storageBucket &&
       config.messagingSenderId &&
       config.appId &&
       config.vapidKey,

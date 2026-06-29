@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
-import { getEventDisplayDate, getEventDisplayId, getEventDisplayTitle } from "@/api/event/eventDisplay";
+import { getEventDisplayDate, getEventDisplayId, getEventDisplayTitle } from "../api/event/eventDisplay";
 import type { EventResponseDto } from "@/api/event/event.dto";
 import type { SubjectDayOfWeek } from "@/api/subject/subject.dto";
 import type { UserTeacherAssignmentResponseDto } from "@/api/user/user.dto";
