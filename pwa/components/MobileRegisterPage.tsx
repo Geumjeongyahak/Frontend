@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { signup } from "@/api/auth/auth.api";
+import { getSignupErrorMessage } from "@/components/auth/authErrorMessages";
+import { setPendingEmailVerificationEmail } from "@/components/auth/emailVerificationSession";
 import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { openDatePicker } from "@/utils/datePicker";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
@@ -63,16 +65,18 @@ export default function MobileRegisterPage() {
     setStatusMessage("");
 
     try {
+      const email = form.email.trim();
       await signup({
         password: form.password,
         name: form.name.trim(),
-        email: form.email.trim(),
+        email,
         birthDate: form.birthDate,
         phoneNumber: form.phoneNumber.trim() || undefined,
       });
-      router.replace(`/auth/email-verification?email=${encodeURIComponent(form.email.trim())}`);
-    } catch {
-      setStatusMessage("회원가입 정보를 확인해 주세요.");
+      setPendingEmailVerificationEmail(email);
+      router.replace("/auth/email-verification");
+    } catch (error) {
+      setStatusMessage(getSignupErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }
