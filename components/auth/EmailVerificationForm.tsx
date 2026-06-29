@@ -3,31 +3,40 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IconAlertTriangle, IconCircleCheck, IconMailCheck } from "@tabler/icons-react";
-import { confirmEmailVerification, resendEmailVerification } from "@/api/auth/auth.api";
-import { getVerificationStatusMessage } from "@/components/auth/authErrorMessages";
+import { confirmEmailVerification, resendEmailVerification } from "../../api/auth/auth.api";
+import { baseURL } from "../../api/client/publicClient";
+import { getVerificationStatusMessage } from "./authErrorMessages";
 import AuthActionCard, {
   ActionButton,
   ActionForm,
   InlineActionButton,
   type ActionTone,
-} from "@/components/auth/AuthActionCard";
+} from "./AuthActionCard";
 import {
   clearPendingEmailVerificationEmail,
   getPendingEmailVerificationEmail,
-} from "@/components/auth/emailVerificationSession";
+} from "./emailVerificationSession";
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
 type EmailVerificationFormProps = {
   email: string;
   verificationCode: string;
+  token?: string;
   resultStatus?: string;
   errorCode?: string;
 };
 
+export function buildEmailVerificationTokenConfirmUrl(apiBaseURL: string, token: string) {
+  const url = new URL("/api/v1/auth/email-verification/confirm", apiBaseURL);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
 export default function EmailVerificationForm({
   email,
   verificationCode,
+  token = "",
   resultStatus = "",
   errorCode = "",
 }: EmailVerificationFormProps) {
@@ -35,20 +44,21 @@ export default function EmailVerificationForm({
   const isSuccessRedirect = resultStatus === "success";
   const isFailureRedirect = resultStatus === "invalid" || resultStatus === "expired";
   const hasVerificationLink = Boolean(email && verificationCode);
+  const hasTokenLink = Boolean(token);
   const [resendEmail] = useState(() => email || getPendingEmailVerificationEmail() || "");
   const [statusMessage, setStatusMessage] = useState(
     isSuccessRedirect
       ? getVerificationStatusMessage("success")
       : isFailureRedirect
         ? getVerificationStatusMessage(resultStatus, errorCode)
-        : hasVerificationLink
+        : hasVerificationLink || hasTokenLink
           ? "이메일 인증을 확인하고 있습니다."
           : "메일의 인증하기 버튼을 눌러 인증을 완료해 주세요.",
   );
   const [statusTone, setStatusTone] = useState<ActionTone>(
     isSuccessRedirect ? "success" : isFailureRedirect ? "error" : "default",
   );
-  const [isSubmitting, setIsSubmitting] = useState(hasVerificationLink && !resultStatus);
+  const [isSubmitting, setIsSubmitting] = useState((hasVerificationLink || hasTokenLink) && !resultStatus);
   const [cooldown, setCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSubmittedRef = useRef(false);
@@ -71,6 +81,15 @@ export default function EmailVerificationForm({
       if (cooldownRef.current) clearInterval(cooldownRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (resultStatus || !token || autoSubmittedRef.current) {
+      return;
+    }
+
+    autoSubmittedRef.current = true;
+    window.location.assign(buildEmailVerificationTokenConfirmUrl(baseURL, token));
+  }, [resultStatus, token]);
 
   useEffect(() => {
     if (resultStatus || !email || !verificationCode || autoSubmittedRef.current) {
@@ -112,7 +131,7 @@ export default function EmailVerificationForm({
   }
 
   const isError = statusTone === "error";
-  const showLoginAction = hasVerificationLink || isSuccessRedirect;
+  const showLoginAction = hasVerificationLink || hasTokenLink || isSuccessRedirect;
   const isComplete = statusTone === "success" && showLoginAction && !isSubmitting;
   const icon = isError ? (
     <IconAlertTriangle aria-hidden="true" />
