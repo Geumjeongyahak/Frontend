@@ -20,7 +20,13 @@ export const WEEKEND_COLUMNS: { value: SubjectDayOfWeek; label: string; isoWeekd
 
 export const DISPLAY_PERIODS = [1, 2, 3] as const;
 
-export type WeeklyScheduleStatus = "EXCHANGED" | "SUBSTITUTED" | "CANCELLED";
+export type WeeklyScheduleStatus =
+  | "EXCHANGED"
+  | "SUBSTITUTED"
+  | "CANCELLED"
+  | "ABSENT"
+  | "ATTENDED"
+  | "CHECKED_OUT";
 
 export type WeeklyScheduleOverride = {
   status?: WeeklyScheduleStatus;
@@ -111,6 +117,42 @@ export function buildScheduleOverrides(
         relatedDate: lesson.exchangedLessonDate ?? undefined,
       });
       continue;
+    }
+
+    const periodSubject = getPeriodSubject(cellSubjects, lesson.period);
+    const hasAssignedTeacher =
+      Boolean(lesson.teacherName?.trim()) || Boolean(periodSubject?.teacherName?.trim());
+    const isTeacherAttended = lesson.teacherAttendance?.isAttended === true;
+    const isTeacherCheckedOut = lesson.teacherAttendance?.isCheckedOut === true;
+
+    if (hasAssignedTeacher) {
+      if (isTeacherCheckedOut) {
+        overrides.set(lesson.period, {
+          ...lessonOverrideBase,
+          status: "CHECKED_OUT",
+        });
+        continue;
+      }
+
+      if (isTeacherAttended) {
+        overrides.set(lesson.period, {
+          ...lessonOverrideBase,
+          status: "ATTENDED",
+        });
+        continue;
+      }
+
+      if (
+        lesson.teacherAttendance &&
+        lesson.teacherAttendance.isAttended === false &&
+        lesson.teacherAttendance.isCheckedOut === false
+      ) {
+        overrides.set(lesson.period, {
+          ...lessonOverrideBase,
+          status: "ABSENT",
+        });
+        continue;
+      }
     }
 
     if (lesson.teacherName?.trim() || lesson.subjectName?.trim()) {

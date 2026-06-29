@@ -52,17 +52,16 @@ type PeriodNumber = (typeof DISPLAY_PERIODS)[number];
 type ScheduleCellSelection = {
   classroomName: string;
   classroomType?: ClassroomType;
+  status?: WeeklyScheduleOverride["status"];
+  assignmentDateRange?: string;
   date: string;
   dayLabel: string;
   teacherName: string;
   periods: Array<{
     period: number;
     subjectName: string;
-    status?: WeeklyScheduleOverride["status"];
-    exchangeDescription?: string;
     startTime?: string;
     endTime?: string;
-    assignmentDateRange?: string;
   }>;
 };
 
@@ -120,11 +119,14 @@ function formatSubjectName(subject?: SubjectDetailResponseDto, override?: Weekly
   return subject?.name?.trim() || "미등록";
 }
 
-function formatExchangeDescription(override: WeeklyScheduleOverride) {
-  if (override.status === "SUBSTITUTED") return "대체";
-  if (override.status !== "EXCHANGED") return "";
-  if (!override.relatedDate) return "교환";
-  return `${override.relatedDate} 수업과 교환`;
+function formatStatusLabel(status?: WeeklyScheduleOverride["status"]) {
+  if (status === "EXCHANGED") return "교환";
+  if (status === "SUBSTITUTED") return "대체";
+  if (status === "CANCELLED") return "결강";
+  if (status === "ABSENT") return "결근";
+  if (status === "ATTENDED") return "출근";
+  if (status === "CHECKED_OUT") return "퇴근";
+  return "";
 }
 
 function formatWeekNavigatorLabel(weekStartDate: string) {
@@ -232,18 +234,13 @@ function ScheduleTable({
                     return {
                       period,
                       subjectName: formatSubjectName(subject, override),
-                      status: override?.status,
-                      exchangeDescription:
-                        override?.status === "EXCHANGED"
-                          ? formatExchangeDescription(override)
-                          : undefined,
                       startTime: lessonTimeRange?.startTime,
                       endTime: lessonTimeRange?.endTime,
-                      assignmentDateRange: subject
-                        ? formatSubjectDateRange(subject.startAt, subject.endAt)
-                        : undefined,
                     };
                   });
+                  const assignmentDateRange = cellSubjects
+                    .map((subject) => formatSubjectDateRange(subject.startAt, subject.endAt))
+                    .find((value) => value.trim().length > 0);
 
                   return (
                     <ScheduleCellButton
@@ -254,6 +251,8 @@ function ScheduleTable({
                         onSelectCell({
                           classroomName: classroom.name ?? "이름 없음",
                           classroomType: classroom.type,
+                          status: firstStatusOverride?.status,
+                          assignmentDateRange,
                           date,
                           dayLabel: column.label,
                           teacherName: getTeacherName(cellSubjects, firstOverride),
@@ -264,11 +263,7 @@ function ScheduleTable({
                       <TeacherRow>
                         {firstStatusOverride?.status ? (
                           <StatusPill $status={firstStatusOverride.status}>
-                            {firstStatusOverride.status === "EXCHANGED"
-                              ? "교환"
-                              : firstStatusOverride.status === "SUBSTITUTED"
-                                ? "대체"
-                                : "결강"}
+                            {formatStatusLabel(firstStatusOverride.status)}
                           </StatusPill>
                         ) : null}
 
@@ -374,10 +369,7 @@ export default function MobileWeeklySchedulePage() {
   };
 
   return (
-    <MobileRequestShell
-      backHref="/"
-      title="시간표"
-    >
+    <MobileRequestShell backHref="/" title="시간표">
       {!isAuthenticated ? (
         <StatePanel>
           {isAuthLoading ? (
@@ -445,8 +437,17 @@ export default function MobileWeeklySchedulePage() {
             </HeaderBottomRow>
           </NavigatorCard>
 
-          {isBaseLoading ? <StatePanel><AuthStatusSpinner /><StateText>시간표를 불러오는 중입니다.</StateText></StatePanel> : null}
-          {isBaseError ? <StatePanel><StateText role="alert">시간표를 불러오지 못했습니다.</StateText></StatePanel> : null}
+          {isBaseLoading ? (
+            <StatePanel>
+              <AuthStatusSpinner />
+              <StateText>시간표를 불러오는 중입니다.</StateText>
+            </StatePanel>
+          ) : null}
+          {isBaseError ? (
+            <StatePanel>
+              <StateText role="alert">시간표를 불러오지 못했습니다.</StateText>
+            </StatePanel>
+          ) : null}
           {!isBaseLoading && !isBaseError && lessonsQuery.isError ? (
             <StatePanel>
               <StateText role="alert">시간표를 불러오지 못했습니다.</StateText>
@@ -492,14 +493,24 @@ export default function MobileWeeklySchedulePage() {
             onMouseDown={(event) => event.stopPropagation()}
           >
             <ModalHeader>
-              <div>
-                <ModalTitle id="mobile-weekly-schedule-detail-title">
-                  {selectedCell.classroomName} {selectedCell.dayLabel}요일 수업
-                </ModalTitle>
+              <ModalHeaderContent>
+                <ModalTitleRow>
+                  <ModalTitle id="mobile-weekly-schedule-detail-title">
+                    {selectedCell.classroomName} {selectedCell.dayLabel}요일 수업
+                  </ModalTitle>
+                  {selectedCell.status ? (
+                    <ModalStatusPill $status={selectedCell.status}>
+                      {formatStatusLabel(selectedCell.status)}
+                    </ModalStatusPill>
+                  ) : null}
+                </ModalTitleRow>
+                {selectedCell.assignmentDateRange ? (
+                  <ModalDescription>배정 기간 {selectedCell.assignmentDateRange}</ModalDescription>
+                ) : null}
                 <ModalDescription>
                   {selectedCell.date} · {selectedCell.teacherName}
                 </ModalDescription>
-              </div>
+              </ModalHeaderContent>
               <CloseButton type="button" onClick={() => setSelectedCell(null)}>
                 닫기
               </CloseButton>
@@ -513,20 +524,6 @@ export default function MobileWeeklySchedulePage() {
                     <ModalPeriodTime>
                       {period.startTime} - {period.endTime}
                     </ModalPeriodTime>
-                  ) : null}
-                  {period.assignmentDateRange ? (
-                    <ModalMetaText>배정 기간 {period.assignmentDateRange}</ModalMetaText>
-                  ) : null}
-                  {period.status === "EXCHANGED" ? (
-                    <ModalStatusText $status="EXCHANGED">
-                      교환 · {period.exchangeDescription ?? "교환"}
-                    </ModalStatusText>
-                  ) : null}
-                  {period.status === "SUBSTITUTED" ? (
-                    <ModalStatusText $status="SUBSTITUTED">대체</ModalStatusText>
-                  ) : null}
-                  {period.status === "CANCELLED" ? (
-                    <ModalStatusText $status="CANCELLED">결강</ModalStatusText>
                   ) : null}
                 </ModalPeriodCard>
               ))}
@@ -716,7 +713,9 @@ const ClassroomTypeText = styled.span`
   font-weight: 700;
 `;
 
-const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
+const ScheduleCellButton = styled.button<{
+  $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" | "ABSENT" | "ATTENDED" | "CHECKED_OUT";
+}>`
   display: grid;
   align-content: start;
   gap: ${spacing.space4};
@@ -729,6 +728,9 @@ const ScheduleCellButton = styled.button<{ $status?: "EXCHANGED" | "SUBSTITUTED"
     if ($status === "EXCHANGED") return "#f4efff";
     if ($status === "SUBSTITUTED") return "#fff8dc";
     if ($status === "CANCELLED") return "#fff4f3";
+    if ($status === "ABSENT") return "#fff4f3";
+    if ($status === "ATTENDED") return "#eef9e6";
+    if ($status === "CHECKED_OUT") return "#fff1f6";
     return colors.white;
   }};
   text-align: left;
@@ -739,22 +741,49 @@ const TeacherRow = styled.div`
   min-height: 1.5rem;
 `;
 
-const StatusPill = styled.span<{ $status: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
+const StatusPill = styled.span<{
+  $status: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" | "ABSENT" | "ATTENDED" | "CHECKED_OUT";
+}>`
   position: absolute;
-  top: 50%;
+  top: 44%;
+  left: -2%;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   min-height: 1.125rem;
   border: 1px solid
     ${({ $status }) =>
-      $status === "EXCHANGED" ? "#d7cafc" : $status === "SUBSTITUTED" ? "#eadb86" : "#f3b8b2"};
+      $status === "EXCHANGED"
+        ? "#d7cafc"
+        : $status === "SUBSTITUTED"
+          ? "#eadb86"
+          : $status === "ATTENDED"
+            ? "#b7df9d"
+            : $status === "CHECKED_OUT"
+              ? "#f0b7cd"
+              : "#f3b8b2"};
   border-radius: ${radii.radius999};
   background-color: ${({ $status }) =>
-    $status === "EXCHANGED" ? "#eee7ff" : $status === "SUBSTITUTED" ? "#fff4b5" : "#fde4e2"};
+    $status === "EXCHANGED"
+      ? "#eee7ff"
+      : $status === "SUBSTITUTED"
+        ? "#fff4b5"
+        : $status === "ATTENDED"
+          ? "#edf8e4"
+          : $status === "CHECKED_OUT"
+            ? "#fde8f1"
+            : "#fde4e2"};
   padding: 0 ${spacing.space8};
   color: ${({ $status }) =>
-    $status === "EXCHANGED" ? "#6846c9" : $status === "SUBSTITUTED" ? "#9e7a00" : colors.notice};
+    $status === "EXCHANGED"
+      ? "#6846c9"
+      : $status === "SUBSTITUTED"
+        ? "#9e7a00"
+        : $status === "ATTENDED"
+          ? "#3e8f2a"
+          : $status === "CHECKED_OUT"
+            ? "#c64f83"
+            : colors.notice};
   font-size: 0.6875rem;
   font-weight: 900;
 `;
@@ -801,7 +830,7 @@ const PeriodBadge = styled.span`
 `;
 
 const SubjectBlock = styled.span<{
-  $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED";
+  $status?: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" | "ABSENT" | "ATTENDED" | "CHECKED_OUT";
   $empty: boolean;
   $period: number;
 }>`
@@ -897,6 +926,19 @@ const ModalHeader = styled.div`
   gap: ${spacing.space12};
 `;
 
+const ModalHeaderContent = styled.div`
+  display: grid;
+  gap: 0.125rem;
+`;
+
+const ModalTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space8};
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+`;
+
 const ModalTitle = styled.h2`
   margin: 0;
   color: ${colors.text};
@@ -904,11 +946,17 @@ const ModalTitle = styled.h2`
   font-weight: 800;
 `;
 
+const ModalStatusPill = styled(StatusPill)`
+  position: static;
+  transform: none;
+  flex: 0 0 auto;
+`;
+
 const ModalDescription = styled.p`
-  margin: ${spacing.space4} 0 0;
   color: #72806a;
   font-size: ${typography.fontSize13};
   line-height: ${typography.lineHeight150};
+  margin-bottom: -0.25rem;
 `;
 
 const CloseButton = styled.button`
@@ -952,18 +1000,4 @@ const ModalPeriodTime = styled.p`
   margin: 0;
   color: #72806a;
   font-size: ${typography.fontSize13};
-`;
-
-const ModalMetaText = styled.p`
-  margin: 0;
-  color: #72806a;
-  font-size: ${typography.fontSize13};
-`;
-
-const ModalStatusText = styled.p<{ $status: "EXCHANGED" | "SUBSTITUTED" | "CANCELLED" }>`
-  margin: 0;
-  color: ${({ $status }) =>
-    $status === "EXCHANGED" ? "#6846c9" : $status === "SUBSTITUTED" ? "#9e7a00" : colors.notice};
-  font-size: ${typography.fontSize13};
-  font-weight: 800;
 `;
