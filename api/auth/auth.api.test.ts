@@ -22,12 +22,14 @@ import { getAccessToken, getRefreshToken, setTokens } from "../client/tokenStora
 import {
   adminLogin,
   connectLocalAccount,
+  confirmPasswordReset,
   googleLogin,
   googleSignup,
   login,
   logout,
   logoutAllDevices,
   refreshToken,
+  requestPasswordReset,
   signup,
 } from "./auth.api";
 
@@ -123,6 +125,46 @@ describe("auth.api", () => {
 
     await expect(signup(DEFAULT_SIGNUP_REQUEST)).rejects.toMatchObject({
       response: { status: 409 },
+    });
+  });
+
+  it("requests a password reset mail with the expected body", async () => {
+    let observedBody: unknown;
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/auth/password-reset/request`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({ message: "비밀번호 재설정 안내 메일이 발송되었습니다." });
+      }),
+    );
+
+    const response = await requestPasswordReset({ email: "reset@example.com" });
+
+    expect(response).toEqual({ message: "비밀번호 재설정 안내 메일이 발송되었습니다." });
+    expect(observedBody).toEqual({ email: "reset@example.com" });
+  });
+
+  it("confirms password reset with email, reset code, and new password", async () => {
+    let observedBody: unknown;
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/auth/password-reset/confirm`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({ message: "비밀번호가 재설정되었습니다." });
+      }),
+    );
+
+    const response = await confirmPasswordReset({
+      email: "reset@example.com",
+      resetCode: "123456",
+      newPassword: "new-password123!",
+    });
+
+    expect(response).toEqual({ message: "비밀번호가 재설정되었습니다." });
+    expect(observedBody).toEqual({
+      email: "reset@example.com",
+      resetCode: "123456",
+      newPassword: "new-password123!",
     });
   });
 

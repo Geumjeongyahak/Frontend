@@ -27,6 +27,9 @@ export default function MobileLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit = form.email.trim().length > 0 && form.password.length > 0;
+  const passwordResetHref = form.email.trim()
+    ? `/auth/password-reset?email=${encodeURIComponent(form.email.trim())}`
+    : "/auth/password-reset";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -93,6 +96,8 @@ export default function MobileLoginPage() {
             />
           </Field>
 
+          <PasswordHelpLink href={passwordResetHref}>비밀번호를 잊으셨나요?</PasswordHelpLink>
+
           <Status role="status" aria-live="polite" $visible={Boolean(statusMessage)}>
             {statusMessage}
           </Status>
@@ -149,13 +154,6 @@ const Title = styled.h1`
   word-break: keep-all;
 `;
 
-const Description = styled.p`
-  color: #66725f;
-  font-size: ${typography.fontSize14};
-  line-height: ${typography.lineHeight150};
-  word-break: keep-all;
-`;
-
 const Panel = styled.section`
   padding: 1.5rem;
   border-radius: 1.5rem;
@@ -198,6 +196,27 @@ const Input = styled.input`
   &:focus {
     border-color: ${colors.point};
     box-shadow: 0 0 0 0.1875rem rgba(136, 205, 90, 0.16);
+  }
+`;
+
+const PasswordHelpLink = styled(Link)`
+  justify-self: flex-end;
+  margin-top: -${spacing.space8};
+  color: #5b6a55;
+  font-size: ${typography.fontSize13};
+  font-weight: 700;
+  text-decoration: none;
+
+  &:hover {
+    color: ${colors.point};
+    text-decoration: underline;
+    text-underline-offset: 0.2rem;
+  }
+
+  &:focus-visible {
+    border-radius: 0.25rem;
+    outline: 2px solid rgba(136, 205, 90, 0.32);
+    outline-offset: 2px;
   }
 `;
 
