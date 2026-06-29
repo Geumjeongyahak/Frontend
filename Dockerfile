@@ -1,4 +1,4 @@
-FROM node:22-alpine AS deps
+FROM docker.io/library/node:22-alpine AS deps
 
 WORKDIR /app
 
@@ -6,7 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 
-FROM node:22-alpine AS builder
+FROM docker.io/library/node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -25,7 +25,7 @@ ENV NEXT_PUBLIC_FIREBASE_VAPID_KEY=$NEXT_PUBLIC_FIREBASE_VAPID_KEY
 RUN npm run build
 
 
-FROM node:22-alpine AS runner
+FROM docker.io/library/node:22-alpine AS runner
 
 WORKDIR /app
 
