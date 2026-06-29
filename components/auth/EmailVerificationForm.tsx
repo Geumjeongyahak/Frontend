@@ -16,21 +16,31 @@ const RESEND_COOLDOWN_SECONDS = 60;
 type EmailVerificationFormProps = {
   email: string;
   verificationCode: string;
+  resultStatus?: string;
 };
 
 export default function EmailVerificationForm({
   email,
   verificationCode,
+  resultStatus = "",
 }: EmailVerificationFormProps) {
   const router = useRouter();
+  const isSuccessRedirect = resultStatus === "success";
+  const isFailureRedirect = resultStatus === "invalid" || resultStatus === "expired";
   const hasVerificationLink = Boolean(email && verificationCode);
   const [statusMessage, setStatusMessage] = useState(
-    hasVerificationLink
-      ? "이메일 인증을 확인하고 있습니다."
-      : "메일의 인증하기 버튼을 눌러 인증을 완료해 주세요.",
+    isSuccessRedirect
+      ? "이메일 인증이 완료되었습니다. 로그인해 주세요."
+      : isFailureRedirect
+        ? "인증 링크가 만료되었거나 올바르지 않습니다. 인증 메일을 다시 받아 주세요."
+        : hasVerificationLink
+          ? "이메일 인증을 확인하고 있습니다."
+          : "메일의 인증하기 버튼을 눌러 인증을 완료해 주세요.",
   );
-  const [statusTone, setStatusTone] = useState<ActionTone>("default");
-  const [isSubmitting, setIsSubmitting] = useState(hasVerificationLink);
+  const [statusTone, setStatusTone] = useState<ActionTone>(
+    isSuccessRedirect ? "success" : isFailureRedirect ? "error" : "default",
+  );
+  const [isSubmitting, setIsSubmitting] = useState(hasVerificationLink && !resultStatus);
   const [cooldown, setCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoSubmittedRef = useRef(false);
@@ -55,7 +65,7 @@ export default function EmailVerificationForm({
   }, []);
 
   useEffect(() => {
-    if (!email || !verificationCode || autoSubmittedRef.current) {
+    if (resultStatus || !email || !verificationCode || autoSubmittedRef.current) {
       return;
     }
 
@@ -73,7 +83,7 @@ export default function EmailVerificationForm({
       .finally(() => {
         setIsSubmitting(false);
       });
-  }, [email, router, verificationCode]);
+  }, [email, resultStatus, router, verificationCode]);
 
   async function handleResend() {
     if (!email || cooldown > 0) return;
@@ -90,7 +100,8 @@ export default function EmailVerificationForm({
   }
 
   const isError = statusTone === "error";
-  const isComplete = statusTone === "success" && hasVerificationLink && !isSubmitting;
+  const showLoginAction = hasVerificationLink || isSuccessRedirect;
+  const isComplete = statusTone === "success" && showLoginAction && !isSubmitting;
   const icon = isError ? (
     <IconAlertTriangle aria-hidden="true" />
   ) : isComplete ? (
@@ -102,7 +113,7 @@ export default function EmailVerificationForm({
     ? "인증 링크를 다시 받아 주세요"
     : isSubmitting
       ? "이메일 인증을 확인하고 있어요"
-      : hasVerificationLink
+      : showLoginAction
         ? "이메일 인증이 완료되었습니다"
         : "메일함을 확인해 주세요";
   const description = email ? (
@@ -130,7 +141,7 @@ export default function EmailVerificationForm({
         </>
       }
     >
-      {hasVerificationLink ? (
+      {showLoginAction ? (
         <ActionForm as="div">
           <ActionButton type="button" onClick={() => router.replace("/login")} disabled={isSubmitting}>
             {isSubmitting ? "인증 확인 중" : "로그인으로 이동"}
