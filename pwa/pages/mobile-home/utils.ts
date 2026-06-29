@@ -5,6 +5,7 @@ import {
   getEventDisplayTitle,
 } from "@/api/event/eventDisplay";
 import type { EventResponseDto } from "@/api/event/event.dto";
+import type { DailyScheduleDetailResponseDto } from "@/api/dailySchedule/dailySchedule.dto";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
 import type {
   MobileHomeDayValue,
@@ -71,6 +72,10 @@ export function getClassTone(classroomName?: string) {
       accent: "#88CD5A",
     }
   );
+}
+
+export function hasWrittenClassJournal(schedule?: DailyScheduleDetailResponseDto | null) {
+  return Boolean(schedule?.lessons?.some((lesson) => Boolean(lesson.note?.trim())));
 }
 
 function getEventEmoji(title?: string) {

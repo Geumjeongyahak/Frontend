@@ -12,9 +12,10 @@ vi.mock("@/api/event/eventDisplay", () => ({
 }));
 
 let toAllScheduleItems: typeof import("./utils").toAllScheduleItems;
+let hasWrittenClassJournal: typeof import("./utils").hasWrittenClassJournal;
 
 beforeEach(async () => {
-  ({ toAllScheduleItems } = await import("./utils"));
+  ({ toAllScheduleItems, hasWrittenClassJournal } = await import("./utils"));
 });
 
 describe("mobile-home utils", () => {
@@ -85,5 +86,44 @@ describe("mobile-home utils", () => {
       kind: "lesson",
       title: "벚꽃반",
     });
+  });
+
+  it("treats a daily schedule with a non-empty lesson note as a written journal", () => {
+    expect(
+      hasWrittenClassJournal({
+        dailyScheduleId: 1,
+        lessonDate: "2026-06-30",
+        classroomId: 1,
+        classroomName: "벚꽃반",
+        teacherId: 1,
+        teacherName: "홍길동",
+        activityStartTime: "19:20:00",
+        activityEndTime: "21:40:00",
+        status: "SCHEDULED",
+        lessonCount: 1,
+        lessons: [{ lessonId: 1, period: 1, note: "받아쓰기 복습 진행" }],
+      }),
+    ).toBe(true);
+  });
+
+  it("treats a daily schedule without lesson notes as an unwritten journal", () => {
+    expect(
+      hasWrittenClassJournal({
+        dailyScheduleId: 1,
+        lessonDate: "2026-06-30",
+        classroomId: 1,
+        classroomName: "벚꽃반",
+        teacherId: 1,
+        teacherName: "홍길동",
+        activityStartTime: "19:20:00",
+        activityEndTime: "21:40:00",
+        status: "SCHEDULED",
+        lessonCount: 2,
+        lessons: [
+          { lessonId: 1, period: 1, note: "   " },
+          { lessonId: 2, period: 2, note: null },
+        ],
+      }),
+    ).toBe(false);
   });
 });
