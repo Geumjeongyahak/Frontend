@@ -134,7 +134,7 @@ export default function MobileHomeScreen() {
           onClassRequestClick={() => screen.navigateWhenAuthenticated("/requests/class")}
         />
       </Page>
-      {screen.popupVisible ? <AttendanceSuccessOverlay /> : null}
+      {screen.popupVisible ? <AttendanceSuccessOverlay variant={screen.popupVariant} /> : null}
       {isCheckoutModalOpen ? (
         <AttendanceCheckoutModal
           onCancel={() => setIsCheckoutModalOpen(false)}

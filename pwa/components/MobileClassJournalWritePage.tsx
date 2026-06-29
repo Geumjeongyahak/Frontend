@@ -276,7 +276,7 @@ export default function MobileClassJournalWritePage() {
       await queryClient.invalidateQueries({ queryKey: ["daily-schedules", "list"] });
       await queryClient.invalidateQueries({ queryKey: ["daily-schedules", "detail"] });
       await queryClient.invalidateQueries({ queryKey: ["mobile-home", "daily-schedule"] });
-      markPendingAttendanceSuccessOverlay();
+      markPendingAttendanceSuccessOverlay("checkout");
       toast.success("제출이 완료되었습니다.");
       router.push("/");
     },

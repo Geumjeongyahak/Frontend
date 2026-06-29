@@ -152,8 +152,8 @@ export function useMobileHomeScreen() {
       ),
     onSuccess: () => {
       setIsAttendanceResolving(false);
-      popup.show();
-      toast.success("출석이 완료되었습니다.");
+      popup.show("attendance");
+      toast.success("출근이 완료되었습니다.");
       attendanceQuery.refetch().catch(() => undefined);
     },
     onError: () => {
@@ -192,8 +192,10 @@ export function useMobileHomeScreen() {
             : `${ATTENDANCE_TARGET_LABEL} 반경 ${ATTENDANCE_TARGET_RADIUS_METERS}m 안에서 출석할 수 있습니다.`;
 
   useEffect(() => {
-    if (consumePendingAttendanceSuccessOverlay()) {
-      popup.show();
+    const pendingOverlayVariant = consumePendingAttendanceSuccessOverlay();
+
+    if (pendingOverlayVariant) {
+      popup.show(pendingOverlayVariant);
     }
   }, [popup.show]);
 
@@ -262,6 +264,7 @@ export function useMobileHomeScreen() {
     setScheduleMode,
     unreadCount,
     popupVisible: popup.isVisible,
+    popupVariant: popup.variant,
     todayLesson,
     myLessonCards,
     allScheduleItems,

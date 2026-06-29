@@ -124,7 +124,7 @@ export default function AttendanceSection({
           </SliderThumb>
           <SliderLabel $centered={isProcessingAttendance || isCompleted}>
             {isCompleted
-              ? "출석 완료"
+              ? "퇴근 완료"
               : isProcessingAttendance
                 ? isCheckoutMode
                   ? "퇴근 준비 중..."
