@@ -3,7 +3,7 @@ import {
   getEventDisplayDate,
   getEventDisplayId,
   getEventDisplayTitle,
-} from "@/api/event/eventDisplay";
+} from "../../../api/event/eventDisplay";
 import type { EventResponseDto } from "@/api/event/event.dto";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
 import type {
