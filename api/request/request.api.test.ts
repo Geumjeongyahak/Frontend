@@ -30,7 +30,7 @@ import {
 } from "./request.api";
 
 describe("request.api", () => {
-  it("returns absence requests with auth header and status query", async () => {
+  it("returns absence requests with auth header and supports mine filtering", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     let observedAuthorizationHeader: string | null = null;
@@ -50,7 +50,7 @@ describe("request.api", () => {
       }),
     );
 
-    const response = await getAbsenceRequests({ status: "PENDING" });
+    const response = await getAbsenceRequests({ status: "PENDING", mine: true });
 
     expect(response).toEqual({
       content: [ABSENCE_REQUEST_RESPONSE],
@@ -61,6 +61,7 @@ describe("request.api", () => {
     });
     expect(observedAuthorizationHeader).toBe(`Bearer ${VALID_ACCESS_TOKEN}`);
     expect(observedQueryString).toContain("status=PENDING");
+    expect(observedQueryString).toContain("mine=true");
   });
 
   it("creates a lesson exchange request with the expected body", async () => {

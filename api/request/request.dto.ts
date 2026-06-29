@@ -17,6 +17,7 @@ export type PaymentType = "PREPAID" | "ACTUAL";
 
 export interface RequestStatusQueryParamsDto {
   status?: RequestStatus;
+  mine?: boolean;
   keyword?: string;
   page?: number;
   size?: number;
