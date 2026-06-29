@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { isAxiosError } from "axios";
 import styled from "styled-components";
 import { signup } from "@/api/auth/auth.api";
 import {
@@ -35,6 +36,16 @@ const initialState: RegisterFormState = {
   birthDate: "",
   phoneNumber: "",
 };
+
+function getSignupErrorMessage(error: unknown) {
+  if (isAxiosError(error)) {
+    const data = error.response?.data;
+    if (data && typeof data === "object" && "detail" in data && typeof data.detail === "string") {
+      return data.detail;
+    }
+  }
+  return "회원가입 정보를 확인해 주세요.";
+}
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -79,8 +90,8 @@ export default function RegisterForm() {
         phoneNumber: form.phoneNumber.trim() || undefined,
       });
       router.replace(`/auth/email-verification?email=${encodeURIComponent(form.email.trim())}`);
-    } catch {
-      setStatusMessage("회원가입 정보를 확인해 주세요.");
+    } catch (error) {
+      setStatusMessage(getSignupErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }

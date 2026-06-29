@@ -1,6 +1,7 @@
 import { HttpResponse, http } from "msw";
 
 import type {
+  AuthMessageResponseDto,
   LoginRequestDto,
   LogoutRequestDto,
   RefreshTokenRequestDto,
@@ -39,6 +40,10 @@ export const DEFAULT_TOKEN_RESPONSE: TokenResponseDto = {
   tokenType: "Bearer",
 };
 
+export const DEFAULT_SIGNUP_RESPONSE: AuthMessageResponseDto = {
+  message: "회원가입이 완료되었습니다. 이메일 인증을 완료해 주세요.",
+};
+
 function createUnauthorizedResponse(message: string) {
   return HttpResponse.json({ message }, { status: 401 });
 }
@@ -61,7 +66,7 @@ export const authHandlers = [
       return HttpResponse.json({ message: "Invalid signup payload" }, { status: 400 });
     }
 
-    return HttpResponse.json(DEFAULT_TOKEN_RESPONSE, { status: 201 });
+    return HttpResponse.json(DEFAULT_SIGNUP_RESPONSE, { status: 201 });
   }),
 
   http.post(`${API_BASE_URL}/api/v1/auth/refresh`, async ({ request }) => {

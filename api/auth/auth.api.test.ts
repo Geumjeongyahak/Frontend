@@ -11,6 +11,7 @@ import { server } from "../../mocks/server";
 import {
   API_BASE_URL,
   DEFAULT_LOGIN_REQUEST,
+  DEFAULT_SIGNUP_RESPONSE,
   DEFAULT_SIGNUP_REQUEST,
   REFRESHED_ACCESS_TOKEN,
   REFRESHED_REFRESH_TOKEN,
@@ -109,11 +110,10 @@ describe("auth.api", () => {
     expect(getRefreshToken()).toBe(VALID_REFRESH_TOKEN);
   });
 
-  it("returns tokens for a successful signup", async () => {
+  it("returns the signup message without issuing tokens", async () => {
     const response = await signup(DEFAULT_SIGNUP_REQUEST);
 
-    expect(response.accessToken).toBe(VALID_ACCESS_TOKEN);
-    expect(response.refreshToken).toBe(VALID_REFRESH_TOKEN);
+    expect(response).toEqual(DEFAULT_SIGNUP_RESPONSE);
   });
 
   it("throws an error when signup fails", async () => {
