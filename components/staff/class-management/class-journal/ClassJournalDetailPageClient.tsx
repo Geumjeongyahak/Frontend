@@ -12,11 +12,16 @@ import {
   updateStudentAttendances,
 } from "@/api/dailySchedule/dailySchedule.api";
 import type {
+  DailyStudentAttendanceStatus,
   DailyStudentAttendanceResponseDto,
   UpdateDailyStudentAttendanceItemRequestDto,
 } from "@/api/dailySchedule/dailySchedule.dto";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { colors, layout, spacing, typography, radii } from "@/styles/tokens";
+import {
+  dailyStudentAttendanceOptions,
+  getDailyStudentAttendanceStatusOrDefault,
+} from "@/utils/dailyStudentAttendance";
 import {
   buildUpdateJournalBody,
   mapClassJournalDetailView,
@@ -37,25 +42,23 @@ const emptyJournal: ClassJournalDetailView = {
 
 const ATTENDANCE_SLOT_COUNT = 10;
 
-function mapStudentAttendancesToPresentFlags(students?: DailyStudentAttendanceResponseDto[]) {
+function mapStudentAttendancesToStatuses(students?: DailyStudentAttendanceResponseDto[]) {
   return Array.from({ length: ATTENDANCE_SLOT_COUNT }, (_, index) => {
-    return students?.[index]?.status === "PRESENT";
+    return getDailyStudentAttendanceStatusOrDefault(students?.[index]?.status);
   });
 }
 
 function buildEditableStudentAttendances(
   students: DailyStudentAttendanceResponseDto[] | undefined,
-  presentFlags: boolean[],
+  statuses: DailyStudentAttendanceStatus[],
 ): UpdateDailyStudentAttendanceItemRequestDto[] {
   return (students ?? []).flatMap((student, index) => {
     if (typeof student.studentId !== "number") return [];
 
     const status =
-      index < presentFlags.length
-        ? presentFlags[index]
-          ? "PRESENT"
-          : "ABSENT"
-        : (student.status ?? "ABSENT");
+      index < statuses.length
+        ? statuses[index]
+        : getDailyStudentAttendanceStatusOrDefault(student.status);
 
     return [{ studentId: student.studentId, status }];
   });
@@ -83,8 +86,8 @@ export default function ClassJournalDetailPageClient({
   const isAuthenticated = authStatus === "authenticated";
   const [isEditing, setIsEditing] = useState(false);
   const [editableNotes, setEditableNotes] = useState(["", "", ""]);
-  const [editableAttendance, setEditableAttendance] = useState<boolean[]>(() =>
-    Array.from({ length: ATTENDANCE_SLOT_COUNT }, () => false),
+  const [editableAttendance, setEditableAttendance] = useState<DailyStudentAttendanceStatus[]>(() =>
+    Array.from({ length: ATTENDANCE_SLOT_COUNT }, () => "ABSENT"),
   );
 
   const scheduleQuery = useQuery({
@@ -158,7 +161,7 @@ export default function ClassJournalDetailPageClient({
     if (!isEditing) {
       setEditableNotes(journal.lessons);
       setEditableAttendance(
-        mapStudentAttendancesToPresentFlags(scheduleQuery.data?.studentAttendances),
+        mapStudentAttendancesToStatuses(scheduleQuery.data?.studentAttendances),
       );
       setIsEditing(true);
       return;
@@ -236,20 +239,29 @@ export default function ClassJournalDetailPageClient({
                 <AttendanceColumn key={index}>
                   <AttendanceCell>{student.name}</AttendanceCell>
                   {isEditing ? (
-                    <AttendanceCheckboxCell>
-                      <ConsentCheckbox
-                        type="checkbox"
-                        checked={editableAttendance[index] ?? false}
+                    <AttendanceStatusCell>
+                      <AttendanceStatusSelect
+                        value={editableAttendance[index] ?? "ABSENT"}
                         onChange={(event) =>
                           setEditableAttendance((current) =>
-                            current.map((isPresent, attendanceIndex) =>
-                              attendanceIndex === index ? event.target.checked : isPresent,
+                            current.map((status, attendanceIndex) =>
+                              attendanceIndex === index
+                                ? getDailyStudentAttendanceStatusOrDefault(
+                                    event.target.value as DailyStudentAttendanceStatus,
+                                  )
+                                : status,
                             ),
                           )
                         }
-                        aria-label={`${index + 1}번 출석`}
-                      />
-                    </AttendanceCheckboxCell>
+                        aria-label={`${index + 1}번 학생 출석 상태`}
+                      >
+                        {dailyStudentAttendanceOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </AttendanceStatusSelect>
+                    </AttendanceStatusCell>
                   ) : (
                     <AttendanceCell>{student.status}</AttendanceCell>
                   )}
@@ -535,42 +547,7 @@ const AttendanceColumn = styled.div`
   }
 `;
 
-const ConsentCheckbox = styled.input`
-  flex-shrink: 0;
-  width: 1rem;
-  height: 1rem;
-  margin: 0;
-  appearance: none;
-  border: 1px solid #c8deb8;
-  border-radius: 4px;
-  background-color: #eef9e6;
-  cursor: pointer;
-
-  &:checked {
-    background-color: #eef9e6;
-    border-color: ${colors.point};
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath fill='none' stroke='%2388CD5A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2 6l3 3 5-6'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 0.75rem;
-  }
-
-  &:focus-visible {
-    outline: 2px solid ${colors.point};
-    outline-offset: 2px;
-  }
-
-  @media (min-width: 120rem) {
-    width: 1.5625rem;
-    height: 1.5625rem;
-
-    &:checked {
-      background-size: 1rem;
-    }
-  }
-`;
-
-const AttendanceCheckboxCell = styled.div`
+const AttendanceStatusCell = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
@@ -584,6 +561,32 @@ const AttendanceCheckboxCell = styled.div`
 
   @media (min-width: 120rem) {
     min-height: 3.875rem;
+  }
+`;
+
+const AttendanceStatusSelect = styled.select`
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: ${spacing.space8} 2rem ${spacing.space8} ${spacing.space8};
+  border: 0;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.25 6 6.25l5-5' fill='none' stroke='%23262626' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  appearance: none;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  text-align: center;
+  text-align-last: center;
+  outline: none;
+  cursor: pointer;
+
+  @media (min-width: 120rem) {
+    min-height: 3.875rem;
+    font-size: ${typography.fontSize20};
   }
 `;
 

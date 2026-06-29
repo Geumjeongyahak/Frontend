@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { LessonSummaryResponseDto } from "@/api/lesson/lesson.dto";
 import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
-import { buildScheduleOverrides, getMonthRange, getWeekRange } from "./weeklyScheduleState";
+import { buildScheduleOverrides, getSubjectsForCell, getWeekRange } from "./weeklyScheduleState";
 
 const BASE_SUBJECTS: SubjectDetailResponseDto[] = [
   {
@@ -67,13 +67,6 @@ describe("weeklyScheduleState", () => {
     });
   });
 
-  it("returns the calendar month range for the given anchor date", () => {
-    expect(getMonthRange(new Date("2026-06-18T09:00:00+09:00"))).toEqual({
-      from: "2026-06-01",
-      to: "2026-06-30",
-    });
-  });
-
   it("uses actual lesson subject and teacher info even without exchange status", () => {
     const lessons: LessonSummaryResponseDto[] = [
       {
@@ -93,5 +86,157 @@ describe("weeklyScheduleState", () => {
       teacherName: "박교사",
       subjectName: "수학",
     });
+  });
+
+  it("marks a period as substituted when the lesson is exchanged without a related date", () => {
+    const lessons: LessonSummaryResponseDto[] = [
+      {
+        lessonId: 400,
+        classroomId: 10,
+        date: "2026-06-15",
+        period: 1,
+        teacherName: "최교사",
+        subjectName: "과학",
+        isExchanged: true,
+        exchangedLessonDate: null,
+      },
+    ];
+
+    const overrides = buildScheduleOverrides(BASE_SUBJECTS, lessons, 10, "2026-06-15");
+
+    expect(overrides.get(1)).toEqual({
+      status: "SUBSTITUTED",
+      teacherName: "최교사",
+      subjectName: "과학",
+      relatedDate: undefined,
+    });
+  });
+
+  it("marks a period as absent when the assigned teacher has neither attended nor checked out", () => {
+    const lessons: LessonSummaryResponseDto[] = [
+      {
+        lessonId: 500,
+        classroomId: 10,
+        date: "2026-06-15",
+        period: 1,
+        teacherName: "김교사",
+        subjectName: "국어",
+        teacherAttendance: {
+          isAttended: false,
+          isCheckedOut: false,
+        },
+      },
+    ];
+
+    const overrides = buildScheduleOverrides(BASE_SUBJECTS, lessons, 10, "2026-06-15");
+
+    expect(overrides.get(1)).toEqual({
+      status: "ABSENT",
+      teacherName: "김교사",
+      subjectName: "국어",
+    });
+  });
+
+  it("marks a period as attended when the assigned teacher has attended", () => {
+    const lessons: LessonSummaryResponseDto[] = [
+      {
+        lessonId: 600,
+        classroomId: 10,
+        date: "2026-06-15",
+        period: 1,
+        teacherName: "김교사",
+        subjectName: "국어",
+        teacherAttendance: {
+          isAttended: true,
+          isCheckedOut: false,
+        },
+      },
+    ];
+
+    const overrides = buildScheduleOverrides(BASE_SUBJECTS, lessons, 10, "2026-06-15");
+
+    expect(overrides.get(1)).toEqual({
+      status: "ATTENDED",
+      teacherName: "김교사",
+      subjectName: "국어",
+    });
+  });
+
+  it("marks a period as checked out when the assigned teacher has checked out", () => {
+    const lessons: LessonSummaryResponseDto[] = [
+      {
+        lessonId: 700,
+        classroomId: 10,
+        date: "2026-06-15",
+        period: 1,
+        teacherName: "김교사",
+        subjectName: "국어",
+        teacherAttendance: {
+          isAttended: true,
+          isCheckedOut: true,
+        },
+      },
+    ];
+
+    const overrides = buildScheduleOverrides(BASE_SUBJECTS, lessons, 10, "2026-06-15");
+
+    expect(overrides.get(1)).toEqual({
+      status: "CHECKED_OUT",
+      teacherName: "김교사",
+      subjectName: "국어",
+    });
+  });
+
+  it("does not mark attendance status when no teacher is assigned", () => {
+    const lessons: LessonSummaryResponseDto[] = [
+      {
+        lessonId: 800,
+        classroomId: 10,
+        date: "2026-06-15",
+        period: 1,
+        subjectName: "국어",
+        teacherAttendance: {
+          isAttended: false,
+          isCheckedOut: false,
+        },
+      },
+    ];
+
+    const overrides = buildScheduleOverrides(
+      [{ ...BASE_SUBJECTS[0], teacherName: undefined }],
+      lessons,
+      10,
+      "2026-06-15",
+    );
+
+    expect(overrides.get(1)).toEqual({
+      subjectName: "국어",
+      teacherName: undefined,
+    });
+  });
+
+  it("filters subjects by assignment date range for the selected week date", () => {
+    const subjects: SubjectDetailResponseDto[] = [
+      {
+        id: 1,
+        classroomId: 10,
+        dayOfWeek: "MONDAY",
+        period: 1,
+        name: "국어",
+        startAt: "2026-06-01",
+        endAt: "2026-06-30",
+      },
+      {
+        id: 2,
+        classroomId: 10,
+        dayOfWeek: "MONDAY",
+        period: 2,
+        name: "영어",
+        startAt: "2026-07-01",
+        endAt: "2026-07-31",
+      },
+    ];
+
+    expect(getSubjectsForCell(subjects, 10, "MONDAY", "2026-06-15")).toEqual([subjects[0]]);
   });
 });

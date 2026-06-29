@@ -8,10 +8,12 @@ import {
   MOBILE_HOME_PAGE_MAX_WIDTH,
   MOBILE_HOME_SURFACE,
 } from "@/pwa/pages/mobile-home/constants";
+import AttendanceCheckoutModal from "@/pwa/pages/mobile-home/components/AttendanceCheckoutModal";
 import AttendanceSection from "@/pwa/pages/mobile-home/components/AttendanceSection";
 import AttendanceSuccessOverlay from "@/pwa/pages/mobile-home/components/AttendanceSuccessOverlay";
 import HomeHeader from "@/pwa/pages/mobile-home/components/HomeHeader";
 import RequestShortcutSection from "@/pwa/pages/mobile-home/components/RequestShortcutSection";
+import TimetableShortcutSection from "@/pwa/pages/mobile-home/components/TimetableShortcutSection";
 import WeeklyScheduleSection from "@/pwa/pages/mobile-home/components/WeeklyScheduleSection";
 import { useMobileHomeScreen } from "@/pwa/pages/mobile-home/hooks/useMobileHomeScreen";
 import { useSlideToConfirm } from "@/pwa/pages/mobile-home/hooks/useSlideToConfirm";
@@ -35,14 +37,27 @@ export default function MobileHomeScreen() {
   const shellRef = useRef<HTMLDivElement | null>(null);
   const [notificationPermission, setNotificationPermission] =
     useState<NotificationPermission | null>(null);
+  const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const screen = useMobileHomeScreen();
   const slider = useSlideToConfirm({
     disabled:
-      !screen.isAttendanceReady || screen.isAttendancePending || screen.hasCompletedAttendance,
-    onConfirm: screen.completeAttendance,
+      (!screen.isAttendanceReady && !screen.isCheckoutReady) ||
+      screen.isAttendancePending ||
+      screen.isCheckoutPending ||
+      screen.hasCheckedOut ||
+      isCheckoutModalOpen,
+    onConfirm: ({ reset }) => {
+      if (screen.sliderMode === "checkout") {
+        reset();
+        setIsCheckoutModalOpen(true);
+        return;
+      }
+
+      screen.completeAttendance({ reset });
+    },
   });
 
-  const isAttendanceCompleted = screen.hasCompletedAttendance;
+  const isAttendanceCompleted = screen.hasCheckedOut;
   const sliderProgress = isAttendanceCompleted ? 1 : slider.progress;
   const currentNotificationPermission =
     notificationPermission ?? readNotificationPermission(screen.isAuthenticated);
@@ -87,8 +102,9 @@ export default function MobileHomeScreen() {
           classroomName={screen.todayLesson?.classroomName}
           title={screen.attendanceTitle}
           guide={screen.attendanceGuide}
-          isReady={screen.isAttendanceReady}
-          isPending={screen.isAttendancePending}
+          sliderMode={screen.sliderMode}
+          isReady={screen.isAttendanceReady || screen.isCheckoutReady}
+          isPending={screen.isAttendancePending || screen.isCheckoutPending}
           isCompleted={isAttendanceCompleted}
           progress={sliderProgress}
           isDragging={slider.isDragging}
@@ -109,12 +125,25 @@ export default function MobileHomeScreen() {
           onModeChange={screen.setScheduleMode}
         />
 
+        <TimetableShortcutSection
+          onScheduleClick={() => screen.navigateWhenAuthenticated("/schedule")}
+        />
+
         <RequestShortcutSection
           onPaymentClick={() => screen.navigateWhenAuthenticated("/requests/payment")}
           onClassRequestClick={() => screen.navigateWhenAuthenticated("/requests/class")}
         />
       </Page>
-      {screen.popupVisible ? <AttendanceSuccessOverlay /> : null}
+      {screen.popupVisible ? <AttendanceSuccessOverlay variant={screen.popupVariant} /> : null}
+      {isCheckoutModalOpen ? (
+        <AttendanceCheckoutModal
+          onCancel={() => setIsCheckoutModalOpen(false)}
+          onConfirm={() => {
+            setIsCheckoutModalOpen(false);
+            screen.openCheckoutJournal();
+          }}
+        />
+      ) : null}
     </Shell>
   );
 }
