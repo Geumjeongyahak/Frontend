@@ -420,14 +420,7 @@ export default function AdminDashboardPage() {
   const queryClient = useQueryClient();
   const { status, user, signOut } = useAuthSession();
   const isAdmin = status === "authenticated" && user?.role === "ADMIN";
-  const [activeMenu, setActiveMenu] = useState<AdminMenu>(() => {
-    if (typeof window === "undefined" || !isReloadNavigation()) {
-      return "dashboard";
-    }
-
-    const storedMenu = window.sessionStorage.getItem(ADMIN_ACTIVE_MENU_STORAGE_KEY);
-    return isAdminMenu(storedMenu) ? storedMenu : "dashboard";
-  });
+  const [activeMenu, setActiveMenu] = useState<AdminMenu>("dashboard");
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
   const [selectedPost, setSelectedPost] = useState<{ channelId: number; postId: number } | null>(
@@ -511,6 +504,18 @@ export default function AdminDashboardPage() {
       router.replace("/admin/login");
     }
   }, [router, status, user?.role]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !isReloadNavigation()) {
+      return;
+    }
+
+    const storedMenu = window.sessionStorage.getItem(ADMIN_ACTIVE_MENU_STORAGE_KEY);
+
+    if (isAdminMenu(storedMenu)) {
+      setActiveMenu(storedMenu);
+    }
+  }, []);
 
   const usersQuery = useQuery({
     queryKey: [
