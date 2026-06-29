@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { useQuery } from "@tanstack/react-query";
 import { getAccessToken, getRefreshToken } from "@/api/client/tokenStorage";
-import { getAllPurchaseRequests } from "@/api/request/request.api";
+import { getPurchaseRequests } from "@/api/request/request.api";
 import type { PurchaseRequestStatus } from "@/api/request/request.dto";
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
 import { FINANCE_REQUESTS_PER_PAGE } from "@/components/staff/finance-management/financeRequestConstants";
@@ -50,7 +50,7 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.requests.purchaseList(),
-    queryFn: () => getAllPurchaseRequests(),
+    queryFn: () => getPurchaseRequests(),
     enabled: hasStoredToken,
     retry: false,
   });
