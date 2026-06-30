@@ -79,6 +79,7 @@ export default function ArchiveDocumentFormPage({
   });
 
   const currentUserName = user?.name ?? user?.nickname ?? user?.email ?? "";
+  const canPinPost = user?.role === "ADMIN";
   const visibleTitle = title ?? postDetailQuery.data?.title ?? "";
   const visibleAuthor = postDetailQuery.data?.authorName ?? currentUserName;
   const visibleDescription = description ?? postDetailQuery.data?.contentHtml ?? "";
@@ -138,7 +139,7 @@ export default function ArchiveDocumentFormPage({
           { title, contentHtml, status: "PUBLISHED", allowComment: visibleAllowComment },
         );
 
-        if (visibleIsPinned !== (postDetailQuery.data?.isPinned ?? false)) {
+        if (canPinPost && visibleIsPinned !== (postDetailQuery.data?.isPinned ?? false)) {
           await pinPost({ channelId, postId: editPostId }, { isPinned: visibleIsPinned });
         }
 
@@ -250,14 +251,16 @@ export default function ArchiveDocumentFormPage({
         />
 
         <OptionRow>
-          <CheckboxLabel>
-            <CheckboxInput
-              type="checkbox"
-              checked={visibleIsPinned}
-              onChange={(event) => setIsPinned(event.target.checked)}
-            />
-            <span>게시물 고정</span>
-          </CheckboxLabel>
+          {canPinPost ? (
+            <CheckboxLabel>
+              <CheckboxInput
+                type="checkbox"
+                checked={visibleIsPinned}
+                onChange={(event) => setIsPinned(event.target.checked)}
+              />
+              <span>게시물 고정</span>
+            </CheckboxLabel>
+          ) : null}
           <CheckboxLabel>
             <CheckboxInput
               type="checkbox"

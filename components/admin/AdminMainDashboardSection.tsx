@@ -18,6 +18,8 @@ import {
   StatsGrid,
   StatValue,
 } from "@/components/admin/AdminDashboardSectionParts";
+import { spacing } from "@/styles/tokens";
+import styled from "styled-components";
 
 type QueryState = {
   isLoading: boolean;
@@ -56,6 +58,7 @@ type AdminMainDashboardSectionProps = {
   pendingPurchasesQuery: QueryState;
   pendingAbsenceRequestsQuery: QueryState;
   pendingLessonExchangeRequestsQuery: QueryState;
+  pendingTeacherApplicationsQuery: QueryState;
   setActiveMenu: (menu: AdminMenu) => void;
 };
 
@@ -68,6 +71,7 @@ export function AdminMainDashboardSection({
   pendingPurchasesQuery,
   pendingAbsenceRequestsQuery,
   pendingLessonExchangeRequestsQuery,
+  pendingTeacherApplicationsQuery,
   setActiveMenu,
 }: AdminMainDashboardSectionProps) {
   const isDashboardLoading =
@@ -76,14 +80,16 @@ export function AdminMainDashboardSection({
     classroomsQuery.isLoading ||
     pendingPurchasesQuery.isLoading ||
     pendingAbsenceRequestsQuery.isLoading ||
-    pendingLessonExchangeRequestsQuery.isLoading;
+    pendingLessonExchangeRequestsQuery.isLoading ||
+    pendingTeacherApplicationsQuery.isLoading;
   const isDashboardError =
     usersQuery.isError ||
     departmentsQuery.isError ||
     classroomsQuery.isError ||
     pendingPurchasesQuery.isError ||
     pendingAbsenceRequestsQuery.isError ||
-    pendingLessonExchangeRequestsQuery.isError;
+    pendingLessonExchangeRequestsQuery.isError ||
+    pendingTeacherApplicationsQuery.isError;
 
   const managementGroups: ManagementGroup[] = [
     {
@@ -141,14 +147,19 @@ export function AdminMainDashboardSection({
           menu: "lessonExchange",
         },
         {
-          title: "결강 요청 관리",
-          description: "결강 요청 승인/반려 처리",
+          title: "수업 결강 요청 관리",
+          description: "수업 결강 요청 승인/반려 처리",
           menu: "absenceRequests",
         },
         {
           title: "결제 요청 관리",
           description: "물품 구매 요청 처리",
           menu: "purchases",
+        },
+        {
+          title: "교사 신청 관리",
+          description: "교사 신청 승인/반려 처리",
+          menu: "teacherApplications",
         },
       ],
     },
@@ -200,7 +211,9 @@ export function AdminMainDashboardSection({
 
           return (
             <SectionCard key={group.title}>
-              <SectionTitle>{group.title}</SectionTitle>
+              <GroupTitleRow>
+                <SectionTitle>{group.title}</SectionTitle>
+              </GroupTitleRow>
               <GridComponent>
                 {group.actions.map((action) => (
                   <ActionCardButton
@@ -220,3 +233,11 @@ export function AdminMainDashboardSection({
     </DashboardStack>
   );
 }
+
+const GroupTitleRow = styled.div`
+  margin-bottom: ${spacing.space8};
+
+  ${SectionTitle} {
+    margin: 0;
+  }
+`;

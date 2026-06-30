@@ -57,6 +57,34 @@ export function DataState({
   return <>{children}</>;
 }
 
+type TablePaddingRowsProps = {
+  columnCount: number;
+  visibleRowCount: number;
+  padTo: number;
+  keyPrefix?: string;
+};
+
+export function TablePaddingRows({
+  columnCount,
+  visibleRowCount,
+  padTo,
+  keyPrefix = "table-padding-row",
+}: TablePaddingRowsProps) {
+  const fillerCount = Math.max(0, padTo - visibleRowCount);
+
+  return (
+    <>
+      {Array.from({ length: fillerCount }, (_, index) => (
+        <tr key={`${keyPrefix}-${index}`} data-empty-row="true" aria-hidden="true">
+          {Array.from({ length: columnCount }, (_, columnIndex) => (
+            <td key={`${keyPrefix}-${index}-${columnIndex}`}>&nbsp;</td>
+          ))}
+        </tr>
+      ))}
+    </>
+  );
+}
+
 export const TwoColumnGrid = styled.div`
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(20rem, 0.8fr);
@@ -271,6 +299,7 @@ export const ControlRow = styled.div`
 export const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
   font-size: ${typography.fontSize13};
 
   th,
@@ -279,6 +308,9 @@ export const Table = styled.table`
     padding: ${spacing.space8};
     text-align: left;
     vertical-align: top;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   th {
@@ -292,6 +324,18 @@ export const Table = styled.table`
 
   tbody tr:hover {
     background-color: ${colors.pointSoft};
+  }
+
+  tbody tr[data-empty-row="true"] {
+    cursor: default;
+  }
+
+  tbody tr[data-empty-row="true"]:hover {
+    background-color: transparent;
+  }
+
+  tbody tr[data-empty-row="true"] td {
+    color: transparent;
   }
 `;
 

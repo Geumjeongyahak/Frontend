@@ -11,6 +11,7 @@ import type { ClassroomListItemDto, ClassroomType } from "@/api/classroom/classr
 import {
   assignSubjectTeacher,
   createSubject,
+  deleteSubject,
   getSubjects,
   updateSubject,
   updateSubjectSchedule,
@@ -21,10 +22,10 @@ import type { UserListItemDto } from "@/api/user/user.dto";
 import {
   ButtonRow,
   DataState,
+  DangerButton,
   InlineStatus,
   Label,
   SectionCard,
-  SectionDescription,
   SectionTitle,
   SmallButton,
   TextInput,
@@ -362,6 +363,41 @@ export function AdminLessonScheduleTables() {
     setFormError(null);
   };
 
+  const resetCellMutation = useMutation({
+    mutationFn: async () => {
+      const subjectIds = cellForm.periods
+        .map((periodForm) => periodForm.subjectId)
+        .filter((subjectId): subjectId is number => typeof subjectId === "number" && subjectId > 0);
+
+      if (subjectIds.length === 0) {
+        throw new Error("초기화할 시간표 항목이 없습니다.");
+      }
+
+      const failedSubjectIds: number[] = [];
+
+      for (const subjectId of subjectIds) {
+        try {
+          await deleteSubject({ subjectId });
+        } catch {
+          failedSubjectIds.push(subjectId);
+        }
+      }
+
+      if (failedSubjectIds.length > 0) {
+        throw new Error("일부 시간표 항목만 초기화되었습니다. 다시 한 번 시도해 주세요.");
+      }
+    },
+    onSuccess: async () => {
+      toast.success("시간표 항목을 초기화했습니다.");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
+      closeModal();
+    },
+    onError: async (error) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
+      setFormError(resolveScheduleMutationError(error));
+    },
+  });
+
   const saveCellMutation = useMutation({
     mutationFn: async () => {
       const classroomId = selectedCell ? getClassroomId(selectedCell.classroom) : null;
@@ -429,6 +465,9 @@ export function AdminLessonScheduleTables() {
     setFormError(null);
     saveCellMutation.mutate();
   };
+  const hasResettableSubjects = cellForm.periods.some(
+    (periodForm) => typeof periodForm.subjectId === "number" && periodForm.subjectId > 0,
+  );
 
   return (
     <SectionCard>
@@ -444,37 +483,35 @@ export function AdminLessonScheduleTables() {
           <IconSettings aria-hidden="true" />
         </IconButton>
       </ScheduleHeaderRow>
-      <SectionDescription>
-        사이트에 등록된 주중/주말 분반 목록을 기준으로 시간표의 행을 구성하고, 각 칸에는 요일별 담당
-        교사와 교시별 과목을 표시합니다.
-      </SectionDescription>
-      <DataState
-        isLoading={classroomsQuery.isLoading || subjectsQuery.isLoading}
-        isError={classroomsQuery.isError || subjectsQuery.isError}
-        isEmpty={!hasClassrooms}
-        loadingLabel="시간표 불러오는 중"
-        errorLabel="시간표를 불러오지 못했습니다."
-        emptyLabel="주중 또는 주말 분반이 없습니다."
-      >
-        <ScheduleStack>
-          <ScheduleTable
-            title="주중 시간표"
-            classrooms={weekdayClassrooms}
-            subjects={subjects}
-            columns={WEEKDAY_COLUMNS}
-            periodColors={periodColors}
-            onSelectCell={setSelectedCell}
-          />
-          <ScheduleTable
-            title="주말 시간표"
-            classrooms={weekendClassrooms}
-            subjects={subjects}
-            columns={WEEKEND_COLUMNS}
-            periodColors={periodColors}
-            onSelectCell={setSelectedCell}
-          />
-        </ScheduleStack>
-      </DataState>
+      <ScheduleContentArea>
+        <DataState
+          isLoading={classroomsQuery.isLoading || subjectsQuery.isLoading}
+          isError={classroomsQuery.isError || subjectsQuery.isError}
+          isEmpty={!hasClassrooms}
+          loadingLabel="시간표 불러오는 중"
+          errorLabel="시간표를 불러오지 못했습니다."
+          emptyLabel="주중 또는 주말 분반이 없습니다."
+        >
+          <ScheduleStack>
+            <ScheduleTable
+              title="주중 시간표"
+              classrooms={weekdayClassrooms}
+              subjects={subjects}
+              columns={WEEKDAY_COLUMNS}
+              periodColors={periodColors}
+              onSelectCell={setSelectedCell}
+            />
+            <ScheduleTable
+              title="주말 시간표"
+              classrooms={weekendClassrooms}
+              subjects={subjects}
+              columns={WEEKEND_COLUMNS}
+              periodColors={periodColors}
+              onSelectCell={setSelectedCell}
+            />
+          </ScheduleStack>
+        </DataState>
+      </ScheduleContentArea>
 
       {selectedCell ? (
         <ModalBackdrop onMouseDown={closeModal}>
@@ -491,9 +528,29 @@ export function AdminLessonScheduleTables() {
                 </ModalTitle>
                 <ModalDescription>담당 교사는 1~3교시에 동일하게 적용됩니다.</ModalDescription>
               </div>
-              <SmallButton type="button" onClick={closeModal}>
-                닫기
-              </SmallButton>
+              <ButtonRow>
+                <DangerButton
+                  type="button"
+                  disabled={
+                    !hasResettableSubjects ||
+                    resetCellMutation.isPending ||
+                    saveCellMutation.isPending
+                  }
+                  onClick={() => {
+                    setFormError(null);
+                    resetCellMutation.mutate();
+                  }}
+                >
+                  {resetCellMutation.isPending ? "초기화 중..." : "초기화"}
+                </DangerButton>
+                <SmallButton
+                  type="button"
+                  disabled={resetCellMutation.isPending || saveCellMutation.isPending}
+                  onClick={closeModal}
+                >
+                  닫기
+                </SmallButton>
+              </ButtonRow>
             </ModalHeader>
 
             <ModalBody>
@@ -620,14 +677,14 @@ export function AdminLessonScheduleTables() {
               <ButtonRow>
                 <LessonActionButton
                   type="button"
-                  disabled={saveCellMutation.isPending}
+                  disabled={saveCellMutation.isPending || resetCellMutation.isPending}
                   onClick={handleSaveCell}
                 >
                   {saveCellMutation.isPending ? "저장 중..." : "저장"}
                 </LessonActionButton>
                 <SmallButton
                   type="button"
-                  disabled={saveCellMutation.isPending}
+                  disabled={saveCellMutation.isPending || resetCellMutation.isPending}
                   onClick={closeModal}
                 >
                   취소
@@ -695,47 +752,28 @@ export function AdminLessonScheduleTables() {
 
 const ScheduleStack = styled.div`
   display: flex;
+  width: 100%;
+  min-width: 0;
   align-items: flex-start;
   gap: ${spacing.space20};
   overflow-x: auto;
+`;
+
+const ScheduleContentArea = styled.div`
+  min-width: 0;
+  overflow: hidden;
 `;
 
 const ScheduleHeaderRow = styled.div`
   position: relative;
   min-height: 1.875rem;
   padding-right: 5.5rem;
-
-  ${SectionTitle} {
-    margin-bottom: 0;
-  }
+  margin-top: 0.4rem;
 
   @media (max-width: ${layout.breakpointMobile}) {
     padding-right: 0;
     padding-bottom: 4.75rem;
   }
-`;
-
-const PeriodLegend = styled.div`
-  position: absolute;
-  top: -0.125rem;
-  right: 2rem;
-  display: grid;
-  align-items: start;
-  justify-items: end;
-  gap: ${spacing.space8};
-
-  @media (max-width: ${layout.breakpointMobile}) {
-    top: 2.25rem;
-    left: 0;
-    right: auto;
-    justify-items: start;
-  }
-`;
-
-const LegendItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${spacing.space4};
 `;
 
 const LegendSwatch = styled.span<{ $color: string }>`
@@ -745,14 +783,6 @@ const LegendSwatch = styled.span<{ $color: string }>`
   border: 1px solid ${({ $color }) => $color};
   border-radius: ${radii.radius999};
   background-color: ${({ $color }) => $color};
-`;
-
-const LegendText = styled.span`
-  color: #1f2b28;
-  font-size: ${typography.fontSize13};
-  font-weight: 800;
-  line-height: ${typography.lineHeight130};
-  white-space: nowrap;
 `;
 
 const IconButton = styled.button`
@@ -799,7 +829,7 @@ const ScheduleTitle = styled.h3`
   line-height: 1.25rem;
 
   @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
+    font-size: ${typography.fontSize16};
   }
 `;
 

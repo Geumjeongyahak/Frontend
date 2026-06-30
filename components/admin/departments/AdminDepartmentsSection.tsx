@@ -27,6 +27,7 @@ import {
   SectionTitle,
   SmallButton,
   Table,
+  TablePaddingRows,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -244,6 +245,12 @@ export function AdminDepartmentsSection({
                     <td>{item.description ?? "-"}</td>
                   </tr>
                 ))}
+                <TablePaddingRows
+                  columnCount={3}
+                  visibleRowCount={pagedDepartments.length}
+                  padTo={DEPARTMENTS_PER_PAGE}
+                  keyPrefix="admin-departments"
+                />
               </tbody>
             </Table>
           </DataState>

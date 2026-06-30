@@ -6,6 +6,7 @@ import { AdminLessonExchangeRequestsDetailPanel } from "@/components/admin/lesso
 import {
   formatLessonExchangeDate,
   formatLessonExchangeStatus,
+  LESSON_EXCHANGE_ITEMS_PER_PAGE,
   LESSON_EXCHANGE_STATUS_OPTIONS,
   type LessonExchangeStatusFilter,
 } from "@/components/admin/lesson-exchange/lessonExchangeRequestConstants";
@@ -18,6 +19,7 @@ import {
   SectionTitle,
   Select,
   Table,
+  TablePaddingRows,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
@@ -129,6 +131,12 @@ export function AdminLessonExchangeRequestsListPanel({
                   <td>{formatLessonExchangeDate(item.createdAt)}</td>
                 </tr>
               ))}
+              <TablePaddingRows
+                columnCount={6}
+                visibleRowCount={sortedRequests.length}
+                padTo={LESSON_EXCHANGE_ITEMS_PER_PAGE}
+                keyPrefix="admin-lesson-exchange"
+              />
             </tbody>
           </LessonExchangeListTable>
         </DataState>

@@ -112,6 +112,7 @@ export default function ArchiveDocumentDetailPage({
   const author = visiblePost?.authorName ?? "홍길동";
   const content = visiblePost?.contentHtml?.trim() || "설명";
   const attachments = visiblePost?.attachments;
+  const canPinPost = user?.role === "ADMIN";
   const canManagePost =
     user?.role === "ADMIN" ||
     (typeof user?.id === "number" && visiblePost?.authorId === user.id) ||
@@ -157,7 +158,7 @@ export default function ArchiveDocumentDetailPage({
         { title, contentHtml, status: "PUBLISHED", allowComment: editAllowComment },
       );
 
-      if (editIsPinned !== (visiblePost?.isPinned ?? false)) {
+      if (canPinPost && editIsPinned !== (visiblePost?.isPinned ?? false)) {
         await pinPost({ channelId, postId }, { isPinned: editIsPinned });
       }
 
@@ -335,14 +336,16 @@ export default function ArchiveDocumentDetailPage({
 
         {isEditing ? (
           <OptionRow>
-            <CheckboxLabel>
-              <CheckboxInput
-                type="checkbox"
-                checked={editIsPinned}
-                onChange={(event) => setEditIsPinned(event.target.checked)}
-              />
-              <span>게시물 고정</span>
-            </CheckboxLabel>
+            {canPinPost ? (
+              <CheckboxLabel>
+                <CheckboxInput
+                  type="checkbox"
+                  checked={editIsPinned}
+                  onChange={(event) => setEditIsPinned(event.target.checked)}
+                />
+                <span>게시물 고정</span>
+              </CheckboxLabel>
+            ) : null}
             <CheckboxLabel>
               <CheckboxInput
                 type="checkbox"

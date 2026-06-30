@@ -30,6 +30,7 @@ import {
   Select,
   SmallButton,
   Table,
+  TablePaddingRows,
   TextArea,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
@@ -37,7 +38,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
-const APPLICATIONS_PER_PAGE = 10;
+const APPLICATIONS_PER_PAGE = 11;
 
 function formatDateInput(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -298,6 +299,14 @@ export function AdminTeacherApplicationsSection() {
                   <td>{formatUtcToKstShortDate(item.createdAt) || "-"}</td>
                 </tr>
               ))}
+              {pagedApplications.length > 0 ? (
+                <TablePaddingRows
+                  columnCount={6}
+                  visibleRowCount={pagedApplications.length}
+                  padTo={APPLICATIONS_PER_PAGE}
+                  keyPrefix="admin-teacher-applications"
+                />
+              ) : null}
             </tbody>
           </Table>
         </DataState>
@@ -548,6 +557,10 @@ const ApplicationListFrame = styled.div`
   position: relative;
   min-height: 22.35rem;
   border-radius: 0.5rem;
+
+  @media (min-width: 120rem) {
+    min-height: 22.5rem;
+  }
 `;
 
 const Pagination = styled.nav`

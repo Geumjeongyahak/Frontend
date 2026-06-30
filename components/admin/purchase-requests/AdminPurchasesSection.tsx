@@ -13,6 +13,7 @@ import type {
   PurchaseRequestStatus,
 } from "@/api/request/request.dto";
 import type { VendorResponseDto } from "@/api/vendor/vendor.dto";
+import type { CreateVendorRequestDto } from "@/api/vendor/vendor.dto";
 import type {
   PurchaseCreateItemState,
   PurchaseCreateState,
@@ -32,11 +33,12 @@ import {
   SectionTitle,
   SmallButton,
   Table,
+  TablePaddingRows,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
-const PURCHASES_PER_PAGE = 10;
+const PURCHASES_PER_PAGE = 11;
 
 type QueryState<TData> = {
   data?: TData;
@@ -47,6 +49,12 @@ type QueryState<TData> = {
 type VoidMutationAction = {
   isPending: boolean;
   mutate: () => void;
+};
+
+type ValueMutationAction<TVariables> = {
+  isPending: boolean;
+  mutate: (variables: TVariables) => void;
+  mutateAsync: (variables: TVariables) => Promise<unknown>;
 };
 
 type PurchaseConfirmAction = "approve" | "reject" | "confirm" | "delete";
@@ -63,6 +71,7 @@ type AdminPurchasesSectionProps = {
   purchasesQuery: QueryState<unknown>;
   purchaseDetailQuery: QueryState<PurchaseRequestResponseDto>;
   vendorsQuery: QueryState<VendorResponseDto[]>;
+  createVendorMutation: ValueMutationAction<CreateVendorRequestDto>;
   createPurchaseMutation: VoidMutationAction;
   approvePurchaseMutation: VoidMutationAction;
   rejectPurchaseMutation: VoidMutationAction;
@@ -146,6 +155,7 @@ export function AdminPurchasesSection({
   purchasesQuery,
   purchaseDetailQuery,
   vendorsQuery,
+  createVendorMutation,
   createPurchaseMutation,
   approvePurchaseMutation,
   rejectPurchaseMutation,
@@ -162,6 +172,8 @@ export function AdminPurchasesSection({
   const [rejectTargetId, setRejectTargetId] = useState<number | null>(null);
   const [confirmAction, setConfirmAction] = useState<PurchaseConfirmAction | null>(null);
   const [isVendorBalanceModalOpen, setIsVendorBalanceModalOpen] = useState(false);
+  const [isVendorCreateModalOpen, setIsVendorCreateModalOpen] = useState(false);
+  const [vendorForm, setVendorForm] = useState({ name: "", description: "" });
   const [pagination, setPagination] = useState({ page: 1, search: "" });
   const isDetailOpen = selectedPurchaseId !== null;
   const paginationKey = `${purchaseStatus}:${purchaseSearch}`;
@@ -344,6 +356,33 @@ export function AdminPurchasesSection({
     }
   }
 
+  function closeVendorCreateModal() {
+    if (createVendorMutation.isPending) {
+      return;
+    }
+
+    setIsVendorCreateModalOpen(false);
+    setVendorForm({ name: "", description: "" });
+  }
+
+  async function submitVendorCreate() {
+    const name = vendorForm.name.trim();
+    if (!name) {
+      return;
+    }
+
+    try {
+      await createVendorMutation.mutateAsync({
+        name,
+        description: vendorForm.description.trim() || undefined,
+      });
+      setIsVendorCreateModalOpen(false);
+      setVendorForm({ name: "", description: "" });
+    } catch {
+      // Error toast is handled by the mutation.
+    }
+  }
+
   return (
     <>
       <PurchaseListSection $isPanelOpen={isDetailOpen} onClick={handlePurchaseListSectionClick}>
@@ -412,6 +451,14 @@ export function AdminPurchasesSection({
                     <td>{formatPurchaseListAmount(item)}</td>
                   </tr>
                 ))}
+                {pagedPurchases.length > 0 ? (
+                  <TablePaddingRows
+                    columnCount={6}
+                    visibleRowCount={pagedPurchases.length}
+                    padTo={PURCHASES_PER_PAGE}
+                    keyPrefix="admin-purchases"
+                  />
+                ) : null}
               </tbody>
             </Table>
           </DataState>
@@ -840,9 +887,14 @@ export function AdminPurchasesSection({
           >
             <ModalHeader>
               <SectionTitle id="vendor-balance-modal-title">현재 거래처별 잔액</SectionTitle>
-              <SmallButton type="button" onClick={() => setIsVendorBalanceModalOpen(false)}>
-                닫기
-              </SmallButton>
+              <ButtonRow>
+                <SmallButton type="button" onClick={() => setIsVendorCreateModalOpen(true)}>
+                  거래처 추가
+                </SmallButton>
+                <SmallButton type="button" onClick={() => setIsVendorBalanceModalOpen(false)}>
+                  닫기
+                </SmallButton>
+              </ButtonRow>
             </ModalHeader>
             <DataState
               isLoading={vendorsQuery.isLoading}
@@ -865,6 +917,71 @@ export function AdminPurchasesSection({
               </VendorBalanceTable>
             </DataState>
           </VendorBalanceDialog>
+        </ModalBackdrop>
+      ) : null}
+
+      {isVendorCreateModalOpen ? (
+        <ModalBackdrop onMouseDown={closeVendorCreateModal}>
+          <ModalDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="vendor-create-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <ModalHeader>
+              <SectionTitle id="vendor-create-modal-title">거래처 추가</SectionTitle>
+              <SmallButton
+                type="button"
+                disabled={createVendorMutation.isPending}
+                onClick={closeVendorCreateModal}
+              >
+                닫기
+              </SmallButton>
+            </ModalHeader>
+            <FormGrid
+              onSubmit={(event) => {
+                event.preventDefault();
+                submitVendorCreate();
+              }}
+            >
+              <Label>
+                거래처명
+                <TextInput
+                  value={vendorForm.name}
+                  disabled={createVendorMutation.isPending}
+                  onChange={(event) =>
+                    setVendorForm((current) => ({ ...current, name: event.target.value }))
+                  }
+                  required
+                />
+              </Label>
+              <Label>
+                설명
+                <TextInput
+                  value={vendorForm.description}
+                  disabled={createVendorMutation.isPending}
+                  onChange={(event) =>
+                    setVendorForm((current) => ({ ...current, description: event.target.value }))
+                  }
+                />
+              </Label>
+              <ButtonRow>
+                <PurchaseActionButton
+                  type="submit"
+                  disabled={createVendorMutation.isPending || !vendorForm.name.trim()}
+                >
+                  {createVendorMutation.isPending ? "추가 중..." : "추가"}
+                </PurchaseActionButton>
+                <SmallButton
+                  type="button"
+                  disabled={createVendorMutation.isPending}
+                  onClick={closeVendorCreateModal}
+                >
+                  취소
+                </SmallButton>
+              </ButtonRow>
+            </FormGrid>
+          </ModalDialog>
         </ModalBackdrop>
       ) : null}
     </>
