@@ -1449,19 +1449,7 @@ export default function AdminDashboardPage() {
   if (!isAdmin) {
     return (
       <Main>
-        <AdminContent
-          $compact={
-            activeMenu === "users" ||
-            activeMenu === "channels" ||
-            activeMenu === "posts" ||
-            activeMenu === "departments" ||
-            activeMenu === "classrooms" ||
-            activeMenu === "purchases" ||
-            activeMenu === "teacherApplications" ||
-            activeMenu === "absenceRequests" ||
-            activeMenu === "lessonExchange"
-          }
-        >
+        <AdminContent $compact>
           <StatePanel>
             <LoadingSpinner label="관리자 권한 확인 중" />
           </StatePanel>
@@ -1524,19 +1512,7 @@ export default function AdminDashboardPage() {
       </Sidebar>
 
       <Main>
-        <AdminContent
-          $compact={
-            activeMenu === "users" ||
-            activeMenu === "channels" ||
-            activeMenu === "posts" ||
-            activeMenu === "departments" ||
-            activeMenu === "classrooms" ||
-            activeMenu === "purchases" ||
-            activeMenu === "teacherApplications" ||
-            activeMenu === "absenceRequests" ||
-            activeMenu === "lessonExchange"
-          }
-        >
+        <AdminContent $compact>
           <AccountText>{user?.email}</AccountText>
           <PageHeader>
             <Title>{currentTitle}</Title>

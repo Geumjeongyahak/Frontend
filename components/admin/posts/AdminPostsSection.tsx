@@ -826,12 +826,7 @@ const PostListSection = styled(SectionCard)<{ $isPanelOpen: boolean }>`
 
 const PostListFrame = styled.div`
   position: relative;
-  min-height: 22.35rem;
   border-radius: 0.5rem;
-
-  @media (min-width: 120rem) {
-    min-height: 22.5rem;
-  }
 `;
 
 const PostControlRow = styled(ControlRow)`

@@ -24,7 +24,6 @@ import {
   InlineStatus,
   Label,
   SectionCard,
-  SectionDescription,
   SectionTitle,
   SmallButton,
   TextInput,
@@ -444,10 +443,6 @@ export function AdminLessonScheduleTables() {
           <IconSettings aria-hidden="true" />
         </IconButton>
       </ScheduleHeaderRow>
-      <SectionDescription>
-        사이트에 등록된 주중/주말 분반 목록을 기준으로 시간표의 행을 구성하고, 각 칸에는 요일별 담당
-        교사와 교시별 과목을 표시합니다.
-      </SectionDescription>
       <DataState
         isLoading={classroomsQuery.isLoading || subjectsQuery.isLoading}
         isError={classroomsQuery.isError || subjectsQuery.isError}
@@ -704,38 +699,12 @@ const ScheduleHeaderRow = styled.div`
   position: relative;
   min-height: 1.875rem;
   padding-right: 5.5rem;
-
-  ${SectionTitle} {
-    margin-bottom: 0;
-  }
+  margin-top: 0.4rem;
 
   @media (max-width: ${layout.breakpointMobile}) {
     padding-right: 0;
     padding-bottom: 4.75rem;
   }
-`;
-
-const PeriodLegend = styled.div`
-  position: absolute;
-  top: -0.125rem;
-  right: 2rem;
-  display: grid;
-  align-items: start;
-  justify-items: end;
-  gap: ${spacing.space8};
-
-  @media (max-width: ${layout.breakpointMobile}) {
-    top: 2.25rem;
-    left: 0;
-    right: auto;
-    justify-items: start;
-  }
-`;
-
-const LegendItem = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${spacing.space4};
 `;
 
 const LegendSwatch = styled.span<{ $color: string }>`
@@ -745,14 +714,6 @@ const LegendSwatch = styled.span<{ $color: string }>`
   border: 1px solid ${({ $color }) => $color};
   border-radius: ${radii.radius999};
   background-color: ${({ $color }) => $color};
-`;
-
-const LegendText = styled.span`
-  color: #1f2b28;
-  font-size: ${typography.fontSize13};
-  font-weight: 800;
-  line-height: ${typography.lineHeight130};
-  white-space: nowrap;
 `;
 
 const IconButton = styled.button`
@@ -799,7 +760,7 @@ const ScheduleTitle = styled.h3`
   line-height: 1.25rem;
 
   @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
+    font-size: ${typography.fontSize16};
   }
 `;
 

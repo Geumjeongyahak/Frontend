@@ -553,7 +553,6 @@ const FilterSelect = styled(Select)`
 
 const ApplicationListFrame = styled.div`
   position: relative;
-  min-height: 22.35rem;
   border-radius: 0.5rem;
 `;
 
