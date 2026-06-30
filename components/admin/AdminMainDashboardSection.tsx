@@ -18,6 +18,8 @@ import {
   StatsGrid,
   StatValue,
 } from "@/components/admin/AdminDashboardSectionParts";
+import { spacing } from "@/styles/tokens";
+import styled from "styled-components";
 
 type QueryState = {
   isLoading: boolean;
@@ -209,7 +211,9 @@ export function AdminMainDashboardSection({
 
           return (
             <SectionCard key={group.title}>
-              <SectionTitle>{group.title}</SectionTitle>
+              <GroupTitleRow>
+                <SectionTitle>{group.title}</SectionTitle>
+              </GroupTitleRow>
               <GridComponent>
                 {group.actions.map((action) => (
                   <ActionCardButton
@@ -229,3 +233,11 @@ export function AdminMainDashboardSection({
     </DashboardStack>
   );
 }
+
+const GroupTitleRow = styled.div`
+  margin-bottom: ${spacing.space8};
+
+  ${SectionTitle} {
+    margin: 0;
+  }
+`;
