@@ -1,5 +1,4 @@
 import authClient from "../client/authClient";
-import publicClient from "../client/publicClient";
 import type {
   ChannelListQueryParamsDto,
   ChannelResponseDto,
@@ -10,7 +9,7 @@ import type {
 
 // 채널 목록을 조회하는 요청
 export async function getChannels(query?: ChannelListQueryParamsDto) {
-  const response = await publicClient.get<ChannelResponseDto[]>("/api/v1/channels", {
+  const response = await authClient.get<ChannelResponseDto[]>("/api/v1/channels", {
     params: query,
   });
   return response.data;

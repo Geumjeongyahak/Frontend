@@ -6,12 +6,12 @@ import { describe, expect, it } from "vitest";
 import { API_BASE_URL, VALID_ACCESS_TOKEN } from "../../mocks/handlers/auth.handlers";
 import { CHANNEL_LIST_RESPONSE, CHANNEL_RESPONSE } from "../../mocks/handlers/channel.handlers";
 import { server } from "../../mocks/server";
-import { setAccessToken } from "../client/tokenStorage";
+import { clearTokens, setAccessToken } from "../client/tokenStorage";
 
 import { createChannel, getChannel, getChannels, updateChannel } from "./channel.api";
 
 describe("channel.api", () => {
-  it("returns channels without authorization header and with query params", async () => {
+  it("returns channels with authorization header when a token exists", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     let observedAuthorizationHeader: string | null = null;
@@ -28,9 +28,25 @@ describe("channel.api", () => {
     const response = await getChannels({ channelType: "NOTICE", isActive: true });
 
     expect(response).toEqual(CHANNEL_LIST_RESPONSE);
-    expect(observedAuthorizationHeader).toBeNull();
+    expect(observedAuthorizationHeader).toBe(`Bearer ${VALID_ACCESS_TOKEN}`);
     expect(observedQueryString).toContain("channelType=NOTICE");
     expect(observedQueryString).toContain("isActive=true");
+  });
+
+  it("does not attach authorization header when no token exists", async () => {
+    clearTokens();
+
+    let observedAuthorizationHeader: string | null = "not-checked";
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/channels`, ({ request }) => {
+        observedAuthorizationHeader = request.headers.get("authorization");
+        return HttpResponse.json(CHANNEL_LIST_RESPONSE);
+      }),
+    );
+
+    await expect(getChannels({ isActive: true })).resolves.toEqual(CHANNEL_LIST_RESPONSE);
+    expect(observedAuthorizationHeader).toBeNull();
   });
 
   it("creates a channel with the expected request body", async () => {

@@ -195,6 +195,7 @@ export default function BoardCreatePageClient({
   }, [selectedBoardType, channelsQuery.data, selectedBoardScope]);
 
   const currentUserName = user?.name ?? user?.nickname ?? user?.email ?? "";
+  const canPinPost = user?.role === "ADMIN";
   const initialPinned = Boolean(postDetailQuery.data?.isPinned);
   const visibleTitle = title ?? postDetailQuery.data?.title ?? "";
   const visibleAuthor = postDetailQuery.data?.authorName ?? currentUserName;
@@ -287,7 +288,7 @@ export default function BoardCreatePageClient({
 
         const published = await publishPost({ channelId, postId: draftPost.id }, publishBody);
 
-        if (visibleIsPinned !== (isEditMode ? initialPinned : false)) {
+        if (canPinPost && visibleIsPinned !== (isEditMode ? initialPinned : false)) {
           await pinPost({ channelId, postId: draftPost.id }, { isPinned: visibleIsPinned });
         }
 
@@ -300,7 +301,7 @@ export default function BoardCreatePageClient({
           { title, contentHtml, status: "PUBLISHED", allowComment },
         );
 
-        if (visibleIsPinned !== initialPinned) {
+        if (canPinPost && visibleIsPinned !== initialPinned) {
           await pinPost({ channelId, postId: editPostId }, { isPinned: visibleIsPinned });
         }
 
@@ -460,14 +461,16 @@ export default function BoardCreatePageClient({
           />
 
           <OptionRow>
-            <CheckboxLabel>
-              <CheckboxInput
-                type="checkbox"
-                checked={visibleIsPinned}
-                onChange={(event) => setIsPinned(event.target.checked)}
-              />
-              <span>게시물 고정</span>
-            </CheckboxLabel>
+            {canPinPost ? (
+              <CheckboxLabel>
+                <CheckboxInput
+                  type="checkbox"
+                  checked={visibleIsPinned}
+                  onChange={(event) => setIsPinned(event.target.checked)}
+                />
+                <span>게시물 고정</span>
+              </CheckboxLabel>
+            ) : null}
             <CheckboxLabel>
               <CheckboxInput
                 type="checkbox"
