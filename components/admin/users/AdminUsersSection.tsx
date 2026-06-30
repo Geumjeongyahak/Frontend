@@ -24,6 +24,7 @@ import {
   SectionTitle,
   SmallButton,
   Table,
+  TablePaddingRows,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -332,6 +333,12 @@ export function AdminUsersSection({
                     <td>{getDepartmentLabel(item, departments)}</td>
                   </tr>
                 ))}
+                <TablePaddingRows
+                  columnCount={4}
+                  visibleRowCount={pagedUsers.length}
+                  padTo={ADMIN_USERS_PER_PAGE}
+                  keyPrefix="admin-users"
+                />
               </tbody>
             </Table>
           </DataState>

@@ -27,6 +27,7 @@ import {
   SectionTitle,
   SmallButton,
   Table,
+  TablePaddingRows,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
@@ -517,6 +518,12 @@ export function AdminPostsSection({
                     <td>{item.viewCount ?? 0}</td>
                   </tr>
                 ))}
+                <TablePaddingRows
+                  columnCount={5}
+                  visibleRowCount={pagedPosts.length}
+                  padTo={ADMIN_POSTS_PER_PAGE}
+                  keyPrefix="admin-posts"
+                />
               </tbody>
             </Table>
           </DataState>

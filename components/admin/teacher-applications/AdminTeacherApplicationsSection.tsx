@@ -30,6 +30,7 @@ import {
   Select,
   SmallButton,
   Table,
+  TablePaddingRows,
   TextArea,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
@@ -298,6 +299,12 @@ export function AdminTeacherApplicationsSection() {
                   <td>{formatUtcToKstShortDate(item.createdAt) || "-"}</td>
                 </tr>
               ))}
+              <TablePaddingRows
+                columnCount={6}
+                visibleRowCount={pagedApplications.length}
+                padTo={APPLICATIONS_PER_PAGE}
+                keyPrefix="admin-teacher-applications"
+              />
             </tbody>
           </Table>
         </DataState>

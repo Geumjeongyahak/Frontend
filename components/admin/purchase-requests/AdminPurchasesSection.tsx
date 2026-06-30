@@ -32,6 +32,7 @@ import {
   SectionTitle,
   SmallButton,
   Table,
+  TablePaddingRows,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -412,6 +413,12 @@ export function AdminPurchasesSection({
                     <td>{formatPurchaseListAmount(item)}</td>
                   </tr>
                 ))}
+                <TablePaddingRows
+                  columnCount={6}
+                  visibleRowCount={pagedPurchases.length}
+                  padTo={PURCHASES_PER_PAGE}
+                  keyPrefix="admin-purchases"
+                />
               </tbody>
             </Table>
           </DataState>

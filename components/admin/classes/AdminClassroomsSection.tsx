@@ -29,6 +29,7 @@ import {
   SectionTitle,
   SmallButton,
   Table,
+  TablePaddingRows,
   TextArea,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
@@ -334,6 +335,12 @@ export function AdminClassroomsSection({
                     <td>{item.description ?? "-"}</td>
                   </tr>
                 ))}
+                <TablePaddingRows
+                  columnCount={4}
+                  visibleRowCount={pagedClassrooms.length}
+                  padTo={CLASSROOMS_PER_PAGE}
+                  keyPrefix="admin-classrooms"
+                />
               </tbody>
             </Table>
           </DataState>

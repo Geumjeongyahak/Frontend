@@ -4,6 +4,7 @@ import { type MouseEvent } from "react";
 import styled from "styled-components";
 import { AdminAbsenceRequestsDetailPanel } from "@/components/admin/absence-requests/AdminAbsenceRequestsDetailPanel";
 import {
+  ABSENCE_ITEMS_PER_PAGE,
   ABSENCE_STATUS_OPTIONS,
   formatAbsenceDate,
   formatAbsenceStatus,
@@ -18,6 +19,7 @@ import {
   SectionTitle,
   Select,
   Table,
+  TablePaddingRows,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
@@ -154,6 +156,12 @@ export function AdminAbsenceRequestsListPanel({
                   <td>{formatAbsenceDate(item.createdAt)}</td>
                 </tr>
               ))}
+              <TablePaddingRows
+                columnCount={6}
+                visibleRowCount={sortedRequests.length}
+                padTo={ABSENCE_ITEMS_PER_PAGE}
+                keyPrefix="admin-absence-requests"
+              />
             </tbody>
           </AbsenceListTable>
         </DataState>

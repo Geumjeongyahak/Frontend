@@ -20,6 +20,7 @@ import {
   SectionTitle,
   SmallButton,
   Table,
+  TablePaddingRows,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -191,6 +192,12 @@ export function AdminChannelsSection({
                     <td>{formatChannelStatus(item.isActive)}</td>
                   </tr>
                 ))}
+                <TablePaddingRows
+                  columnCount={4}
+                  visibleRowCount={pagedChannels.length}
+                  padTo={CHANNELS_PER_PAGE}
+                  keyPrefix="admin-channels"
+                />
               </tbody>
             </Table>
           </DataState>
