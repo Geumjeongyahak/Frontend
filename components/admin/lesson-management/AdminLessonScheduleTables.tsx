@@ -11,6 +11,7 @@ import type { ClassroomListItemDto, ClassroomType } from "@/api/classroom/classr
 import {
   assignSubjectTeacher,
   createSubject,
+  deleteSubject,
   getSubjects,
   updateSubject,
   updateSubjectSchedule,
@@ -21,6 +22,7 @@ import type { UserListItemDto } from "@/api/user/user.dto";
 import {
   ButtonRow,
   DataState,
+  DangerButton,
   InlineStatus,
   Label,
   SectionCard,
@@ -361,6 +363,41 @@ export function AdminLessonScheduleTables() {
     setFormError(null);
   };
 
+  const resetCellMutation = useMutation({
+    mutationFn: async () => {
+      const subjectIds = cellForm.periods
+        .map((periodForm) => periodForm.subjectId)
+        .filter((subjectId): subjectId is number => typeof subjectId === "number" && subjectId > 0);
+
+      if (subjectIds.length === 0) {
+        throw new Error("초기화할 시간표 항목이 없습니다.");
+      }
+
+      const failedSubjectIds: number[] = [];
+
+      for (const subjectId of subjectIds) {
+        try {
+          await deleteSubject({ subjectId });
+        } catch {
+          failedSubjectIds.push(subjectId);
+        }
+      }
+
+      if (failedSubjectIds.length > 0) {
+        throw new Error("일부 시간표 항목만 초기화되었습니다. 다시 한 번 시도해 주세요.");
+      }
+    },
+    onSuccess: async () => {
+      toast.success("시간표 항목을 초기화했습니다.");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
+      closeModal();
+    },
+    onError: async (error) => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
+      setFormError(resolveScheduleMutationError(error));
+    },
+  });
+
   const saveCellMutation = useMutation({
     mutationFn: async () => {
       const classroomId = selectedCell ? getClassroomId(selectedCell.classroom) : null;
@@ -428,6 +465,9 @@ export function AdminLessonScheduleTables() {
     setFormError(null);
     saveCellMutation.mutate();
   };
+  const hasResettableSubjects = cellForm.periods.some(
+    (periodForm) => typeof periodForm.subjectId === "number" && periodForm.subjectId > 0,
+  );
 
   return (
     <SectionCard>
@@ -488,9 +528,29 @@ export function AdminLessonScheduleTables() {
                 </ModalTitle>
                 <ModalDescription>담당 교사는 1~3교시에 동일하게 적용됩니다.</ModalDescription>
               </div>
-              <SmallButton type="button" onClick={closeModal}>
-                닫기
-              </SmallButton>
+              <ButtonRow>
+                <DangerButton
+                  type="button"
+                  disabled={
+                    !hasResettableSubjects ||
+                    resetCellMutation.isPending ||
+                    saveCellMutation.isPending
+                  }
+                  onClick={() => {
+                    setFormError(null);
+                    resetCellMutation.mutate();
+                  }}
+                >
+                  {resetCellMutation.isPending ? "초기화 중..." : "초기화"}
+                </DangerButton>
+                <SmallButton
+                  type="button"
+                  disabled={resetCellMutation.isPending || saveCellMutation.isPending}
+                  onClick={closeModal}
+                >
+                  닫기
+                </SmallButton>
+              </ButtonRow>
             </ModalHeader>
 
             <ModalBody>
@@ -617,14 +677,14 @@ export function AdminLessonScheduleTables() {
               <ButtonRow>
                 <LessonActionButton
                   type="button"
-                  disabled={saveCellMutation.isPending}
+                  disabled={saveCellMutation.isPending || resetCellMutation.isPending}
                   onClick={handleSaveCell}
                 >
                   {saveCellMutation.isPending ? "저장 중..." : "저장"}
                 </LessonActionButton>
                 <SmallButton
                   type="button"
-                  disabled={saveCellMutation.isPending}
+                  disabled={saveCellMutation.isPending || resetCellMutation.isPending}
                   onClick={closeModal}
                 >
                   취소
