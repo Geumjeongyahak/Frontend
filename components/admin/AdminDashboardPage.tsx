@@ -103,8 +103,8 @@ import {
 import type { PermissionDefinitionDto } from "@/api/user/user.dto";
 import { getLessonExchangeRequests } from "@/api/lessonExchange/lessonExchange.api";
 import { getTeacherApplications } from "@/api/teacherApplication/teacherApplication.api";
-import { chargeVendor, getVendors } from "@/api/vendor/vendor.api";
-import type { VendorResponseDto } from "@/api/vendor/vendor.dto";
+import { chargeVendor, createVendor, getVendors } from "@/api/vendor/vendor.api";
+import type { CreateVendorRequestDto, VendorResponseDto } from "@/api/vendor/vendor.dto";
 import type { UserListItemDto } from "@/api/user/user.dto";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuthSession } from "@/hooks/useAuthSession";
@@ -1452,6 +1452,14 @@ export default function AdminDashboardPage() {
     },
     onError: (error) => notifyError(getErrorMessage(error, "구매 요청 삭제에 실패했습니다.")),
   });
+  const createVendorMutation = useMutation({
+    mutationFn: (body: CreateVendorRequestDto) => createVendor(body),
+    onSuccess: async () => {
+      notifySuccess("거래처를 추가했습니다.");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.vendors.list() });
+    },
+    onError: (error) => notifyError(getErrorMessage(error, "거래처 추가에 실패했습니다.")),
+  });
 
   async function handleLogout() {
     await signOut();
@@ -1718,6 +1726,7 @@ export default function AdminDashboardPage() {
               purchasesQuery={purchasesQuery}
               purchaseDetailQuery={purchaseDetailQuery}
               vendorsQuery={vendorsQuery}
+              createVendorMutation={createVendorMutation}
               createPurchaseMutation={createPurchaseMutation}
               approvePurchaseMutation={approvePurchaseMutation}
               rejectPurchaseMutation={rejectPurchaseMutation}
