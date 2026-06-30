@@ -170,39 +170,43 @@ export default function MeetingRecordAbsenceSection({
 
   return (
     <>
-      <AbsenceHeader>
-        <AbsenceTitle>불참 사유서</AbsenceTitle>
-        <ActionButton type="submit" form="absence-report-form" disabled={!canSubmit}>
-          작성 완료
-        </ActionButton>
-      </AbsenceHeader>
+      {meetingStatus !== "AFTER_MEETING" ? (
+        <>
+          <AbsenceHeader>
+            <AbsenceTitle>불참 사유서</AbsenceTitle>
+            <ActionButton type="submit" form="absence-report-form" disabled={!canSubmit}>
+              작성 완료
+            </ActionButton>
+          </AbsenceHeader>
 
-      <AbsenceStack as="form" id="absence-report-form" onSubmit={handleSubmit}>
-        <AbsenceBox as="label" $tone="draft" $height="short">
-          <AbsenceBoxLabel $draft>작성자</AbsenceBoxLabel>
-          <AbsenceInput name="author" value={authorName} readOnly />
-        </AbsenceBox>
-        <AbsenceBox as="label" $tone="draft" $height="large">
-          <AbsenceBoxLabel $draft>불참 사유</AbsenceBoxLabel>
-          <AbsenceTextarea
-            name="reason"
-            rows={1}
-            value={draft.reason}
-            onChange={(event) => updateDraft("reason", event.target.value)}
-            placeholder="불참사유"
-          />
-        </AbsenceBox>
-        <AbsenceBox as="label" $tone="draft" $height="medium">
-          <AbsenceBoxLabel $draft>의견</AbsenceBoxLabel>
-          <AbsenceTextarea
-            name="opinion"
-            rows={1}
-            value={draft.opinion}
-            onChange={(event) => updateDraft("opinion", event.target.value)}
-            placeholder="의견"
-          />
-        </AbsenceBox>
-      </AbsenceStack>
+          <AbsenceStack as="form" id="absence-report-form" onSubmit={handleSubmit}>
+            <AbsenceBox as="label" $tone="draft" $height="short">
+              <AbsenceBoxLabel $draft>작성자</AbsenceBoxLabel>
+              <AbsenceInput name="author" value={authorName} readOnly />
+            </AbsenceBox>
+            <AbsenceBox as="label" $tone="draft" $height="large">
+              <AbsenceBoxLabel $draft>불참 사유</AbsenceBoxLabel>
+              <AbsenceTextarea
+                name="reason"
+                rows={1}
+                value={draft.reason}
+                onChange={(event) => updateDraft("reason", event.target.value)}
+                placeholder="불참사유"
+              />
+            </AbsenceBox>
+            <AbsenceBox as="label" $tone="draft" $height="medium">
+              <AbsenceBoxLabel $draft>의견</AbsenceBoxLabel>
+              <AbsenceTextarea
+                name="opinion"
+                rows={1}
+                value={draft.opinion}
+                onChange={(event) => updateDraft("opinion", event.target.value)}
+                placeholder="의견"
+              />
+            </AbsenceBox>
+          </AbsenceStack>
+        </>
+      ) : null}
 
       {updateMutation.isError ? (
         <StateMessage role="alert">불참 사유서 수정에 실패했습니다.</StateMessage>

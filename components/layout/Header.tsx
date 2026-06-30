@@ -84,7 +84,7 @@ export default function Header() {
                 {headerMenus.map((menu) => (
                   <NavItem key={menu.label}>
                     <NavLink
-                      href={menu.label === "신규 등록" ? newRegistrationHref : menu.href}
+                      href={menu.href === "/register" ? newRegistrationHref : menu.href}
                       $isOpen={isMenuOpen}
                       onFocus={() => setIsMenuOpen(true)}
                       onMouseEnter={() => setIsMenuOpen(true)}
@@ -124,9 +124,7 @@ export default function Header() {
                       <SubMenuItem key={item.label}>
                         <SubMenuLink
                           href={
-                            menu.label === "신규 등록" && item.label === "교사 신청"
-                              ? newRegistrationHref
-                              : item.href
+                            item.href === "/apply" ? newRegistrationHref : item.href
                           }
                         >
                           {item.label}
