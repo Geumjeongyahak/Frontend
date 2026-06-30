@@ -56,6 +56,7 @@ type AdminMainDashboardSectionProps = {
   pendingPurchasesQuery: QueryState;
   pendingAbsenceRequestsQuery: QueryState;
   pendingLessonExchangeRequestsQuery: QueryState;
+  pendingTeacherApplicationsQuery: QueryState;
   setActiveMenu: (menu: AdminMenu) => void;
 };
 
@@ -68,6 +69,7 @@ export function AdminMainDashboardSection({
   pendingPurchasesQuery,
   pendingAbsenceRequestsQuery,
   pendingLessonExchangeRequestsQuery,
+  pendingTeacherApplicationsQuery,
   setActiveMenu,
 }: AdminMainDashboardSectionProps) {
   const isDashboardLoading =
@@ -76,14 +78,16 @@ export function AdminMainDashboardSection({
     classroomsQuery.isLoading ||
     pendingPurchasesQuery.isLoading ||
     pendingAbsenceRequestsQuery.isLoading ||
-    pendingLessonExchangeRequestsQuery.isLoading;
+    pendingLessonExchangeRequestsQuery.isLoading ||
+    pendingTeacherApplicationsQuery.isLoading;
   const isDashboardError =
     usersQuery.isError ||
     departmentsQuery.isError ||
     classroomsQuery.isError ||
     pendingPurchasesQuery.isError ||
     pendingAbsenceRequestsQuery.isError ||
-    pendingLessonExchangeRequestsQuery.isError;
+    pendingLessonExchangeRequestsQuery.isError ||
+    pendingTeacherApplicationsQuery.isError;
 
   const managementGroups: ManagementGroup[] = [
     {
@@ -149,6 +153,11 @@ export function AdminMainDashboardSection({
           title: "결제 요청 관리",
           description: "물품 구매 요청 처리",
           menu: "purchases",
+        },
+        {
+          title: "교사 신청 관리",
+          description: "교사 신청 승인/반려 처리",
+          menu: "teacherApplications",
         },
       ],
     },

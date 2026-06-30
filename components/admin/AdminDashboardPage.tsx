@@ -102,6 +102,7 @@ import {
 } from "@/api/user/user.api";
 import type { PermissionDefinitionDto } from "@/api/user/user.dto";
 import { getLessonExchangeRequests } from "@/api/lessonExchange/lessonExchange.api";
+import { getTeacherApplications } from "@/api/teacherApplication/teacherApplication.api";
 import { chargeVendor, getVendors } from "@/api/vendor/vendor.api";
 import type { VendorResponseDto } from "@/api/vendor/vendor.dto";
 import type { UserListItemDto } from "@/api/user/user.dto";
@@ -120,7 +121,7 @@ const navigationItems: { key: AdminMenu; label: string }[] = [
   { key: "channels", label: "채널 관리" },
   { key: "posts", label: "게시글 관리" },
   { key: "lessonExchange", label: "수업 교환 요청 관리" },
-  { key: "absenceRequests", label: "결강 요청 관리" },
+  { key: "absenceRequests", label: "수업 결강 요청 관리" },
   { key: "purchases", label: "결제 요청 관리" },
   { key: "teacherApplications", label: "교사 신청 관리" },
 ];
@@ -342,10 +343,7 @@ function mapChannelFormToPayload(form: ChannelFormState) {
   };
 }
 
-function mapStudentCreateFormToPayload(
-  form: StudentCreateFormState,
-  classroomId: number,
-) {
+function mapStudentCreateFormToPayload(form: StudentCreateFormState, classroomId: number) {
   return {
     name: form.name.trim(),
     phoneNumber: form.phoneNumber.trim() || undefined,
@@ -562,6 +560,11 @@ export default function AdminDashboardPage() {
     queryFn: () => getLessonExchangeRequests({ status: "PENDING", page: 0, size: 1 }),
     enabled: isAdmin,
   });
+  const pendingTeacherApplicationsQuery = useQuery({
+    queryKey: [...queryKeys.teacherApplications.adminList({ status: "PENDING" }), "dashboard"],
+    queryFn: () => getTeacherApplications({ status: "PENDING", page: 0, size: 1 }),
+    enabled: isAdmin,
+  });
   const channelsQuery = useQuery({
     queryKey: queryKeys.admin.channels(),
     queryFn: () => getChannels({ name: channelSearch || undefined }),
@@ -593,7 +596,7 @@ export default function AdminDashboardPage() {
           postChannelTypeFilter === "DEPARTMENT" && postScopeFilter !== "all"
             ? (toNumber(postScopeFilter) ?? undefined)
             : undefined,
-    }),
+      }),
     enabled: isAdmin,
     placeholderData: (previousData) => previousData,
   });
@@ -822,6 +825,8 @@ export default function AdminDashboardPage() {
   const pendingAbsenceRequestCount = pendingAbsenceRequestsQuery.data?.totalElements ?? 0;
   const pendingLessonExchangeRequestCount =
     pendingLessonExchangeRequestsQuery.data?.totalElements ?? 0;
+  const pendingTeacherApplicationCount =
+    pendingTeacherApplicationsQuery.data?.totalElements ?? 0;
   const requestSummaries = [
     {
       label: "대기 중인 수업 교환 요청",
@@ -841,6 +846,12 @@ export default function AdminDashboardPage() {
       description: `${pendingPurchaseCount}건의 검토가 필요합니다.`,
       menu: "purchases" as const,
       onClick: () => setPurchaseStatus("PENDING"),
+    },
+    {
+      label: "대기 중인 교사 신청",
+      count: pendingTeacherApplicationCount,
+      description: `${pendingTeacherApplicationCount}건의 검토가 필요합니다.`,
+      menu: "teacherApplications" as const,
     },
   ];
 
@@ -866,7 +877,8 @@ export default function AdminDashboardPage() {
       confirmPassword: "",
       name: item.name ?? "",
       phoneNumber: item.phoneNumber ?? "",
-      birthDate: toBirthDateInputValue(item.birthDate ?? item.residentRegistrationNumberPrefix) || "",
+      birthDate:
+        toBirthDateInputValue(item.birthDate ?? item.residentRegistrationNumberPrefix) || "",
       role: item.role ?? "VOLUNTEER",
       departmentId:
         item.departmentId !== null && item.departmentId !== undefined
@@ -1528,6 +1540,7 @@ export default function AdminDashboardPage() {
               pendingPurchasesQuery={pendingPurchasesQuery}
               pendingAbsenceRequestsQuery={pendingAbsenceRequestsQuery}
               pendingLessonExchangeRequestsQuery={pendingLessonExchangeRequestsQuery}
+              pendingTeacherApplicationsQuery={pendingTeacherApplicationsQuery}
               setActiveMenu={handleActiveMenuChange}
             />
           ) : null}
