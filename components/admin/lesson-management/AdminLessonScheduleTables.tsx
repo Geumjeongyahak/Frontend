@@ -443,33 +443,35 @@ export function AdminLessonScheduleTables() {
           <IconSettings aria-hidden="true" />
         </IconButton>
       </ScheduleHeaderRow>
-      <DataState
-        isLoading={classroomsQuery.isLoading || subjectsQuery.isLoading}
-        isError={classroomsQuery.isError || subjectsQuery.isError}
-        isEmpty={!hasClassrooms}
-        loadingLabel="시간표 불러오는 중"
-        errorLabel="시간표를 불러오지 못했습니다."
-        emptyLabel="주중 또는 주말 분반이 없습니다."
-      >
-        <ScheduleStack>
-          <ScheduleTable
-            title="주중 시간표"
-            classrooms={weekdayClassrooms}
-            subjects={subjects}
-            columns={WEEKDAY_COLUMNS}
-            periodColors={periodColors}
-            onSelectCell={setSelectedCell}
-          />
-          <ScheduleTable
-            title="주말 시간표"
-            classrooms={weekendClassrooms}
-            subjects={subjects}
-            columns={WEEKEND_COLUMNS}
-            periodColors={periodColors}
-            onSelectCell={setSelectedCell}
-          />
-        </ScheduleStack>
-      </DataState>
+      <ScheduleContentArea>
+        <DataState
+          isLoading={classroomsQuery.isLoading || subjectsQuery.isLoading}
+          isError={classroomsQuery.isError || subjectsQuery.isError}
+          isEmpty={!hasClassrooms}
+          loadingLabel="시간표 불러오는 중"
+          errorLabel="시간표를 불러오지 못했습니다."
+          emptyLabel="주중 또는 주말 분반이 없습니다."
+        >
+          <ScheduleStack>
+            <ScheduleTable
+              title="주중 시간표"
+              classrooms={weekdayClassrooms}
+              subjects={subjects}
+              columns={WEEKDAY_COLUMNS}
+              periodColors={periodColors}
+              onSelectCell={setSelectedCell}
+            />
+            <ScheduleTable
+              title="주말 시간표"
+              classrooms={weekendClassrooms}
+              subjects={subjects}
+              columns={WEEKEND_COLUMNS}
+              periodColors={periodColors}
+              onSelectCell={setSelectedCell}
+            />
+          </ScheduleStack>
+        </DataState>
+      </ScheduleContentArea>
 
       {selectedCell ? (
         <ModalBackdrop onMouseDown={closeModal}>
@@ -690,9 +692,16 @@ export function AdminLessonScheduleTables() {
 
 const ScheduleStack = styled.div`
   display: flex;
+  width: 100%;
+  min-width: 0;
   align-items: flex-start;
   gap: ${spacing.space20};
   overflow-x: auto;
+`;
+
+const ScheduleContentArea = styled.div`
+  min-width: 0;
+  overflow: hidden;
 `;
 
 const ScheduleHeaderRow = styled.div`
