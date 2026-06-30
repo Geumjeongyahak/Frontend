@@ -141,8 +141,8 @@ export function AdminMainDashboardSection({
           menu: "lessonExchange",
         },
         {
-          title: "결강 요청 관리",
-          description: "결강 요청 승인/반려 처리",
+          title: "수업 결강 요청 관리",
+          description: "수업 결강 요청 승인/반려 처리",
           menu: "absenceRequests",
         },
         {

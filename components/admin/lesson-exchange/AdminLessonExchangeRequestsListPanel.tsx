@@ -217,7 +217,12 @@ const HeaderHeightSpacer = styled.span`
 
 const LessonExchangeListFrame = styled.div`
   position: relative;
+  min-height: 22.35rem;
   border-radius: 0.5rem;
+
+  @media (min-width: 120rem) {
+    min-height: 22.5rem;
+  }
 `;
 
 const LessonExchangeListTable = styled(Table)`
