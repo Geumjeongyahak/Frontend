@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { IconCalendarMonth } from "@tabler/icons-react";
 import styled from "styled-components";
 import { signup } from "@/api/auth/auth.api";
 import { getSignupErrorMessage } from "@/components/auth/authErrorMessages";
@@ -32,8 +33,10 @@ const initialState: RegisterFormState = {
 export default function MobileRegisterPage() {
   const router = useRouter();
   const [form, setForm] = useState(initialState);
+  const [birthDateText, setBirthDateText] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const birthDateInputRef = useRef<HTMLInputElement>(null);
 
   const passwordMatchState =
     form.confirmPassword.length === 0
@@ -50,6 +53,37 @@ export default function MobileRegisterPage() {
     isPasswordConfirmed &&
     form.name.trim().length > 0 &&
     form.birthDate.length > 0;
+
+  useEffect(() => {
+    if (!form.birthDate) {
+      setBirthDateText("");
+      return;
+    }
+
+    const [year, month, day] = form.birthDate.split("-");
+    if (!year || !month || !day) {
+      setBirthDateText("");
+      return;
+    }
+
+    setBirthDateText(`${year.slice(-2)}.${month}.${day}`);
+  }, [form.birthDate]);
+
+  function handleOpenBirthDatePicker() {
+    const input = birthDateInputRef.current;
+    if (!input) return;
+
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+      return;
+    }
+
+    input.click();
+  }
+
+  function handleBirthDateChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setForm((current) => ({ ...current, birthDate: event.target.value }));
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -149,16 +183,34 @@ export default function MobileRegisterPage() {
 
           <Field>
             <Label htmlFor="mobile-register-birth-date">생년월일</Label>
-            <DateInput
-              id="mobile-register-birth-date"
-              type="date"
-              autoComplete="bday"
-              value={form.birthDate}
-              onClick={(event) => openDatePicker(event.currentTarget)}
-              onChange={(event) =>
-                setForm((current) => ({ ...current, birthDate: event.target.value }))
-              }
-            />
+            <DateRow>
+              <DateTextInput
+                id="mobile-register-birth-date"
+                name="birthDateText"
+                autoComplete="bday"
+                placeholder="00.00.00"
+                value={birthDateText}
+                readOnly
+                onClick={handleOpenBirthDatePicker}
+              />
+              <HiddenNativeDateInput
+                ref={birthDateInputRef}
+                name="birthDate"
+                type="date"
+                value={form.birthDate}
+                onClick={(event) => openDatePicker(event.currentTarget)}
+                onChange={handleBirthDateChange}
+                aria-hidden="true"
+                tabIndex={-1}
+              />
+              <CalendarButton
+                type="button"
+                aria-label="생년월일 달력 열기"
+                onClick={handleOpenBirthDatePicker}
+              >
+                <IconCalendarMonth size={18} stroke={2} color={colors.point} />
+              </CalendarButton>
+            </DateRow>
           </Field>
 
           <Field>
@@ -289,21 +341,54 @@ const PasswordInput = styled(Input)<{ $matchState: "idle" | "matched" | "mismatc
     $matchState === "matched" ? "#f4faef" : $matchState === "mismatched" ? "#fff6f5" : "#fbfcfa"};
 `;
 
-const DateInput = styled(Input)`
-  padding-right: 3.25rem;
-  cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%2387C25C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4'/%3E%3Cpath d='M16 2v4'/%3E%3Crect width='18' height='18' x='3' y='4' rx='2'/%3E%3Cpath d='M3 10h18'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 1rem center;
-  background-size: 1.125rem;
+const DateRow = styled.div`
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.4375rem 1rem;
+  border: 1px solid #d7ddd3;
+  border-radius: ${radii.radius15};
+  background: #fbfcfa;
+`;
 
-  &::-webkit-calendar-picker-indicator {
-    opacity: 0;
-    width: 2.5rem;
-    height: 100%;
-    margin: 0;
-    cursor: pointer;
+const DateTextInput = styled.input`
+  width: 4.375rem;
+  border: 0;
+  background: transparent;
+  color: ${colors.text};
+  font-family: inherit;
+  font-size: ${typography.fontSize16};
+  font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  outline: none;
+  cursor: pointer;
+
+  &::placeholder {
+    color: ${colors.placeholder};
   }
+`;
+
+const HiddenNativeDateInput = styled.input`
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+`;
+
+const CalendarButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: ${colors.point};
+  cursor: pointer;
 `;
 
 const Status = styled.p<{ $visible: boolean }>`
