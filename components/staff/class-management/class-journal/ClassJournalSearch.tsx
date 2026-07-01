@@ -26,7 +26,7 @@ export function ClassJournalSearch({ defaultKeyword = "", mineOnly = false }: Cl
     >
       <SearchInput
         aria-label="수업 일지 검색"
-        placeholder="검색어를 입력하세요"
+        placeholder="반 or 제목 or 내용 or 작성자 검색"
         value={searchInput}
         onChange={(event) => setSearchInput(event.target.value)}
       />
