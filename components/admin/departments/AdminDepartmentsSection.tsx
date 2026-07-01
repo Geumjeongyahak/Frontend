@@ -216,7 +216,7 @@ export function AdminDepartmentsSection({
           <TextInput
             value={departmentSearch}
             onChange={(event) => setDepartmentSearch(event.target.value)}
-            placeholder="부서명, 설명, ID 검색"
+            placeholder="ID or 부서명 or 설명 검색"
           />
         </ControlRow>
 

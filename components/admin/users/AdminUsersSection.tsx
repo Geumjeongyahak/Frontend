@@ -302,7 +302,7 @@ export function AdminUsersSection({
               setUserSearch(event.target.value);
               onPageChange(1);
             }}
-            placeholder="이름, 이메일, 역할 검색"
+            placeholder="이름 검색"
           />
         </ControlRow>
 

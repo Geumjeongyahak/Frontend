@@ -117,7 +117,7 @@ export function AdminAbsenceRequestsListPanel({
         </StatusSelect>
         <KeywordInput
           value={keywordInput}
-          placeholder="검색어"
+          placeholder="반 or 제목 or 내용 or 작성자 검색"
           onChange={(event) => handleKeywordInputChange(event.target.value)}
         />
       </ControlRow>

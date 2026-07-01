@@ -416,7 +416,7 @@ export function AdminPurchasesSection({
           <TextInput
             value={purchaseSearch}
             onChange={(event) => handlePurchaseSearchChange(event.target.value)}
-            placeholder="제목, 소속, 요청자, ID 검색"
+            placeholder="소속 or 제목 or 작성자 검색"
           />
         </ControlRow>
 

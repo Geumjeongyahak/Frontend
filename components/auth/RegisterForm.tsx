@@ -238,7 +238,11 @@ const PasswordInput = styled(Input)<{ $matchState: "idle" | "matched" | "mismatc
 
   &:focus {
     border-color: ${({ $matchState }) =>
-      $matchState === "matched" ? colors.point : $matchState === "mismatched" ? "#de8c85" : colors.point};
+      $matchState === "matched"
+        ? colors.point
+        : $matchState === "mismatched"
+          ? "#de8c85"
+          : colors.point};
     outline: 2px solid
       ${({ $matchState }) =>
         $matchState === "matched"
@@ -270,9 +274,5 @@ const RegisterStatus = styled(Status)<{
   $matchState: "idle" | "matched" | "mismatched";
 }>`
   color: ${({ $tone, $matchState }) =>
-    $matchState === "mismatched"
-      ? "#d98882"
-      : $tone === "error"
-        ? colors.notice
-        : "#52604c"};
+    $matchState === "mismatched" ? "#d98882" : $tone === "error" ? colors.notice : "#52604c"};
 `;

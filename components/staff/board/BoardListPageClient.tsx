@@ -21,7 +21,7 @@ import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPane
 import { isArchiveDocumentPost } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
-import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { colors, layout, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 const POSTS_PER_PAGE = 7;
@@ -412,7 +412,7 @@ export default function BoardListPageClient({
           >
             <SearchInput
               aria-label="게시글 검색"
-              placeholder="검색어를 입력해주세요"
+              placeholder="제목 검색"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
@@ -451,15 +451,17 @@ const SearchInput = styled.input`
   width: 13.75rem;
   min-height: 2.25rem;
   border: 0;
-  border-bottom: 1px solid ${colors.muted};
+  border-bottom: 1px solid #c0c0c0;
+  border-radius: 0;
   background: ${colors.white};
-  padding: 0.5rem 0;
+  padding: 0.5rem ${spacing.space16};
   color: ${colors.text};
   font: inherit;
   font-size: ${typography.fontSize14};
+  outline: none;
 
   &::placeholder {
-    color: ${colors.muted};
+    color: ${colors.placeholder};
   }
 
   @media (min-width: 120rem) {
@@ -481,13 +483,13 @@ const SearchButton = styled.button`
   width: 2.25rem;
   height: 2.25rem;
   border: 0;
-  border-radius: ${radii.radius30};
-  background: ${colors.text};
+  border-radius: 999px;
+  background: #414141;
   color: ${colors.white};
   cursor: pointer;
 
   @media (min-width: 120rem) {
-    width: 3.25rem;
-    height: 3.25rem;
+    width: 3rem;
+    height: 3rem;
   }
 `;

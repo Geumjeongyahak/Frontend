@@ -31,10 +31,7 @@ import {
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { normalizeLessonTimeForApi } from "@/components/admin/lesson-management/lessonCreateError";
-import {
-  filterActiveSubjects,
-  formatSubjectTeacherName,
-} from "@/components/admin/subjects/shared/subjectDisplay";
+import { formatSubjectTeacherName } from "@/components/admin/subjects/shared/subjectDisplay";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
@@ -329,10 +326,10 @@ export function AdminLessonScheduleTables() {
     () => sortClassrooms(classroomsQuery.data?.content ?? []),
     [classroomsQuery.data?.content],
   );
-  const subjects = useMemo(() => {
-    const items = Array.isArray(subjectsQuery.data) ? subjectsQuery.data : [];
-    return filterActiveSubjects(items);
-  }, [subjectsQuery.data]);
+  const subjects = useMemo(
+    () => (Array.isArray(subjectsQuery.data) ? subjectsQuery.data : []),
+    [subjectsQuery.data],
+  );
 
   const weekdayClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKDAY"));
   const weekendClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKEND"));

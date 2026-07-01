@@ -58,6 +58,7 @@ export default function Header() {
     pathname === "/notifications" ||
     pathname === "/login" ||
     pathname === "/register" ||
+    pathname === "/auth/email-verification" ||
     pathname === "/mypage" ||
     pathname.startsWith("/requests");
 

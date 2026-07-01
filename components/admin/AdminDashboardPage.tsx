@@ -541,7 +541,7 @@ export default function AdminDashboardPage() {
   });
   const classroomsQuery = useQuery({
     queryKey: queryKeys.admin.classrooms(),
-    queryFn: () => getClassrooms({ page: 0, size: 50, name: classroomSearch || undefined }),
+    queryFn: () => getClassrooms({ page: 0, size: 100 }),
     enabled: isAdmin,
     placeholderData: (previousData) => previousData,
   });
@@ -567,7 +567,7 @@ export default function AdminDashboardPage() {
   });
   const channelsQuery = useQuery({
     queryKey: queryKeys.admin.channels(),
-    queryFn: () => getChannels({ name: channelSearch || undefined }),
+    queryFn: () => getChannels(),
     enabled: isAdmin,
   });
   const postsQuery = useQuery({
@@ -680,26 +680,18 @@ export default function AdminDashboardPage() {
 
   const users = useMemo(() => usersQuery.data?.content ?? [], [usersQuery.data?.content]);
   const filteredUsers = useMemo(() => {
-    const keyword = userSearch.trim().toLowerCase();
     const collator = new Intl.Collator(["ko-KR", "en-US"], {
       numeric: true,
       sensitivity: "base",
     });
-    const searchedUsers = keyword
-      ? users.filter((item) =>
-          [item.name, item.nickname, item.email, item.role].some((value) =>
-            value?.toLowerCase().includes(keyword),
-          ),
-        )
-      : users;
 
-    return [...searchedUsers].sort((first, second) =>
+    return [...users].sort((first, second) =>
       collator.compare(
         first.name ?? first.nickname ?? first.email ?? "",
         second.name ?? second.nickname ?? second.email ?? "",
       ),
     );
-  }, [userSearch, users]);
+  }, [users]);
   const departments = useMemo(
     () => departmentsQuery.data?.departments ?? [],
     [departmentsQuery.data?.departments],
@@ -734,7 +726,7 @@ export default function AdminDashboardPage() {
     });
     const searchedClassrooms = keyword
       ? classrooms.filter((item) =>
-          [item.name, item.type, item.description, item.id ? String(item.id) : ""].some((value) =>
+          [item.id ? String(item.id) : "", item.name, item.type, item.description].some((value) =>
             value?.toLowerCase().includes(keyword),
           ),
         )
@@ -752,16 +744,7 @@ export default function AdminDashboardPage() {
       sensitivity: "base",
     });
     const searchedChannels = keyword
-      ? channels.filter((item) =>
-          [
-            item.name,
-            item.description,
-            item.channelType,
-            item.bindingType,
-            item.refId ? String(item.refId) : "",
-            item.id ? String(item.id) : "",
-          ].some((value) => value?.toLowerCase().includes(keyword)),
-        )
+      ? channels.filter((item) => item.name?.toLowerCase().includes(keyword))
       : channels;
 
     return [...searchedChannels].sort((first, second) =>
