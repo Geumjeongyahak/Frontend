@@ -19,7 +19,6 @@ import {
   DangerButton,
   DataState,
   FormGrid,
-  InlineStatus,
   Label,
   List,
   ListItem,
@@ -298,7 +297,7 @@ export function AdminClassroomsSection({
           <TextInput
             value={classroomSearch}
             onChange={(event) => setClassroomSearch(event.target.value)}
-            placeholder="분반명, 유형, 설명, ID 검색"
+            placeholder="ID or 분반명 or 유형 or 설명 검색"
           />
         </ControlRow>
 

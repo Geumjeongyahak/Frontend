@@ -161,7 +161,7 @@ export function AdminChannelsSection({
           <TextInput
             value={channelSearch}
             onChange={(event) => setChannelSearch(event.target.value)}
-            placeholder="채널명, 유형, 설명, ID 검색"
+            placeholder="이름 검색"
           />
         </ControlRow>
 

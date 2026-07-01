@@ -264,7 +264,7 @@ export function AdminTeacherApplicationsSection() {
         <TextInput
           value={keyword}
           onChange={(event) => handleSearchChange(event.target.value)}
-          placeholder="이름, 이메일, 연락처 검색"
+          placeholder="ID or 이름 or 연락처 or 상태 검색"
         />
       </ControlRow>
 

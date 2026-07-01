@@ -541,7 +541,7 @@ export default function AdminDashboardPage() {
   });
   const classroomsQuery = useQuery({
     queryKey: queryKeys.admin.classrooms(),
-    queryFn: () => getClassrooms({ page: 0, size: 50, name: classroomSearch || undefined }),
+    queryFn: () => getClassrooms({ page: 0, size: 100 }),
     enabled: isAdmin,
     placeholderData: (previousData) => previousData,
   });
@@ -567,7 +567,7 @@ export default function AdminDashboardPage() {
   });
   const channelsQuery = useQuery({
     queryKey: queryKeys.admin.channels(),
-    queryFn: () => getChannels({ name: channelSearch || undefined }),
+    queryFn: () => getChannels(),
     enabled: isAdmin,
   });
   const postsQuery = useQuery({
@@ -719,26 +719,38 @@ export default function AdminDashboardPage() {
     [classroomsQuery.data?.content],
   );
   const filteredClassrooms = useMemo(() => {
+    const keyword = classroomSearch.trim().toLowerCase();
     const collator = new Intl.Collator(["ko-KR", "en-US"], {
       numeric: true,
       sensitivity: "base",
     });
+    const searchedClassrooms = keyword
+      ? classrooms.filter((item) =>
+          [item.id ? String(item.id) : "", item.name, item.type, item.description].some((value) =>
+            value?.toLowerCase().includes(keyword),
+          ),
+        )
+      : classrooms;
 
-    return [...classrooms].sort((first, second) =>
+    return [...searchedClassrooms].sort((first, second) =>
       collator.compare(first.name ?? "", second.name ?? ""),
     );
-  }, [classrooms]);
+  }, [classroomSearch, classrooms]);
   const channels = useMemo(() => channelsQuery.data ?? [], [channelsQuery.data]);
   const filteredChannels = useMemo(() => {
+    const keyword = channelSearch.trim().toLowerCase();
     const collator = new Intl.Collator(["ko-KR", "en-US"], {
       numeric: true,
       sensitivity: "base",
     });
+    const searchedChannels = keyword
+      ? channels.filter((item) => item.name?.toLowerCase().includes(keyword))
+      : channels;
 
-    return [...channels].sort((first, second) =>
+    return [...searchedChannels].sort((first, second) =>
       collator.compare(first.name ?? "", second.name ?? ""),
     );
-  }, [channels]);
+  }, [channelSearch, channels]);
   const posts = postsQuery.data?.content ?? [];
   const purchases = useMemo(() => {
     const rawPurchases = purchasesQuery.data ?? [];
