@@ -222,6 +222,14 @@ export default function ClassJournalCreatePage() {
   const writerName = currentUser?.name ?? "";
   const birthPrefix = currentUser?.residentRegistrationNumberPrefix ?? "";
   const phoneNumber = currentUser?.phoneNumber ?? "";
+  const hasExistingJournal = Boolean(
+    scheduleDetail?.lessons?.some((lesson) => lesson.note?.trim()),
+  );
+  const hasCompletedAttendance =
+    scheduleDetail?.teacherAttendance?.status === "PRESENT" ||
+    scheduleDetail?.teacherAttendanceStatus === "PRESENT";
+  const isAttendanceBlocked = hasTodayLessons && !hasCompletedAttendance;
+  const isJournalAlreadyWrittenBlocked = hasTodayLessons && hasExistingJournal;
 
   const resolvedLessonDate = useMemo(() => {
     if (scheduleDetail?.lessonDate) {
@@ -290,6 +298,16 @@ export default function ClassJournalCreatePage() {
       return;
     }
 
+    if (isAttendanceBlocked) {
+      toast.info("아직 출근 전입니다. 출근을 완료한 뒤 작성할 수 있습니다.");
+      return;
+    }
+
+    if (isJournalAlreadyWrittenBlocked) {
+      toast.info("이미 수업 일지를 작성했습니다.");
+      return;
+    }
+
     const form = event.currentTarget;
     const formData = new FormData(form);
     const lessonDate = parseKoreanShortDateToIsoDate(lessonDateValue.trim());
@@ -348,7 +366,12 @@ export default function ClassJournalCreatePage() {
           <SubmitButton
             type="submit"
             form="class-journal-form"
-            disabled={isSubmitting || !hasTodayLessons}
+            disabled={
+              isSubmitting ||
+              !hasTodayLessons ||
+              isAttendanceBlocked ||
+              isJournalAlreadyWrittenBlocked
+            }
           >
             {isSubmitting ? "제출 중..." : "수업 일지 제출하기"}
           </SubmitButton>
@@ -358,6 +381,14 @@ export default function ClassJournalCreatePage() {
       <Form id="class-journal-form" onSubmit={handleSubmit}>
         {showNoClassNotice ? (
           <NoClassNotice role="status">오늘은 수업이 없습니다.</NoClassNotice>
+        ) : null}
+        {isAttendanceBlocked ? (
+          <NoClassNotice role="status">
+            아직 출근 전입니다. 출근을 완료한 뒤 작성할 수 있습니다.
+          </NoClassNotice>
+        ) : null}
+        {isJournalAlreadyWrittenBlocked ? (
+          <NoClassNotice role="status">이미 수업 일지를 작성했습니다.</NoClassNotice>
         ) : null}
         <InfoGrid>
           <InfoField>
@@ -445,7 +476,11 @@ export default function ClassJournalCreatePage() {
                 id={`lesson-${period}`}
                 name={`lesson${period}`}
                 placeholder={`${period}교시 수업 내용을 작성해주세요`}
-                disabled={!hasTodayLessons}
+                disabled={
+                  !hasTodayLessons ||
+                  isAttendanceBlocked ||
+                  isJournalAlreadyWrittenBlocked
+                }
               />
             </LessonField>
           ))}
@@ -469,7 +504,11 @@ export default function ClassJournalCreatePage() {
                         name={`studentName${rowIndex * 10 + column + 1}`}
                         aria-label={`${rowIndex * 10 + column + 1}번 학생 이름`}
                         value={getAttendanceName(nameKey)}
-                        disabled={!hasTodayLessons}
+                        disabled={
+                          !hasTodayLessons ||
+                          isAttendanceBlocked ||
+                          isJournalAlreadyWrittenBlocked
+                        }
                         onChange={(event) =>
                           setAttendanceNameOverrides((current) => ({
                             ...current,
@@ -488,7 +527,11 @@ export default function ClassJournalCreatePage() {
                           defaultValue="ABSENT"
                           name={`attendanceStatus${statusIndex}`}
                           aria-label={`${statusIndex}번 학생 출석 상태`}
-                          disabled={!hasTodayLessons}
+                          disabled={
+                            !hasTodayLessons ||
+                            isAttendanceBlocked ||
+                            isJournalAlreadyWrittenBlocked
+                          }
                         >
                           {dailyStudentAttendanceOptions.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -504,7 +547,11 @@ export default function ClassJournalCreatePage() {
             </AttendanceBlocks>
             <AddAttendanceButton
               type="button"
-              disabled={!hasTodayLessons}
+              disabled={
+                !hasTodayLessons ||
+                isAttendanceBlocked ||
+                isJournalAlreadyWrittenBlocked
+              }
               onClick={() => setAdditionalAttendanceRows((count) => count + 1)}
             >
               출석부 추가하기
