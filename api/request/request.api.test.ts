@@ -21,7 +21,9 @@ import {
   createPurchaseRequest,
   createLessonExchangeRequest,
   getAbsenceRequests,
+  getAllPurchaseRequests,
   getLessonExchangeRequests,
+  getPurchaseRequests,
   reportAdminPurchase,
   reportPurchase,
   updateAdminPurchaseRequest,
@@ -194,6 +196,70 @@ describe("request.api", () => {
         },
       ],
     });
+  });
+
+  it("returns paginated purchase requests with search filters", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedQueryString = "";
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/purchase-requests`, ({ request }) => {
+        observedQueryString = new URL(request.url).search;
+        return HttpResponse.json({
+          content: [{ id: 21, title: "교재 결제 신청", status: "PENDING" }],
+          page: 0,
+          size: 10,
+          totalElements: 1,
+          totalPages: 1,
+        });
+      }),
+    );
+
+    const response = await getPurchaseRequests({
+      mine: true,
+      keyword: "교재",
+      page: 0,
+      size: 10,
+    });
+
+    expect(response.content).toEqual([{ id: 21, title: "교재 결제 신청", status: "PENDING" }]);
+    expect(observedQueryString).toContain("mine=true");
+    expect(observedQueryString).toContain("keyword=%EA%B5%90%EC%9E%AC");
+    expect(observedQueryString).toContain("page=0");
+    expect(observedQueryString).toContain("size=10");
+  });
+
+  it("returns paginated admin purchase requests with search filters", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedQueryString = "";
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/admin/purchase-requests`, ({ request }) => {
+        observedQueryString = new URL(request.url).search;
+        return HttpResponse.json({
+          content: [{ id: 31, title: "문구 구입", status: "APPROVED" }],
+          page: 0,
+          size: 20,
+          totalElements: 1,
+          totalPages: 1,
+        });
+      }),
+    );
+
+    const response = await getAllPurchaseRequests({
+      status: "APPROVED",
+      keyword: "문구",
+      page: 0,
+      size: 20,
+    });
+
+    expect(response.content).toEqual([{ id: 31, title: "문구 구입", status: "APPROVED" }]);
+    expect(observedQueryString).toContain("status=APPROVED");
+    expect(observedQueryString).toContain("keyword=%EB%AC%B8%EA%B5%AC");
+    expect(observedQueryString).toContain("page=0");
+    expect(observedQueryString).toContain("size=20");
   });
 
   it("reports purchase completion with vendor, item names, amount, and optional receipt ids", async () => {

@@ -116,17 +116,12 @@ export default function AppBackNavigationGuard() {
       const backTarget = getBackNavigationTarget(currentPath);
 
       if (shouldConfirmExitOnBack(currentPath, isMobileViewport())) {
-        if (window.confirm("종료하시겠습니까?")) {
-          attemptAppExit();
-          window.setTimeout(() => {
-            if (document.visibilityState === "visible") {
-              pushGuardState(currentUrlKey);
-            }
-          }, 200);
-          return;
-        }
-
-        pushGuardState(currentUrlKey);
+        attemptAppExit();
+        window.setTimeout(() => {
+          if (document.visibilityState === "visible") {
+            pushGuardState(currentUrlKey);
+          }
+        }, 200);
         return;
       }
 

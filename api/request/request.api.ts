@@ -10,8 +10,8 @@ import type {
   LessonExchangeRequestListResponseDto,
   LessonExchangeRequestResponseDto,
   LessonExchangeRequestStatusQueryParamsDto,
+  PurchaseRequestListResponseDto,
   PurchaseRequestResponseDto,
-  PurchaseRequestSummaryResponseDto,
   PurchaseRequestStatusQueryParamsDto,
   RejectRequestDto,
   ReportPurchaseRequestDto,
@@ -90,7 +90,7 @@ export async function deleteAbsenceRequest(pathParams: RequestPathParamsDto) {
 
 // 구매 요청 목록을 조회하는 요청
 export async function getPurchaseRequests(query?: PurchaseRequestStatusQueryParamsDto) {
-  const response = await authClient.get<PurchaseRequestSummaryResponseDto[]>(
+  const response = await authClient.get<PurchaseRequestListResponseDto>(
     "/api/v1/purchase-requests",
     {
       params: query,
@@ -160,7 +160,7 @@ export async function rejectPurchaseRequest(
 
 // 관리자 기준 구매 요청 목록을 조회하는 요청
 export async function getAllPurchaseRequests(query?: PurchaseRequestStatusQueryParamsDto) {
-  const response = await authClient.get<PurchaseRequestSummaryResponseDto[]>(
+  const response = await authClient.get<PurchaseRequestListResponseDto>(
     "/api/v1/admin/purchase-requests",
     {
       params: query,

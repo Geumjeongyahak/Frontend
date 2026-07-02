@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,7 +14,6 @@ import {
 import type {
   DailyScheduleLessonResponseDto,
   DailyStudentAttendanceResponseDto,
-  DailyStudentAttendanceStatus,
   LessonJournalRequestDto,
   UpdateDailyStudentAttendanceItemRequestDto,
 } from "@/api/dailySchedule/dailySchedule.dto";
@@ -159,6 +157,7 @@ export default function MobileClassJournalWritePage() {
   const [lessonNotes, setLessonNotes] = useState(["", "", ""]);
   const [attendanceEntries, setAttendanceEntries] = useState<MobileStudentAttendanceEntry[]>([]);
   const [isAttendanceEditing, setIsAttendanceEditing] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const { status: authStatus, user: currentUser } = useAuthSession();
   const isAuthenticated = authStatus === "authenticated";
   const currentUserId = currentUser?.id ?? null;
@@ -253,6 +252,9 @@ export default function MobileClassJournalWritePage() {
       const hasExistingJournal = Boolean(
         dailyScheduleDetailQuery.data?.lessons?.some((lesson) => lesson.note?.trim()),
       );
+      const hasCheckedOut =
+        dailyScheduleDetailQuery.data?.teacherAttendance?.isCheckedOut === true ||
+        dailyScheduleDetailQuery.data?.isTeacherCheckedOut === true;
 
       let schedule =
         hasExistingJournal && typeof dailyScheduleId === "number"
@@ -266,7 +268,7 @@ export default function MobileClassJournalWritePage() {
         );
       }
 
-      if (typeof schedule.dailyScheduleId === "number") {
+      if (typeof schedule.dailyScheduleId === "number" && !hasExistingJournal && !hasCheckedOut) {
         schedule = await checkOutTeacherAttendance({ dailyScheduleId: schedule.dailyScheduleId });
       }
 
@@ -289,6 +291,14 @@ export default function MobileClassJournalWritePage() {
   const writerName = currentUser?.name ?? "";
   const birthPrefix = currentUser?.residentRegistrationNumberPrefix ?? "";
   const phoneNumber = currentUser?.phoneNumber ?? "";
+  const hasExistingJournal = Boolean(
+    scheduleDetail?.lessons?.some((lesson) => lesson.note?.trim()),
+  );
+  const hasCompletedAttendance =
+    scheduleDetail?.teacherAttendance?.status === "PRESENT" ||
+    scheduleDetail?.teacherAttendanceStatus === "PRESENT";
+  const isAttendanceBlocked = hasTodayLessons && !hasCompletedAttendance;
+  const isReadOnlyExistingJournal = hasTodayLessons && hasExistingJournal && !isEditMode;
 
   const resolvedLessonDate = useMemo(() => {
     if (scheduleDetail?.lessonDate) {
@@ -337,6 +347,11 @@ export default function MobileClassJournalWritePage() {
       return;
     }
 
+    if (isAttendanceBlocked) {
+      toast.info("아직 출근 전입니다. 출근을 완료한 뒤 작성할 수 있습니다.");
+      return;
+    }
+
     const lessonDate = parseKoreanShortDateToIsoDate(lessonDateValue.trim());
     const personalInfoConsent = true;
     const lessonJournals = buildLessonJournals(journalSourceLessons, lessonNotes);
@@ -373,15 +388,31 @@ export default function MobileClassJournalWritePage() {
     });
   }
 
+  function handlePrimaryAction() {
+    if (hasExistingJournal && !isEditMode) {
+      setIsEditMode(true);
+      return;
+    }
+
+    const form = document.getElementById("mobile-class-journal-form");
+    if (form instanceof HTMLFormElement) {
+      form.requestSubmit();
+    }
+  }
+
   return (
     <MobileRequestShell
       backHref="/"
       title="수업 일지"
-      description="오늘 수업 내용을 작성하고 퇴근을 마무리합니다."
     >
-      <Form onSubmit={handleSubmit}>
+      <Form id="mobile-class-journal-form" onSubmit={handleSubmit}>
         {showNoClassNotice ? (
           <StateCard role="status">오늘은 작성할 수업이 없습니다.</StateCard>
+        ) : null}
+        {isAttendanceBlocked ? (
+          <StateCard role="status">
+            아직 출근 전입니다. 출근을 완료한 뒤 작성할 수 있습니다.
+          </StateCard>
         ) : null}
 
         <Card>
@@ -424,7 +455,7 @@ export default function MobileClassJournalWritePage() {
                   id={`mobile-journal-lesson-${period}`}
                   value={lessonNotes[index] ?? ""}
                   placeholder={`${period}교시 수업 내용을 작성해주세요`}
-                  disabled={!hasTodayLessons}
+                  disabled={!hasTodayLessons || isAttendanceBlocked || isReadOnlyExistingJournal}
                   onChange={(event) =>
                     setLessonNotes((current) =>
                       current.map((note, noteIndex) =>
@@ -443,6 +474,7 @@ export default function MobileClassJournalWritePage() {
             <CardTitle>출석</CardTitle>
             <AttendanceEditButton
               type="button"
+              disabled={!hasTodayLessons || isAttendanceBlocked || isReadOnlyExistingJournal}
               onClick={() => setIsAttendanceEditing((current) => !current)}
             >
               {isAttendanceEditing ? "완료" : "수정"}
@@ -451,7 +483,7 @@ export default function MobileClassJournalWritePage() {
           <MobileStudentAttendanceList
             entries={attendanceEntries}
             isEditing={isAttendanceEditing}
-            disabled={!hasTodayLessons}
+            disabled={!hasTodayLessons || isAttendanceBlocked || isReadOnlyExistingJournal}
             onChangeName={(entryIndex, name) =>
               setAttendanceEntries((current) =>
                 current.map((entry, index) =>
@@ -487,8 +519,16 @@ export default function MobileClassJournalWritePage() {
           <CancelButton type="button" onClick={() => router.push("/")}>
             취소
           </CancelButton>
-          <SubmitButton type="submit" disabled={!hasTodayLessons || submitMutation.isPending}>
-            {submitMutation.isPending ? "제출 중..." : "제출"}
+          <SubmitButton
+            type="button"
+            onClick={handlePrimaryAction}
+            disabled={
+              !hasTodayLessons ||
+              isAttendanceBlocked ||
+              submitMutation.isPending
+            }
+          >
+            {submitMutation.isPending ? "제출 중..." : hasExistingJournal && !isEditMode ? "수정" : "제출"}
           </SubmitButton>
         </BottomActions>
       </Form>
@@ -542,6 +582,10 @@ const AttendanceEditButton = styled.button`
   font-size: ${typography.fontSize13};
   font-weight: 700;
   line-height: ${typography.lineHeight130};
+
+  &:disabled {
+    opacity: 0.55;
+  }
 `;
 
 const InfoGrid = styled.div`

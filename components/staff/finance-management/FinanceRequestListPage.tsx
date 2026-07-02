@@ -18,6 +18,7 @@ import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
 type FinanceRequestListPageProps = {
   currentPage: number;
+  initialKeyword: string;
 };
 
 const statusLabels: Record<PurchaseRequestStatus, string> = {
@@ -43,31 +44,46 @@ function getAffiliationLabel(request: { departmentName?: string; classroomName?:
   return request.departmentName ?? request.classroomName ?? "-";
 }
 
-export default function FinanceRequestListPage({ currentPage }: FinanceRequestListPageProps) {
+function buildFinanceListUrl(keyword: string) {
+  const trimmedKeyword = keyword.trim();
+  return trimmedKeyword
+    ? `/staff/finance-management?keyword=${encodeURIComponent(trimmedKeyword)}`
+    : "/staff/finance-management";
+}
+
+export default function FinanceRequestListPage({
+  currentPage,
+  initialKeyword,
+}: FinanceRequestListPageProps) {
   const router = useRouter();
   const { user, status: authStatus } = useAuthSession();
   const [mineOnly, setMineOnly] = useState(false);
-  const [searchInput, setSearchInput] = useState("");
-  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchInput, setSearchInput] = useState(initialKeyword);
+  const [searchKeyword, setSearchKeyword] = useState(initialKeyword);
   const isAuthenticated = authStatus === "authenticated";
   const hasStoredToken = Boolean(getAccessToken() || getRefreshToken());
+  const trimmedKeyword = searchKeyword.trim();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: queryKeys.requests.purchaseList(),
-    queryFn: () => getPurchaseRequests(),
+    queryKey: queryKeys.requests.purchaseList({
+      mine: mineOnly || undefined,
+      keyword: trimmedKeyword || undefined,
+      page: currentPage - 1,
+      size: FINANCE_REQUESTS_PER_PAGE,
+    }),
+    queryFn: () =>
+      getPurchaseRequests({
+        mine: mineOnly || undefined,
+        keyword: trimmedKeyword || undefined,
+        page: currentPage - 1,
+        size: FINANCE_REQUESTS_PER_PAGE,
+      }),
     enabled: hasStoredToken,
     retry: false,
   });
 
-  const resetToFirstPage = () => {
-    if (currentPage > 1) {
-      router.replace("/staff/finance-management", { scroll: false });
-    }
-  };
-
   const currentAuthor = user?.name ?? user?.nickname ?? user?.email;
-  const normalizedKeyword = searchKeyword.trim().toLowerCase();
-  const requests = (isAuthenticated ? (data ?? []) : [])
+  const requests = (isAuthenticated ? (data?.content ?? []) : [])
     .filter((request) => {
       const matchesMine =
         !mineOnly ||
@@ -77,33 +93,21 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
             request.requestedByName === user?.nickname ||
             request.requestedByName === user?.email),
         );
-      const statusLabel = getStatusLabel(request.status);
-      const matchesKeyword =
-        normalizedKeyword.length === 0 ||
-        [
-          request.title,
-          getAffiliationLabel(request),
-          request.requestedByName,
-          statusLabel,
-          formatUtcToKstShortDate(request.createdAt),
-        ]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(normalizedKeyword));
-
-      return matchesMine && matchesKeyword;
+      return matchesMine;
     })
     .sort((a, b) => getRequestTime(b.createdAt) - getRequestTime(a.createdAt));
-  const totalPages = Math.max(1, Math.ceil(requests.length / FINANCE_REQUESTS_PER_PAGE));
+  const totalPages = Math.max(1, isAuthenticated ? (data?.totalPages ?? 1) : 1);
+  const totalCount = isAuthenticated ? (data?.totalElements ?? requests.length) : 0;
   const safeCurrentPage =
     Number.isInteger(currentPage) && currentPage >= 1 && currentPage <= totalPages
       ? currentPage
       : 1;
-  const startIndex = (safeCurrentPage - 1) * FINANCE_REQUESTS_PER_PAGE;
-  const visibleRequests = requests.slice(startIndex, startIndex + FINANCE_REQUESTS_PER_PAGE);
 
-  const rows: ListPanelRow[] = visibleRequests.map((request, index) => ({
+  const rows: ListPanelRow[] = requests.map((request, index) => ({
     id: request.id ?? index,
-    no: String(Math.max(1, requests.length - (startIndex + index))).padStart(2, "0"),
+    no: String(
+      Math.max(1, totalCount - ((safeCurrentPage - 1) * FINANCE_REQUESTS_PER_PAGE + index)),
+    ).padStart(2, "0"),
     className: getAffiliationLabel(request),
     title: request.title ?? "제목 없음",
     author: request.requestedByName ?? "-",
@@ -141,12 +145,14 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
             totalPages={totalPages}
             stableTableRows={FINANCE_REQUESTS_PER_PAGE}
             mineOnly={mineOnly}
+            persistentQuery={{
+              keyword: trimmedKeyword || undefined,
+            }}
             classHeader="소속"
             showMineOnlyToggle
             toggleLabel="내가 작성한 글만 보기"
             toggleAriaLabel="내가 작성한 글만 보기"
             onMineOnlyToggle={() => {
-              resetToFirstPage();
               setMineOnly((current) => !current);
             }}
             emptyMessage={emptyMessage}
@@ -157,13 +163,14 @@ export default function FinanceRequestListPage({ currentPage }: FinanceRequestLi
                 role="search"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  resetToFirstPage();
-                  setSearchKeyword(searchInput);
+                  const nextKeyword = searchInput.trim();
+                  setSearchKeyword(nextKeyword);
+                  router.replace(buildFinanceListUrl(nextKeyword), { scroll: false });
                 }}
               >
                 <SearchInput
                   aria-label="결제 신청 검색"
-                  placeholder="제목 검색"
+                  placeholder="소속 or 제목 or 작성자 검색"
                   value={searchInput}
                   onChange={(event) => setSearchInput(event.target.value)}
                 />

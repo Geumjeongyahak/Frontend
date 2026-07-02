@@ -25,6 +25,13 @@ export interface RequestStatusQueryParamsDto {
 
 export interface PurchaseRequestStatusQueryParamsDto {
   status?: PurchaseRequestStatus;
+  mine?: boolean;
+  keyword?: string;
+  classroomName?: string;
+  requestedByName?: string;
+  sort?: string;
+  page?: number;
+  size?: number;
 }
 
 export interface LessonExchangeRequestStatusQueryParamsDto {
@@ -173,6 +180,14 @@ export interface PurchaseRequestResponseDto extends PurchaseRequestSummaryRespon
 }
 
 export type PurchaseRequestListItemDto = PurchaseRequestResponseDto;
+
+export interface PurchaseRequestListResponseDto {
+  content: PurchaseRequestSummaryResponseDto[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
 
 export interface CreateLessonExchangeRequestDto {
   lessonDate: string;

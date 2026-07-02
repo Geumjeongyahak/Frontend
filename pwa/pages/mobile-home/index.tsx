@@ -11,6 +11,7 @@ import {
 import AttendanceCheckoutModal from "@/pwa/pages/mobile-home/components/AttendanceCheckoutModal";
 import AttendanceSection from "@/pwa/pages/mobile-home/components/AttendanceSection";
 import AttendanceSuccessOverlay from "@/pwa/pages/mobile-home/components/AttendanceSuccessOverlay";
+import ClassJournalShortcutSection from "@/pwa/pages/mobile-home/components/ClassJournalShortcutSection";
 import HomeHeader from "@/pwa/pages/mobile-home/components/HomeHeader";
 import RequestShortcutSection from "@/pwa/pages/mobile-home/components/RequestShortcutSection";
 import TimetableShortcutSection from "@/pwa/pages/mobile-home/components/TimetableShortcutSection";
@@ -143,6 +144,10 @@ export default function MobileHomeScreen() {
 
         <TimetableShortcutSection
           onScheduleClick={() => screen.navigateWhenAuthenticated("/schedule")}
+        />
+
+        <ClassJournalShortcutSection
+          onWriteClick={() => screen.navigateWhenAuthenticated("/journal/write")}
         />
 
         <RequestShortcutSection
