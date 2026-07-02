@@ -797,7 +797,10 @@ export default function AdminDashboardPage() {
       value: getTotalFromPage(classrooms.length, classroomsQuery.data?.totalElements),
     },
   ];
-  const pendingPurchaseCount = pendingPurchasesQuery.data?.length ?? 0;
+  const pendingPurchaseCount = getTotalFromPage(
+    pendingPurchasesQuery.data?.content.length ?? 0,
+    pendingPurchasesQuery.data?.totalElements,
+  );
   const pendingAbsenceRequestCount = pendingAbsenceRequestsQuery.data?.totalElements ?? 0;
   const pendingLessonExchangeRequestCount =
     pendingLessonExchangeRequestsQuery.data?.totalElements ?? 0;
