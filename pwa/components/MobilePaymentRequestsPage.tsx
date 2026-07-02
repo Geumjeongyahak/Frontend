@@ -7,6 +7,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconPlus,
+  IconSearch,
 } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
@@ -190,9 +191,12 @@ export default function MobilePaymentRequestsPage() {
   const [isReportEditing, setIsReportEditing] = useState(false);
   const [viewMode, setViewMode] = useState<RequestViewMode>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchInput, setSearchInput] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
 
   const purchaseListParams = {
     mine: viewMode === "mine" ? true : undefined,
+    keyword: searchKeyword.trim() || undefined,
     page: currentPage - 1,
     size: REQUESTS_PER_PAGE,
   };
@@ -206,7 +210,11 @@ export default function MobilePaymentRequestsPage() {
   });
 
   const myPurchaseCountQuery = useQuery({
-    queryKey: [...queryKeys.requests.purchaseList({ mine: true, page: 0, size: 1 }), "mobile", "mine-count"],
+    queryKey: [
+      ...queryKeys.requests.purchaseList({ mine: true, page: 0, size: 1 }),
+      "mobile",
+      "mine-count",
+    ],
     queryFn: () =>
       getPurchaseRequests({
         mine: true,
@@ -436,6 +444,13 @@ export default function MobilePaymentRequestsPage() {
     setCurrentPage(safePage);
   }
 
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSelectedRequestId(null);
+    setCurrentPage(1);
+    setSearchKeyword(searchInput.trim());
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -545,7 +560,9 @@ export default function MobilePaymentRequestsPage() {
             <SummaryCard>
               <SummaryLabel>나의 결제 신청</SummaryLabel>
               <SummaryValue>
-                {myPurchaseCountQuery.isLoading ? "-" : myPurchaseCountQuery.data?.totalElements ?? 0}
+                {myPurchaseCountQuery.isLoading
+                  ? "-"
+                  : (myPurchaseCountQuery.data?.totalElements ?? 0)}
               </SummaryValue>
             </SummaryCard>
           </SummaryPanel>
@@ -692,7 +709,7 @@ export default function MobilePaymentRequestsPage() {
           <Panel>
             <PanelHeader>
               <PanelTitleRow>
-                <PanelTitle>신청 내역</PanelTitle>
+                <PanelTitle>결제 신청 내역</PanelTitle>
                 <ViewModeLabel>
                   <span>{viewMode === "mine" ? "나의 신청 내역" : "전체 신청 내역"}</span>
                   <SwitchInput
@@ -708,7 +725,17 @@ export default function MobilePaymentRequestsPage() {
                   </SwitchTrack>
                 </ViewModeLabel>
               </PanelTitleRow>
-              <PanelDescription>최근 등록 순으로 확인할 수 있습니다.</PanelDescription>
+              <SearchForm role="search" onSubmit={handleSearch}>
+                <SearchInput
+                  type="search"
+                  placeholder="소속 or 제목 or 작성자"
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                />
+                <SearchButton type="submit" aria-label="검색">
+                  <IconSearch size={18} stroke={2.25} />
+                </SearchButton>
+              </SearchForm>
             </PanelHeader>
 
             {purchaseListQuery.isLoading ? (
@@ -1131,10 +1158,11 @@ const PanelTitle = styled.h2`
   font-weight: 800;
 `;
 
-const PanelDescription = styled.p`
-  color: #72806a;
-  font-size: ${typography.fontSize13};
-  line-height: ${typography.lineHeight150};
+const SearchForm = styled.form`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: ${spacing.space8};
+  margin-top: ${spacing.space8};
 `;
 
 const ViewModeLabel = styled.label`
@@ -1227,6 +1255,10 @@ const TextInput = styled.input`
   &::placeholder {
     color: ${colors.placeholder};
   }
+`;
+
+const SearchInput = styled(TextInput)`
+  min-width: 0;
 `;
 
 const Select = styled.select`
@@ -1395,6 +1427,18 @@ const PageEllipsis = styled.span`
   color: #72806a;
   font-size: ${typography.fontSize14};
   font-weight: 700;
+`;
+
+const SearchButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  min-height: 3rem;
+  border: 0;
+  border-radius: ${radii.radius15};
+  background: linear-gradient(90deg, #87c25c 0%, #5fc077 100%);
+  color: ${colors.white};
 `;
 
 const RequestCard = styled.article`

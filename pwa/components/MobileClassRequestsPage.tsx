@@ -9,27 +9,26 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconPlus,
+  IconSearch,
 } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getAccessToken, getRefreshToken } from "@/api/client/tokenStorage";
 import { getCurrentUser } from "@/api/user/user.api";
+import { createAbsenceRequest, getAbsenceRequestDetail } from "@/api/request/request.api";
 import {
-  createAbsenceRequest,
-  getAbsenceRequestDetail,
-} from "@/api/request/request.api";
-import { createLessonExchangeRequest, getLessonExchangeRequestDetail, getLessonExchangeRequests } from "@/api/lessonExchange/lessonExchange.api";
+  createLessonExchangeRequest,
+  getLessonExchangeRequestDetail,
+  getLessonExchangeRequests,
+} from "@/api/lessonExchange/lessonExchange.api";
 import { getAbsenceRequests } from "@/api/request/request.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import AuthStatusSpinner from "@/pwa/pages/mobile-home/components/AuthStatusSpinner";
 import MobileRequestShell from "@/pwa/requests/components/MobileRequestShell";
 import RequestStatusBadge from "@/pwa/requests/components/RequestStatusBadge";
-import {
-  getAssignmentClassNames,
-  toExchangeExpiryAt,
-} from "@/pwa/requests/requestFormUtils";
+import { getAssignmentClassNames, toExchangeExpiryAt } from "@/pwa/requests/requestFormUtils";
 import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
@@ -77,8 +76,10 @@ function buildPageTokens(currentPage: number, totalPages: number) {
   return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages];
 }
 
-async function getAllAbsenceRequests(pageSize: number) {
+async function getAllFilteredAbsenceRequests(pageSize: number, keyword?: string) {
   const firstPage = await getAbsenceRequests({
+    mine: true,
+    keyword,
     page: 0,
     size: pageSize,
   });
@@ -91,6 +92,8 @@ async function getAllAbsenceRequests(pageSize: number) {
   const restPages = await Promise.all(
     Array.from({ length: totalPages - 1 }, (_, index) =>
       getAbsenceRequests({
+        mine: true,
+        keyword,
         page: index + 1,
         size: pageSize,
       }),
@@ -169,6 +172,8 @@ export default function MobileClassRequestsPage() {
   const [selectedRequest, setSelectedRequest] = useState<{ type: RequestTab; id: number } | null>(
     null,
   );
+  const [searchInput, setSearchInput] = useState("");
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [exchangeForm, setExchangeForm] = useState({
     title: "",
     className: "",
@@ -202,12 +207,14 @@ export default function MobileClassRequestsPage() {
       ...queryKeys.requests.lessonExchangeList(),
       "mobile",
       viewMode,
+      searchKeyword,
       exchangePage,
       REQUESTS_PER_PAGE,
     ],
     queryFn: () =>
       getLessonExchangeRequests({
         mine: viewMode === "mine" ? true : undefined,
+        keyword: searchKeyword || undefined,
         page: exchangePage - 1,
         size: REQUESTS_PER_PAGE,
       }),
@@ -232,11 +239,14 @@ export default function MobileClassRequestsPage() {
       ...queryKeys.requests.absenceList(),
       "mobile",
       viewMode,
+      searchKeyword,
       absencePage,
       REQUESTS_PER_PAGE,
     ],
     queryFn: () =>
       getAbsenceRequests({
+        mine: viewMode === "mine" ? true : undefined,
+        keyword: searchKeyword || undefined,
         page: absencePage - 1,
         size: REQUESTS_PER_PAGE,
       }),
@@ -245,14 +255,22 @@ export default function MobileClassRequestsPage() {
   });
 
   const absenceMineListQuery = useQuery({
-    queryKey: [...queryKeys.requests.absenceList(), "mobile", "mine-list", REQUESTS_PER_PAGE],
-    queryFn: () => getAllAbsenceRequests(REQUESTS_PER_PAGE),
+    queryKey: [
+      ...queryKeys.requests.absenceList(),
+      "mobile",
+      "mine-list",
+      searchKeyword,
+      REQUESTS_PER_PAGE,
+    ],
+    queryFn: () => getAllFilteredAbsenceRequests(REQUESTS_PER_PAGE, searchKeyword || undefined),
     enabled: isAuthenticated,
     retry: false,
   });
 
   const exchangeDetailQuery = useQuery({
-    queryKey: queryKeys.requests.lessonExchangeDetail(selectedRequest?.type === "exchange" ? selectedRequest.id : 0),
+    queryKey: queryKeys.requests.lessonExchangeDetail(
+      selectedRequest?.type === "exchange" ? selectedRequest.id : 0,
+    ),
     queryFn: () =>
       getLessonExchangeRequestDetail({
         requestId: selectedRequest?.id as number,
@@ -262,7 +280,9 @@ export default function MobileClassRequestsPage() {
   });
 
   const absenceDetailQuery = useQuery({
-    queryKey: queryKeys.requests.absenceDetail(selectedRequest?.type === "absence" ? selectedRequest.id : 0),
+    queryKey: queryKeys.requests.absenceDetail(
+      selectedRequest?.type === "absence" ? selectedRequest.id : 0,
+    ),
     queryFn: () =>
       getAbsenceRequestDetail({
         requestId: selectedRequest?.id as number,
@@ -331,9 +351,9 @@ export default function MobileClassRequestsPage() {
     absenceForm.className || assignmentClassNames[0] || fallbackClassName || "담당 반 정보 없음";
   const hasCurrentUserIdentity = Boolean(
     typeof currentUser?.id === "number" ||
-      typeof currentUser?.name === "string" ||
-      typeof currentUser?.nickname === "string" ||
-      typeof currentUser?.email === "string",
+    typeof currentUser?.name === "string" ||
+    typeof currentUser?.nickname === "string" ||
+    typeof currentUser?.email === "string",
   );
 
   const exchangeRequests = [...(exchangeListQuery.data?.content ?? [])].sort(
@@ -365,11 +385,12 @@ export default function MobileClassRequestsPage() {
         : absenceRequests;
   const exchangeDetail =
     selectedRequest?.type === "exchange" ? exchangeDetailQuery.data : undefined;
-  const absenceDetail =
-    selectedRequest?.type === "absence" ? absenceDetailQuery.data : undefined;
+  const absenceDetail = selectedRequest?.type === "absence" ? absenceDetailQuery.data : undefined;
   const activeDetail = exchangeDetail ?? absenceDetail;
   const activeDetailLoading =
-    selectedRequest?.type === "exchange" ? exchangeDetailQuery.isLoading : absenceDetailQuery.isLoading;
+    selectedRequest?.type === "exchange"
+      ? exchangeDetailQuery.isLoading
+      : absenceDetailQuery.isLoading;
   const activeLoading =
     activeTab === "exchange"
       ? exchangeListQuery.isLoading
@@ -494,6 +515,15 @@ export default function MobileClassRequestsPage() {
     setAbsencePage(safePage);
   }
 
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextKeyword = searchInput.trim();
+    setSelectedRequest(null);
+    setExchangePage(1);
+    setAbsencePage(1);
+    setSearchKeyword(nextKeyword);
+  }
+
   return (
     <MobileRequestShell
       backHref="/"
@@ -519,7 +549,9 @@ export default function MobileClassRequestsPage() {
       {!isAuthPending && !isAuthenticated ? (
         <StatePanel>
           <StateTitle>로그인이 필요한 메뉴입니다.</StateTitle>
-          <StateDescription>교원 계정으로 로그인하면 교환/결강 신청과 진행 상태를 확인할 수 있습니다.</StateDescription>
+          <StateDescription>
+            교원 계정으로 로그인하면 교환/결강 신청과 진행 상태를 확인할 수 있습니다.
+          </StateDescription>
           <PrimaryLink href="/login">로그인하기</PrimaryLink>
         </StatePanel>
       ) : null}
@@ -532,13 +564,15 @@ export default function MobileClassRequestsPage() {
               <SummaryValue>
                 {exchangeMineCountQuery.isLoading
                   ? "-"
-                  : exchangeMineCountQuery.data?.totalElements ?? 0}
+                  : (exchangeMineCountQuery.data?.totalElements ?? 0)}
               </SummaryValue>
             </SummaryCard>
             <SummaryCard>
               <SummaryLabel>나의 결강 신청</SummaryLabel>
               <SummaryValue>
-                {absenceMineListQuery.isLoading || currentUserQuery.isLoading || !hasCurrentUserIdentity
+                {absenceMineListQuery.isLoading ||
+                currentUserQuery.isLoading ||
+                !hasCurrentUserIdentity
                   ? "-"
                   : myAbsenceRequests.length}
               </SummaryValue>
@@ -807,22 +841,33 @@ export default function MobileClassRequestsPage() {
 
           <Panel>
             <PanelTitleRow>
-              <PanelTitle>{activeTab === "exchange" ? "교환 신청 내역" : "결강 신청 내역"}</PanelTitle>
+              <PanelTitle>
+                {activeTab === "exchange" ? "교환 신청 내역" : "결강 신청 내역"}
+              </PanelTitle>
               <ViewModeLabel>
                 <span>{viewMode === "mine" ? "나의 신청 내역" : "전체 신청 내역"}</span>
                 <SwitchInput
                   type="checkbox"
                   aria-label="나의 신청 내역만 보기"
                   checked={viewMode === "mine"}
-                  onChange={(event) =>
-                    handleChangeViewMode(event.target.checked ? "mine" : "all")
-                  }
+                  onChange={(event) => handleChangeViewMode(event.target.checked ? "mine" : "all")}
                 />
                 <SwitchTrack aria-hidden="true">
                   <SwitchThumb />
                 </SwitchTrack>
               </ViewModeLabel>
             </PanelTitleRow>
+            <SearchForm role="search" onSubmit={handleSearch}>
+              <SearchInput
+                type="search"
+                placeholder="반 or 제목 or 내용 or 작성자"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+              />
+              <SearchButton type="submit" aria-label="검색">
+                <IconSearch size={18} stroke={2.25} />
+              </SearchButton>
+            </SearchForm>
 
             {activeLoading ? (
               <EmptyText>신청 내역을 불러오는 중입니다.</EmptyText>
@@ -858,7 +903,9 @@ export default function MobileClassRequestsPage() {
                           <RequestTitle>{request.title ?? "제목 없음"}</RequestTitle>
                           <RequestMeta>
                             {request.classroomName ? <span>{request.classroomName}</span> : null}
-                            {request.requestedByName ? <span>{request.requestedByName}</span> : null}
+                            {request.requestedByName ? (
+                              <span>{request.requestedByName}</span>
+                            ) : null}
                             {request.lessonDate ? <strong>{request.lessonDate}</strong> : null}
                           </RequestMeta>
                         </RequestMain>
@@ -882,7 +929,9 @@ export default function MobileClassRequestsPage() {
                                 </DetailField>
                                 <DetailField>
                                   <DetailLabel>수업 일자</DetailLabel>
-                                  <DetailValue>{formatDetailDate(activeDetail.lessonDate)}</DetailValue>
+                                  <DetailValue>
+                                    {formatDetailDate(activeDetail.lessonDate)}
+                                  </DetailValue>
                                 </DetailField>
                                 <DetailField>
                                   <DetailLabel>반 이름</DetailLabel>
@@ -912,8 +961,8 @@ export default function MobileClassRequestsPage() {
                                 </DetailLabel>
                                 <DetailBody>
                                   {selectedRequest?.type === "exchange"
-                                    ? exchangeDetail?.content ?? "-"
-                                    : absenceDetail?.reason ?? "-"}
+                                    ? (exchangeDetail?.content ?? "-")
+                                    : (absenceDetail?.reason ?? "-")}
                                 </DetailBody>
                               </DetailBlock>
 
@@ -1107,6 +1156,13 @@ const PanelTitle = styled.h2`
   font-weight: 800;
 `;
 
+const SearchForm = styled.form`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: ${spacing.space8};
+  margin-top: -${spacing.space4};
+`;
+
 const TabRow = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1215,6 +1271,10 @@ const TextInput = styled.input`
   }
 `;
 
+const SearchInput = styled(TextInput)`
+  min-width: 0;
+`;
+
 const TextArea = styled.textarea`
   width: 100%;
   min-height: 8rem;
@@ -1306,6 +1366,18 @@ const PrimaryButton = styled.button`
   &:disabled {
     opacity: 0.55;
   }
+`;
+
+const SearchButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  min-height: 3rem;
+  border: 0;
+  border-radius: ${radii.radius15};
+  background: linear-gradient(90deg, #87c25c 0%, #5fc077 100%);
+  color: ${colors.white};
 `;
 
 const EmptyText = styled.p`
