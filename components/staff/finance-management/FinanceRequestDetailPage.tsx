@@ -18,6 +18,7 @@ import {
 } from "@/api/request/request.api";
 import type {
   PurchaseRequestItemResponseDto,
+  PurchaseRequestListResponseDto,
   PurchaseRequestResponseDto,
   PurchaseRequestStatus,
 } from "@/api/request/request.dto";
@@ -523,10 +524,17 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     };
 
     queryClient.setQueryData(queryKeys.requests.purchaseDetail(requestId), nextRequest);
-    queryClient.setQueryData<PurchaseRequestResponseDto[] | undefined>(
+    queryClient.setQueryData<PurchaseRequestListResponseDto | undefined>(
       queryKeys.requests.purchaseList(),
       (current) =>
-        current?.map((item) => (item.id === requestId ? { ...item, ...nextRequest } : item)),
+        current
+          ? {
+              ...current,
+              content: current.content.map((item) =>
+                item.id === requestId ? { ...item, ...nextRequest } : item,
+              ),
+            }
+          : current,
     );
     setIsEditing(false);
   }

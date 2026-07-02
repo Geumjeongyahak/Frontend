@@ -65,7 +65,13 @@ export const queryKeys = {
       ["lesson-exchange-request-proposals", requestId] as const,
     absenceList: () => ["absence-requests"] as const,
     absenceDetail: (requestId: number) => ["absence-request", requestId] as const,
-    purchaseList: () => ["purchase-requests"] as const,
+    purchaseList: (params?: {
+      status?: string;
+      mine?: boolean;
+      keyword?: string;
+      page?: number;
+      size?: number;
+    }) => (params ? (["purchase-requests", params] as const) : (["purchase-requests"] as const)),
     purchaseDetail: (requestId: number) => ["purchase-request", requestId] as const,
   },
   siteContent: {
@@ -91,10 +97,16 @@ export const queryKeys = {
       ["admin", "classrooms", "detail", classroomId] as const,
     subjects: (classroomId?: number) => ["admin", "subjects", { classroomId }] as const,
     activeVolunteerTeachers: () => ["admin", "users", "active-volunteer-teachers"] as const,
-    purchaseRequests: (params?: string | { status?: string; keyword?: string }) => {
+    purchaseRequests: (
+      params?:
+        | string
+        | { status?: string; keyword?: string; mine?: boolean; page?: number; size?: number },
+    ) => {
       const normalizedParams = typeof params === "string" ? { status: params } : (params ?? {});
 
-      return ["admin", "purchase-requests", normalizedParams] as const;
+      return Object.keys(normalizedParams).length
+        ? (["admin", "purchase-requests", normalizedParams] as const)
+        : (["admin", "purchase-requests"] as const);
     },
     purchaseRequestDetail: (requestId: number) =>
       ["admin", "purchase-requests", "detail", requestId] as const,

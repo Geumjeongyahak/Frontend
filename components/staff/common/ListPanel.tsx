@@ -48,6 +48,7 @@ type ListPanelProps = {
   writeIcon?: ReactNode;
   filterSlot?: ReactNode;
   searchSlot?: ReactNode;
+  persistentQuery?: Record<string, QueryValue | undefined>;
   toggleLabel?: string;
   toggleAriaLabel?: string;
   onMineOnlyToggle?: () => void;
@@ -94,6 +95,7 @@ export default function ListPanel({
   writeIcon,
   filterSlot,
   searchSlot,
+  persistentQuery,
   toggleLabel = "내가 작성한 신청서만 보기",
   toggleAriaLabel = "내 신청서만 보기",
   onMineOnlyToggle,
@@ -102,7 +104,10 @@ export default function ListPanel({
   const prevPage = Math.max(1, currentPage - 1);
   const nextPage = Math.min(totalPages, currentPage + 1);
   const toggleHref = buildHref(listPath, { mineOnly: mineOnly ? undefined : 1 });
-  const baseQuery = showMineOnlyToggle && mineOnly ? { mineOnly: 1 } : {};
+  const baseQuery = {
+    ...(persistentQuery ?? {}),
+    ...(showMineOnlyToggle && mineOnly ? { mineOnly: 1 } : {}),
+  };
   const columnCount = 2 + Number(showClassColumn) + 2 + Number(showStatusColumn);
 
   return (

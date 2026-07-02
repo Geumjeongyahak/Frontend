@@ -65,10 +65,11 @@ type AdminPurchasesSectionProps = {
   selectedPurchaseId: number | null;
   purchaseStatus: PurchaseRequestStatus | "";
   purchaseSearch: string;
+  purchasePage: number;
   isPurchaseCreateModalOpen: boolean;
   purchaseCreate: PurchaseCreateState;
   reviewNote: string;
-  purchasesQuery: QueryState<unknown>;
+  purchasesQuery: QueryState<{ totalPages?: number }>;
   purchaseDetailQuery: QueryState<PurchaseRequestResponseDto>;
   vendorsQuery: QueryState<VendorResponseDto[]>;
   createVendorMutation: ValueMutationAction<CreateVendorRequestDto>;
@@ -79,6 +80,7 @@ type AdminPurchasesSectionProps = {
   deletePurchaseMutation: VoidMutationAction;
   setPurchaseStatus: Dispatch<SetStateAction<PurchaseRequestStatus | "">>;
   setPurchaseSearch: Dispatch<SetStateAction<string>>;
+  setPurchasePage: Dispatch<SetStateAction<number>>;
   setIsPurchaseCreateModalOpen: Dispatch<SetStateAction<boolean>>;
   setPurchaseCreate: Dispatch<SetStateAction<PurchaseCreateState>>;
   setSelectedPurchaseId: Dispatch<SetStateAction<number | null>>;
@@ -149,6 +151,7 @@ export function AdminPurchasesSection({
   selectedPurchaseId,
   purchaseStatus,
   purchaseSearch,
+  purchasePage,
   isPurchaseCreateModalOpen,
   purchaseCreate,
   reviewNote,
@@ -163,6 +166,7 @@ export function AdminPurchasesSection({
   deletePurchaseMutation,
   setPurchaseStatus,
   setPurchaseSearch,
+  setPurchasePage,
   setIsPurchaseCreateModalOpen,
   setPurchaseCreate,
   setSelectedPurchaseId,
@@ -174,16 +178,9 @@ export function AdminPurchasesSection({
   const [isVendorBalanceModalOpen, setIsVendorBalanceModalOpen] = useState(false);
   const [isVendorCreateModalOpen, setIsVendorCreateModalOpen] = useState(false);
   const [vendorForm, setVendorForm] = useState({ name: "", description: "" });
-  const [pagination, setPagination] = useState({ page: 1, search: "" });
   const isDetailOpen = selectedPurchaseId !== null;
-  const paginationKey = `${purchaseStatus}:${purchaseSearch}`;
-  const totalPages = Math.max(1, Math.ceil(purchases.length / PURCHASES_PER_PAGE));
-  const requestedPage = pagination.search === paginationKey ? pagination.page : 1;
-  const safeCurrentPage = Math.min(requestedPage, totalPages);
-  const pagedPurchases = purchases.slice(
-    (safeCurrentPage - 1) * PURCHASES_PER_PAGE,
-    safeCurrentPage * PURCHASES_PER_PAGE,
-  );
+  const totalPages = Math.max(1, purchasesQuery.data?.totalPages ?? 1);
+  const safeCurrentPage = Math.min(purchasePage, totalPages);
   const selectedStatus = purchaseDetailQuery.data?.status;
   const canReviewPurchase = selectedStatus === "PENDING";
   const canConfirmPurchase = selectedStatus === "PURCHASED";
@@ -349,7 +346,7 @@ export function AdminPurchasesSection({
 
   function handlePurchaseSearchChange(value: string) {
     setPurchaseSearch(value);
-    setPagination({ page: 1, search: `${purchaseStatus}:${value}` });
+    setPurchasePage(1);
 
     if (isDetailOpen) {
       closePurchaseDetail();
@@ -441,7 +438,7 @@ export function AdminPurchasesSection({
                 </tr>
               </thead>
               <tbody>
-                {pagedPurchases.map((item) => (
+                {purchases.map((item) => (
                   <tr key={item.id} onClick={() => selectPurchase(item)}>
                     <td>{item.id ?? "-"}</td>
                     <td>{item.title ?? "-"}</td>
@@ -451,10 +448,10 @@ export function AdminPurchasesSection({
                     <td>{formatPurchaseListAmount(item)}</td>
                   </tr>
                 ))}
-                {pagedPurchases.length > 0 ? (
+                {purchases.length > 0 ? (
                   <TablePaddingRows
                     columnCount={6}
-                    visibleRowCount={pagedPurchases.length}
+                    visibleRowCount={purchases.length}
                     padTo={PURCHASES_PER_PAGE}
                     keyPrefix="admin-purchases"
                   />
@@ -469,12 +466,7 @@ export function AdminPurchasesSection({
             type="button"
             aria-label="이전 페이지"
             disabled={safeCurrentPage === 1}
-            onClick={() =>
-              setPagination({
-                page: Math.max(1, safeCurrentPage - 1),
-                search: paginationKey,
-              })
-            }
+            onClick={() => setPurchasePage(Math.max(1, safeCurrentPage - 1))}
           >
             ◀
           </PageArrowButton>
@@ -483,12 +475,12 @@ export function AdminPurchasesSection({
 
             return (
               <PageNumberButton
-                key={pageNumber}
-                type="button"
-                $isActive={pageNumber === safeCurrentPage}
-                aria-current={pageNumber === safeCurrentPage ? "page" : undefined}
-                onClick={() => setPagination({ page: pageNumber, search: paginationKey })}
-              >
+              key={pageNumber}
+              type="button"
+              $isActive={pageNumber === safeCurrentPage}
+              aria-current={pageNumber === safeCurrentPage ? "page" : undefined}
+              onClick={() => setPurchasePage(pageNumber)}
+            >
                 {pageNumber}
               </PageNumberButton>
             );
@@ -497,12 +489,7 @@ export function AdminPurchasesSection({
             type="button"
             aria-label="다음 페이지"
             disabled={safeCurrentPage === totalPages}
-            onClick={() =>
-              setPagination({
-                page: Math.min(totalPages, safeCurrentPage + 1),
-                search: paginationKey,
-              })
-            }
+            onClick={() => setPurchasePage(Math.min(totalPages, safeCurrentPage + 1))}
           >
             ▶
           </PageArrowButton>

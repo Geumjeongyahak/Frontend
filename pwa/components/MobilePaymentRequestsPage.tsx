@@ -296,7 +296,7 @@ export default function MobilePaymentRequestsPage() {
     }
   }, [hasStoredToken, refreshSession, status]);
 
-  const requests = [...(purchaseListQuery.data ?? [])]
+  const requests = [...(purchaseListQuery.data?.content ?? [])]
     .filter((request) => isCurrentUserRequest(request.requestedByName, user))
     .sort((left, right) => getRequestTime(right.createdAt) - getRequestTime(left.createdAt));
   const classrooms = classroomsQuery.data?.content ?? [];

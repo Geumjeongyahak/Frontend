@@ -437,6 +437,7 @@ export default function AdminDashboardPage() {
   const [postScopeFilter, setPostScopeFilter] = useState("all");
   const [classroomSearch, setClassroomSearch] = useState("");
   const [purchaseSearch, setPurchaseSearch] = useState("");
+  const [purchasePage, setPurchasePage] = useState(1);
   const [purchaseStatus, setPurchaseStatus] = useState<PurchaseRequestStatus | "">("");
   const [userForm, setUserForm] = useState<UserFormState>(emptyUserForm);
   const [channelForm, setChannelForm] = useState<ChannelFormState>(emptyChannelForm);
@@ -603,12 +604,19 @@ export default function AdminDashboardPage() {
   const purchasesQuery = useQuery({
     queryKey: queryKeys.admin.purchaseRequests({
       status: purchaseStatus || undefined,
+      keyword: purchaseSearch.trim() || undefined,
+      page: purchasePage - 1,
+      size: 11,
     }),
     queryFn: () =>
       getAllPurchaseRequests({
         status: purchaseStatus || undefined,
+        keyword: purchaseSearch.trim() || undefined,
+        page: purchasePage - 1,
+        size: 11,
       }),
     enabled: isAdmin,
+    placeholderData: (previousData) => previousData,
   });
   const vendorsQuery = useQuery({
     queryKey: queryKeys.vendors.list(),
@@ -752,25 +760,10 @@ export default function AdminDashboardPage() {
     );
   }, [channelSearch, channels]);
   const posts = postsQuery.data?.content ?? [];
-  const purchases = useMemo(() => {
-    const rawPurchases = purchasesQuery.data ?? [];
-    const keyword = purchaseSearch.trim().toLowerCase();
-
-    if (!keyword) {
-      return rawPurchases;
-    }
-
-    return rawPurchases.filter((item) =>
-      [
-        item.id ? String(item.id) : "",
-        item.title,
-        item.classroomName,
-        item.requestedByName,
-        item.status,
-        item.totalPrice !== undefined && item.totalPrice !== null ? String(item.totalPrice) : "",
-      ].some((value) => value?.toLowerCase().includes(keyword)),
-    );
-  }, [purchaseSearch, purchasesQuery.data]);
+  const purchases = useMemo(
+    () => purchasesQuery.data?.content ?? [],
+    [purchasesQuery.data?.content],
+  );
   const registry = permissionRegistryQuery.data?.length
     ? permissionRegistryQuery.data
     : fallbackPermissions;
@@ -1703,6 +1696,7 @@ export default function AdminDashboardPage() {
               selectedPurchaseId={selectedPurchaseId}
               purchaseStatus={purchaseStatus}
               purchaseSearch={purchaseSearch}
+              purchasePage={purchasePage}
               isPurchaseCreateModalOpen={isPurchaseCreateModalOpen}
               purchaseCreate={purchaseCreate}
               reviewNote={reviewNote}
@@ -1717,6 +1711,7 @@ export default function AdminDashboardPage() {
               deletePurchaseMutation={deletePurchaseMutation}
               setPurchaseStatus={setPurchaseStatus}
               setPurchaseSearch={setPurchaseSearch}
+              setPurchasePage={setPurchasePage}
               setIsPurchaseCreateModalOpen={setIsPurchaseCreateModalOpen}
               setPurchaseCreate={setPurchaseCreate}
               setSelectedPurchaseId={setSelectedPurchaseId}
