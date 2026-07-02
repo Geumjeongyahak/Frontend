@@ -568,23 +568,6 @@ export default function MobileClassRequestsPage() {
                 결강 신청
               </TabButton>
             </TabRow>
-
-            <PanelUtilityRow>
-              <ViewModeLabel>
-                <span>{viewMode === "mine" ? "나의 신청 내역" : "전체 신청 내역"}</span>
-                <SwitchInput
-                  type="checkbox"
-                  aria-label="나의 신청 내역만 보기"
-                  checked={viewMode === "mine"}
-                  onChange={(event) =>
-                    handleChangeViewMode(event.target.checked ? "mine" : "all")
-                  }
-                />
-                <SwitchTrack aria-hidden="true">
-                  <SwitchThumb />
-                </SwitchTrack>
-              </ViewModeLabel>
-            </PanelUtilityRow>
           </Panel>
 
           {showComposer ? (
@@ -823,7 +806,23 @@ export default function MobileClassRequestsPage() {
           ) : null}
 
           <Panel>
-            <PanelTitle>{activeTab === "exchange" ? "교환 신청 내역" : "결강 신청 내역"}</PanelTitle>
+            <PanelTitleRow>
+              <PanelTitle>{activeTab === "exchange" ? "교환 신청 내역" : "결강 신청 내역"}</PanelTitle>
+              <ViewModeLabel>
+                <span>{viewMode === "mine" ? "나의 신청 내역" : "전체 신청 내역"}</span>
+                <SwitchInput
+                  type="checkbox"
+                  aria-label="나의 신청 내역만 보기"
+                  checked={viewMode === "mine"}
+                  onChange={(event) =>
+                    handleChangeViewMode(event.target.checked ? "mine" : "all")
+                  }
+                />
+                <SwitchTrack aria-hidden="true">
+                  <SwitchThumb />
+                </SwitchTrack>
+              </ViewModeLabel>
+            </PanelTitleRow>
 
             {activeLoading ? (
               <EmptyText>신청 내역을 불러오는 중입니다.</EmptyText>
@@ -1095,6 +1094,13 @@ const ComposerPanel = styled(Panel)`
   gap: ${spacing.space20};
 `;
 
+const PanelTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${spacing.space12};
+`;
+
 const PanelTitle = styled.h2`
   color: ${colors.text};
   font-size: ${typography.fontSize18};
@@ -1107,14 +1113,10 @@ const TabRow = styled.div`
   gap: ${spacing.space12};
 `;
 
-const PanelUtilityRow = styled.div`
-  display: flex;
-  justify-content: flex-end;
-`;
-
 const ViewModeLabel = styled.label`
   position: relative;
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   gap: ${spacing.space8};
   color: #72806a;

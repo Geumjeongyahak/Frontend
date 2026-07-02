@@ -2,7 +2,12 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
-import { IconChevronDown, IconPlus } from "@tabler/icons-react";
+import {
+  IconChevronDown,
+  IconChevronLeft,
+  IconChevronRight,
+  IconPlus,
+} from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
 import styled from "styled-components";
@@ -42,6 +47,8 @@ type FinanceItemForm = {
   paymentType: PaymentType;
 };
 
+type RequestViewMode = "mine" | "all";
+
 type ReportItem = {
   itemId: number;
   vendorId: string;
@@ -68,6 +75,7 @@ const initialItem: FinanceItemForm = {
   reason: "",
   paymentType: "ACTUAL",
 };
+const REQUESTS_PER_PAGE = 10;
 
 function getRequestTime(createdAt?: string) {
   if (!createdAt) return 0;
@@ -76,21 +84,20 @@ function getRequestTime(createdAt?: string) {
   return Number.isNaN(time) ? 0 : time;
 }
 
-function isCurrentUserRequest(
-  requestedByName: string | undefined,
-  user: {
-    name?: string;
-    nickname?: string;
-    email?: string;
-  } | null,
-) {
-  if (!requestedByName || !user) {
-    return false;
+function buildPageTokens(currentPage: number, totalPages: number) {
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, index) => index + 1);
   }
 
-  return [user.name, user.nickname, user.email].some(
-    (value) => typeof value === "string" && value.length > 0 && value === requestedByName,
-  );
+  if (currentPage <= 3) {
+    return [1, 2, 3, "ellipsis", totalPages];
+  }
+
+  if (currentPage >= totalPages - 2) {
+    return [1, "ellipsis", totalPages - 2, totalPages - 1, totalPages];
+  }
+
+  return [1, "ellipsis", currentPage - 1, currentPage, currentPage + 1, "ellipsis", totalPages];
 }
 
 function getReceiptName(receipt: {
@@ -181,10 +188,31 @@ export default function MobilePaymentRequestsPage() {
   const [items, setItems] = useState<FinanceItemForm[]>([initialItem]);
   const [reportItems, setReportItems] = useState<ReportItem[]>([]);
   const [isReportEditing, setIsReportEditing] = useState(false);
+  const [viewMode, setViewMode] = useState<RequestViewMode>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const purchaseListParams = {
+    mine: viewMode === "mine" ? true : undefined,
+    page: currentPage - 1,
+    size: REQUESTS_PER_PAGE,
+  };
 
   const purchaseListQuery = useQuery({
-    queryKey: [...queryKeys.requests.purchaseList(), "mobile"],
-    queryFn: () => getPurchaseRequests(),
+    queryKey: [...queryKeys.requests.purchaseList(purchaseListParams), "mobile"],
+    queryFn: () => getPurchaseRequests(purchaseListParams),
+    placeholderData: (previousData) => previousData,
+    enabled: isAuthenticated,
+    retry: false,
+  });
+
+  const myPurchaseCountQuery = useQuery({
+    queryKey: [...queryKeys.requests.purchaseList({ mine: true, page: 0, size: 1 }), "mobile", "mine-count"],
+    queryFn: () =>
+      getPurchaseRequests({
+        mine: true,
+        page: 0,
+        size: 1,
+      }),
     enabled: isAuthenticated,
     retry: false,
   });
@@ -221,6 +249,7 @@ export default function MobilePaymentRequestsPage() {
       setTitle("");
       setAffiliationValue("");
       setItems([initialItem]);
+      setCurrentPage(1);
 
       if (typeof created.id === "number") {
         setSelectedRequestId(created.id);
@@ -296,9 +325,11 @@ export default function MobilePaymentRequestsPage() {
     }
   }, [hasStoredToken, refreshSession, status]);
 
-  const requests = [...(purchaseListQuery.data?.content ?? [])]
-    .filter((request) => isCurrentUserRequest(request.requestedByName, user))
-    .sort((left, right) => getRequestTime(right.createdAt) - getRequestTime(left.createdAt));
+  const requests = [...(purchaseListQuery.data?.content ?? [])].sort(
+    (left, right) => getRequestTime(right.createdAt) - getRequestTime(left.createdAt),
+  );
+  const totalPages = Math.max(1, purchaseListQuery.data?.totalPages ?? 1);
+  const pageTokens = buildPageTokens(currentPage, totalPages);
   const classrooms = classroomsQuery.data?.content ?? [];
   const affiliationOptions = classrooms
     .filter((classroom) => typeof classroom.id === "number")
@@ -391,6 +422,18 @@ export default function MobilePaymentRequestsPage() {
     setIsReportEditing(false);
     setReportItems([]);
     setSelectedRequestId((current) => (current === requestId ? null : requestId));
+  }
+
+  function handleChangeViewMode(nextMode: RequestViewMode) {
+    setSelectedRequestId(null);
+    setViewMode(nextMode);
+    setCurrentPage(1);
+  }
+
+  function handleChangePage(nextPage: number) {
+    const safePage = Math.min(Math.max(1, nextPage), totalPages);
+    setSelectedRequestId(null);
+    setCurrentPage(safePage);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -501,7 +544,9 @@ export default function MobilePaymentRequestsPage() {
           <SummaryPanel>
             <SummaryCard>
               <SummaryLabel>나의 결제 신청</SummaryLabel>
-              <SummaryValue>{purchaseListQuery.isLoading ? "-" : requests.length}</SummaryValue>
+              <SummaryValue>
+                {myPurchaseCountQuery.isLoading ? "-" : myPurchaseCountQuery.data?.totalElements ?? 0}
+              </SummaryValue>
             </SummaryCard>
           </SummaryPanel>
 
@@ -646,7 +691,23 @@ export default function MobilePaymentRequestsPage() {
 
           <Panel>
             <PanelHeader>
-              <PanelTitle>신청 내역</PanelTitle>
+              <PanelTitleRow>
+                <PanelTitle>신청 내역</PanelTitle>
+                <ViewModeLabel>
+                  <span>{viewMode === "mine" ? "나의 신청 내역" : "전체 신청 내역"}</span>
+                  <SwitchInput
+                    type="checkbox"
+                    aria-label="나의 결제 신청 내역만 보기"
+                    checked={viewMode === "mine"}
+                    onChange={(event) =>
+                      handleChangeViewMode(event.target.checked ? "mine" : "all")
+                    }
+                  />
+                  <SwitchTrack aria-hidden="true">
+                    <SwitchThumb />
+                  </SwitchTrack>
+                </ViewModeLabel>
+              </PanelTitleRow>
               <PanelDescription>최근 등록 순으로 확인할 수 있습니다.</PanelDescription>
             </PanelHeader>
 
@@ -903,6 +964,41 @@ export default function MobilePaymentRequestsPage() {
                 })}
               </RequestList>
             )}
+
+            {!purchaseListQuery.isLoading && requests.length > 0 ? (
+              <PaginationRow aria-label="페이지 이동">
+                <PageArrowButton
+                  type="button"
+                  onClick={() => handleChangePage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  aria-label="이전 페이지"
+                >
+                  <IconChevronLeft size={18} stroke={2.1} />
+                </PageArrowButton>
+                {pageTokens.map((token, index) =>
+                  token === "ellipsis" ? (
+                    <PageEllipsis key={`payment-ellipsis-${index}`}>...</PageEllipsis>
+                  ) : (
+                    <PageNumberButton
+                      key={`payment-page-${viewMode}-${token}`}
+                      type="button"
+                      $active={token === currentPage}
+                      onClick={() => handleChangePage(token as number)}
+                    >
+                      {token}
+                    </PageNumberButton>
+                  ),
+                )}
+                <PageArrowButton
+                  type="button"
+                  onClick={() => handleChangePage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  aria-label="다음 페이지"
+                >
+                  <IconChevronRight size={18} stroke={2.1} />
+                </PageArrowButton>
+              </PaginationRow>
+            ) : null}
           </Panel>
         </>
       ) : null}
@@ -1022,6 +1118,13 @@ const PanelHeader = styled.div`
   gap: ${spacing.space4};
 `;
 
+const PanelTitleRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${spacing.space12};
+`;
+
 const PanelTitle = styled.h2`
   color: ${colors.text};
   font-size: ${typography.fontSize18};
@@ -1032,6 +1135,57 @@ const PanelDescription = styled.p`
   color: #72806a;
   font-size: ${typography.fontSize13};
   line-height: ${typography.lineHeight150};
+`;
+
+const ViewModeLabel = styled.label`
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: ${spacing.space8};
+  color: #72806a;
+  font-size: ${typography.fontSize13};
+  font-weight: 700;
+`;
+
+const SwitchInput = styled.input`
+  position: absolute;
+  opacity: 0;
+
+  &:checked + span {
+    background-color: #eef9e6;
+  }
+
+  &:checked + span span {
+    transform: translateX(1.125rem);
+    background-color: ${colors.point};
+  }
+
+  &:focus-visible + span {
+    outline: 2px solid ${colors.point};
+    outline-offset: 2px;
+  }
+`;
+
+const SwitchTrack = styled.span`
+  position: relative;
+  display: inline-flex;
+  width: 2.625rem;
+  height: 1.5rem;
+  border-radius: ${radii.radius999};
+  background-color: #d9d9d9;
+  transition: background-color 0.2s ease;
+`;
+
+const SwitchThumb = styled.span`
+  position: absolute;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background-color: #616161;
+  transition: transform 0.2s ease;
 `;
 
 const Form = styled.form`
@@ -1204,6 +1358,43 @@ const EmptyText = styled.p`
 const RequestList = styled.div`
   display: grid;
   gap: ${spacing.space12};
+`;
+
+const PaginationRow = styled.nav`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${spacing.space8};
+  margin-top: ${spacing.space8};
+`;
+
+const PageArrowButton = styled.button`
+  border: 0;
+  background: transparent;
+  color: ${colors.text};
+  font-size: ${typography.fontSize14};
+  font-weight: 700;
+
+  &:disabled {
+    opacity: 0.35;
+  }
+`;
+
+const PageNumberButton = styled.button<{ $active: boolean }>`
+  min-width: 2rem;
+  min-height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: ${({ $active }) => ($active ? colors.pointSoft : "transparent")};
+  color: ${({ $active }) => ($active ? "#4f8f27" : colors.text)};
+  font-size: ${typography.fontSize14};
+  font-weight: ${({ $active }) => ($active ? 800 : 600)};
+`;
+
+const PageEllipsis = styled.span`
+  color: #72806a;
+  font-size: ${typography.fontSize14};
+  font-weight: 700;
 `;
 
 const RequestCard = styled.article`
