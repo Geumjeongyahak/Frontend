@@ -404,7 +404,6 @@ export default function MobileClassJournalWritePage() {
     <MobileRequestShell
       backHref="/"
       title="수업 일지"
-      description="오늘 수업 내용을 작성하고 퇴근을 마무리합니다."
     >
       <Form id="mobile-class-journal-form" onSubmit={handleSubmit}>
         {showNoClassNotice ? (

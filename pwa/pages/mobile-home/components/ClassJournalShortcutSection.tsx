@@ -27,7 +27,7 @@ export default function ClassJournalShortcutSection({
           </IconWrap>
           <TextGroup>
             <CardTitle>새 수업 일지 작성</CardTitle>
-            <CardDescription>오늘의 수업 내용을 기록합니다.</CardDescription>
+            <CardDescription>오늘의 수업 내용을 작성하고 퇴근을 마무리합니다.</CardDescription>
           </TextGroup>
           <ArrowWrap>
             <IconChevronRight size={18} stroke={2} />
