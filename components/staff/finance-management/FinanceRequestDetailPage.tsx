@@ -63,7 +63,6 @@ type EditableItem = {
   name: string;
   quantity: string;
   reason: string;
-  paymentType: PaymentType;
 };
 
 type ReportItem = {
@@ -138,16 +137,18 @@ function getReceiptName(receipt: {
 
 function mapPurchaseItemsToEditableItems(items?: PurchaseRequestItemResponseDto[]) {
   return (items ?? []).map((item, index) => {
-    const extendedItem = item as ExtendedPurchaseItem;
-
     return {
       id: item.id ?? index + 1,
       name: item.name ?? "",
-      quantity: typeof extendedItem.quantity === "number" ? String(extendedItem.quantity) : "1",
+      quantity: typeof item.quantity === "number" ? String(item.quantity) : "1",
       reason: item.reason ?? "",
-      paymentType: extendedItem.paymentType ?? "ACTUAL",
     };
   });
+}
+
+function getRequestPaymentType(items?: PurchaseRequestItemResponseDto[]): PaymentType {
+  const paymentType = items?.find((item) => item.paymentType)?.paymentType;
+  return paymentType === "PREPAID" ? "PREPAID" : "ACTUAL";
 }
 
 function mapPurchaseItemsToReportItems(purchase?: ExtendedPurchaseRequest): ReportItem[] {
@@ -280,9 +281,9 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const requestAffiliationValue = useMemo(() => {
     const currentAffiliation = affiliationOptions.find((option) =>
       option.type === "department"
-        ? (typeof request?.departmentId === "number"
-            ? option.id === request.departmentId
-            : option.label === request?.departmentName)
+        ? typeof request?.departmentId === "number"
+          ? option.id === request.departmentId
+          : option.label === request?.departmentName
         : typeof request?.classroomId === "number"
           ? option.id === request.classroomId
           : option.label === request?.classroomName,
@@ -389,8 +390,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     user.id === request.requestedById;
   const isAdmin = authStatus === "authenticated" && user?.role === "ADMIN";
   const canManageRequest = isAdmin || isRequester;
-  const canManagePurchaseReport =
-    authStatus === "authenticated" && canManageRequest;
+  const canManagePurchaseReport = authStatus === "authenticated" && canManageRequest;
   const canEditRequest = request?.status === "PENDING" && canManageRequest;
   const canDeleteRequest = request?.status === "PENDING" && canManageRequest;
   const canShowReportForm = request?.status === "APPROVED" && isRequester;
@@ -460,6 +460,42 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     );
   }
 
+  function addEditItem() {
+    setEditItems((current) => {
+      const source = current.length ? current : initialEditItems;
+      const nextId = source.length ? Math.max(...source.map((item) => item.id)) + 1 : 1;
+
+      return [
+        ...source,
+        {
+          id: nextId,
+          name: "",
+          quantity: "1",
+          reason: "",
+        },
+      ];
+    });
+  }
+
+  function removeEditItem(itemId: number) {
+    setEditItems((current) => {
+      const source = current.length ? current : initialEditItems;
+
+      if (source.length <= 1) {
+        return [
+          {
+            id: source[0]?.id ?? 1,
+            name: "",
+            quantity: "1",
+            reason: "",
+          },
+        ];
+      }
+
+      return source.filter((item) => item.id !== itemId);
+    });
+  }
+
   function startEditing() {
     if (!request) {
       return;
@@ -499,17 +535,13 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       ...request,
       title: editTitle.trim() || request.title,
       classroomId:
-        selectedAffiliation?.type === "classroom"
-          ? selectedAffiliation.id
-          : request.classroomId,
+        selectedAffiliation?.type === "classroom" ? selectedAffiliation.id : request.classroomId,
       classroomName:
         selectedAffiliation?.type === "classroom"
           ? selectedAffiliation.label
           : request.classroomName,
       departmentId:
-        selectedAffiliation?.type === "department"
-          ? selectedAffiliation.id
-          : request.departmentId,
+        selectedAffiliation?.type === "department" ? selectedAffiliation.id : request.departmentId,
       departmentName:
         selectedAffiliation?.type === "department"
           ? selectedAffiliation.label
@@ -519,7 +551,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
         name: item.name.trim(),
         reason: item.reason.trim() || undefined,
         quantity: Number(item.quantity),
-        paymentType: item.paymentType,
+        paymentType: getRequestPaymentType(request.items),
       })),
     };
 
@@ -649,6 +681,36 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                 </InfoRow>
               </Section>
 
+              {isEditing ? (
+                <Section>
+                  <SectionTitle>결제 유형</SectionTitle>
+                  <PaymentTypeGroup aria-disabled="true">
+                    <PaymentTypeOption>
+                      <input
+                        type="checkbox"
+                        name="edit-paymentType"
+                        value="PREPAID"
+                        checked={getRequestPaymentType(request.items) === "PREPAID"}
+                        disabled
+                        readOnly
+                      />
+                      <span>선금 결제</span>
+                    </PaymentTypeOption>
+                    <PaymentTypeOption>
+                      <input
+                        type="checkbox"
+                        name="edit-paymentType"
+                        value="ACTUAL"
+                        checked={getRequestPaymentType(request.items) === "ACTUAL"}
+                        disabled
+                        readOnly
+                      />
+                      <span>실 결제</span>
+                    </PaymentTypeOption>
+                  </PaymentTypeGroup>
+                </Section>
+              ) : null}
+
               <Section>
                 <DetailSectionHeader>
                   <SectionTitle>상세 품목</SectionTitle>
@@ -659,77 +721,63 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                   ) : null}
                 </DetailSectionHeader>
                 {isEditing ? (
-                  <EditItemList>
-                    {(editItems.length ? editItems : initialEditItems).map((item, index) => (
-                      <EditItemBlock key={item.id}>
-                        <ItemFieldRow>
-                          <ItemLabel htmlFor={`editItemName-${item.id}`}>
-                            품목 {index + 1}
-                          </ItemLabel>
-                          <EditInput
-                            id={`editItemName-${item.id}`}
-                            value={item.name}
-                            onChange={(event) =>
-                              updateEditItem(item.id, { name: event.target.value })
-                            }
-                          />
-                        </ItemFieldRow>
-                        <ItemFieldRow>
-                          <ItemLabel htmlFor={`editQuantity-${item.id}`}>개수</ItemLabel>
-                          <EditInput
-                            id={`editQuantity-${item.id}`}
-                            type="number"
-                            min="1"
-                            step="1"
-                            inputMode="numeric"
-                            value={item.quantity}
-                            onChange={(event) =>
-                              updateEditItem(item.id, { quantity: event.target.value })
-                            }
-                          />
-                        </ItemFieldRow>
-                        <ItemFieldRow>
-                          <ItemLabel htmlFor={`editReason-${item.id}`}>결제 사유</ItemLabel>
-                          <EditInput
-                            id={`editReason-${item.id}`}
-                            value={item.reason}
-                            onChange={(event) =>
-                              updateEditItem(item.id, { reason: event.target.value })
-                            }
-                          />
-                        </ItemFieldRow>
-                        <ItemFieldRow>
-                          <ItemLabel>결제 유형</ItemLabel>
-                          <PaymentTypeGroup>
-                            <PaymentTypeOption>
-                              <input
-                                type="checkbox"
-                                checked={item.paymentType === "PREPAID"}
-                                onChange={(event) => {
-                                  if (event.target.checked) {
-                                    updateEditItem(item.id, { paymentType: "PREPAID" });
-                                  }
-                                }}
-                              />
-                              <span>선금 결제</span>
-                            </PaymentTypeOption>
-                            <PaymentTypeOption>
-                              <input
-                                type="checkbox"
-                                checked={item.paymentType === "ACTUAL"}
-                                onChange={(event) => {
-                                  if (event.target.checked) {
-                                    updateEditItem(item.id, { paymentType: "ACTUAL" });
-                                  }
-                                }}
-                              />
-                              <span>실 결제</span>
-                            </PaymentTypeOption>
-                          </PaymentTypeGroup>
-                        </ItemFieldRow>
-                      </EditItemBlock>
-                    ))}
-                  </EditItemList>
+                  <>
+                    <EditItemList>
+                      {(editItems.length ? editItems : initialEditItems).map((item, index) => (
+                        <EditItemBlock key={item.id}>
+                          <ItemFieldRow>
+                            <ItemLabel htmlFor={`editItemName-${item.id}`}>
+                              품목 {index + 1}
+                            </ItemLabel>
+                            <EditInput
+                              id={`editItemName-${item.id}`}
+                              value={item.name}
+                              onChange={(event) =>
+                                updateEditItem(item.id, { name: event.target.value })
+                              }
+                            />
+                          </ItemFieldRow>
+                          <ItemFieldRow>
+                            <ItemLabel htmlFor={`editQuantity-${item.id}`}>개수</ItemLabel>
+                            <EditInput
+                              id={`editQuantity-${item.id}`}
+                              type="number"
+                              min="1"
+                              step="1"
+                              inputMode="numeric"
+                              value={item.quantity}
+                              onChange={(event) =>
+                                updateEditItem(item.id, { quantity: event.target.value })
+                              }
+                            />
+                          </ItemFieldRow>
+                          <ItemFieldRow>
+                            <ItemLabel htmlFor={`editReason-${item.id}`}>결제 사유</ItemLabel>
+                            <EditInput
+                              id={`editReason-${item.id}`}
+                              value={item.reason}
+                              onChange={(event) =>
+                                updateEditItem(item.id, { reason: event.target.value })
+                              }
+                            />
+                          </ItemFieldRow>
+                          {(editItems.length ? editItems : initialEditItems).length > 1 ? (
+                            <EditItemActionRow>
+                              <DeleteItemButton
+                                type="button"
+                                onClick={() => removeEditItem(item.id)}
+                              >
+                                품목 삭제
+                              </DeleteItemButton>
+                            </EditItemActionRow>
+                          ) : null}
+                        </EditItemBlock>
+                      ))}
+                    </EditItemList>
+                    <AddItemButton type="button" onClick={addEditItem}>
+                      품목 추가하기
+                    </AddItemButton>
+                  </>
                 ) : (
                   <DetailTable>
                     <thead>
@@ -1302,6 +1350,7 @@ const EditSelect = styled.select`
 const EditItemList = styled.div`
   display: flex;
   flex-direction: column;
+  margin-top: -${spacing.space8};
 `;
 
 const EditItemBlock = styled.div`
@@ -1311,9 +1360,18 @@ const EditItemBlock = styled.div`
   padding: ${spacing.space20} 0;
   border-bottom: 1px solid #bcbcbc;
 
+  &:first-child {
+    padding-top: ${spacing.space8};
+  }
+
   @media (min-width: 120rem) {
     gap: ${spacing.space20};
+    padding-top: ${spacing.space20};
     padding-bottom: 1.875rem;
+
+    &:first-child {
+      padding-top: ${spacing.space12};
+    }
   }
 `;
 
@@ -1356,23 +1414,58 @@ const PaymentTypeOption = styled.label`
   display: inline-flex;
   align-items: center;
   gap: ${spacing.space8};
-  min-height: 2.6875rem;
-  padding: 0.8125rem ${spacing.space16};
+  min-height: 1rem;
   background-color: ${colors.white};
   color: #000000;
   font-size: ${typography.fontSize14};
   font-weight: 600;
   line-height: ${typography.lineHeight130};
   cursor: pointer;
+  margin-right: 1rem;
 
   input {
     accent-color: ${colors.point};
   }
 
   @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20} 1.875rem;
+    min-height: 2rem;
     font-size: ${typography.fontSize20};
+    margin-right: 2rem;
+  }
+`;
+
+const EditItemActionRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+`;
+
+const AddItemButton = styled.button`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.125rem;
+  border: 0;
+  background-color: ${colors.background};
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  line-height: ${typography.lineHeight130};
+  cursor: pointer;
+
+  @media (min-width: 120rem) {
+    min-height: 3.125rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const DeleteItemButton = styled(AddItemButton)`
+  width: 9rem;
+  border-color: #e45a52;
+  background-color: #fde4e2;
+  color: #da3a30;
+
+  @media (min-width: 120rem) {
+    width: 12rem;
   }
 `;
 
