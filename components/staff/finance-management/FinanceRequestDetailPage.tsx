@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
-import { IconDownload, IconFilePlus } from "@tabler/icons-react";
+import { ChangeEvent, FormEvent, Fragment, useMemo, useState } from "react";
+import { IconDownload, IconFilePlus, IconX } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
@@ -77,6 +77,75 @@ type ReportItem = {
   receiptFileUrl?: string;
 };
 
+type ParsedPrepaidBudgetItem = {
+  id: number;
+  detailBusiness: string;
+  reason: string;
+  name: string;
+};
+
+type ParsedPrepaidProduct = {
+  id: number;
+  description: string;
+  specification: string;
+  quantity: string;
+  unitPrice: string;
+  amount: string;
+};
+
+type ApprovalEntry = {
+  position: string;
+  name: string;
+};
+
+type ParsedPrepaidContent = {
+  approvalNumber: string;
+  paymentAccount: string;
+  summary: string;
+  policyProject: string;
+  requestDepartmentName: string;
+  approvalDate: string;
+  detailBusiness: string;
+  approvalAmount: string;
+  budgetItems: ParsedPrepaidBudgetItem[];
+  products: ParsedPrepaidProduct[];
+  approvalEntries: ApprovalEntry[];
+  cooperationEntries: ApprovalEntry[];
+};
+
+const unitBusinessLabel = "프로그램운영비";
+const detailBusinessOptions = ["경상 운영비", "사업 추진비", "기타 운영비", "인건비"] as const;
+const budgetItemReasonOptions = [
+  "교통비",
+  "교재비",
+  "프로그램추진비",
+  "임차료",
+  "홍보비",
+  "기타 운영비",
+] as const;
+const budgetItemNameOptions = [
+  "무급강사교통비",
+  "무급행정담당자 교통비",
+  "시중교재",
+  "제본교재",
+  "(소풍)식비",
+  "행사물품",
+  "현수막",
+  "다과비",
+  "포스터",
+  "소식지",
+  "입간판 및 배너, 스티커 제작",
+  "이체 수수료",
+  "사무용품비",
+  "통신비",
+  "전기비",
+  "수도세",
+  "정수기 필터교체",
+  "청소용품",
+  "프린트토너",
+] as const;
+const paymentAccountOptions = ["국비04", "구비01", "구비08"] as const;
+
 const statusLabels: Record<PurchaseRequestStatus, string> = {
   PENDING: "대기 중",
   APPROVED: "승인 완료",
@@ -145,6 +214,142 @@ function getRequestPaymentType(items?: PurchaseRequestItemResponseDto[]): Paymen
   return paymentType === "PREPAID" ? "PREPAID" : "ACTUAL";
 }
 
+function parseNumericValue(value: string) {
+  const normalized = value.replaceAll(",", "").replaceAll("원", "").trim();
+  if (!normalized) return 0;
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getApprovalNumber(referenceDate: string, paymentAccount: string) {
+  if (!paymentAccount.trim()) {
+    return "";
+  }
+
+  const year = referenceDate.slice(0, 4) || String(new Date().getFullYear());
+  return `${year}품-${paymentAccount}-01`;
+}
+
+function getContentLineValue(content: string | undefined, label: string) {
+  if (!content) {
+    return "";
+  }
+
+  const line = content.split(/\r?\n/).find((currentLine) => currentLine.startsWith(`${label}:`));
+
+  return line ? line.slice(label.length + 1).trim() : "";
+}
+
+function getContentSection(content: string | undefined, label: string, nextLabels: string[]) {
+  if (!content) {
+    return "";
+  }
+
+  const lines = content.split(/\r?\n/);
+  const startIndex = lines.findIndex((line) => line.trim() === label);
+
+  if (startIndex < 0) {
+    return "";
+  }
+
+  const endIndex = lines.findIndex(
+    (line, index) => index > startIndex && nextLabels.includes(line.trim()),
+  );
+  const sectionLines = lines.slice(startIndex + 1, endIndex >= 0 ? endIndex : undefined);
+
+  return sectionLines.join("\n").trim();
+}
+
+function buildApprovalEntries(requestedByName?: string) {
+  return [
+    { position: "총무", name: requestedByName ?? "" },
+    { position: "교장", name: "정혜웅" },
+    { position: "", name: "" },
+  ];
+}
+
+function buildCooperationEntries(departmentName?: string) {
+  const firstPosition = departmentName && departmentName !== "총무부" ? `${departmentName}장` : "";
+
+  return [
+    { position: firstPosition, name: "" },
+    { position: "", name: "" },
+    { position: "", name: "" },
+  ];
+}
+
+function parsePrepaidContent(purchase?: PurchaseRequestResponseDto): ParsedPrepaidContent | null {
+  if (!purchase) {
+    return null;
+  }
+
+  const content = purchase.content ?? "";
+  const summary =
+    getContentSection(content, "[품의 개요]", ["정책 사업:", "[예산 내역]"]) ||
+    purchase.content ||
+    "";
+  const budgetSection = getContentSection(content, "[예산 내역]", ["[품목 내역]"]);
+  const productSection = getContentSection(content, "[품목 내역]", []);
+
+  const budgetLines = budgetSection
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const productLines = productSection
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => Boolean(line) && line !== "없음");
+
+  const budgetItems =
+    purchase.items?.map((item, index) => {
+      const matchedLine = budgetLines[index] ?? "";
+      const matched = matchedLine.match(
+        /^\d+\.\s*세부사업:\s*(.*?)\s*\/\s*세부 항목:\s*(.*?)\s*\/\s*산출 내역:\s*(.*)$/,
+      );
+
+      return {
+        id: item.id ?? index + 1,
+        detailBusiness: matched?.[1]?.trim() ?? "",
+        reason: matched?.[2]?.trim() ?? item.reason ?? "",
+        name: matched?.[3]?.trim() ?? item.name ?? "",
+      };
+    }) ?? [];
+
+  const products = productLines.map((line, index) => {
+    const matched = line.match(
+      /^\d+\.\s*내용:\s*(.*?)\s*\/\s*규격:\s*(.*?)\s*\/\s*수량:\s*(.*?)\s*\/\s*예상 단가:\s*(.*?)\s*\/\s*예상 금액:\s*(.*)$/,
+    );
+
+    return {
+      id: index + 1,
+      description: matched?.[1]?.trim() ?? "",
+      specification: matched?.[2]?.trim() ?? "",
+      quantity: matched?.[3]?.trim() ?? "0",
+      unitPrice: matched?.[4]?.trim() ?? "0",
+      amount: matched?.[5]?.trim() ?? "0",
+    };
+  });
+
+  return {
+    approvalNumber: getContentLineValue(content, "품의 번호"),
+    paymentAccount: getContentLineValue(content, "결제 통장"),
+    summary,
+    policyProject: getContentLineValue(content, "정책 사업"),
+    requestDepartmentName:
+      getContentLineValue(content, "요구 부서") || purchase.departmentName || "-",
+    approvalDate: getContentLineValue(content, "품의 일자"),
+    detailBusiness: getContentLineValue(content, "세부 사업"),
+    approvalAmount: getContentLineValue(content, "품의 금액").replaceAll("원", "").trim(),
+    budgetItems,
+    products,
+    approvalEntries: buildApprovalEntries(purchase.requestedByName),
+    cooperationEntries: buildCooperationEntries(
+      getContentLineValue(content, "요구 부서") || purchase.departmentName,
+    ),
+  };
+}
+
 function mapPurchaseItemsToReportItems(purchase?: ExtendedPurchaseRequest): ReportItem[] {
   if (purchase?.transactions?.length) {
     return purchase.transactions.map((transaction, index) => {
@@ -201,6 +406,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const [editTitle, setEditTitle] = useState("");
   const [editAffiliationValue, setEditAffiliationValue] = useState("");
   const [editItems, setEditItems] = useState<EditableItem[]>([]);
+  const [editPrepaidContent, setEditPrepaidContent] = useState<ParsedPrepaidContent | null>(null);
+  const [editPrepaidDepartmentId, setEditPrepaidDepartmentId] = useState("");
   const [reportItems, setReportItems] = useState<ReportItem[]>([]);
   const [isReportEditing, setIsReportEditing] = useState(false);
   const {
@@ -240,10 +447,16 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   });
 
   const purchase = request as ExtendedPurchaseRequest | undefined;
+  const requestPaymentType = getRequestPaymentType(request?.items);
   const initialEditItems = useMemo(
     () => mapPurchaseItemsToEditableItems(request?.items),
     [request?.items],
   );
+  const parsedPrepaidContent = useMemo(
+    () => (requestPaymentType === "PREPAID" ? parsePrepaidContent(purchase) : null),
+    [purchase, requestPaymentType],
+  );
+  const activePrepaidContent = isEditing ? editPrepaidContent : parsedPrepaidContent;
   const initialReportItems = useMemo(() => mapPurchaseItemsToReportItems(purchase), [purchase]);
   const activeReportItems = reportItems.length ? reportItems : initialReportItems;
   const classrooms = useMemo(() => classroomData?.content ?? [], [classroomData]);
@@ -417,6 +630,14 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
         Number(item.price) >= 1,
     ) &&
     !reportMutation.isPending;
+  const prepaidQuantityTotal =
+    activePrepaidContent?.products.reduce(
+      (sum, item) => sum + parseNumericValue(item.quantity),
+      0,
+    ) ?? 0;
+  const prepaidAmountTotal =
+    activePrepaidContent?.products.reduce((sum, item) => sum + parseNumericValue(item.amount), 0) ??
+    0;
 
   function updateReportItem(
     itemId: number,
@@ -490,6 +711,173 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     });
   }
 
+  function updateEditPrepaidContent(patch: Partial<ParsedPrepaidContent>) {
+    setEditPrepaidContent((current) => (current ? { ...current, ...patch } : current));
+  }
+
+  function syncEditPrepaidDepartment(departmentId: string) {
+    setEditPrepaidDepartmentId(departmentId);
+    setEditPrepaidContent((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const department = departments.find((item) => String(item.id) === departmentId);
+      const nextDepartmentName = department?.name ?? "";
+      const nextCooperationPosition =
+        nextDepartmentName && nextDepartmentName !== "총무부" ? `${nextDepartmentName}장` : "";
+
+      return {
+        ...current,
+        requestDepartmentName: nextDepartmentName,
+        cooperationEntries: current.cooperationEntries.map((entry, index) =>
+          index === 0 ? { ...entry, position: nextCooperationPosition } : entry,
+        ),
+      };
+    });
+  }
+
+  function syncEditPrepaidDetailBusiness(value: string) {
+    setEditPrepaidContent((current) =>
+      current
+        ? {
+            ...current,
+            detailBusiness: value,
+            budgetItems: current.budgetItems.map((item) => ({
+              ...item,
+              detailBusiness: value,
+            })),
+          }
+        : current,
+    );
+  }
+
+  function updateEditPrepaidBudgetItem(itemId: number, patch: Partial<ParsedPrepaidBudgetItem>) {
+    setEditPrepaidContent((current) =>
+      current
+        ? {
+            ...current,
+            budgetItems: current.budgetItems.map((item) =>
+              item.id === itemId ? { ...item, ...patch } : item,
+            ),
+          }
+        : current,
+    );
+  }
+
+  function updateEditPrepaidProduct(itemId: number, patch: Partial<ParsedPrepaidProduct>) {
+    setEditPrepaidContent((current) =>
+      current
+        ? {
+            ...current,
+            products: current.products.map((item) =>
+              item.id === itemId ? { ...item, ...patch } : item,
+            ),
+          }
+        : current,
+    );
+  }
+
+  function updateEditPrepaidProductCalculated(
+    itemId: number,
+    field: "quantity" | "unitPrice",
+    value: string,
+  ) {
+    setEditPrepaidContent((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        products: current.products.map((item) => {
+          if (item.id !== itemId) {
+            return item;
+          }
+
+          const next = { ...item, [field]: value };
+          const quantity = parseNumericValue(next.quantity);
+          const unitPrice = parseNumericValue(next.unitPrice);
+
+          return {
+            ...next,
+            amount: quantity > 0 && unitPrice > 0 ? String(quantity * unitPrice) : "",
+          };
+        }),
+      };
+    });
+  }
+
+  function addEditPrepaidProduct() {
+    setEditPrepaidContent((current) =>
+      current
+        ? {
+            ...current,
+            products: [
+              ...current.products,
+              {
+                id: Math.max(0, ...current.products.map((item) => item.id)) + 1,
+                description: "",
+                specification: "",
+                quantity: "1",
+                unitPrice: "",
+                amount: "",
+              },
+            ],
+          }
+        : current,
+    );
+  }
+
+  function removeEditPrepaidProduct(itemId: number) {
+    setEditPrepaidContent((current) => {
+      if (!current) {
+        return current;
+      }
+
+      if (current.products.length <= 1) {
+        return {
+          ...current,
+          products: [
+            {
+              id: current.products[0]?.id ?? 1,
+              description: "",
+              specification: "",
+              quantity: "1",
+              unitPrice: "",
+              amount: "",
+            },
+          ],
+        };
+      }
+
+      return {
+        ...current,
+        products: current.products.filter((item) => item.id !== itemId),
+      };
+    });
+  }
+
+  function updateEditApprovalEntry(
+    kind: "approval" | "cooperation",
+    index: number,
+    patch: Partial<ApprovalEntry>,
+  ) {
+    setEditPrepaidContent((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const key = kind === "approval" ? "approvalEntries" : "cooperationEntries";
+      return {
+        ...current,
+        [key]: current[key].map((entry, entryIndex) =>
+          entryIndex === index ? { ...entry, ...patch } : entry,
+        ),
+      } as ParsedPrepaidContent;
+    });
+  }
+
   function startEditing() {
     if (!request) {
       return;
@@ -497,7 +885,18 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
 
     setEditTitle(request.title ?? "");
     setEditAffiliationValue(requestAffiliationValue);
-    setEditItems(initialEditItems);
+    if (requestPaymentType === "PREPAID" && parsedPrepaidContent) {
+      setEditPrepaidContent(parsedPrepaidContent);
+      const matchedDepartment = departments.find(
+        (department) => department.name === parsedPrepaidContent.requestDepartmentName,
+      );
+      setEditPrepaidDepartmentId(matchedDepartment?.id != null ? String(matchedDepartment.id) : "");
+      setEditItems([]);
+    } else {
+      setEditItems(initialEditItems);
+      setEditPrepaidContent(null);
+      setEditPrepaidDepartmentId("");
+    }
     setIsEditing(true);
   }
 
@@ -522,6 +921,98 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!request) {
+      return;
+    }
+
+    if (requestPaymentType === "PREPAID" && editPrepaidContent) {
+      const selectedDepartment = departments.find(
+        (department) => String(department.id) === editPrepaidDepartmentId,
+      );
+      const nextApprovalNumber = getApprovalNumber(
+        editPrepaidContent.approvalDate,
+        editPrepaidContent.paymentAccount,
+      );
+      const budgetContent = editPrepaidContent.budgetItems
+        .map(
+          (item, index) =>
+            `${index + 1}. 세부사업: ${item.detailBusiness || editPrepaidContent.detailBusiness || "-"} / 세부 항목: ${item.reason || "-"} / 산출 내역: ${item.name || "-"}`,
+        )
+        .join("\n");
+      const productContent =
+        editPrepaidContent.products.length > 0
+          ? editPrepaidContent.products
+              .map(
+                (item, index) =>
+                  `${index + 1}. 내용: ${item.description || "-"} / 규격: ${item.specification || "-"} / 수량: ${item.quantity || 0} / 예상 단가: ${item.unitPrice || 0} / 예상 금액: ${item.amount || 0}`,
+              )
+              .join("\n")
+          : "없음";
+      const nextContent = [
+        `분반: ${selectedAffiliation?.label ?? getAffiliationLabel(request)}`,
+        `신청자: ${request.requestedByName ?? "-"}`,
+        "결제 유형: 선금 결제",
+        "",
+        `[품의 번호]`,
+        `품의 번호: ${nextApprovalNumber || "-"}`,
+        `결제 통장: ${editPrepaidContent.paymentAccount || "-"}`,
+        "",
+        `[품의 개요]`,
+        editPrepaidContent.summary.trim(),
+        `정책 사업: ${editPrepaidContent.policyProject || "-"}`,
+        `요구 부서: ${selectedDepartment?.name ?? editPrepaidContent.requestDepartmentName ?? "-"}`,
+        `단위 사업: ${unitBusinessLabel}`,
+        `품의 일자: ${editPrepaidContent.approvalDate || "-"}`,
+        `세부 사업: ${editPrepaidContent.detailBusiness || "-"}`,
+        `품의 금액: ${editPrepaidContent.approvalAmount || "0"}원`,
+        "",
+        `[예산 내역]`,
+        budgetContent,
+        "",
+        `[품목 내역]`,
+        productContent,
+      ].join("\n");
+
+      const nextRequest = {
+        ...request,
+        title: editTitle.trim() || request.title,
+        classroomId:
+          selectedAffiliation?.type === "classroom" ? selectedAffiliation.id : request.classroomId,
+        classroomName:
+          selectedAffiliation?.type === "classroom"
+            ? selectedAffiliation.label
+            : request.classroomName,
+        departmentId:
+          selectedAffiliation?.type === "department"
+            ? selectedAffiliation.id
+            : request.departmentId,
+        departmentName:
+          selectedAffiliation?.type === "department"
+            ? selectedAffiliation.label
+            : request.departmentName,
+        content: nextContent,
+        items: editPrepaidContent.budgetItems.map((item) => ({
+          id: item.id,
+          name: item.name.trim(),
+          reason: item.reason.trim() || undefined,
+          quantity: 1,
+          paymentType: "PREPAID" as const,
+        })),
+      };
+
+      queryClient.setQueryData(queryKeys.requests.purchaseDetail(requestId), nextRequest);
+      queryClient.setQueryData<PurchaseRequestListResponseDto | undefined>(
+        queryKeys.requests.purchaseList(),
+        (current) =>
+          current
+            ? {
+                ...current,
+                content: current.content.map((item) =>
+                  item.id === requestId ? { ...item, ...nextRequest } : item,
+                ),
+              }
+            : current,
+      );
+      setIsEditing(false);
       return;
     }
 
@@ -703,114 +1194,947 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                 </PaymentTypeGroup>
               </Section>
 
-              <Section>
-                <DetailSectionHeader>
-                  <SectionTitle>상세 품목</SectionTitle>
-                  {canEditPurchaseReport && !isReportEditing ? (
-                    <ReportEditTextButton type="button" onClick={startReportEditing}>
-                      수정
-                    </ReportEditTextButton>
+              {requestPaymentType === "PREPAID" ? (
+                <>
+                  {isEditing && editPrepaidContent ? (
+                    <>
+                      <Section>
+                        <SectionTitle>품의 번호</SectionTitle>
+                        <ApprovalNumberRow>
+                          <ApprovalNumberField>
+                            {getApprovalNumber(
+                              editPrepaidContent.approvalDate,
+                              editPrepaidContent.paymentAccount,
+                            ) || "-"}
+                          </ApprovalNumberField>
+                          <EditSelect
+                            value={editPrepaidContent.paymentAccount}
+                            onChange={(event) =>
+                              updateEditPrepaidContent({ paymentAccount: event.target.value })
+                            }
+                          >
+                            <option value="">결제 통장 선택</option>
+                            {paymentAccountOptions.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                            {editPrepaidContent.paymentAccount &&
+                            !paymentAccountOptions.some(
+                              (option) => option === editPrepaidContent.paymentAccount,
+                            ) ? (
+                              <option value={editPrepaidContent.paymentAccount}>
+                                {editPrepaidContent.paymentAccount}
+                              </option>
+                            ) : null}
+                          </EditSelect>
+                        </ApprovalNumberRow>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>품의 개요</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <SummaryTable>
+                            <tbody>
+                              <tr>
+                                <SummaryLabelCell>품의 개요</SummaryLabelCell>
+                                <SummaryWideCell colSpan={3}>
+                                  <SummaryTextareaInput
+                                    value={editPrepaidContent.summary}
+                                    onChange={(event) =>
+                                      updateEditPrepaidContent({ summary: event.target.value })
+                                    }
+                                  />
+                                </SummaryWideCell>
+                              </tr>
+                              <tr>
+                                <SummaryLabelCell>정책 사업</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  {editPrepaidContent.policyProject || "-"}
+                                </SummaryValueCell>
+                                <SummaryLabelCell>요구 부서</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  <SummaryCellSelect
+                                    value={editPrepaidDepartmentId}
+                                    onChange={(event) =>
+                                      syncEditPrepaidDepartment(event.target.value)
+                                    }
+                                  >
+                                    <option value="">부서 선택</option>
+                                    {departments.map((department) => (
+                                      <option key={department.id} value={department.id}>
+                                        {department.name ?? `부서 ${department.id}`}
+                                      </option>
+                                    ))}
+                                  </SummaryCellSelect>
+                                </SummaryValueCell>
+                              </tr>
+                              <tr>
+                                <SummaryLabelCell>단위 사업</SummaryLabelCell>
+                                <SummaryValueCell>{unitBusinessLabel}</SummaryValueCell>
+                                <SummaryLabelCell>품의 일자</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  <SummaryCellInput
+                                    type="date"
+                                    value={editPrepaidContent.approvalDate}
+                                    onChange={(event) =>
+                                      updateEditPrepaidContent({
+                                        approvalDate: event.target.value,
+                                        policyProject: `${
+                                          event.target.value.slice(0, 4) || new Date().getFullYear()
+                                        }년 성인문해교육 지원사업`,
+                                      })
+                                    }
+                                  />
+                                </SummaryValueCell>
+                              </tr>
+                              <tr>
+                                <SummaryLabelCell>세부 사업</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  <SummaryCellSelect
+                                    value={editPrepaidContent.detailBusiness}
+                                    onChange={(event) =>
+                                      syncEditPrepaidDetailBusiness(event.target.value)
+                                    }
+                                  >
+                                    <option value="">세부 사업 선택</option>
+                                    {detailBusinessOptions.map((option) => (
+                                      <option key={option} value={option}>
+                                        {option}
+                                      </option>
+                                    ))}
+                                    {editPrepaidContent.detailBusiness &&
+                                    !detailBusinessOptions.some(
+                                      (option) => option === editPrepaidContent.detailBusiness,
+                                    ) ? (
+                                      <option value={editPrepaidContent.detailBusiness}>
+                                        {editPrepaidContent.detailBusiness}
+                                      </option>
+                                    ) : null}
+                                  </SummaryCellSelect>
+                                </SummaryValueCell>
+                                <SummaryLabelCell>품의 금액</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  <SummaryCellInput
+                                    type="number"
+                                    min="0"
+                                    inputMode="numeric"
+                                    value={editPrepaidContent.approvalAmount}
+                                    onChange={(event) =>
+                                      updateEditPrepaidContent({
+                                        approvalAmount: event.target.value,
+                                      })
+                                    }
+                                  />
+                                </SummaryValueCell>
+                              </tr>
+                            </tbody>
+                          </SummaryTable>
+                        </ResponsiveTableWrap>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>예산 내역</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <BudgetTable>
+                            <thead>
+                              <tr>
+                                <BudgetHeadCell>순번</BudgetHeadCell>
+                                <BudgetHeadCell>세부 사업</BudgetHeadCell>
+                                <BudgetHeadCell>세부 항목</BudgetHeadCell>
+                                <BudgetHeadCell>산출 내역</BudgetHeadCell>
+                                <BudgetHeadCell>품의 금액</BudgetHeadCell>
+                                <BudgetHeadCell>예산 잔액</BudgetHeadCell>
+                                <BudgetHeadCell>사업 잔액</BudgetHeadCell>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {editPrepaidContent.budgetItems.map((item, index) => (
+                                <tr key={item.id}>
+                                  <BudgetBodyCell>{index + 1}</BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    <BudgetInlineInput
+                                      value={
+                                        item.detailBusiness || editPrepaidContent.detailBusiness
+                                      }
+                                      onChange={(event) =>
+                                        updateEditPrepaidBudgetItem(item.id, {
+                                          detailBusiness: event.target.value,
+                                        })
+                                      }
+                                      placeholder="세부 사업"
+                                    />
+                                  </BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    <BudgetInlineSelect
+                                      value={item.reason}
+                                      onChange={(event) =>
+                                        updateEditPrepaidBudgetItem(item.id, {
+                                          reason: event.target.value,
+                                        })
+                                      }
+                                    >
+                                      <option value="">세부 항목</option>
+                                      {budgetItemReasonOptions.map((option) => (
+                                        <option key={`${item.id}-${option}`} value={option}>
+                                          {option}
+                                        </option>
+                                      ))}
+                                      {item.reason &&
+                                      !budgetItemReasonOptions.some(
+                                        (option) => option === item.reason,
+                                      ) ? (
+                                        <option value={item.reason}>{item.reason}</option>
+                                      ) : null}
+                                    </BudgetInlineSelect>
+                                  </BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    <BudgetInlineSelect
+                                      value={item.name}
+                                      onChange={(event) =>
+                                        updateEditPrepaidBudgetItem(item.id, {
+                                          name: event.target.value,
+                                        })
+                                      }
+                                    >
+                                      <option value="">산출 내역</option>
+                                      {budgetItemNameOptions.map((option) => (
+                                        <option key={`${item.id}-name-${option}`} value={option}>
+                                          {option}
+                                        </option>
+                                      ))}
+                                      {item.name &&
+                                      !budgetItemNameOptions.some(
+                                        (option) => option === item.name,
+                                      ) ? (
+                                        <option value={item.name}>{item.name}</option>
+                                      ) : null}
+                                    </BudgetInlineSelect>
+                                  </BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    <BudgetInlineInput
+                                      type="number"
+                                      min="0"
+                                      inputMode="numeric"
+                                      value={editPrepaidContent.approvalAmount}
+                                      onChange={(event) =>
+                                        updateEditPrepaidContent({
+                                          approvalAmount: event.target.value,
+                                        })
+                                      }
+                                    />
+                                  </BudgetBodyCell>
+                                  <BudgetBodyCell>-</BudgetBodyCell>
+                                  <BudgetBodyCell>-</BudgetBodyCell>
+                                </tr>
+                              ))}
+                              <tr>
+                                <BudgetTotalLabelCell colSpan={4}>합계</BudgetTotalLabelCell>
+                                <BudgetTotalValueCell>
+                                  {editPrepaidContent.approvalAmount || "-"}
+                                </BudgetTotalValueCell>
+                                <BudgetTotalValueCell>-</BudgetTotalValueCell>
+                                <BudgetTotalValueCell>-</BudgetTotalValueCell>
+                              </tr>
+                            </tbody>
+                          </BudgetTable>
+                        </ResponsiveTableWrap>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>품목 내역</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <BudgetTable>
+                            <thead>
+                              <tr>
+                                <BudgetHeadCell>순번</BudgetHeadCell>
+                                <BudgetHeadCell>내용</BudgetHeadCell>
+                                <BudgetHeadCell>규격</BudgetHeadCell>
+                                <BudgetHeadCell>수량</BudgetHeadCell>
+                                <BudgetHeadCell>예상 단가</BudgetHeadCell>
+                                <BudgetHeadCell>예상 금액</BudgetHeadCell>
+                                {editPrepaidContent.products.length > 1 ? (
+                                  <BudgetHeadCell>삭제</BudgetHeadCell>
+                                ) : null}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {editPrepaidContent.products.map((product, index) => (
+                                <tr key={product.id}>
+                                  <BudgetBodyCell>{index + 1}</BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    <BudgetInlineInput
+                                      value={product.description}
+                                      onChange={(event) =>
+                                        updateEditPrepaidProduct(product.id, {
+                                          description: event.target.value,
+                                        })
+                                      }
+                                      placeholder="내용"
+                                    />
+                                  </BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    <BudgetInlineInput
+                                      value={product.specification}
+                                      onChange={(event) =>
+                                        updateEditPrepaidProduct(product.id, {
+                                          specification: event.target.value,
+                                        })
+                                      }
+                                      placeholder="규격"
+                                    />
+                                  </BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    <BudgetInlineInput
+                                      type="number"
+                                      min="0"
+                                      inputMode="numeric"
+                                      value={product.quantity}
+                                      onChange={(event) =>
+                                        updateEditPrepaidProductCalculated(
+                                          product.id,
+                                          "quantity",
+                                          event.target.value,
+                                        )
+                                      }
+                                      placeholder="0"
+                                    />
+                                  </BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    <BudgetInlineInput
+                                      type="number"
+                                      min="0"
+                                      inputMode="numeric"
+                                      value={product.unitPrice}
+                                      onChange={(event) =>
+                                        updateEditPrepaidProductCalculated(
+                                          product.id,
+                                          "unitPrice",
+                                          event.target.value,
+                                        )
+                                      }
+                                      placeholder="0"
+                                    />
+                                  </BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    <BudgetInlineInput value={product.amount} readOnly />
+                                  </BudgetBodyCell>
+                                  {editPrepaidContent.products.length > 1 ? (
+                                    <BudgetBodyCell>
+                                      <MiniDeleteButton
+                                        type="button"
+                                        aria-label={`${index + 1}번 품목 삭제`}
+                                        onClick={() => removeEditPrepaidProduct(product.id)}
+                                      >
+                                        <IconX aria-hidden="true" size={16} stroke={2.4} />
+                                      </MiniDeleteButton>
+                                    </BudgetBodyCell>
+                                  ) : null}
+                                </tr>
+                              ))}
+                              <tr>
+                                <BudgetTotalLabelCell colSpan={3}>합계</BudgetTotalLabelCell>
+                                <BudgetTotalValueCell>
+                                  {prepaidQuantityTotal.toLocaleString()}
+                                </BudgetTotalValueCell>
+                                <BudgetTotalValueCell>-</BudgetTotalValueCell>
+                                <BudgetTotalValueCell>
+                                  {prepaidAmountTotal.toLocaleString()}
+                                </BudgetTotalValueCell>
+                                {editPrepaidContent.products.length > 1 ? (
+                                  <BudgetBodyCell>-</BudgetBodyCell>
+                                ) : null}
+                              </tr>
+                            </tbody>
+                          </BudgetTable>
+                        </ResponsiveTableWrap>
+                        <AddItemButton type="button" onClick={addEditPrepaidProduct}>
+                          품목 추가하기
+                        </AddItemButton>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>결재 & 협조</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <ApprovalTable>
+                            <tbody>
+                              <tr>
+                                <ApprovalTypeCell rowSpan={2}>결재</ApprovalTypeCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                              </tr>
+                              <tr>
+                                {editPrepaidContent.approvalEntries.map((entry, index) => (
+                                  <Fragment key={`edit-approval-${index}`}>
+                                    <ApprovalBodyCell>
+                                      <ApprovalEditableInput
+                                        value={entry.position}
+                                        onChange={(event) =>
+                                          updateEditApprovalEntry("approval", index, {
+                                            position: event.target.value,
+                                          })
+                                        }
+                                      />
+                                    </ApprovalBodyCell>
+                                    <ApprovalBodyCell>
+                                      <ApprovalEditableInput
+                                        value={entry.name}
+                                        onChange={(event) =>
+                                          updateEditApprovalEntry("approval", index, {
+                                            name: event.target.value,
+                                          })
+                                        }
+                                      />
+                                    </ApprovalBodyCell>
+                                  </Fragment>
+                                ))}
+                              </tr>
+                              <tr>
+                                <ApprovalTypeCell rowSpan={2}>협조</ApprovalTypeCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                              </tr>
+                              <tr>
+                                {editPrepaidContent.cooperationEntries.map((entry, index) => (
+                                  <Fragment key={`edit-cooperation-${index}`}>
+                                    <ApprovalBodyCell>
+                                      <ApprovalEditableInput
+                                        value={entry.position}
+                                        onChange={(event) =>
+                                          updateEditApprovalEntry("cooperation", index, {
+                                            position: event.target.value,
+                                          })
+                                        }
+                                      />
+                                    </ApprovalBodyCell>
+                                    <ApprovalBodyCell>
+                                      <ApprovalEditableInput
+                                        value={entry.name}
+                                        onChange={(event) =>
+                                          updateEditApprovalEntry("cooperation", index, {
+                                            name: event.target.value,
+                                          })
+                                        }
+                                      />
+                                    </ApprovalBodyCell>
+                                  </Fragment>
+                                ))}
+                              </tr>
+                            </tbody>
+                          </ApprovalTable>
+                        </ResponsiveTableWrap>
+                      </Section>
+                    </>
+                  ) : activePrepaidContent ? (
+                    <>
+                      <Section>
+                        <SectionTitle>품의 번호</SectionTitle>
+                        <ApprovalNumberRow>
+                          <ApprovalNumberField>
+                            {activePrepaidContent.approvalNumber || "-"}
+                          </ApprovalNumberField>
+                          <ApprovalNumberField>
+                            {activePrepaidContent.paymentAccount || "-"}
+                          </ApprovalNumberField>
+                        </ApprovalNumberRow>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>품의 개요</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <SummaryTable>
+                            <tbody>
+                              <tr>
+                                <SummaryLabelCell>품의 개요</SummaryLabelCell>
+                                <SummaryWideCell colSpan={3}>
+                                  <SummaryReadOnlyBlock>
+                                    {activePrepaidContent.summary || "-"}
+                                  </SummaryReadOnlyBlock>
+                                </SummaryWideCell>
+                              </tr>
+                              <tr>
+                                <SummaryLabelCell>정책 사업</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  {activePrepaidContent.policyProject || "-"}
+                                </SummaryValueCell>
+                                <SummaryLabelCell>요구 부서</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  {activePrepaidContent.requestDepartmentName || "-"}
+                                </SummaryValueCell>
+                              </tr>
+                              <tr>
+                                <SummaryLabelCell>단위 사업</SummaryLabelCell>
+                                <SummaryValueCell>{unitBusinessLabel}</SummaryValueCell>
+                                <SummaryLabelCell>품의 일자</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  {activePrepaidContent.approvalDate || "-"}
+                                </SummaryValueCell>
+                              </tr>
+                              <tr>
+                                <SummaryLabelCell>세부 사업</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  {activePrepaidContent.detailBusiness || "-"}
+                                </SummaryValueCell>
+                                <SummaryLabelCell>품의 금액</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  {activePrepaidContent.approvalAmount || "-"}
+                                </SummaryValueCell>
+                              </tr>
+                            </tbody>
+                          </SummaryTable>
+                        </ResponsiveTableWrap>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>예산 내역</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <BudgetTable>
+                            <thead>
+                              <tr>
+                                <BudgetHeadCell>순번</BudgetHeadCell>
+                                <BudgetHeadCell>세부 사업</BudgetHeadCell>
+                                <BudgetHeadCell>세부 항목</BudgetHeadCell>
+                                <BudgetHeadCell>산출 내역</BudgetHeadCell>
+                                <BudgetHeadCell>품의 금액</BudgetHeadCell>
+                                <BudgetHeadCell>예산 잔액</BudgetHeadCell>
+                                <BudgetHeadCell>사업 잔액</BudgetHeadCell>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {activePrepaidContent.budgetItems.map((item, index) => (
+                                <tr key={item.id}>
+                                  <BudgetBodyCell>{index + 1}</BudgetBodyCell>
+                                  <BudgetBodyCell>{item.detailBusiness || "-"}</BudgetBodyCell>
+                                  <BudgetBodyCell>{item.reason || "-"}</BudgetBodyCell>
+                                  <BudgetBodyCell>{item.name || "-"}</BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    {activePrepaidContent.approvalAmount || "-"}
+                                  </BudgetBodyCell>
+                                  <BudgetBodyCell>-</BudgetBodyCell>
+                                  <BudgetBodyCell>-</BudgetBodyCell>
+                                </tr>
+                              ))}
+                              <tr>
+                                <BudgetTotalLabelCell colSpan={4}>합계</BudgetTotalLabelCell>
+                                <BudgetTotalValueCell>
+                                  {activePrepaidContent.approvalAmount || "-"}
+                                </BudgetTotalValueCell>
+                                <BudgetTotalValueCell>-</BudgetTotalValueCell>
+                                <BudgetTotalValueCell>-</BudgetTotalValueCell>
+                              </tr>
+                            </tbody>
+                          </BudgetTable>
+                        </ResponsiveTableWrap>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>품목 내역</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <BudgetTable>
+                            <thead>
+                              <tr>
+                                <BudgetHeadCell>순번</BudgetHeadCell>
+                                <BudgetHeadCell>내용</BudgetHeadCell>
+                                <BudgetHeadCell>규격</BudgetHeadCell>
+                                <BudgetHeadCell>수량</BudgetHeadCell>
+                                <BudgetHeadCell>예상 단가</BudgetHeadCell>
+                                <BudgetHeadCell>예상 금액</BudgetHeadCell>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {activePrepaidContent.products.length > 0 ? (
+                                activePrepaidContent.products.map((product, index) => (
+                                  <tr key={product.id}>
+                                    <BudgetBodyCell>{index + 1}</BudgetBodyCell>
+                                    <BudgetBodyCell>{product.description || "-"}</BudgetBodyCell>
+                                    <BudgetBodyCell>{product.specification || "-"}</BudgetBodyCell>
+                                    <BudgetBodyCell>{product.quantity || "0"}</BudgetBodyCell>
+                                    <BudgetBodyCell>{product.unitPrice || "0"}</BudgetBodyCell>
+                                    <BudgetBodyCell>{product.amount || "0"}</BudgetBodyCell>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <BudgetBodyCell colSpan={6}>-</BudgetBodyCell>
+                                </tr>
+                              )}
+                              <tr>
+                                <BudgetTotalLabelCell colSpan={3}>합계</BudgetTotalLabelCell>
+                                <BudgetTotalValueCell>
+                                  {prepaidQuantityTotal.toLocaleString()}
+                                </BudgetTotalValueCell>
+                                <BudgetTotalValueCell>-</BudgetTotalValueCell>
+                                <BudgetTotalValueCell>
+                                  {prepaidAmountTotal.toLocaleString()}
+                                </BudgetTotalValueCell>
+                              </tr>
+                            </tbody>
+                          </BudgetTable>
+                        </ResponsiveTableWrap>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>결재 & 협조</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <ApprovalTable>
+                            <tbody>
+                              <tr>
+                                <ApprovalTypeCell rowSpan={2}>결재</ApprovalTypeCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                              </tr>
+                              <tr>
+                                {activePrepaidContent.approvalEntries.map((entry, index) => (
+                                  <Fragment key={`detail-approval-${index}`}>
+                                    <ApprovalBodyCell>{entry.position || "-"}</ApprovalBodyCell>
+                                    <ApprovalBodyCell>{entry.name || "-"}</ApprovalBodyCell>
+                                  </Fragment>
+                                ))}
+                              </tr>
+                              <tr>
+                                <ApprovalTypeCell rowSpan={2}>협조</ApprovalTypeCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                              </tr>
+                              <tr>
+                                {activePrepaidContent.cooperationEntries.map((entry, index) => (
+                                  <Fragment key={`detail-cooperation-${index}`}>
+                                    <ApprovalBodyCell>{entry.position || "-"}</ApprovalBodyCell>
+                                    <ApprovalBodyCell>{entry.name || "-"}</ApprovalBodyCell>
+                                  </Fragment>
+                                ))}
+                              </tr>
+                            </tbody>
+                          </ApprovalTable>
+                        </ResponsiveTableWrap>
+                      </Section>
+                    </>
                   ) : null}
-                </DetailSectionHeader>
-                {isEditing ? (
-                  <>
-                    <EditItemList>
-                      {(editItems.length ? editItems : initialEditItems).map((item, index) => (
-                        <EditItemBlock key={item.id}>
-                          <ItemFieldRow>
-                            <ItemLabel htmlFor={`editItemName-${item.id}`}>
-                              품목 {index + 1}
-                            </ItemLabel>
-                            <EditInput
-                              id={`editItemName-${item.id}`}
-                              value={item.name}
-                              onChange={(event) =>
-                                updateEditItem(item.id, { name: event.target.value })
-                              }
-                            />
-                          </ItemFieldRow>
-                          <ItemFieldRow>
-                            <ItemLabel htmlFor={`editQuantity-${item.id}`}>개수</ItemLabel>
-                            <EditInput
-                              id={`editQuantity-${item.id}`}
-                              type="number"
-                              min="1"
-                              step="1"
-                              inputMode="numeric"
-                              value={item.quantity}
-                              onChange={(event) =>
-                                updateEditItem(item.id, { quantity: event.target.value })
-                              }
-                            />
-                          </ItemFieldRow>
-                          <ItemFieldRow>
-                            <ItemLabel htmlFor={`editReason-${item.id}`}>결제 사유</ItemLabel>
-                            <EditInput
-                              id={`editReason-${item.id}`}
-                              value={item.reason}
-                              onChange={(event) =>
-                                updateEditItem(item.id, { reason: event.target.value })
-                              }
-                            />
-                          </ItemFieldRow>
-                          {(editItems.length ? editItems : initialEditItems).length > 1 ? (
-                            <EditItemActionRow>
-                              <DeleteItemButton
-                                type="button"
-                                onClick={() => removeEditItem(item.id)}
-                              >
-                                품목 삭제
-                              </DeleteItemButton>
-                            </EditItemActionRow>
-                          ) : null}
-                        </EditItemBlock>
-                      ))}
-                    </EditItemList>
-                    <AddItemButton type="button" onClick={addEditItem}>
-                      품목 추가하기
-                    </AddItemButton>
-                  </>
-                ) : (
-                  <DetailTable>
-                    <thead>
-                      <tr>
-                        <th>거래처</th>
-                        <th>품목</th>
-                        <th>개수</th>
-                        <th>결제 사유</th>
-                        <th>결제 금액</th>
-                        <th>영수증</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detailItems.map((item, index) => (
-                        <tr key={`${item.id}-${index}`}>
-                          <td>{item.vendorName ?? "-"}</td>
-                          <td>{item.name}</td>
-                          <td>{typeof item.quantity === "number" ? item.quantity : "-"}</td>
-                          <td>{item.reason}</td>
-                          <td>{formatAmount(item.price)}</td>
-                          <td>
-                            {item.receipt ? (
-                              <InlineReceiptLink
-                                href={item.receipt.fileUrl ?? "#"}
-                                download={getReceiptName(item.receipt)}
-                              >
-                                영수증
-                                <ReceiptIcon aria-hidden="true">
-                                  <IconDownload size={12} stroke={2.25} />
-                                </ReceiptIcon>
-                              </InlineReceiptLink>
-                            ) : (
-                              "-"
-                            )}
-                          </td>
+                </>
+              ) : (
+                <Section>
+                  <DetailSectionHeader>
+                    <SectionTitle>상세 품목</SectionTitle>
+                    {canEditPurchaseReport && !isReportEditing ? (
+                      <ReportEditTextButton type="button" onClick={startReportEditing}>
+                        수정
+                      </ReportEditTextButton>
+                    ) : null}
+                  </DetailSectionHeader>
+                  {isEditing ? (
+                    <>
+                      <EditItemList>
+                        {(editItems.length ? editItems : initialEditItems).map((item, index) => (
+                          <EditItemBlock key={item.id}>
+                            <ItemFieldRow>
+                              <ItemLabel htmlFor={`editItemName-${item.id}`}>
+                                품목 {index + 1}
+                              </ItemLabel>
+                              <EditInput
+                                id={`editItemName-${item.id}`}
+                                value={item.name}
+                                onChange={(event) =>
+                                  updateEditItem(item.id, { name: event.target.value })
+                                }
+                              />
+                            </ItemFieldRow>
+                            <ItemFieldRow>
+                              <ItemLabel htmlFor={`editQuantity-${item.id}`}>개수</ItemLabel>
+                              <EditInput
+                                id={`editQuantity-${item.id}`}
+                                type="number"
+                                min="1"
+                                step="1"
+                                inputMode="numeric"
+                                value={item.quantity}
+                                onChange={(event) =>
+                                  updateEditItem(item.id, { quantity: event.target.value })
+                                }
+                              />
+                            </ItemFieldRow>
+                            <ItemFieldRow>
+                              <ItemLabel htmlFor={`editReason-${item.id}`}>결제 사유</ItemLabel>
+                              <EditInput
+                                id={`editReason-${item.id}`}
+                                value={item.reason}
+                                onChange={(event) =>
+                                  updateEditItem(item.id, { reason: event.target.value })
+                                }
+                              />
+                            </ItemFieldRow>
+                            {(editItems.length ? editItems : initialEditItems).length > 1 ? (
+                              <EditItemActionRow>
+                                <DeleteItemButton
+                                  type="button"
+                                  onClick={() => removeEditItem(item.id)}
+                                >
+                                  품목 삭제
+                                </DeleteItemButton>
+                              </EditItemActionRow>
+                            ) : null}
+                          </EditItemBlock>
+                        ))}
+                      </EditItemList>
+                      <AddItemButton type="button" onClick={addEditItem}>
+                        품목 추가하기
+                      </AddItemButton>
+                    </>
+                  ) : activePrepaidContent ? (
+                    <>
+                      <Section>
+                        <SectionTitle>품의 번호</SectionTitle>
+                        <ApprovalNumberRow>
+                          <ApprovalNumberField>
+                            {activePrepaidContent.approvalNumber || "-"}
+                          </ApprovalNumberField>
+                          <ApprovalNumberField>
+                            {activePrepaidContent.paymentAccount || "-"}
+                          </ApprovalNumberField>
+                        </ApprovalNumberRow>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>품의 개요</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <SummaryTable>
+                            <tbody>
+                              <tr>
+                                <SummaryLabelCell>품의 개요</SummaryLabelCell>
+                                <SummaryWideCell colSpan={3}>
+                                  <SummaryReadOnlyBlock>
+                                    {activePrepaidContent.summary || "-"}
+                                  </SummaryReadOnlyBlock>
+                                </SummaryWideCell>
+                              </tr>
+                              <tr>
+                                <SummaryLabelCell>정책 사업</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  {activePrepaidContent.policyProject || "-"}
+                                </SummaryValueCell>
+                                <SummaryLabelCell>요구 부서</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  {activePrepaidContent.requestDepartmentName || "-"}
+                                </SummaryValueCell>
+                              </tr>
+                              <tr>
+                                <SummaryLabelCell>단위 사업</SummaryLabelCell>
+                                <SummaryValueCell>{unitBusinessLabel}</SummaryValueCell>
+                                <SummaryLabelCell>품의 일자</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  {activePrepaidContent.approvalDate || "-"}
+                                </SummaryValueCell>
+                              </tr>
+                              <tr>
+                                <SummaryLabelCell>세부 사업</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  {activePrepaidContent.detailBusiness || "-"}
+                                </SummaryValueCell>
+                                <SummaryLabelCell>품의 금액</SummaryLabelCell>
+                                <SummaryValueCell>
+                                  {activePrepaidContent.approvalAmount
+                                    ? `${activePrepaidContent.approvalAmount}`
+                                    : "-"}
+                                </SummaryValueCell>
+                              </tr>
+                            </tbody>
+                          </SummaryTable>
+                        </ResponsiveTableWrap>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>예산 내역</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <BudgetTable>
+                            <thead>
+                              <tr>
+                                <BudgetHeadCell>순번</BudgetHeadCell>
+                                <BudgetHeadCell>세부 사업</BudgetHeadCell>
+                                <BudgetHeadCell>세부 항목</BudgetHeadCell>
+                                <BudgetHeadCell>산출 내역</BudgetHeadCell>
+                                <BudgetHeadCell>품의 금액</BudgetHeadCell>
+                                <BudgetHeadCell>예산 잔액</BudgetHeadCell>
+                                <BudgetHeadCell>사업 잔액</BudgetHeadCell>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {activePrepaidContent.budgetItems.map((item, index) => (
+                                <tr key={item.id}>
+                                  <BudgetBodyCell>{index + 1}</BudgetBodyCell>
+                                  <BudgetBodyCell>{item.detailBusiness || "-"}</BudgetBodyCell>
+                                  <BudgetBodyCell>{item.reason || "-"}</BudgetBodyCell>
+                                  <BudgetBodyCell>{item.name || "-"}</BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    {activePrepaidContent.approvalAmount
+                                      ? `${activePrepaidContent.approvalAmount}`
+                                      : "-"}
+                                  </BudgetBodyCell>
+                                  <BudgetBodyCell>-</BudgetBodyCell>
+                                  <BudgetBodyCell>-</BudgetBodyCell>
+                                </tr>
+                              ))}
+                              <tr>
+                                <BudgetTotalLabelCell colSpan={4}>합계</BudgetTotalLabelCell>
+                                <BudgetTotalValueCell>
+                                  {activePrepaidContent.approvalAmount
+                                    ? `${activePrepaidContent.approvalAmount}`
+                                    : "-"}
+                                </BudgetTotalValueCell>
+                                <BudgetTotalValueCell>-</BudgetTotalValueCell>
+                                <BudgetTotalValueCell>-</BudgetTotalValueCell>
+                              </tr>
+                            </tbody>
+                          </BudgetTable>
+                        </ResponsiveTableWrap>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>품목 내역</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <BudgetTable>
+                            <thead>
+                              <tr>
+                                <BudgetHeadCell>순번</BudgetHeadCell>
+                                <BudgetHeadCell>내용</BudgetHeadCell>
+                                <BudgetHeadCell>규격</BudgetHeadCell>
+                                <BudgetHeadCell>수량</BudgetHeadCell>
+                                <BudgetHeadCell>예상 단가</BudgetHeadCell>
+                                <BudgetHeadCell>예상 금액</BudgetHeadCell>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {activePrepaidContent.products.length > 0 ? (
+                                activePrepaidContent.products.map((product, index) => (
+                                  <tr key={product.id}>
+                                    <BudgetBodyCell>{index + 1}</BudgetBodyCell>
+                                    <BudgetBodyCell>{product.description || "-"}</BudgetBodyCell>
+                                    <BudgetBodyCell>{product.specification || "-"}</BudgetBodyCell>
+                                    <BudgetBodyCell>{product.quantity || "0"}</BudgetBodyCell>
+                                    <BudgetBodyCell>{product.unitPrice || "0"}</BudgetBodyCell>
+                                    <BudgetBodyCell>{product.amount || "0"}</BudgetBodyCell>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <BudgetBodyCell colSpan={6}>-</BudgetBodyCell>
+                                </tr>
+                              )}
+                              <tr>
+                                <BudgetTotalLabelCell colSpan={3}>합계</BudgetTotalLabelCell>
+                                <BudgetTotalValueCell>
+                                  {prepaidQuantityTotal.toLocaleString()}
+                                </BudgetTotalValueCell>
+                                <BudgetTotalValueCell>-</BudgetTotalValueCell>
+                                <BudgetTotalValueCell>
+                                  {prepaidAmountTotal.toLocaleString()}
+                                </BudgetTotalValueCell>
+                              </tr>
+                            </tbody>
+                          </BudgetTable>
+                        </ResponsiveTableWrap>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>결재 & 협조</SectionTitle>
+                        <ResponsiveTableWrap>
+                          <ApprovalTable>
+                            <tbody>
+                              <tr>
+                                <ApprovalTypeCell rowSpan={2}>결재</ApprovalTypeCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                              </tr>
+                              <tr>
+                                {activePrepaidContent.approvalEntries.map((entry, index) => (
+                                  <Fragment key={`detail-approval-${index}`}>
+                                    <ApprovalBodyCell>{entry.position || "-"}</ApprovalBodyCell>
+                                    <ApprovalBodyCell>{entry.name || "-"}</ApprovalBodyCell>
+                                  </Fragment>
+                                ))}
+                              </tr>
+                              <tr>
+                                <ApprovalTypeCell rowSpan={2}>협조</ApprovalTypeCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                                <ApprovalHeadCell>직위</ApprovalHeadCell>
+                                <ApprovalHeadCell>이름</ApprovalHeadCell>
+                              </tr>
+                              <tr>
+                                {activePrepaidContent.cooperationEntries.map((entry, index) => (
+                                  <Fragment key={`detail-cooperation-${index}`}>
+                                    <ApprovalBodyCell>{entry.position || "-"}</ApprovalBodyCell>
+                                    <ApprovalBodyCell>{entry.name || "-"}</ApprovalBodyCell>
+                                  </Fragment>
+                                ))}
+                              </tr>
+                            </tbody>
+                          </ApprovalTable>
+                        </ResponsiveTableWrap>
+                      </Section>
+                    </>
+                  ) : (
+                    <DetailTable>
+                      <thead>
+                        <tr>
+                          <th>거래처</th>
+                          <th>품목</th>
+                          <th>개수</th>
+                          <th>결제 사유</th>
+                          <th>결제 금액</th>
+                          <th>영수증</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </DetailTable>
-                )}
-              </Section>
+                      </thead>
+                      <tbody>
+                        {detailItems.map((item, index) => (
+                          <tr key={`${item.id}-${index}`}>
+                            <td>{item.vendorName ?? "-"}</td>
+                            <td>{item.name}</td>
+                            <td>{typeof item.quantity === "number" ? item.quantity : "-"}</td>
+                            <td>{item.reason}</td>
+                            <td>{formatAmount(item.price)}</td>
+                            <td>
+                              {item.receipt ? (
+                                <InlineReceiptLink
+                                  href={item.receipt.fileUrl ?? "#"}
+                                  download={getReceiptName(item.receipt)}
+                                >
+                                  영수증
+                                  <ReceiptIcon aria-hidden="true">
+                                    <IconDownload size={12} stroke={2.25} />
+                                  </ReceiptIcon>
+                                </InlineReceiptLink>
+                              ) : (
+                                "-"
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </DetailTable>
+                  )}
+                </Section>
+              )}
 
               <Section>
                 <SectionTitle>현재 거래처별 잔액</SectionTitle>
@@ -1236,6 +2560,224 @@ const InlineLabel = styled.span`
 
 const InlineField = styled(Field)``;
 
+const ApprovalNumberRow = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: ${spacing.space12};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space20};
+  }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ApprovalNumberField = styled(Field)``;
+
+const ResponsiveTableWrap = styled.div`
+  width: 100%;
+  overflow-x: auto;
+`;
+
+const tableCellBase = `
+  border: 1px solid ${colors.borderStrong};
+  padding: ${spacing.space12};
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight150};
+  vertical-align: middle;
+
+  @media (min-width: 120rem) {
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const SummaryTable = styled.table`
+  width: 100%;
+  min-width: 48rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+`;
+
+const SummaryLabelCell = styled.th`
+  ${tableCellBase}
+  width: 10rem;
+  background-color: ${colors.background};
+  font-weight: 600;
+  text-align: center;
+`;
+
+const SummaryValueCell = styled.td`
+  ${tableCellBase}
+  background-color: ${colors.white};
+`;
+
+const SummaryWideCell = styled(SummaryValueCell)`
+  min-height: 10rem;
+`;
+
+const SummaryReadOnlyBlock = styled.pre`
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight150};
+  font-family: inherit;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const SummaryTextareaInput = styled.textarea`
+  width: 100%;
+  min-height: 9rem;
+  border: 0;
+  resize: vertical;
+  background-color: transparent;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight150};
+  outline: none;
+
+  @media (min-width: 120rem) {
+    min-height: 12rem;
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const SummaryCellInput = styled.input`
+  width: 100%;
+  border: 0;
+  background-color: transparent;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+  outline: none;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const SummaryCellSelect = styled.select`
+  width: 100%;
+  border: 0;
+  background-color: transparent;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+  outline: none;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const BudgetTable = styled.table`
+  width: 100%;
+  min-width: 58rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+`;
+
+const BudgetHeadCell = styled.th`
+  ${tableCellBase}
+  background-color: ${colors.background};
+  font-weight: 600;
+  text-align: center;
+`;
+
+const BudgetBodyCell = styled.td`
+  ${tableCellBase}
+  text-align: center;
+`;
+
+const BudgetTotalLabelCell = styled(BudgetBodyCell)`
+  background-color: ${colors.background};
+  font-weight: 600;
+`;
+
+const BudgetTotalValueCell = styled(BudgetBodyCell)`
+  font-weight: 600;
+`;
+
+const BudgetInlineInput = styled.input`
+  width: 100%;
+  border: 0;
+  background-color: transparent;
+  text-align: center;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+  outline: none;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const BudgetInlineSelect = styled.select`
+  width: 100%;
+  border: 0;
+  background-color: transparent;
+  text-align: center;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+  outline: none;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ApprovalTable = styled.table`
+  width: 100%;
+  min-width: 46rem;
+  border-collapse: collapse;
+  table-layout: fixed;
+`;
+
+const ApprovalTypeCell = styled.th`
+  ${tableCellBase}
+  width: 6rem;
+  background-color: ${colors.background};
+  font-weight: 600;
+  text-align: center;
+`;
+
+const ApprovalHeadCell = styled.th`
+  ${tableCellBase}
+  background-color: ${colors.background};
+  font-weight: 600;
+  text-align: center;
+`;
+
+const ApprovalBodyCell = styled.td`
+  ${tableCellBase}
+  text-align: center;
+`;
+
+const ApprovalEditableInput = styled.input`
+  width: 100%;
+  border: 0;
+  background-color: transparent;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+  text-align: center;
+  outline: none;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
 const DetailTable = styled.table`
   width: 100%;
   border-collapse: collapse;
@@ -1319,7 +2861,6 @@ const EditInput = styled.input`
 
 const EditSelect = styled.select`
   min-width: 0;
-  min-height: 2.6875rem;
   border: 1px solid #c0c0c0;
   background-color: ${colors.white};
   color: #000000;
@@ -1459,6 +3000,24 @@ const DeleteItemButton = styled(AddItemButton)`
 
   @media (min-width: 120rem) {
     width: 12rem;
+  }
+`;
+
+const MiniDeleteButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 50%;
+  background-color: ${colors.noticeSoft};
+  color: ${colors.notice};
+  cursor: pointer;
+
+  @media (min-width: 120rem) {
+    width: 3rem;
+    height: 3rem;
   }
 `;
 
