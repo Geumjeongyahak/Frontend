@@ -11,6 +11,7 @@ export type ListPanelRow = {
   title: string;
   author: string;
   date: string;
+  extra?: string;
   status: string;
   statusType?:
     | "PENDING"
@@ -43,6 +44,8 @@ type ListPanelProps = {
   writeTone?: ListPanelTone;
   showClassColumn?: boolean;
   classHeader?: string;
+  showExtraColumn?: boolean;
+  extraHeader?: string;
   showStatusColumn?: boolean;
   statusHeader?: string;
   writeIcon?: ReactNode;
@@ -90,6 +93,8 @@ export default function ListPanel({
   writeTone,
   showClassColumn = true,
   classHeader = "반",
+  showExtraColumn = false,
+  extraHeader = "",
   showStatusColumn = true,
   statusHeader = "신청 현황",
   writeIcon,
@@ -108,7 +113,8 @@ export default function ListPanel({
     ...(persistentQuery ?? {}),
     ...(showMineOnlyToggle && mineOnly ? { mineOnly: 1 } : {}),
   };
-  const columnCount = 2 + Number(showClassColumn) + 2 + Number(showStatusColumn);
+  const columnCount =
+    2 + Number(showClassColumn) + 2 + Number(showExtraColumn) + Number(showStatusColumn);
 
   return (
     <Container>
@@ -147,6 +153,11 @@ export default function ListPanel({
               <Th $width720="10.875rem" $width1080="16.3125rem" $tone={headerTone}>
                 작성일
               </Th>
+              {showExtraColumn ? (
+                <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone}>
+                  {extraHeader}
+                </Th>
+              ) : null}
               {showStatusColumn ? (
                 <Th $width720="5rem" $width1080="7.375rem" $tone={headerTone}>
                   {statusHeader}
@@ -183,6 +194,11 @@ export default function ListPanel({
                   <Td $width720="10.875rem" $width1080="16.3125rem">
                     {row.date}
                   </Td>
+                  {showExtraColumn ? (
+                    <Td $width720="5rem" $width1080="7.375rem">
+                      {row.extra ?? "-"}
+                    </Td>
+                  ) : null}
                   {showStatusColumn ? (
                     <Td $width720="5rem" $width1080="7.375rem">
                       <StatusBadge $status={row.statusType}>{row.status}</StatusBadge>
