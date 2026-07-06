@@ -383,7 +383,7 @@ export default function MobilePaymentRequestsPage() {
       name: item.name.trim(),
       quantity: item.quantity.trim().length > 0 ? Number(item.quantity) : Number.NaN,
       reason: item.reason.trim() || undefined,
-      paymentType: item.paymentType,
+      paymentType: "ACTUAL" as PaymentType,
     }))
     .filter((item) => item.name.length > 0);
 
@@ -570,6 +570,7 @@ export default function MobilePaymentRequestsPage() {
           {showComposer ? (
             <ComposerPanel>
               <PanelTitle>새 결제 신청서</PanelTitle>
+              <PanelNote>선금 결제 요청은 PC에서만 가능합니다.</PanelNote>
               <Form onSubmit={handleSubmit}>
                 <FieldGroup>
                   <FieldLabel htmlFor="mobile-payment-title">제목</FieldLabel>
@@ -605,6 +606,11 @@ export default function MobilePaymentRequestsPage() {
                 </TwoColumn>
 
                 <FieldGroup>
+                  <FieldLabel htmlFor="mobile-payment-type">결제 유형</FieldLabel>
+                  <ReadOnlyInput id="mobile-payment-type" value="실 결제" readOnly />
+                </FieldGroup>
+
+                <FieldGroup>
                   <FieldLabel>거래처 잔액</FieldLabel>
                   <VendorGrid>
                     {vendorBalances.map((vendor) => (
@@ -626,7 +632,7 @@ export default function MobilePaymentRequestsPage() {
                     {items.map((item, index) => (
                       <ItemCard key={item.id}>
                         <ItemCardHeader>
-                          <strong>품목 {index + 1}</strong>
+                          <strong>{items.length > 1 ? `품목 ${index + 1}` : "품목"}</strong>
                           {items.length > 1 ? (
                             <InlineMutedButton type="button" onClick={() => removeItem(item.id)}>
                               삭제
@@ -674,22 +680,6 @@ export default function MobilePaymentRequestsPage() {
                           </FieldGroup>
                         </TwoColumn>
 
-                        <SegmentRow>
-                          <SegmentButton
-                            type="button"
-                            $active={item.paymentType === "ACTUAL"}
-                            onClick={() => updateItem(item.id, { paymentType: "ACTUAL" })}
-                          >
-                            실 결제
-                          </SegmentButton>
-                          <SegmentButton
-                            type="button"
-                            $active={item.paymentType === "PREPAID"}
-                            onClick={() => updateItem(item.id, { paymentType: "PREPAID" })}
-                          >
-                            선금 결제
-                          </SegmentButton>
-                        </SegmentRow>
                       </ItemCard>
                     ))}
                   </ItemStack>
@@ -1156,6 +1146,13 @@ const PanelTitle = styled.h2`
   color: ${colors.text};
   font-size: ${typography.fontSize18};
   font-weight: 800;
+`;
+
+const PanelNote = styled.p`
+  margin: -${spacing.space12} 0 0;
+  color: #72806a;
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight130};
 `;
 
 const SearchForm = styled.form`
