@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { login } from "@/api/auth/auth.api";
@@ -25,6 +25,26 @@ export default function AdminLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canSubmit = form.email.trim().length > 0 && form.password.length > 0;
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const loginUrl = window.location.href;
+    window.history.pushState({ __adminLoginBackGuard: true }, "", loginUrl);
+
+    function handlePopState() {
+      window.history.pushState({ __adminLoginBackGuard: true }, "", loginUrl);
+      router.replace("/");
+    }
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

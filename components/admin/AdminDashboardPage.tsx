@@ -1,7 +1,6 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ToastContainer, toast } from "react-toastify";
@@ -516,6 +515,25 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const adminUrl = window.location.href;
+    window.history.pushState({ __adminBackGuard: true }, "", adminUrl);
+
+    function handlePopState() {
+      window.history.pushState({ __adminBackGuard: true }, "", adminUrl);
+    }
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
   const usersQuery = useQuery({
     queryKey: [
       "admin",
@@ -804,8 +822,7 @@ export default function AdminDashboardPage() {
   const pendingAbsenceRequestCount = pendingAbsenceRequestsQuery.data?.totalElements ?? 0;
   const pendingLessonExchangeRequestCount =
     pendingLessonExchangeRequestsQuery.data?.totalElements ?? 0;
-  const pendingTeacherApplicationCount =
-    pendingTeacherApplicationsQuery.data?.totalElements ?? 0;
+  const pendingTeacherApplicationCount = pendingTeacherApplicationsQuery.data?.totalElements ?? 0;
   const requestSummaries = [
     {
       label: "대기 중인 수업 교환 요청",
@@ -1445,6 +1462,18 @@ export default function AdminDashboardPage() {
     router.replace("/admin/login");
   }
 
+  function handleGoHome() {
+    router.replace("/");
+  }
+
+  function handleReloadAdmin() {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.location.replace("/admin");
+  }
+
   if (!isAdmin) {
     return (
       <Main>
@@ -1484,7 +1513,7 @@ export default function AdminDashboardPage() {
     <ConsoleShell>
       <TopLine aria-hidden="true" />
       <Sidebar>
-        <Brand href="/" aria-label="홈으로 이동">
+        <Brand type="button" onClick={handleReloadAdmin} aria-label="관리자 페이지 새로고침">
           <BrandLogo src="/logo.svg" alt="" aria-hidden="true" />
           <BrandText>
             <BrandTitle>관리자 콘솔</BrandTitle>
@@ -1505,9 +1534,14 @@ export default function AdminDashboardPage() {
           ))}
         </SidebarNav>
 
-        <LogoutButton type="button" onClick={handleLogout}>
-          로그아웃
-        </LogoutButton>
+        <SidebarActionGroup>
+          <LogoutButton type="button" onClick={handleGoHome}>
+            홈으로
+          </LogoutButton>
+          <LogoutButton type="button" onClick={handleLogout}>
+            로그아웃
+          </LogoutButton>
+        </SidebarActionGroup>
       </Sidebar>
 
       <Main>
@@ -1764,13 +1798,17 @@ const Sidebar = styled.aside`
   }
 `;
 
-const Brand = styled(Link)`
+const Brand = styled.button`
   display: flex;
   align-items: center;
   gap: ${spacing.space8};
   margin-bottom: ${spacing.space24};
+  border: 0;
   border-radius: 0.375rem;
-  text-decoration: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
   transition:
     transform 0.18s ease,
     opacity 0.18s ease;
@@ -1790,12 +1828,23 @@ const Brand = styled(Link)`
   }
 `;
 
+const SidebarActionGroup = styled.div`
+  display: grid;
+  gap: ${spacing.space8};
+  margin-top: ${spacing.space20};
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space12};
+    margin-top: ${spacing.space32};
+  }
+`;
+
 const BrandLogo = styled.img`
-  width: 1.75rem;
+  width: 3rem;
   height: auto;
 
   @media (min-width: 120rem) {
-    width: 2.625rem;
+    width: 4rem;
   }
 `;
 
@@ -1876,16 +1925,14 @@ const SidebarItem = styled.button<{ $active: boolean }>`
   }
 
   @media (min-width: 120rem) {
-    min-height: 3.625rem;
     padding: 1rem;
     border-radius: 0.5rem;
-    font-size: ${typography.fontSize18};
+    font-size: ${typography.fontSize16};
   }
 `;
 
 const LogoutButton = styled.button`
   min-height: 2.375rem;
-  margin-top: ${spacing.space20};
   border: 1px solid ${colors.border};
   border-radius: 0.375rem;
   background-color: ${colors.white};
@@ -1895,12 +1942,24 @@ const LogoutButton = styled.button`
   font-weight: 800;
   line-height: ${typography.lineHeight130};
   cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    transform 0.18s ease,
+    opacity 0.18s ease;
+
+  &:hover {
+    background-color: #f1f5f2;
+    transform: translateX(0.125rem);
+  }
+
+  &:active {
+    transform: translateX(0.125rem) scale(0.98);
+  }
 
   @media (min-width: 120rem) {
-    min-height: 3.625rem;
-    margin-top: ${spacing.space32};
+    min-height: 3rem;
     border-radius: 0.5rem;
-    font-size: ${typography.fontSize18};
+    font-size: ${typography.fontSize16};
   }
 `;
 
