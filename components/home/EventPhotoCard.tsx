@@ -101,7 +101,9 @@ export default function EventPhotoCard() {
   );
 }
 
-const Card = styled(HomeCard)``;
+const Card = styled(HomeCard)`
+  height: 100%;
+`;
 
 const PhotoGrid = styled.div`
   display: grid;

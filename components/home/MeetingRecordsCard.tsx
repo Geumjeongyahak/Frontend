@@ -66,11 +66,6 @@ export default function MeetingRecordsCard() {
 
 const Card = styled(HomeCard)`
   height: 100%;
-  min-height: 17.5rem;
-
-  @media (min-width: 120rem) {
-    min-height: 24.5rem;
-  }
 `;
 
 const List = styled.div`
@@ -112,8 +107,7 @@ const ListItem = styled.button`
   text-align: left;
   cursor: pointer;
 
-  &:hover ${Title},
-  &:focus-visible ${Title} {
+  &:hover ${Title}, &:focus-visible ${Title} {
     color: ${colors.point};
   }
 

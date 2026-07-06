@@ -60,11 +60,6 @@ export default function NoticeCard() {
 
 const Card = styled(HomeCard)`
   height: 100%;
-  min-height: 17.5rem;
-
-  @media (min-width: 120rem) {
-    min-height: 24.5rem;
-  }
 `;
 
 const List = styled.div`
