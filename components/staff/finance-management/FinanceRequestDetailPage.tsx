@@ -89,12 +89,6 @@ function getStatusLabel(status?: PurchaseRequestStatus) {
   return status ? (statusLabels[status] ?? status) : "-";
 }
 
-function getPaymentTypeLabel(paymentType?: PaymentType) {
-  if (paymentType === "PREPAID") return "선금 결제";
-  if (paymentType === "ACTUAL") return "실 결제";
-  return "-";
-}
-
 function formatAmount(amount?: number) {
   return typeof amount === "number" ? `${amount.toLocaleString()}원` : "-";
 }
@@ -681,35 +675,33 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                 </InfoRow>
               </Section>
 
-              {isEditing ? (
-                <Section>
-                  <SectionTitle>결제 유형</SectionTitle>
-                  <PaymentTypeGroup aria-disabled="true">
-                    <PaymentTypeOption>
-                      <input
-                        type="checkbox"
-                        name="edit-paymentType"
-                        value="PREPAID"
-                        checked={getRequestPaymentType(request.items) === "PREPAID"}
-                        disabled
-                        readOnly
-                      />
-                      <span>선금 결제</span>
-                    </PaymentTypeOption>
-                    <PaymentTypeOption>
-                      <input
-                        type="checkbox"
-                        name="edit-paymentType"
-                        value="ACTUAL"
-                        checked={getRequestPaymentType(request.items) === "ACTUAL"}
-                        disabled
-                        readOnly
-                      />
-                      <span>실 결제</span>
-                    </PaymentTypeOption>
-                  </PaymentTypeGroup>
-                </Section>
-              ) : null}
+              <Section>
+                <SectionTitle>결제 유형</SectionTitle>
+                <PaymentTypeGroup aria-disabled="true">
+                  <PaymentTypeOption>
+                    <input
+                      type="checkbox"
+                      name="edit-paymentType"
+                      value="PREPAID"
+                      checked={getRequestPaymentType(request.items) === "PREPAID"}
+                      disabled
+                      readOnly
+                    />
+                    <span>선금 결제</span>
+                  </PaymentTypeOption>
+                  <PaymentTypeOption>
+                    <input
+                      type="checkbox"
+                      name="edit-paymentType"
+                      value="ACTUAL"
+                      checked={getRequestPaymentType(request.items) === "ACTUAL"}
+                      disabled
+                      readOnly
+                    />
+                    <span>실 결제</span>
+                  </PaymentTypeOption>
+                </PaymentTypeGroup>
+              </Section>
 
               <Section>
                 <DetailSectionHeader>
@@ -786,7 +778,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                         <th>품목</th>
                         <th>개수</th>
                         <th>결제 사유</th>
-                        <th>결제 유형</th>
                         <th>결제 금액</th>
                         <th>영수증</th>
                       </tr>
@@ -798,7 +789,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                           <td>{item.name}</td>
                           <td>{typeof item.quantity === "number" ? item.quantity : "-"}</td>
                           <td>{item.reason}</td>
-                          <td>{getPaymentTypeLabel(item.paymentType)}</td>
                           <td>{formatAmount(item.price)}</td>
                           <td>
                             {item.receipt ? (
@@ -806,7 +796,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                 href={item.receipt.fileUrl ?? "#"}
                                 download={getReceiptName(item.receipt)}
                               >
-                                파일
+                                영수증
                                 <ReceiptIcon aria-hidden="true">
                                   <IconDownload size={12} stroke={2.25} />
                                 </ReceiptIcon>
@@ -1271,17 +1261,21 @@ const DetailTable = styled.table`
 
   td {
     font-weight: 400;
+    text-align: center;
+  }
+
+  td:nth-child(4) {
+    text-align: left;
   }
 
   th:nth-child(1),
   th:nth-child(2),
+  th:nth-child(5),
   th:nth-child(6) {
     width: 8.25rem;
   }
 
-  th:nth-child(3),
-  th:nth-child(5),
-  th:nth-child(7) {
+  th:nth-child(3) {
     width: 6rem;
   }
 
@@ -1294,13 +1288,12 @@ const DetailTable = styled.table`
 
     th:nth-child(1),
     th:nth-child(2),
+    th:nth-child(5),
     th:nth-child(6) {
       width: 12rem;
     }
 
-    th:nth-child(3),
-    th:nth-child(5),
-    th:nth-child(7) {
+    th:nth-child(3) {
       width: 8.25rem;
     }
   }
@@ -1517,11 +1510,17 @@ const ReceiptIcon = styled.span`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.2em;
-  height: 1.2rem;
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
   border-radius: 50%;
   background-color: ${colors.point};
   color: ${colors.white};
+
+  svg {
+    width: 0.75rem;
+    height: 0.75rem;
+  }
 
   @media (min-width: 120rem) {
     width: 2.25rem;
