@@ -23,6 +23,7 @@ import { getStudents } from "@/api/student/student.api";
 import type { StudentListResponseDto } from "@/api/student/student.dto";
 import { getMyAssignedSubjects } from "@/api/subject/subject.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { markPendingAttendanceSuccessOverlay } from "@/pwa/pages/mobile-home/attendanceSuccessFlag";
 import MobileRequestShell from "@/pwa/requests/components/MobileRequestShell";
@@ -283,7 +284,7 @@ export default function MobileClassJournalWritePage() {
       router.push("/");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "제출에 실패했습니다.");
+      toast.error(extractApiErrorMessage(error, "제출에 실패했습니다."));
     },
   });
 

@@ -27,6 +27,7 @@ import {
   validateSubjectCreateForm,
 } from "@/components/admin/subjects/shared/subjectCreateForm";
 import { queryKeys } from "@/lib/queryKeys";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { colors, spacing, typography } from "@/styles/tokens";
 
 const SubjectLabel = styled(Label)`
@@ -180,11 +181,8 @@ export function AdminSubjectCreateForm() {
       setPeriod("1");
     },
     onError: (error) => {
-      const message =
-        error instanceof Error && error.message.trim()
-          ? error.message
-          : "과목 등록에 실패했습니다.";
-      setSubmitError(message);
+      setSubmitError(null);
+      toast.error(extractApiErrorMessage(error, "과목 등록에 실패했습니다."));
     },
   });
 

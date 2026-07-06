@@ -17,6 +17,7 @@ import {
   withdrawLessonExchangeProposal,
 } from "@/api/lessonExchange/lessonExchange.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import AuthStatusSpinner from "@/pwa/pages/mobile-home/components/AuthStatusSpinner";
 import MobileRequestShell from "@/pwa/requests/components/MobileRequestShell";
@@ -192,8 +193,8 @@ export default function MobileExchangeProposalsPage({
       setProposalContent("");
       toast.success("교환 제안을 등록했습니다.");
     },
-    onError: () => {
-      toast.error("교환 제안 등록에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "교환 제안 등록에 실패했습니다."));
     },
   });
 
@@ -212,8 +213,8 @@ export default function MobileExchangeProposalsPage({
       });
       toast.success("교환 제안을 수락했습니다.");
     },
-    onError: () => {
-      toast.error("교환 제안 수락에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "교환 제안 수락에 실패했습니다."));
     },
   });
 
@@ -244,8 +245,8 @@ export default function MobileExchangeProposalsPage({
       setEditingProposalContent("");
       toast.success("교환 제안을 수정했습니다.");
     },
-    onError: () => {
-      toast.error("교환 제안 수정에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "교환 제안 수정에 실패했습니다."));
     },
   });
 
@@ -262,8 +263,8 @@ export default function MobileExchangeProposalsPage({
       setEditingProposalContent("");
       toast.success("교환 제안을 삭제했습니다.");
     },
-    onError: () => {
-      toast.error("교환 제안 삭제에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "교환 제안 삭제에 실패했습니다."));
     },
   });
 

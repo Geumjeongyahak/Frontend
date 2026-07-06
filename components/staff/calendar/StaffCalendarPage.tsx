@@ -10,6 +10,7 @@ import {
   IconPlus,
   IconX,
 } from "@tabler/icons-react";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import { createEvent, deleteEvent, getAllEvents, updateEvent } from "@/api/event/event.api";
 import type {
@@ -18,6 +19,7 @@ import type {
   UpdateEventRequestDto,
 } from "@/api/event/event.dto";
 import { Button } from "@/components/common/VariantButton";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
@@ -563,7 +565,7 @@ export default function StaffCalendarPage({
       queryClient.invalidateQueries({ queryKey: ["events"] });
     },
     onError: (error) => {
-      window.alert(error instanceof Error ? error.message : "일정 추가에 실패했습니다.");
+      toast.error(extractApiErrorMessage(error, "일정 추가에 실패했습니다."));
     },
   });
 
@@ -585,7 +587,7 @@ export default function StaffCalendarPage({
       queryClient.invalidateQueries({ queryKey: ["events"] });
     },
     onError: (error) => {
-      window.alert(error instanceof Error ? error.message : "일정 수정에 실패했습니다.");
+      toast.error(extractApiErrorMessage(error, "일정 수정에 실패했습니다."));
     },
   });
 
@@ -601,7 +603,7 @@ export default function StaffCalendarPage({
       queryClient.invalidateQueries({ queryKey: ["events"] });
     },
     onError: (error) => {
-      window.alert(error instanceof Error ? error.message : "일정 삭제에 실패했습니다.");
+      toast.error(extractApiErrorMessage(error, "일정 삭제에 실패했습니다."));
     },
   });
 

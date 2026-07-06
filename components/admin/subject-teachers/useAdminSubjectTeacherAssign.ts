@@ -8,6 +8,7 @@ import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
 import { getUsers } from "@/api/user/user.api";
 import type { UserListItemDto } from "@/api/user/user.dto";
 import { getSubjectId } from "@/components/admin/subjects/shared/subjectDisplay";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 
 export function getTeacherUserId(user: UserListItemDto) {
@@ -76,11 +77,8 @@ export function useAdminSubjectTeacherAssign({ subject }: UseAdminSubjectTeacher
       await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
     },
     onError: (error) => {
-      const message =
-        error instanceof Error && error.message.trim()
-          ? error.message
-          : "과목 담당 교사 변경에 실패했습니다.";
-      setSubmitError(message);
+      setSubmitError(null);
+      toast.error(extractApiErrorMessage(error, "과목 담당 교사 변경에 실패했습니다."));
     },
   });
 

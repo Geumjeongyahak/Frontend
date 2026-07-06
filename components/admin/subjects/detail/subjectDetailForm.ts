@@ -10,6 +10,7 @@ import {
   normalizeLessonTimeForApi,
 } from "@/components/admin/lesson-management/lessonCreateError";
 import { compareIsoDates } from "@/components/admin/subjects/shared/subjectCreateForm";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 
 export type SubjectInfoFormValues = {
   name: string;
@@ -103,19 +104,6 @@ export function resolveSubjectMutationError(error: unknown, fallback: string) {
     if (error.response?.status === 409) {
       return "같은 분반에서 운영 기간·요일·교시가 겹치는 다른 과목이 있습니다.";
     }
-
-    const data = error.response?.data;
-    if (data && typeof data === "object" && "message" in data) {
-      const message = data.message;
-      if (typeof message === "string" && message.trim()) {
-        return message;
-      }
-    }
   }
-
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return fallback;
+  return extractApiErrorMessage(error, fallback);
 }

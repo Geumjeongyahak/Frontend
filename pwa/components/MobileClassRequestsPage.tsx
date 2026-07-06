@@ -23,6 +23,7 @@ import {
   getLessonExchangeRequests,
 } from "@/api/lessonExchange/lessonExchange.api";
 import { getAbsenceRequests } from "@/api/request/request.api";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import AuthStatusSpinner from "@/pwa/pages/mobile-home/components/AuthStatusSpinner";
@@ -312,8 +313,8 @@ export default function MobileClassRequestsPage() {
         setActiveTab("exchange");
       }
     },
-    onError: () => {
-      toast.error("수업 교환 신청서 제출에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "수업 교환 신청서 제출에 실패했습니다."));
     },
   });
 
@@ -337,8 +338,8 @@ export default function MobileClassRequestsPage() {
         setActiveTab("absence");
       }
     },
-    onError: () => {
-      toast.error("결강 신청서 제출에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "결강 신청서 제출에 실패했습니다."));
     },
   });
 

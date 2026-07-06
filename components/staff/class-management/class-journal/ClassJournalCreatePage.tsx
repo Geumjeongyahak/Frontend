@@ -22,6 +22,7 @@ import type { StudentListResponseDto } from "@/api/student/student.dto";
 import { getStudents } from "@/api/student/student.api";
 import { getMyAssignedSubjects } from "@/api/subject/subject.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import { formatPhone } from "@/utils/formatPhone";
@@ -213,7 +214,7 @@ export default function ClassJournalCreatePage() {
       router.push("/staff/class-management/class-journal");
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "수업 일지 등록에 실패했습니다.");
+      toast.error(extractApiErrorMessage(error, "수업 일지 등록에 실패했습니다."));
     },
   });
 

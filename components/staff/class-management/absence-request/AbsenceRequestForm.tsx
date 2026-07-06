@@ -4,9 +4,11 @@ import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { IconCalendarMonth } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import styled, { css } from "styled-components";
 import { createAbsenceRequest } from "@/api/request/request.api";
 import { getCurrentUser } from "@/api/user/user.api";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -47,8 +49,8 @@ export default function AbsenceRequestForm() {
       router.push("/staff/class-management/absence-request");
       router.refresh();
     },
-    onError: () => {
-      window.alert("결강 신청서 생성에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "결강 신청서 생성에 실패했습니다."));
     },
   });
 

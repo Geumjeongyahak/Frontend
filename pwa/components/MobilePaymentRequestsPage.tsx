@@ -28,6 +28,7 @@ import type {
   PurchaseRequestItemResponseDto,
   PurchaseRequestResponseDto,
 } from "@/api/request/request.dto";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { getVendors } from "@/api/vendor/vendor.api";
 import { getAccessToken, getRefreshToken } from "@/api/client/tokenStorage";
 import { useAuthSession } from "@/hooks/useAuthSession";
@@ -263,8 +264,8 @@ export default function MobilePaymentRequestsPage() {
         setSelectedRequestId(created.id);
       }
     },
-    onError: () => {
-      toast.error("결제 신청서 제출에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "결제 신청서 제출에 실패했습니다."));
     },
   });
 
@@ -322,8 +323,8 @@ export default function MobilePaymentRequestsPage() {
       });
       toast.success("구매 보고를 저장했습니다.");
     },
-    onError: () => {
-      toast.error("구매 보고 저장에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "구매 보고 저장에 실패했습니다."));
     },
   });
 

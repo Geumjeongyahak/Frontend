@@ -5,6 +5,7 @@ import { ChangeEvent, FormEvent, Fragment, useMemo, useState } from "react";
 import { IconDownload, IconFilePlus, IconX } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
@@ -25,6 +26,7 @@ import type {
 import { getVendors } from "@/api/vendor/vendor.api";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
@@ -460,6 +462,9 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       queryClient.removeQueries({ queryKey: queryKeys.requests.purchaseList() });
       router.replace("/staff/finance-management");
     },
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "결제 신청 삭제에 실패했습니다."));
+    },
   });
 
   const purchase = request as ExtendedPurchaseRequest | undefined;
@@ -566,6 +571,14 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseDetail(requestId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseList() });
       queryClient.invalidateQueries({ queryKey: queryKeys.vendors.list() });
+    },
+    onError: (error) => {
+      toast.error(
+        extractApiErrorMessage(
+          error,
+          isReportEditing ? "구매 완료 보고 수정에 실패했습니다." : "구매 완료 보고에 실패했습니다.",
+        ),
+      );
     },
   });
 
@@ -1216,10 +1229,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
           {isError ? (
             <StateMessage role="alert">결제 신청 정보를 불러오지 못했습니다.</StateMessage>
           ) : null}
-          {deleteMutation.isError ? (
-            <StateMessage role="alert">결제 신청 삭제에 실패했습니다.</StateMessage>
-          ) : null}
-
           {request ? (
             <ContentColumn
               as={isEditing ? "form" : "article"}
@@ -2460,13 +2469,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                         </CancelEditButton>
                       ) : null}
                     </ReportActionRow>
-                  ) : null}
-                  {reportMutation.isError ? (
-                    <StateMessage role="alert">
-                      {isReportEditing
-                        ? "구매 완료 보고 수정에 실패했습니다."
-                        : "구매 완료 보고에 실패했습니다."}
-                    </StateMessage>
                   ) : null}
                 </ReportForm>
               ) : null}

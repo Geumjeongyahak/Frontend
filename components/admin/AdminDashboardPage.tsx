@@ -23,6 +23,7 @@ import {
   ADMIN_USERS_PER_PAGE,
   AdminUsersSection,
 } from "@/components/admin/users/AdminUsersSection";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import type {
   AdminMenu,
   ChannelFormState,
@@ -287,13 +288,7 @@ function toNumber(value: string) {
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
-  if (error && typeof error === "object" && "message" in error) {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) {
-      return message;
-    }
-  }
-  return fallback;
+  return extractApiErrorMessage(error, fallback);
 }
 
 function getTotalFromPage(contentLength: number, totalElements?: number) {

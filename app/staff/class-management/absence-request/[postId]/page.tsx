@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import {
   deleteAbsenceRequest,
@@ -14,6 +15,7 @@ import { Button } from "@/components/common/VariantButton";
 import { StatusBadge, type ExchangeStatus } from "@/components/staff/class-management/exchange-request/ExchangeRequestDetail";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
@@ -41,8 +43,8 @@ export default function AbsencePostPage() {
       router.push("/staff/class-management/absence-request");
       router.refresh();
     },
-    onError: () => {
-      window.alert("결강 신청서 삭제에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "결강 신청서 삭제에 실패했습니다."));
     },
   });
   const updateAbsenceMutation = useMutation({
@@ -54,8 +56,8 @@ export default function AbsencePostPage() {
       setIsEditing(false);
       window.alert("결강 신청서가 수정되었습니다.");
     },
-    onError: () => {
-      window.alert("결강 신청서 수정에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "결강 신청서 수정에 실패했습니다."));
     },
   });
 

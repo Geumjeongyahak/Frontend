@@ -4,6 +4,7 @@ import { FormEvent, Fragment, useEffect, useMemo, useRef, useState } from "react
 import { IconX } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
@@ -12,6 +13,7 @@ import type { CreatePurchaseRequestDto } from "@/api/request/request.dto";
 import { getVendors } from "@/api/vendor/vendor.api";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
@@ -259,6 +261,9 @@ export default function FinanceRequestCreatePage() {
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: queryKeys.requests.purchaseList() });
       router.push("/staff/finance-management");
+    },
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "결제 신청서 제출에 실패했습니다."));
     },
   });
 
@@ -1215,9 +1220,6 @@ export default function FinanceRequestCreatePage() {
               </Section>
             )}
 
-            {mutation.isError ? (
-              <StatusMessage role="alert">결제 신청서 제출에 실패했습니다.</StatusMessage>
-            ) : null}
           </Form>
         </Content>
       </Stage>

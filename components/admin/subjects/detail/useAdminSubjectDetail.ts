@@ -139,7 +139,8 @@ export function useAdminSubjectDetail({ subject, onClearSelection }: UseAdminSub
       await invalidateSubjects();
     },
     onError: (error) => {
-      setActionError(resolveSubjectMutationError(error, "과목 수정에 실패했습니다."));
+      setActionError(null);
+      toast.error(resolveSubjectMutationError(error, "과목 수정에 실패했습니다."));
     },
   });
 
@@ -155,7 +156,8 @@ export function useAdminSubjectDetail({ subject, onClearSelection }: UseAdminSub
       await invalidateSubjects();
     },
     onError: (error) => {
-      setActionError(resolveSubjectMutationError(error, "과목 일정 수정에 실패했습니다."));
+      setActionError(null);
+      toast.error(resolveSubjectMutationError(error, "과목 일정 수정에 실패했습니다."));
     },
   });
 
@@ -171,7 +173,8 @@ export function useAdminSubjectDetail({ subject, onClearSelection }: UseAdminSub
       toast.success("과목이 삭제되었습니다.");
     },
     onError: (error) => {
-      setActionError(resolveSubjectMutationError(error, "과목 삭제에 실패했습니다."));
+      setActionError(null);
+      toast.error(resolveSubjectMutationError(error, "과목 삭제에 실패했습니다."));
     },
   });
 
