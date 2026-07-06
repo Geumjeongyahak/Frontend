@@ -71,10 +71,12 @@ type ReportItem = {
   vendorName: string;
   name: string;
   price: string;
+  paymentMethod: string;
   receiptFile: File | null;
   receiptFileName: string;
   receiptFileId?: string;
   receiptFileUrl?: string;
+  receiptPreviewUrl?: string;
 };
 
 type ParsedPrepaidBudgetItem = {
@@ -145,6 +147,8 @@ const budgetItemNameOptions = [
   "프린트토너",
 ] as const;
 const paymentAccountOptions = ["국비04", "구비01", "구비08"] as const;
+const paymentMethodOptions = ["현금", "법인카드", "계좌이체", "자동이체", "기타 납부"] as const;
+const reportCustomOptionValue = "__report_custom__";
 
 const statusLabels: Record<PurchaseRequestStatus, string> = {
   PENDING: "대기 중",
@@ -361,6 +365,7 @@ function mapPurchaseItemsToReportItems(purchase?: ExtendedPurchaseRequest): Repo
         vendorName: transaction.vendorName ?? "",
         name: transaction.itemNames?.join(", ") || item?.name || "",
         price: typeof transaction.amount === "number" ? String(transaction.amount) : "0",
+        paymentMethod: "",
         receiptFile: null,
         receiptFileName:
           transaction.receiptFileId || transaction.receiptFileUrl
@@ -380,9 +385,14 @@ function mapPurchaseItemsToReportItems(purchase?: ExtendedPurchaseRequest): Repo
       vendorName: purchase?.vendorName ?? "",
       name: item.name ?? "",
       price: "0",
+      paymentMethod: "",
       receiptFile: null,
       receiptFileName: "",
     }));
+}
+
+function cloneReportItems(items: ReportItem[]) {
+  return items.map((item) => ({ ...item }));
 }
 
 function findPurchaseItemForTransaction(
@@ -409,6 +419,12 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const [editPrepaidContent, setEditPrepaidContent] = useState<ParsedPrepaidContent | null>(null);
   const [editPrepaidDepartmentId, setEditPrepaidDepartmentId] = useState("");
   const [reportItems, setReportItems] = useState<ReportItem[]>([]);
+  const [savedPrepaidReportItems, setSavedPrepaidReportItems] = useState<ReportItem[]>([]);
+  const [customReportFieldModal, setCustomReportFieldModal] = useState<{
+    field: "vendor" | "paymentMethod";
+    itemId: number;
+  } | null>(null);
+  const [customReportFieldDraft, setCustomReportFieldDraft] = useState("");
   const [isReportEditing, setIsReportEditing] = useState(false);
   const {
     data: request,
@@ -458,7 +474,14 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   );
   const activePrepaidContent = isEditing ? editPrepaidContent : parsedPrepaidContent;
   const initialReportItems = useMemo(() => mapPurchaseItemsToReportItems(purchase), [purchase]);
-  const activeReportItems = reportItems.length ? reportItems : initialReportItems;
+  const persistedPrepaidReportItems =
+    savedPrepaidReportItems.length > 0 ? savedPrepaidReportItems : initialReportItems;
+  const activeReportItems =
+    reportItems.length > 0
+      ? reportItems
+      : requestPaymentType === "PREPAID"
+        ? persistedPrepaidReportItems
+        : initialReportItems;
   const classrooms = useMemo(() => classroomData?.content ?? [], [classroomData]);
   const departments = useMemo(() => departmentData?.departments ?? [], [departmentData]);
   const affiliationOptions = useMemo<AffiliationOption[]>(
@@ -535,6 +558,9 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       return reportPurchase({ requestId }, body);
     },
     onSuccess: () => {
+      if (requestPaymentType === "PREPAID") {
+        setSavedPrepaidReportItems(cloneReportItems(activeReportItems));
+      }
       setIsReportEditing(false);
       setReportItems([]);
       queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseDetail(requestId) });
@@ -601,8 +627,20 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const canEditRequest = request?.status === "PENDING" && canManageRequest;
   const canDeleteRequest = request?.status === "PENDING" && canManageRequest;
   const canShowReportForm = request?.status === "APPROVED" && isRequester;
-  const canEditPurchaseReport = request?.status === "PURCHASED" && canManagePurchaseReport;
-  const canShowReportEditor = canShowReportForm || isReportEditing;
+  const canEditPurchaseReport =
+    (request?.status === "PURCHASED" || request?.status === "CONFIRMED") &&
+    canManagePurchaseReport;
+  const canShowReportSection =
+    requestPaymentType === "PREPAID"
+      ? canShowReportForm || canEditPurchaseReport || isReportEditing
+      : canShowReportForm || isReportEditing;
+  const isPrepaidReportReadOnly =
+    requestPaymentType === "PREPAID" && canEditPurchaseReport && !isReportEditing;
+  const canPrintApprovalForm =
+    request?.status === "APPROVED" ||
+    request?.status === "PURCHASED" ||
+    request?.status === "CONFIRMED";
+  const canPrintResolutionForm = request?.status === "CONFIRMED";
   const vendorBalances: VendorBalance[] = vendorData?.length
     ? vendorData.map((vendor) => ({
         vendorId: vendor.id,
@@ -619,7 +657,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     .filter((vendor) => typeof vendor.vendorId === "number" && Boolean(vendor.vendorName))
     .map((vendor) => ({ id: vendor.vendorId as number, name: vendor.vendorName as string }));
   const canSubmitReport =
-    canShowReportEditor &&
+    canShowReportSection &&
+    !isPrepaidReportReadOnly &&
     activeReportItems.length > 0 &&
     activeReportItems.every(
       (item) =>
@@ -627,7 +666,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
         item.name.trim().length > 0 &&
         item.price.trim().length > 0 &&
         Number.isFinite(Number(item.price)) &&
-        Number(item.price) >= 1,
+        Number(item.price) >= 1 &&
+        (requestPaymentType !== "PREPAID" || item.paymentMethod.trim().length > 0),
     ) &&
     !reportMutation.isPending;
   const prepaidQuantityTotal =
@@ -646,10 +686,12 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       vendorId: string;
       name: string;
       price: string;
+      paymentMethod: string;
       receiptFile: File | null;
       receiptFileName: string;
       receiptFileId: string;
       receiptFileUrl: string;
+      receiptPreviewUrl: string;
     }>,
   ) {
     setReportItems((current) =>
@@ -661,10 +703,55 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
 
   function handleReceiptChange(itemId: number, event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null;
+    const previewUrl = file ? URL.createObjectURL(file) : undefined;
     updateReportItem(itemId, {
       receiptFile: file,
       receiptFileName: file?.name ?? "",
+      receiptPreviewUrl: previewUrl,
     });
+  }
+
+  function openCustomReportFieldModal(field: "vendor" | "paymentMethod", itemId: number) {
+    const currentItem = activeReportItems.find((item) => item.itemId === itemId);
+    const draft =
+      field === "vendor"
+        ? currentItem?.vendorId === reportCustomOptionValue
+          ? (currentItem.vendorName ?? "")
+          : ""
+        : paymentMethodOptions.includes(
+              (currentItem?.paymentMethod ?? "") as (typeof paymentMethodOptions)[number],
+            )
+          ? ""
+          : (currentItem?.paymentMethod ?? "");
+
+    setCustomReportFieldDraft(draft);
+    setCustomReportFieldModal({ field, itemId });
+  }
+
+  function closeCustomReportFieldModal() {
+    setCustomReportFieldModal(null);
+    setCustomReportFieldDraft("");
+  }
+
+  function confirmCustomReportFieldModal() {
+    const nextValue = customReportFieldDraft.trim();
+
+    if (!customReportFieldModal || !nextValue) {
+      return;
+    }
+
+    if (customReportFieldModal.field === "vendor") {
+      updateReportItem(customReportFieldModal.itemId, {
+        vendorId: reportCustomOptionValue,
+        vendorName: nextValue,
+      });
+    }
+
+    if (customReportFieldModal.field === "paymentMethod") {
+      updateReportItem(customReportFieldModal.itemId, { paymentMethod: nextValue });
+    }
+
+    closeCustomReportFieldModal();
   }
 
   function updateEditItem(itemId: number, patch: Partial<EditableItem>) {
@@ -901,7 +988,9 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   }
 
   function startReportEditing() {
-    setReportItems(initialReportItems);
+    const sourceItems =
+      requestPaymentType === "PREPAID" ? persistedPrepaidReportItems : initialReportItems;
+    setReportItems(cloneReportItems(sourceItems));
     setIsReportEditing(true);
   }
 
@@ -1063,50 +1152,64 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
 
         <Content>
           <Actions>
-            {isEditing ? (
-              <>
-                <ActionButton type="submit" form="finance-request-edit-form" $variant="edit">
-                  수정 완료
+            {!isEditing && requestPaymentType === "PREPAID" ? (
+              <ActionGroup>
+                <ActionButton type="button" $variant="edit" disabled={!canPrintApprovalForm}>
+                  품의서 출력
                 </ActionButton>
-                <CancelTopButton type="button" onClick={() => setIsEditing(false)}>
-                  취소
-                </CancelTopButton>
-              </>
+                <ActionButton type="button" $variant="edit" disabled={!canPrintResolutionForm}>
+                  결의서 출력
+                </ActionButton>
+              </ActionGroup>
             ) : (
-              <>
-                {canManageRequest ? (
-                  <>
-                    <ActionButton
-                      type="button"
-                      $variant="danger"
-                      disabled={!canDeleteRequest || deleteMutation.isPending || isLoading}
-                      title={
-                        canDeleteRequest
-                          ? undefined
-                          : "관리자이거나 대기 중인 본인 작성 글만 삭제할 수 있습니다."
-                      }
-                      onClick={() => deleteMutation.mutate()}
-                    >
-                      {deleteMutation.isPending ? "삭제 중" : "삭제"}
-                    </ActionButton>
-                    <ActionButton
-                      type="button"
-                      $variant="edit"
-                      disabled={!canEditRequest}
-                      title={
-                        canEditRequest
-                          ? undefined
-                          : "관리자이거나 대기 중인 본인 작성 글만 수정할 수 있습니다."
-                      }
-                      onClick={startEditing}
-                    >
-                      수정
-                    </ActionButton>
-                  </>
-                ) : null}
-                <ListButton href="/staff/finance-management">목록</ListButton>
-              </>
+              <div />
             )}
+            <ActionGroup>
+              {isEditing ? (
+                <>
+                  <ActionButton type="submit" form="finance-request-edit-form" $variant="edit">
+                    수정 완료
+                  </ActionButton>
+                  <CancelTopButton type="button" onClick={() => setIsEditing(false)}>
+                    취소
+                  </CancelTopButton>
+                </>
+              ) : (
+                <>
+                  {canManageRequest ? (
+                    <>
+                      <ActionButton
+                        type="button"
+                        $variant="danger"
+                        disabled={!canDeleteRequest || deleteMutation.isPending || isLoading}
+                        title={
+                          canDeleteRequest
+                            ? undefined
+                            : "관리자이거나 대기 중인 본인 작성 글만 삭제할 수 있습니다."
+                        }
+                        onClick={() => deleteMutation.mutate()}
+                      >
+                        {deleteMutation.isPending ? "삭제 중" : "삭제"}
+                      </ActionButton>
+                      <ActionButton
+                        type="button"
+                        $variant="edit"
+                        disabled={!canEditRequest}
+                        title={
+                          canEditRequest
+                            ? undefined
+                            : "관리자이거나 대기 중인 본인 작성 글만 수정할 수 있습니다."
+                        }
+                        onClick={startEditing}
+                      >
+                        수정
+                      </ActionButton>
+                    </>
+                  ) : null}
+                  <ListButton href="/staff/finance-management">목록</ListButton>
+                </>
+              )}
+            </ActionGroup>
           </Actions>
 
           {isLoading ? <StateMessage>결제 신청 정보를 불러오는 중입니다.</StateMessage> : null}
@@ -1842,14 +1945,14 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                       <EditItemList>
                         {(editItems.length ? editItems : initialEditItems).map((item, index) => (
                           <EditItemBlock key={item.id}>
-                          <ItemFieldRow>
-                            <ItemLabel htmlFor={`editItemName-${item.id}`}>
-                              {(editItems.length ? editItems : initialEditItems).length > 1
-                                ? `품목 ${index + 1}`
-                                : "품목"}
-                            </ItemLabel>
-                            <EditInput
-                              id={`editItemName-${item.id}`}
+                            <ItemFieldRow>
+                              <ItemLabel htmlFor={`editItemName-${item.id}`}>
+                                {(editItems.length ? editItems : initialEditItems).length > 1
+                                  ? `품목 ${index + 1}`
+                                  : "품목"}
+                              </ItemLabel>
+                              <EditInput
+                                id={`editItemName-${item.id}`}
                                 value={item.name}
                                 onChange={(event) =>
                                   updateEditItem(item.id, { name: event.target.value })
@@ -2164,87 +2267,200 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                 ) : null}
               </Section>
 
-              {canShowReportEditor ? (
+              {canShowReportSection ? (
                 <ReportForm onSubmit={handleReportSubmit}>
-                  <SectionTitle>
-                    {isReportEditing ? "구매 완료 보고 수정" : "구매 완료 보고"}
-                  </SectionTitle>
-                  {activeReportItems.map((item, index) => (
-                    <ReportGrid key={item.itemId}>
-                      <ReportLabel htmlFor={`reportName-${item.itemId}`}>
-                        {activeReportItems.length > 1 ? `품목 ${index + 1}` : "품목"}
-                      </ReportLabel>
-                      <ReadOnlyReportField id={`reportName-${item.itemId}`}>
-                        {item.name || "-"}
-                      </ReadOnlyReportField>
-                      <ReportLabel htmlFor={`vendor-${item.itemId}`}>거래처</ReportLabel>
-                      <ReportSelect
-                        id={`vendor-${item.itemId}`}
-                        value={item.vendorId}
-                        onChange={(event) => {
-                          const vendor = vendorOptions.find(
-                            (option) => String(option.id) === event.target.value,
-                          );
+                  {requestPaymentType === "PREPAID" ? (
+                    <DetailSectionHeader>
+                      <SectionTitle>
+                        {isReportEditing ? "구매 완료 보고 수정" : "구매 완료 보고"}
+                      </SectionTitle>
+                      {canEditPurchaseReport && !isReportEditing ? (
+                        <ReportEditTextButton type="button" onClick={startReportEditing}>
+                          수정
+                        </ReportEditTextButton>
+                      ) : null}
+                    </DetailSectionHeader>
+                  ) : (
+                    <SectionTitle>
+                      {isReportEditing ? "구매 완료 보고 수정" : "구매 완료 보고"}
+                    </SectionTitle>
+                  )}
+                  <ResponsiveTableWrap>
+                    <ReportTable>
+                      <thead>
+                        <tr>
+                          <ReportHeadCell>품목</ReportHeadCell>
+                          <ReportHeadCell>거래처</ReportHeadCell>
+                          <ReportHeadCell>결제 금액</ReportHeadCell>
+                          {requestPaymentType === "PREPAID" ? (
+                            <ReportHeadCell>지급 구분</ReportHeadCell>
+                          ) : null}
+                          <ReportHeadCell>영수증</ReportHeadCell>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeReportItems.map((item, index) => (
+                          <tr key={item.itemId}>
+                            <ReportBodyCell>
+                              <ReportInlineText id={`reportName-${item.itemId}`}>
+                                {item.name ||
+                                  (activeReportItems.length > 1 ? `품목 ${index + 1}` : "품목")}
+                              </ReportInlineText>
+                            </ReportBodyCell>
+                            <ReportBodyCell>
+                              {isPrepaidReportReadOnly ? (
+                                <ReportInlineText>{item.vendorName || "-"}</ReportInlineText>
+                              ) : (
+                                <ReportSelect
+                                  id={`vendor-${item.itemId}`}
+                                  value={
+                                    item.vendorId && item.vendorId !== reportCustomOptionValue
+                                      ? item.vendorId
+                                      : item.vendorName.trim().length > 0
+                                        ? reportCustomOptionValue
+                                        : ""
+                                  }
+                                  onChange={(event) => {
+                                    if (event.target.value === reportCustomOptionValue) {
+                                      openCustomReportFieldModal("vendor", item.itemId);
+                                      return;
+                                    }
 
-                          updateReportItem(item.itemId, {
-                            vendorId: event.target.value,
-                            vendorName: vendor?.name ?? "",
-                          });
-                        }}
-                      >
-                        <option value="">거래처 선택</option>
-                        {vendorOptions.map((vendor) => (
-                          <option key={vendor.id} value={vendor.id}>
-                            {vendor.name}
-                          </option>
+                                    const vendor = vendorOptions.find(
+                                      (option) => String(option.id) === event.target.value,
+                                    );
+
+                                    updateReportItem(item.itemId, {
+                                      vendorId: event.target.value,
+                                      vendorName: vendor?.name ?? "",
+                                    });
+                                  }}
+                                >
+                                  <option value="">거래처 선택</option>
+                                  {vendorOptions.map((vendor) => (
+                                    <option key={vendor.id} value={vendor.id}>
+                                      {vendor.name}
+                                    </option>
+                                  ))}
+                                  <option value={reportCustomOptionValue}>직접 입력</option>
+                                </ReportSelect>
+                              )}
+                            </ReportBodyCell>
+                            <ReportBodyCell>
+                              {isPrepaidReportReadOnly ? (
+                                <ReportInlineText>
+                                  {item.price.trim().length > 0
+                                    ? `${Number(item.price).toLocaleString()}원`
+                                    : "-"}
+                                </ReportInlineText>
+                              ) : (
+                                <ReportInput
+                                  id={`price-${item.itemId}`}
+                                  type="number"
+                                  min="1"
+                                  inputMode="numeric"
+                                  placeholder="0"
+                                  value={item.price}
+                                  onChange={(event) =>
+                                    updateReportItem(item.itemId, { price: event.target.value })
+                                  }
+                                />
+                              )}
+                            </ReportBodyCell>
+                            {requestPaymentType === "PREPAID" ? (
+                              <ReportBodyCell>
+                                {isPrepaidReportReadOnly ? (
+                                  <ReportInlineText>{item.paymentMethod || "-"}</ReportInlineText>
+                                ) : (
+                                  <ReportSelect
+                                    value={
+                                      item.paymentMethod &&
+                                      !paymentMethodOptions.includes(
+                                        item.paymentMethod as (typeof paymentMethodOptions)[number],
+                                      )
+                                        ? reportCustomOptionValue
+                                        : item.paymentMethod
+                                    }
+                                    onChange={(event) => {
+                                      if (event.target.value === reportCustomOptionValue) {
+                                        openCustomReportFieldModal("paymentMethod", item.itemId);
+                                        return;
+                                      }
+
+                                      updateReportItem(item.itemId, {
+                                        paymentMethod: event.target.value,
+                                      });
+                                    }}
+                                  >
+                                    <option value="">지급 구분 선택</option>
+                                    {paymentMethodOptions.map((option) => (
+                                      <option key={option} value={option}>
+                                        {option}
+                                      </option>
+                                    ))}
+                                    <option value={reportCustomOptionValue}>직접 입력</option>
+                                  </ReportSelect>
+                                )}
+                              </ReportBodyCell>
+                            ) : null}
+                            <ReportBodyCell>
+                              {isPrepaidReportReadOnly ? (
+                                item.receiptFileUrl || item.receiptPreviewUrl ? (
+                                  <InlineReceiptLink
+                                    href={item.receiptFileUrl ?? item.receiptPreviewUrl ?? "#"}
+                                    download={item.receiptFileName || "영수증"}
+                                  >
+                                    영수증
+                                    <ReceiptIcon aria-hidden="true">
+                                      <IconDownload size={12} stroke={2.25} />
+                                    </ReceiptIcon>
+                                  </InlineReceiptLink>
+                                ) : (
+                                  <ReportInlineText>
+                                    {item.receiptFileName ? "영수증" : "-"}
+                                  </ReportInlineText>
+                                )
+                              ) : (
+                                <UploadControl>
+                                  <UploadInput
+                                    id={`receipt-${item.itemId}`}
+                                    type="file"
+                                    onChange={(event) => handleReceiptChange(item.itemId, event)}
+                                  />
+                                  <UploadBox htmlFor={`receipt-${item.itemId}`}>
+                                    <IconFilePlus size={20} stroke={1.8} aria-hidden="true" />
+                                    <span>{item.receiptFileName || "파일 추가하기"}</span>
+                                  </UploadBox>
+                                </UploadControl>
+                              )}
+                            </ReportBodyCell>
+                          </tr>
                         ))}
-                      </ReportSelect>
-                      <ReportLabel htmlFor={`price-${item.itemId}`}>결제 금액</ReportLabel>
-                      <ReportInput
-                        id={`price-${item.itemId}`}
-                        type="number"
-                        min="1"
-                        inputMode="numeric"
-                        placeholder="0"
-                        value={item.price}
-                        onChange={(event) =>
-                          updateReportItem(item.itemId, { price: event.target.value })
-                        }
-                      />
-                      <ReportLabel htmlFor={`receipt-${item.itemId}`}>영수증</ReportLabel>
-                      <UploadControl>
-                        <UploadInput
-                          id={`receipt-${item.itemId}`}
-                          type="file"
-                          onChange={(event) => handleReceiptChange(item.itemId, event)}
-                        />
-                        <UploadBox htmlFor={`receipt-${item.itemId}`}>
-                          <IconFilePlus size={20} stroke={1.8} aria-hidden="true" />
-                          <span>{item.receiptFileName || "파일 추가하기"}</span>
-                        </UploadBox>
-                      </UploadControl>
-                    </ReportGrid>
-                  ))}
-                  <ReportActionRow>
-                    <ReportSubmitButton type="submit" disabled={!canSubmitReport}>
-                      {reportMutation.isPending
-                        ? isReportEditing
-                          ? "수정 중"
-                          : "보고 중"
-                        : isReportEditing
-                          ? "수정 완료"
-                          : "구매 완료 보고하기"}
-                    </ReportSubmitButton>
-                    {isReportEditing ? (
-                      <CancelEditButton
-                        type="button"
-                        disabled={reportMutation.isPending}
-                        onClick={cancelReportEditing}
-                      >
-                        취소
-                      </CancelEditButton>
-                    ) : null}
-                  </ReportActionRow>
+                      </tbody>
+                    </ReportTable>
+                  </ResponsiveTableWrap>
+                  {!isPrepaidReportReadOnly ? (
+                    <ReportActionRow>
+                      <ReportSubmitButton type="submit" disabled={!canSubmitReport}>
+                        {reportMutation.isPending
+                          ? isReportEditing
+                            ? "수정 중"
+                            : "보고 중"
+                          : isReportEditing
+                            ? "수정 완료"
+                            : "구매 완료 보고하기"}
+                      </ReportSubmitButton>
+                      {isReportEditing ? (
+                        <CancelEditButton
+                          type="button"
+                          disabled={reportMutation.isPending}
+                          onClick={cancelReportEditing}
+                        >
+                          취소
+                        </CancelEditButton>
+                      ) : null}
+                    </ReportActionRow>
+                  ) : null}
                   {reportMutation.isError ? (
                     <StateMessage role="alert">
                       {isReportEditing
@@ -2253,6 +2469,43 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                     </StateMessage>
                   ) : null}
                 </ReportForm>
+              ) : null}
+
+              {customReportFieldModal ? (
+                <ModalOverlay role="presentation">
+                  <ModalCard
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="report-custom-input-modal-title"
+                  >
+                    <ModalTitle id="report-custom-input-modal-title">
+                      {customReportFieldModal.field === "vendor"
+                        ? "거래처 직접 입력"
+                        : "지급 구분 직접 입력"}
+                    </ModalTitle>
+                    <ModalInput
+                      value={customReportFieldDraft}
+                      onChange={(event) => setCustomReportFieldDraft(event.target.value)}
+                      placeholder={
+                        customReportFieldModal.field === "vendor" ? "거래처 입력" : "지급 구분 입력"
+                      }
+                      autoFocus
+                    />
+                    <ModalActionRow>
+                      <ModalButton type="button" onClick={closeCustomReportFieldModal}>
+                        취소
+                      </ModalButton>
+                      <ModalButton
+                        type="button"
+                        $variant="primary"
+                        onClick={confirmCustomReportFieldModal}
+                        disabled={customReportFieldDraft.trim().length === 0}
+                      >
+                        확인
+                      </ModalButton>
+                    </ModalActionRow>
+                  </ModalCard>
+                </ModalOverlay>
               ) : null}
             </ContentColumn>
           ) : null}
@@ -2305,7 +2558,8 @@ const Content = styled.section`
 
 const Actions = styled.div`
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: flex-start;
   gap: ${spacing.space20};
   margin-bottom: 2.25rem;
 
@@ -2313,6 +2567,16 @@ const Actions = styled.div`
     gap: 1.875rem;
     margin-bottom: 3rem;
   }
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    flex-wrap: wrap;
+  }
+`;
+
+const ActionGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space20};
 
   @media (max-width: ${layout.breakpointMobile}) {
     flex-wrap: wrap;
@@ -2369,9 +2633,8 @@ const BaseAction = styled.button<{ $variant?: "default" | "danger" | "edit" }>`
   cursor: pointer;
 
   &:disabled {
-    background-color: #d4d4d4;
-    border-color: #d4d4d4;
-    color: #7b7b7b;
+    opacity: 0.45;
+    filter: saturate(0.7);
     cursor: not-allowed;
   }
 
@@ -3144,55 +3407,34 @@ const ReportForm = styled.form`
   }
 `;
 
-const ReportActionRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: ${spacing.space12};
-  flex-wrap: wrap;
+const ReportTable = styled.table`
+  width: 100%;
+  min-width: 44rem;
+  border-collapse: collapse;
+  table-layout: fixed;
 `;
 
-const ReportGrid = styled.div`
-  display: grid;
-  grid-template-columns:
-    auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 0.8fr)
-    auto minmax(8rem, auto);
-  align-items: center;
-  gap: ${spacing.space12};
-
-  @media (min-width: 120rem) {
-    gap: ${spacing.space20};
-  }
-
-  @media (max-width: ${layout.breakpointTablet}) {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  @media (max-width: ${layout.breakpointMobile}) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-const ReportLabel = styled.label`
-  color: #000000;
-  font-size: ${typography.fontSize14};
+const ReportHeadCell = styled.th`
+  ${tableCellBase}
+  background-color: ${colors.background};
   font-weight: 600;
-  line-height: ${typography.lineHeight130};
-  white-space: nowrap;
+  text-align: center;
+`;
 
-  @media (min-width: 120rem) {
-    font-size: ${typography.fontSize20};
-  }
+const ReportBodyCell = styled.td`
+  ${tableCellBase}
+  text-align: center;
 `;
 
 const ReportInput = styled.input`
-  min-width: 8rem;
-  min-height: 2.6875rem;
-  border: 1px solid ${colors.muted};
-  background-color: ${colors.white};
-  padding: 0.8125rem ${spacing.space12};
+  width: 100%;
+  border: 0;
+  background-color: transparent;
+  padding: 0;
   color: #000000;
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
+  text-align: center;
   outline: none;
 
   &::placeholder {
@@ -3200,57 +3442,60 @@ const ReportInput = styled.input`
   }
 
   @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
   }
 `;
 
-const ReadOnlyReportField = styled.div`
-  min-width: 0;
-  min-height: 2.6875rem;
+const ReportInlineText = styled.div`
+  width: 100%;
   display: flex;
   align-items: center;
-  background-color: ${colors.background};
-  padding: 0.8125rem ${spacing.space12};
+  justify-content: center;
+  background-color: transparent;
+  padding: 0;
   color: #000000;
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
   overflow-wrap: anywhere;
 
   @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
   }
 `;
 
+const ReportActionRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space12};
+  flex-wrap: wrap;
+`;
+
 const ReportSelect = styled.select`
-  min-width: 0;
-  min-height: 2.6875rem;
-  border: 1px solid ${colors.muted};
-  background-color: ${colors.white};
+  width: 100%;
+  border: 0;
+  background-color: transparent;
   appearance: none;
-  padding: 0.8125rem ${spacing.space32} 0.8125rem ${spacing.space12};
+  padding: 0 ${spacing.space24} 0 0;
   color: #000000;
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
+  text-align: center;
+  text-align-last: center;
   outline: none;
   background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23000000' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-position: right ${spacing.space12} center;
+  background-position: right ${spacing.space8} center;
   background-repeat: no-repeat;
 
   @media (min-width: 120rem) {
-    min-height: 4rem;
-    padding: ${spacing.space20} 3rem ${spacing.space20} ${spacing.space20};
+    padding-right: 2rem;
     font-size: ${typography.fontSize20};
-    background-position: right ${spacing.space20} center;
+    background-position: right ${spacing.space12} center;
   }
 `;
 
 const UploadControl = styled.div`
   display: flex;
-  align-items: flex-start;
+  justify-content: center;
 `;
 
 const UploadInput = styled.input`
@@ -3266,38 +3511,105 @@ const UploadInput = styled.input`
 
 const UploadBox = styled.label`
   display: inline-flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: ${spacing.space8};
-  min-width: 5.5rem;
-  min-height: 4.125rem;
-  padding: ${spacing.space20};
-  background-color: ${colors.background};
-  color: #969696;
-  font-size: 0.5rem;
+  padding: 0;
+  background-color: transparent;
+  color: ${colors.text};
+  font-size: ${typography.fontSize14};
   font-weight: 500;
   line-height: ${typography.lineHeight130};
   cursor: pointer;
 
   span {
-    max-width: 12rem;
+    max-width: 10rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   @media (min-width: 120rem) {
-    min-width: 8.375rem;
-    min-height: 6.25rem;
-    gap: 0.9375rem;
-    padding: 1.875rem;
-    font-size: 0.75rem;
+    font-size: ${typography.fontSize20};
 
     svg {
-      width: 2rem;
-      height: 2rem;
+      width: 1.5rem;
+      height: 1.5rem;
     }
+  }
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: ${spacing.space20};
+  background-color: rgba(0, 0, 0, 0.4);
+`;
+
+const ModalCard = styled.div`
+  width: min(100%, 28rem);
+  display: flex;
+  flex-direction: column;
+  gap: ${spacing.space16};
+  border-radius: ${radii.radius20};
+  background-color: ${colors.white};
+  padding: ${spacing.space24};
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.16);
+`;
+
+const ModalTitle = styled.h3`
+  margin: 0;
+  color: #000000;
+  font-size: ${typography.fontSize18};
+  font-weight: 700;
+  line-height: ${typography.lineHeight130};
+`;
+
+const ModalInput = styled.input`
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #c0c0c0;
+  background-color: ${colors.white};
+  padding: 0.8125rem ${spacing.space12};
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+  outline: none;
+
+  &::placeholder {
+    color: #b1b1b1;
+  }
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize18};
+  }
+`;
+
+const ModalActionRow = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: ${spacing.space12};
+`;
+
+const ModalButton = styled.button<{ $variant?: "primary" }>`
+  min-width: 5rem;
+  min-height: 2.5rem;
+  border: 1px solid ${({ $variant }) => ($variant === "primary" ? colors.point : colors.border)};
+  border-radius: ${radii.radius12};
+  background-color: ${({ $variant }) => ($variant === "primary" ? colors.point : colors.white)};
+  color: ${({ $variant }) => ($variant === "primary" ? colors.white : colors.text)};
+  font-size: ${typography.fontSize14};
+  font-weight: 600;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
@@ -3318,9 +3630,8 @@ const ReportSubmitButton = styled.button`
   cursor: pointer;
 
   &:disabled {
-    border-color: #d4d4d4;
-    background-color: #d4d4d4;
-    color: #7b7b7b;
+    opacity: 0.45;
+    filter: saturate(0.7);
     cursor: not-allowed;
   }
 
