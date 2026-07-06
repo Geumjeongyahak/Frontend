@@ -83,7 +83,7 @@ const TopRow = styled.div`
 const BottomGrid = styled.div`
   display: grid;
   grid-template-columns: 34.625rem minmax(0, 1fr);
-  grid-template-rows: minmax(18.5rem, auto) minmax(18.5rem, auto);
+  grid-template-rows: minmax(15.5rem, auto) minmax(15.5rem, auto);
   grid-template-areas:
     "notice meeting"
     "notice event";
@@ -92,7 +92,7 @@ const BottomGrid = styled.div`
 
   @media (min-width: 120rem) {
     grid-template-columns: 51.9375rem minmax(0, 1fr);
-    grid-template-rows: minmax(24.5rem, auto) minmax(24.5rem, auto);
+    grid-template-rows: minmax(23.5rem, auto) minmax(23.5rem, auto);
     gap: ${spacing.space47} ${spacing.space47};
   }
 
