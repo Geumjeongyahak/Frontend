@@ -14,10 +14,6 @@ import type {
 } from "@/api/request/request.dto";
 import type { VendorResponseDto } from "@/api/vendor/vendor.dto";
 import type { CreateVendorRequestDto } from "@/api/vendor/vendor.dto";
-import type {
-  PurchaseCreateItemState,
-  PurchaseCreateState,
-} from "@/components/admin/AdminDashboardTypes";
 import {
   ButtonRow,
   ControlRow,
@@ -66,14 +62,11 @@ type AdminPurchasesSectionProps = {
   purchaseStatus: PurchaseRequestStatus | "";
   purchaseSearch: string;
   purchasePage: number;
-  isPurchaseCreateModalOpen: boolean;
-  purchaseCreate: PurchaseCreateState;
   reviewNote: string;
   purchasesQuery: QueryState<{ totalPages?: number }>;
   purchaseDetailQuery: QueryState<PurchaseRequestResponseDto>;
   vendorsQuery: QueryState<VendorResponseDto[]>;
   createVendorMutation: ValueMutationAction<CreateVendorRequestDto>;
-  createPurchaseMutation: VoidMutationAction;
   approvePurchaseMutation: VoidMutationAction;
   rejectPurchaseMutation: VoidMutationAction;
   confirmPurchaseMutation: VoidMutationAction;
@@ -81,11 +74,8 @@ type AdminPurchasesSectionProps = {
   setPurchaseStatus: Dispatch<SetStateAction<PurchaseRequestStatus | "">>;
   setPurchaseSearch: Dispatch<SetStateAction<string>>;
   setPurchasePage: Dispatch<SetStateAction<number>>;
-  setIsPurchaseCreateModalOpen: Dispatch<SetStateAction<boolean>>;
-  setPurchaseCreate: Dispatch<SetStateAction<PurchaseCreateState>>;
   setSelectedPurchaseId: Dispatch<SetStateAction<number | null>>;
   setReviewNote: Dispatch<SetStateAction<string>>;
-  emptyPurchaseCreate: PurchaseCreateState;
 };
 
 function formatPurchaseStatus(status?: PurchaseRequestStatus) {
@@ -120,16 +110,6 @@ function formatPurchaseListAmount(item: PurchaseRequestListItemDto) {
   return formatCurrency(item.totalPrice);
 }
 
-function createPurchaseItem(): PurchaseCreateItemState {
-  return {
-    id: `purchase-item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    itemName: "",
-    itemQuantity: "1",
-    itemReason: "",
-    itemPaymentType: "ACTUAL",
-  };
-}
-
 function getReceiptsForItem(
   item: PurchaseRequestItemResponseDto,
   transactions?: PurchaseTransactionResponseDto[],
@@ -152,14 +132,11 @@ export function AdminPurchasesSection({
   purchaseStatus,
   purchaseSearch,
   purchasePage,
-  isPurchaseCreateModalOpen,
-  purchaseCreate,
   reviewNote,
   purchasesQuery,
   purchaseDetailQuery,
   vendorsQuery,
   createVendorMutation,
-  createPurchaseMutation,
   approvePurchaseMutation,
   rejectPurchaseMutation,
   confirmPurchaseMutation,
@@ -167,11 +144,8 @@ export function AdminPurchasesSection({
   setPurchaseStatus,
   setPurchaseSearch,
   setPurchasePage,
-  setIsPurchaseCreateModalOpen,
-  setPurchaseCreate,
   setSelectedPurchaseId,
   setReviewNote,
-  emptyPurchaseCreate,
 }: AdminPurchasesSectionProps) {
   const [rejectTargetId, setRejectTargetId] = useState<number | null>(null);
   const [confirmAction, setConfirmAction] = useState<PurchaseConfirmAction | null>(null);
@@ -188,12 +162,6 @@ export function AdminPurchasesSection({
   const isRejecting = rejectTargetId === selectedPurchaseId && canReviewPurchase;
   const canSubmitRejection =
     isRejecting && reviewNote.trim().length > 0 && !rejectPurchaseMutation.isPending;
-  const canSubmitPurchase = Boolean(
-    purchaseCreate.title.trim().length > 0 &&
-    purchaseCreate.classroomId &&
-    purchaseCreate.items.length > 0 &&
-    purchaseCreate.items.every((item) => item.itemName.trim().length > 0),
-  );
   const confirmMessage = {
     approve: "승인하시겠습니까?",
     reject: "반려하시겠습니까?",
@@ -206,24 +174,6 @@ export function AdminPurchasesSection({
     setReviewNote("");
     setRejectTargetId(null);
     setConfirmAction(null);
-  }
-
-  function openCreateModal() {
-    setSelectedPurchaseId(null);
-    setReviewNote("");
-    setRejectTargetId(null);
-    setConfirmAction(null);
-    setPurchaseCreate(emptyPurchaseCreate);
-    setIsPurchaseCreateModalOpen(true);
-  }
-
-  function closeCreateModal() {
-    if (createPurchaseMutation.isPending) {
-      return;
-    }
-
-    setIsPurchaseCreateModalOpen(false);
-    setPurchaseCreate(emptyPurchaseCreate);
   }
 
   function selectPurchase(item: PurchaseRequestListItemDto) {
@@ -292,44 +242,6 @@ export function AdminPurchasesSection({
     setConfirmAction(null);
   }
 
-  function addPurchaseItem() {
-    setPurchaseCreate((current) => ({
-      ...current,
-      items: [...current.items, createPurchaseItem()],
-    }));
-  }
-
-  function updatePurchaseItem(
-    itemId: string,
-    field: keyof Omit<PurchaseCreateItemState, "id">,
-    value: string,
-  ) {
-    setPurchaseCreate((current) => ({
-      ...current,
-      items: current.items.map((item) =>
-        item.id === itemId
-          ? {
-              ...item,
-              [field]: value,
-            }
-          : item,
-      ),
-    }));
-  }
-
-  function removePurchaseItem(itemId: string) {
-    setPurchaseCreate((current) => {
-      if (current.items.length <= 1) {
-        return current;
-      }
-
-      return {
-        ...current,
-        items: current.items.filter((item) => item.id !== itemId),
-      };
-    });
-  }
-
   function handlePurchaseListSectionClick(event: MouseEvent<HTMLElement>) {
     if (!isDetailOpen) {
       return;
@@ -388,9 +300,6 @@ export function AdminPurchasesSection({
           <HeaderButtonGroup>
             <SmallButton type="button" onClick={() => setIsVendorBalanceModalOpen(true)}>
               거래처별 잔액 확인
-            </SmallButton>
-            <SmallButton type="button" onClick={openCreateModal}>
-              요청서 작성
             </SmallButton>
           </HeaderButtonGroup>
         </SectionHeaderRow>
@@ -684,145 +593,6 @@ export function AdminPurchasesSection({
           </>
         ) : null}
       </PurchaseListSection>
-
-      {isPurchaseCreateModalOpen ? (
-        <ModalBackdrop onMouseDown={closeCreateModal}>
-          <ModalDialog
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="purchase-create-modal-title"
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <ModalHeader>
-              <SectionTitle id="purchase-create-modal-title">요청서 작성</SectionTitle>
-              <SmallButton
-                type="button"
-                disabled={createPurchaseMutation.isPending}
-                onClick={closeCreateModal}
-              >
-                닫기
-              </SmallButton>
-            </ModalHeader>
-            <FormGrid
-              onSubmit={(event) => {
-                event.preventDefault();
-                createPurchaseMutation.mutate();
-              }}
-            >
-              <Label>
-                제목
-                <TextInput
-                  value={purchaseCreate.title}
-                  onChange={(event) =>
-                    setPurchaseCreate((current) => ({ ...current, title: event.target.value }))
-                  }
-                  required
-                />
-              </Label>
-              <Label>
-                소속
-                <PurchaseSelect
-                  value={purchaseCreate.classroomId}
-                  onChange={(event) =>
-                    setPurchaseCreate((current) => ({
-                      ...current,
-                      classroomId: event.target.value,
-                    }))
-                  }
-                  required
-                >
-                  <option value="">소속 선택</option>
-                  {classrooms.map((classroom) => (
-                    <option key={classroom.id} value={classroom.id}>
-                      {classroom.name}
-                    </option>
-                  ))}
-                </PurchaseSelect>
-              </Label>
-              <CreateItemsStack>
-                {purchaseCreate.items.map((item, index) => (
-                  <CreateItemGroup key={item.id}>
-                    <CreateItemTitle>품목 {index + 1}</CreateItemTitle>
-                    <Label>
-                      품목명
-                      <TextInput
-                        value={item.itemName}
-                        onChange={(event) =>
-                          updatePurchaseItem(item.id, "itemName", event.target.value)
-                        }
-                        required
-                      />
-                    </Label>
-                    <Label>
-                      수량
-                      <TextInput
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={item.itemQuantity}
-                        onChange={(event) =>
-                          updatePurchaseItem(item.id, "itemQuantity", event.target.value)
-                        }
-                        required
-                      />
-                    </Label>
-                    <Label>
-                      구매 사유
-                      <TextInput
-                        value={item.itemReason}
-                        onChange={(event) =>
-                          updatePurchaseItem(item.id, "itemReason", event.target.value)
-                        }
-                      />
-                    </Label>
-                    <Label>
-                      결제 유형
-                      <PurchaseSelect
-                        value={item.itemPaymentType}
-                        onChange={(event) =>
-                          updatePurchaseItem(item.id, "itemPaymentType", event.target.value)
-                        }
-                      >
-                        <option value="ACTUAL">실 결제</option>
-                        <option value="PREPAID">선금 결제</option>
-                      </PurchaseSelect>
-                    </Label>
-                    {purchaseCreate.items.length > 1 ? (
-                      <ItemDeleteRow>
-                        <DangerButton type="button" onClick={() => removePurchaseItem(item.id)}>
-                          삭제
-                        </DangerButton>
-                      </ItemDeleteRow>
-                    ) : null}
-                  </CreateItemGroup>
-                ))}
-              </CreateItemsStack>
-              <ButtonRow>
-                <PurchaseActionButton
-                  type="submit"
-                  disabled={createPurchaseMutation.isPending || !canSubmitPurchase}
-                >
-                  작성
-                </PurchaseActionButton>
-                <SmallButton
-                  type="button"
-                  disabled={createPurchaseMutation.isPending}
-                  onClick={addPurchaseItem}
-                >
-                  품목 추가
-                </SmallButton>
-                <SmallButton
-                  type="button"
-                  disabled={createPurchaseMutation.isPending}
-                  onClick={closeCreateModal}
-                >
-                  취소
-                </SmallButton>
-              </ButtonRow>
-            </FormGrid>
-          </ModalDialog>
-        </ModalBackdrop>
-      ) : null}
 
       {confirmAction ? (
         <ModalBackdrop onMouseDown={() => setConfirmAction(null)}>

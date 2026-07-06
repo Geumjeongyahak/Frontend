@@ -1700,14 +1700,11 @@ export default function AdminDashboardPage() {
               purchaseStatus={purchaseStatus}
               purchaseSearch={purchaseSearch}
               purchasePage={purchasePage}
-              isPurchaseCreateModalOpen={isPurchaseCreateModalOpen}
-              purchaseCreate={purchaseCreate}
               reviewNote={reviewNote}
               purchasesQuery={purchasesQuery}
               purchaseDetailQuery={purchaseDetailQuery}
               vendorsQuery={vendorsQuery}
               createVendorMutation={createVendorMutation}
-              createPurchaseMutation={createPurchaseMutation}
               approvePurchaseMutation={approvePurchaseMutation}
               rejectPurchaseMutation={rejectPurchaseMutation}
               confirmPurchaseMutation={confirmPurchaseMutation}
@@ -1715,11 +1712,8 @@ export default function AdminDashboardPage() {
               setPurchaseStatus={setPurchaseStatus}
               setPurchaseSearch={setPurchaseSearch}
               setPurchasePage={setPurchasePage}
-              setIsPurchaseCreateModalOpen={setIsPurchaseCreateModalOpen}
-              setPurchaseCreate={setPurchaseCreate}
               setSelectedPurchaseId={setSelectedPurchaseId}
               setReviewNote={setReviewNote}
-              emptyPurchaseCreate={emptyPurchaseCreate}
             />
           ) : null}
           {activeMenu === "teacherApplications" ? <AdminTeacherApplicationsSection /> : null}
