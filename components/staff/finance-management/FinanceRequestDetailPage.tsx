@@ -1842,12 +1842,14 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                       <EditItemList>
                         {(editItems.length ? editItems : initialEditItems).map((item, index) => (
                           <EditItemBlock key={item.id}>
-                            <ItemFieldRow>
-                              <ItemLabel htmlFor={`editItemName-${item.id}`}>
-                                품목 {index + 1}
-                              </ItemLabel>
-                              <EditInput
-                                id={`editItemName-${item.id}`}
+                          <ItemFieldRow>
+                            <ItemLabel htmlFor={`editItemName-${item.id}`}>
+                              {(editItems.length ? editItems : initialEditItems).length > 1
+                                ? `품목 ${index + 1}`
+                                : "품목"}
+                            </ItemLabel>
+                            <EditInput
+                              id={`editItemName-${item.id}`}
                                 value={item.name}
                                 onChange={(event) =>
                                   updateEditItem(item.id, { name: event.target.value })
@@ -2170,7 +2172,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                   {activeReportItems.map((item, index) => (
                     <ReportGrid key={item.itemId}>
                       <ReportLabel htmlFor={`reportName-${item.itemId}`}>
-                        품목 {index + 1}
+                        {activeReportItems.length > 1 ? `품목 ${index + 1}` : "품목"}
                       </ReportLabel>
                       <ReadOnlyReportField id={`reportName-${item.itemId}`}>
                         {item.name || "-"}
