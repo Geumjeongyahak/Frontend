@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import type {
   LessonExchangeProposalDto,
   LessonExchangeProposalRequestDto,
@@ -20,6 +21,7 @@ import {
   withdrawLessonExchangeProposal,
 } from "@/api/lessonExchange/lessonExchange.api";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import {
@@ -121,7 +123,7 @@ export function useExchangePostPage() {
       window.alert("교환 제안이 등록되었습니다.");
     },
     onError: (error) => {
-      window.alert(error instanceof Error ? error.message : "교환 제안 등록에 실패했습니다.");
+      toast.error(extractApiErrorMessage(error, "교환 제안 등록에 실패했습니다."));
     },
   });
 
@@ -140,7 +142,7 @@ export function useExchangePostPage() {
       window.alert("수업 교환 신청이 수정되었습니다.");
     },
     onError: (error) => {
-      window.alert(error instanceof Error ? error.message : "수업 교환 신청 수정에 실패했습니다.");
+      toast.error(extractApiErrorMessage(error, "수업 교환 신청 수정에 실패했습니다."));
     },
   });
 
@@ -161,7 +163,7 @@ export function useExchangePostPage() {
       });
     },
     onError: (error) => {
-      window.alert(error instanceof Error ? error.message : "교환 제안 수락에 실패했습니다.");
+      toast.error(extractApiErrorMessage(error, "교환 제안 수락에 실패했습니다."));
     },
   });
 
@@ -186,7 +188,7 @@ export function useExchangePostPage() {
       window.alert("교환 제안이 수정되었습니다.");
     },
     onError: (error) => {
-      window.alert(error instanceof Error ? error.message : "교환 제안 수정에 실패했습니다.");
+      toast.error(extractApiErrorMessage(error, "교환 제안 수정에 실패했습니다."));
     },
   });
 
@@ -206,7 +208,7 @@ export function useExchangePostPage() {
       window.alert("교환 제안이 삭제되었습니다.");
     },
     onError: (error) => {
-      window.alert(error instanceof Error ? error.message : "교환 제안 삭제에 실패했습니다.");
+      toast.error(extractApiErrorMessage(error, "교환 제안 삭제에 실패했습니다."));
     },
   });
 
@@ -227,7 +229,7 @@ export function useExchangePostPage() {
       router.push("/staff/class-management/exchange-request");
     },
     onError: (error) => {
-      window.alert(error instanceof Error ? error.message : "수업 교환 신청 취소에 실패했습니다.");
+      toast.error(extractApiErrorMessage(error, "수업 교환 신청 취소에 실패했습니다."));
     },
   });
 

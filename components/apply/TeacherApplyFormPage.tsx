@@ -4,6 +4,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import { createTeacherApplication, getAvailableTeacherSchedules, getMyTeacherApplication } from "@/api/teacherApplication/teacherApplication.api";
 import type { CreateTeacherApplicationRequestDto } from "@/api/teacherApplication/teacherApplication.dto";
@@ -12,6 +13,7 @@ import ApplyLayout from "@/components/apply/ApplyLayout";
 import { toTeacherScheduleOption } from "@/components/apply/teacherApplicationUtils";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 import { toBirthDateInputValue } from "@/utils/birthDate";
@@ -133,12 +135,9 @@ export default function TeacherApplyFormPage() {
       router.replace("/apply/status");
     },
     onError: (error) => {
-      const message =
-        error && typeof error === "object" && "message" in error && typeof error.message === "string"
-          ? error.message
-          : "지원서를 제출하지 못했습니다.";
       setSubmitSuccess("");
-      setSubmitError(message);
+      setSubmitError("");
+      toast.error(extractApiErrorMessage(error, "지원서를 제출하지 못했습니다."));
     },
   });
 

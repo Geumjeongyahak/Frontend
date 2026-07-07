@@ -16,6 +16,7 @@ import {
   formatSubjectDateRange,
   formatSubjectTeacherName,
 } from "@/components/admin/subjects/shared/subjectDisplay";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import {
@@ -310,6 +311,8 @@ function ScheduleTable({
 }
 
 export default function WeeklySchedulePageClient() {
+  const { status: authStatus } = useAuthSession();
+  const isAuthenticated = authStatus === "authenticated";
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [selectedCell, setSelectedCell] = useState<ScheduleCellSelection | null>(null);
   const weekRange = useMemo(() => getWeekRange(anchorDate), [anchorDate]);
@@ -318,16 +321,19 @@ export default function WeeklySchedulePageClient() {
   const classroomsQuery = useQuery({
     queryKey: queryKeys.classrooms.list(),
     queryFn: () => getClassrooms({ page: 0, size: 100 }),
+    enabled: isAuthenticated,
   });
 
   const subjectsQuery = useQuery({
     queryKey: queryKeys.admin.subjects(),
     queryFn: () => getSubjects(),
+    enabled: isAuthenticated,
   });
 
   const lessonsQuery = useQuery({
     queryKey: queryKeys.lessons.weekly(weekRange.from, weekRange.to),
     queryFn: () => getLessons({ from: weekRange.from, to: weekRange.to }),
+    enabled: isAuthenticated,
   });
 
   const classrooms = useMemo(
@@ -342,8 +348,10 @@ export default function WeeklySchedulePageClient() {
   const weekdayClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKDAY"));
   const weekendClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKEND"));
   const hasClassrooms = weekdayClassrooms.length > 0 || weekendClassrooms.length > 0;
-  const isBaseLoading = classroomsQuery.isLoading || subjectsQuery.isLoading;
-  const isBaseError = classroomsQuery.isError || subjectsQuery.isError;
+  const requiresLogin = authStatus !== "loading" && !isAuthenticated;
+  const isBaseLoading =
+    authStatus === "loading" || (isAuthenticated && (classroomsQuery.isLoading || subjectsQuery.isLoading));
+  const isBaseError = isAuthenticated && (classroomsQuery.isError || subjectsQuery.isError);
 
   const openDatePicker = () => {
     const input = datePickerRef.current;
@@ -402,14 +410,15 @@ export default function WeeklySchedulePageClient() {
       </HeaderRow>
 
       {isBaseLoading ? <StateText>시간표를 불러오는 중입니다.</StateText> : null}
+      {requiresLogin ? <StateText>로그인이 필요합니다.</StateText> : null}
       {isBaseError ? <StateText role="alert">시간표를 불러오지 못했습니다.</StateText> : null}
-      {!isBaseLoading && !isBaseError && lessonsQuery.isError ? (
+      {!requiresLogin && !isBaseLoading && !isBaseError && lessonsQuery.isError ? (
         <StateText role="alert">시간표를 불러오지 못했습니다.</StateText>
       ) : null}
-      {!isBaseLoading && !isBaseError && !hasClassrooms ? (
+      {!requiresLogin && !isBaseLoading && !isBaseError && !hasClassrooms ? (
         <StateText>주중 또는 주말 분반이 없습니다.</StateText>
       ) : null}
-      {!isBaseLoading && !isBaseError && !lessonsQuery.isError && hasClassrooms ? (
+      {!requiresLogin && !isBaseLoading && !isBaseError && !lessonsQuery.isError && hasClassrooms ? (
         <ScheduleShell>
           <ScheduleStack>
             <ScheduleContentTrack>

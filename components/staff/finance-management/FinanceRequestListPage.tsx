@@ -7,7 +7,8 @@ import styled from "styled-components";
 import { useQuery } from "@tanstack/react-query";
 import { getAccessToken, getRefreshToken } from "@/api/client/tokenStorage";
 import { getPurchaseRequests } from "@/api/request/request.api";
-import type { PurchaseRequestStatus } from "@/api/request/request.dto";
+import type { PaymentType, PurchaseRequestStatus } from "@/api/request/request.dto";
+import BoardDropdown, { type DropdownOption } from "@/components/staff/board/BoardDropdown";
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
 import { FINANCE_REQUESTS_PER_PAGE } from "@/components/staff/finance-management/financeRequestConstants";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
@@ -20,6 +21,15 @@ type FinanceRequestListPageProps = {
   currentPage: number;
   initialKeyword: string;
 };
+
+type PaymentTypeFilter = "all" | PaymentType;
+type OpenDropdown = "paymentType" | null;
+
+const paymentTypeFilterOptions: readonly DropdownOption<PaymentTypeFilter>[] = [
+  { label: "전체", value: "all" },
+  { label: "선금 결제", value: "PREPAID" },
+  { label: "실 결제", value: "ACTUAL" },
+] as const;
 
 const statusLabels: Record<PurchaseRequestStatus, string> = {
   PENDING: "대기 중",
@@ -44,6 +54,37 @@ function getAffiliationLabel(request: { departmentName?: string; classroomName?:
   return request.departmentName ?? request.classroomName ?? "-";
 }
 
+function getPaymentTypeLabel(paymentType?: PaymentType) {
+  if (paymentType === "PREPAID") return "선금 결제";
+  if (paymentType === "ACTUAL") return "실 결제";
+  return "-";
+}
+
+function getListPaymentType(request: {
+  paymentType?: PaymentType;
+  items?: { paymentType?: PaymentType }[];
+  content?: string;
+}) {
+  if (request.paymentType) {
+    return request.paymentType;
+  }
+
+  const itemPaymentType = request.items?.find((item) => item.paymentType)?.paymentType;
+  if (itemPaymentType) {
+    return itemPaymentType;
+  }
+
+  if (request.content?.includes("결제 유형: 선금 결제")) {
+    return "PREPAID";
+  }
+
+  if (request.content?.includes("결제 유형: 실 결제")) {
+    return "ACTUAL";
+  }
+
+  return undefined;
+}
+
 function buildFinanceListUrl(keyword: string) {
   const trimmedKeyword = keyword.trim();
   return trimmedKeyword
@@ -58,6 +99,8 @@ export default function FinanceRequestListPage({
   const router = useRouter();
   const { user, status: authStatus } = useAuthSession();
   const [mineOnly, setMineOnly] = useState(false);
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<PaymentTypeFilter>("all");
+  const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null);
   const [searchInput, setSearchInput] = useState(initialKeyword);
   const [searchKeyword, setSearchKeyword] = useState(initialKeyword);
   const isAuthenticated = authStatus === "authenticated";
@@ -93,7 +136,11 @@ export default function FinanceRequestListPage({
             request.requestedByName === user?.nickname ||
             request.requestedByName === user?.email),
         );
-      return matchesMine;
+      const paymentType = getListPaymentType(request as never);
+      const matchesPaymentType =
+        paymentTypeFilter === "all" || paymentType === paymentTypeFilter;
+
+      return matchesMine && matchesPaymentType;
     })
     .sort((a, b) => getRequestTime(b.createdAt) - getRequestTime(a.createdAt));
   const totalPages = Math.max(1, isAuthenticated ? (data?.totalPages ?? 1) : 1);
@@ -112,6 +159,7 @@ export default function FinanceRequestListPage({
     title: request.title ?? "제목 없음",
     author: request.requestedByName ?? "-",
     date: formatUtcToKstShortDate(request.createdAt),
+    extra: getPaymentTypeLabel(getListPaymentType(request as never)),
     status: getStatusLabel(request.status),
     statusType: request.status,
     detailHref: `/staff/finance-management/${request.id}`,
@@ -148,6 +196,8 @@ export default function FinanceRequestListPage({
             persistentQuery={{
               keyword: trimmedKeyword || undefined,
             }}
+            showExtraColumn
+            extraHeader="결제 유형"
             classHeader="소속"
             showMineOnlyToggle
             toggleLabel="내가 작성한 글만 보기"
@@ -158,6 +208,26 @@ export default function FinanceRequestListPage({
             emptyMessage={emptyMessage}
             headerTone="archive"
             writeIcon={<IconEdit aria-hidden="true" size={16} stroke={2} />}
+            filterSlot={
+              <FilterBar aria-label="결제 신청 필터">
+                <BoardDropdown
+                  label="결제 유형"
+                  options={paymentTypeFilterOptions}
+                  value={paymentTypeFilter}
+                  isOpen={openDropdown === "paymentType"}
+                  onToggle={() =>
+                    setOpenDropdown((current) =>
+                      current === "paymentType" ? null : "paymentType",
+                    )
+                  }
+                  onSelect={(nextValue) => {
+                    setPaymentTypeFilter(nextValue);
+                    setOpenDropdown(null);
+                  }}
+                  width="compact"
+                />
+              </FilterBar>
+            }
             searchSlot={
               <SearchForm
                 role="search"
@@ -221,6 +291,17 @@ const SearchForm = styled.form`
 
   @media (max-width: ${layout.breakpointMobile}) {
     width: 100%;
+  }
+`;
+
+const FilterBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space20};
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    align-items: stretch;
+    flex-direction: column;
   }
 `;
 

@@ -33,6 +33,7 @@ import {
 import { normalizeLessonTimeForApi } from "@/components/admin/lesson-management/lessonCreateError";
 import { formatSubjectTeacherName } from "@/components/admin/subjects/shared/subjectDisplay";
 import { queryKeys } from "@/lib/queryKeys";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const WEEKDAY_COLUMNS: { value: SubjectDayOfWeek; label: string }[] = [
@@ -196,8 +197,7 @@ function buildCellFormState(selection: ScheduleCellSelection | null): ScheduleCe
 }
 
 function resolveScheduleMutationError(error: unknown) {
-  if (error instanceof Error && error.message.trim()) return error.message;
-  return "시간표 항목 저장에 실패했습니다.";
+  return extractApiErrorMessage(error, "시간표 항목 저장에 실패했습니다.");
 }
 
 type ScheduleTableProps = {
@@ -303,7 +303,7 @@ export function AdminLessonScheduleTables() {
     key: string;
     form: ScheduleCellFormState;
   }>(() => ({ key: "none", form: buildCellFormState(null) }));
-  const [formError, setFormError] = useState<string | null>(null);
+  const [, setFormError] = useState<string | null>(null);
   const [periodColors, setPeriodColors] = useState<PeriodColorMap>(() => readStoredPeriodColors());
   const [isColorSettingsOpen, setIsColorSettingsOpen] = useState(false);
 
@@ -343,7 +343,6 @@ export function AdminLessonScheduleTables() {
 
   const cellForm =
     cellFormState.key === selectedCellKey ? cellFormState.form : buildCellFormState(selectedCell);
-  const visibleFormError = cellFormState.key === selectedCellKey ? formError : null;
   const setCellForm = (updater: SetStateAction<ScheduleCellFormState>) => {
     setCellFormState((current) => {
       const baseForm =
@@ -391,7 +390,8 @@ export function AdminLessonScheduleTables() {
     },
     onError: async (error) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
-      setFormError(resolveScheduleMutationError(error));
+      setFormError(null);
+      toast.error(resolveScheduleMutationError(error));
     },
   });
 
@@ -454,7 +454,8 @@ export function AdminLessonScheduleTables() {
     },
     onError: async (error) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
-      setFormError(resolveScheduleMutationError(error));
+      setFormError(null);
+      toast.error(resolveScheduleMutationError(error));
     },
   });
 
@@ -665,7 +666,6 @@ export function AdminLessonScheduleTables() {
               </PeriodEditorList>
             </ModalBody>
 
-            {visibleFormError ? <InlineStatus role="alert">{visibleFormError}</InlineStatus> : null}
             {teachersQuery.isError ? (
               <InlineStatus role="alert">교사 목록을 불러오지 못했습니다.</InlineStatus>
             ) : null}

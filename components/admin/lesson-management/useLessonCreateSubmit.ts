@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "react-toastify";
 import { createLesson } from "@/api/lesson/lesson.api";
 import {
   normalizeLessonTimeForApi,
@@ -32,7 +33,8 @@ export function useLessonCreateSubmit({ teacherId, subjectId }: UseLessonCreateS
       await queryClient.invalidateQueries({ queryKey: ["admin", "lessons"] });
     },
     onError: (error) => {
-      setSubmitError(resolveLessonCreateErrorMessage(error));
+      setSubmitError(null);
+      toast.error(resolveLessonCreateErrorMessage(error));
     },
   });
 

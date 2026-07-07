@@ -45,14 +45,14 @@ const Main = styled.main`
 
 const Content = styled.div`
   display: grid;
-  gap: 1.5rem;
+  gap: 2rem;
   width: 100%;
   max-width: ${layout.homeMaxWidth};
   margin: 0 auto;
   padding: ${spacing.space28} ${spacing.space20} ${spacing.space32};
 
   @media (min-width: 120rem) {
-    gap: ${spacing.space40};
+    gap: ${spacing.space47};
     max-width: ${layout.homeMaxWidthLarge};
     padding-top: ${spacing.space46};
     padding-bottom: ${spacing.space47};
@@ -66,7 +66,7 @@ const Content = styled.div`
 const TopRow = styled.div`
   display: grid;
   grid-template-columns: 23.083rem minmax(0, 1fr);
-  gap: 1.9375rem;
+  gap: 2rem;
   min-height: 18.75rem;
 
   @media (min-width: 120rem) {
@@ -83,19 +83,22 @@ const TopRow = styled.div`
 const BottomGrid = styled.div`
   display: grid;
   grid-template-columns: 34.625rem minmax(0, 1fr);
+  grid-template-rows: minmax(15.5rem, auto) minmax(15.5rem, auto);
   grid-template-areas:
     "notice meeting"
     "notice event";
-  align-items: start;
-  gap: 1.5rem 1.9375rem;
+  align-items: stretch;
+  gap: 2rem 2rem;
 
   @media (min-width: 120rem) {
     grid-template-columns: 51.9375rem minmax(0, 1fr);
-    gap: 2.1875rem 2.9375rem;
+    grid-template-rows: minmax(23.5rem, auto) minmax(23.5rem, auto);
+    gap: ${spacing.space47} ${spacing.space47};
   }
 
   @media (max-width: ${layout.breakpointTablet}) {
     grid-template-columns: 1fr;
+    grid-template-rows: none;
     grid-template-areas:
       "notice"
       "meeting"
@@ -113,18 +116,15 @@ const ScheduleArea = styled.div`
 
 const NoticeArea = styled.div`
   grid-area: notice;
+  height: 100%;
 `;
 
 const MeetingArea = styled.div`
   grid-area: meeting;
-  min-height: 19.5rem;
-
-  @media (min-width: 120rem) {
-    min-height: 27.25rem;
-  }
+  height: 100%;
 `;
 
 const EventArea = styled.div`
   grid-area: event;
-  align-self: start;
+  height: 100%;
 `;

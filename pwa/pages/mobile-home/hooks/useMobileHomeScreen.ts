@@ -13,6 +13,7 @@ import {
 import { getAllEvents } from "@/api/event/event.api";
 import { filterEventsInDateRange } from "@/api/event/eventDisplay";
 import { getMyLessons } from "@/api/lesson/lesson.api";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { useNotificationInbox } from "@/pwa/hooks/useNotificationInbox";
 import { consumePendingAttendanceSuccessOverlay } from "@/pwa/pages/mobile-home/attendanceSuccessFlag";
 import { useAttendanceSuccessPopup } from "@/pwa/pages/mobile-home/hooks/useAttendanceSuccessPopup";
@@ -175,9 +176,9 @@ export function useMobileHomeScreen() {
       toast.success("출근이 완료되었습니다.");
       attendanceQuery.refetch().catch(() => undefined);
     },
-    onError: () => {
+    onError: (error) => {
       setIsAttendanceResolving(false);
-      toast.error("출석 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      toast.error(extractApiErrorMessage(error, "출석 처리에 실패했습니다. 잠시 후 다시 시도해주세요."));
     },
   });
   const isAttendanceReady =
@@ -201,9 +202,9 @@ export function useMobileHomeScreen() {
       toast.success("퇴근이 완료되었습니다.");
       attendanceQuery.refetch().catch(() => undefined);
     },
-    onError: () => {
+    onError: (error) => {
       setIsCheckoutResolving(false);
-      toast.error("퇴근 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      toast.error(extractApiErrorMessage(error, "퇴근 처리에 실패했습니다. 잠시 후 다시 시도해주세요."));
     },
   });
 

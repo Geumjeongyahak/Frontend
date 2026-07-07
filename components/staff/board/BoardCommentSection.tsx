@@ -1,7 +1,7 @@
 "use client";
 
 import { IconCornerDownRight } from "@tabler/icons-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import styled from "styled-components";
 import {
@@ -30,6 +30,9 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
   const [openReplyCommentId, setOpenReplyCommentId] = useState<number | null>(null);
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const commentTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const replyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const commentsQuery = useQuery({
     queryKey: queryKeys.comments.boardDetail(channelId, postId),
@@ -134,6 +137,18 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
     updateCommentMutation.mutate({ commentId, content });
   };
 
+  useEffect(() => {
+    resizeTextarea(commentTextareaRef.current);
+  }, [commentDraft]);
+
+  useEffect(() => {
+    resizeTextarea(replyTextareaRef.current);
+  }, [replyDraft, openReplyCommentId]);
+
+  useEffect(() => {
+    resizeTextarea(editTextareaRef.current);
+  }, [editDraft, editingCommentId]);
+
   return (
     <Section>
       <HeaderRow>
@@ -148,6 +163,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
       </HeaderRow>
 
       <CommentTextarea
+        ref={commentTextareaRef}
         placeholder={isAuthenticated ? "내용" : "로그인 후 댓글을 작성할 수 있습니다."}
         value={commentDraft}
         disabled={!isAuthenticated || createCommentMutation.isPending}
@@ -173,6 +189,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
               {editingCommentId === comment.id ? (
                 <EditWrap>
                   <CommentTextarea
+                    ref={editTextareaRef}
                     placeholder="내용"
                     value={editDraft}
                     disabled={updateCommentMutation.isPending}
@@ -258,6 +275,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
             {openReplyCommentId === comment.id && comment.status !== "DELETED" ? (
               <ReplyComposerWrap>
                 <CommentTextarea
+                  ref={replyTextareaRef}
                   placeholder={isAuthenticated ? "내용" : "로그인 후 댓글을 작성할 수 있습니다."}
                   value={replyDraft}
                   disabled={!isAuthenticated || createCommentMutation.isPending}
@@ -302,6 +320,7 @@ export default function BoardCommentSection({ channelId, postId }: BoardCommentS
                 {editingCommentId === reply.id ? (
                   <EditWrap $isReply>
                     <CommentTextarea
+                      ref={editTextareaRef}
                       placeholder="내용"
                       value={editDraft}
                       disabled={updateCommentMutation.isPending}
@@ -423,6 +442,12 @@ function canManageComment(
   );
 }
 
+function resizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+  element.style.height = "0px";
+  element.style.height = `${element.scrollHeight}px`;
+}
+
 const Section = styled.section`
   display: flex;
   flex-direction: column;
@@ -518,7 +543,8 @@ const CommentTextarea = styled.textarea`
   font: inherit;
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
-  resize: vertical;
+  overflow: hidden;
+  resize: none;
 
   &::placeholder {
     color: ${colors.muted};

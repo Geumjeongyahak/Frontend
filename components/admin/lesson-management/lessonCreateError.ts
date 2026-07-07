@@ -1,4 +1,5 @@
 import { isAxiosError } from "axios";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 
 const LESSON_TIME_OVERLAP_MESSAGE = "시간대가 겹치는 수업이 존재합니다";
 
@@ -41,11 +42,7 @@ export function resolveLessonCreateErrorMessage(error: unknown) {
     return LESSON_TIME_OVERLAP_MESSAGE;
   }
 
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return "수업 생성에 실패했습니다.";
+  return extractApiErrorMessage(error, "수업 생성에 실패했습니다.");
 }
 
 export function formatLessonTimeRange(startTime?: string, endTime?: string) {
@@ -68,9 +65,5 @@ export function formatLessonStatusLabel(status?: string) {
 }
 
 export function resolveLessonDeleteErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  return "수업 삭제에 실패했습니다.";
+  return extractApiErrorMessage(error, "수업 삭제에 실패했습니다.");
 }

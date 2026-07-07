@@ -44,7 +44,9 @@ export default function NoticeCard() {
       <List>
         {isLoading && <Fallback>공지사항 불러오는 중...</Fallback>}
         {isError && <Fallback>공지사항을 불러오지 못했습니다.</Fallback>}
-        {!isLoading && !isError && notices.length === 0 && <Fallback>공지사항이 없습니다.</Fallback>}
+        {!isLoading && !isError && notices.length === 0 && (
+          <Fallback>공지사항이 없습니다.</Fallback>
+        )}
         {!isLoading &&
           !isError &&
           notices.map((notice, index) => (
@@ -60,11 +62,6 @@ export default function NoticeCard() {
 
 const Card = styled(HomeCard)`
   height: 100%;
-  min-height: 17.5rem;
-
-  @media (min-width: 120rem) {
-    min-height: 24.5rem;
-  }
 `;
 
 const List = styled.div`
@@ -101,8 +98,7 @@ const ListItem = styled(Link)`
   border-bottom: 0.0625rem solid ${colors.border};
   text-decoration: none;
 
-  &:hover ${Title},
-  &:focus-visible ${Title} {
+  &:hover ${Title}, &:focus-visible ${Title} {
     color: ${colors.point};
   }
 

@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { IconCalendarMonth } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import dayjs from "dayjs";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import { createLessonExchangeRequest } from "@/api/lessonExchange/lessonExchange.api";
 import { getCurrentUser } from "@/api/user/user.api";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   koreanShortDateToLocalDateTime,
@@ -57,8 +59,8 @@ export default function Page() {
       router.push("/staff/class-management/exchange-request");
       router.refresh();
     },
-    onError: () => {
-      window.alert("수업 교환 신청서 생성에 실패했습니다.");
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "수업 교환 신청서 생성에 실패했습니다."));
     },
   });
 

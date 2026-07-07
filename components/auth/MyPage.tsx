@@ -10,6 +10,7 @@ import { updateCurrentUser } from "@/api/user/user.api";
 import type { UpdateSelfRequestDto, UserResponseDto } from "@/api/user/user.dto";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import {
   formatBirthDate,
@@ -116,8 +117,8 @@ export default function MyPage() {
       await refreshSession();
       setIsEditing(false);
       toast.success("회원 정보를 수정했습니다.");
-    } catch {
-      toast.error("회원 정보 수정에 실패했습니다.");
+    } catch (error) {
+      toast.error(extractApiErrorMessage(error, "회원 정보 수정에 실패했습니다."));
     } finally {
       setIsSaving(false);
     }
