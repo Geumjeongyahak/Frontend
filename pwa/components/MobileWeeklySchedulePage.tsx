@@ -671,7 +671,6 @@ const ScheduleGrid = styled.div<{ $columns: number }>`
   display: grid;
   grid-template-columns: 6.75rem repeat(${({ $columns }) => $columns - 1}, 8.25rem);
   width: max-content;
-  min-width: 100%;
   border-right: 1px solid #d9dfd5;
   border-bottom: 1px solid #d9dfd5;
   border-radius: 1rem;
