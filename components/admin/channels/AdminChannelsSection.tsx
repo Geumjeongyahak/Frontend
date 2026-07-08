@@ -3,7 +3,11 @@
 import { useState } from "react";
 import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import styled from "styled-components";
-import type { ChannelAccessLevel, ChannelListItemDto } from "@/api/channel/channel.dto";
+import type {
+  ChannelAccessLevel,
+  ChannelListItemDto,
+  ChannelType,
+} from "@/api/channel/channel.dto";
 import type { ChannelFormState } from "@/components/admin/AdminDashboardTypes";
 import {
   ButtonRow,
@@ -26,6 +30,15 @@ import {
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 const CHANNELS_PER_PAGE = 11;
+const CHANNEL_TYPE_OPTIONS: ChannelType[] = [
+  "NOTICE",
+  "EVENT",
+  "RESOURCE",
+  "CLASSROOM",
+  "DEPARTMENT",
+  "GUIDE",
+  "CUSTOM",
+];
 
 type QueryState<TData = unknown> = {
   data?: TData;
@@ -125,6 +138,7 @@ export function AdminChannelsSection({
     setChannelForm({
       name: detail?.name ?? channelForm.name,
       description: detail?.description ?? channelForm.description,
+      channelType: detail?.channelType ?? channelForm.channelType,
       accessLevel: detail?.accessLevel ?? channelForm.accessLevel,
       allowGuestRead: detail?.allowGuestRead ?? channelForm.allowGuestRead,
       isDefault: detail?.isDefault ?? channelForm.isDefault,
@@ -177,7 +191,9 @@ export function AdminChannelsSection({
             <Table>
               <thead>
                 <tr>
+                  <th>채널 ID</th>
                   <th>이름</th>
+                  <th>설명</th>
                   <th>유형</th>
                   <th>연결</th>
                   <th>상태</th>
@@ -186,14 +202,16 @@ export function AdminChannelsSection({
               <tbody>
                 {pagedChannels.map((item) => (
                   <tr key={item.id} onClick={() => selectChannel(item)}>
+                    <td>{item.id ?? "-"}</td>
                     <td>{item.name ?? "-"}</td>
+                    <td>{item.description?.trim() || "-"}</td>
                     <td>{item.channelType ?? "-"}</td>
                     <td>{item.refId ?? "-"}</td>
                     <td>{formatChannelStatus(item.isActive)}</td>
                   </tr>
                 ))}
                 <TablePaddingRows
-                  columnCount={4}
+                  columnCount={6}
                   visibleRowCount={pagedChannels.length}
                   padTo={CHANNELS_PER_PAGE}
                   keyPrefix="admin-channels"
@@ -279,6 +297,14 @@ export function AdminChannelsSection({
                   <DetailBlock>
                     <DetailBlockTitle>채널 정보</DetailBlockTitle>
                     <List>
+                      <ListItem>
+                        <span>채널 ID</span>
+                        <span>{channelDetailQuery.data?.id ?? "-"}</span>
+                      </ListItem>
+                      <ListItem>
+                        <span>설명</span>
+                        <span>{channelDetailQuery.data?.description?.trim() || "-"}</span>
+                      </ListItem>
                       <ListItem>
                         <span>유형</span>
                         <span>{channelDetailQuery.data?.channelType ?? "-"}</span>
@@ -449,6 +475,25 @@ function ChannelFields({ form, disabled, setChannelForm }: ChannelFieldsProps) {
             setChannelForm((current) => ({ ...current, description: event.target.value }))
           }
         />
+      </Label>
+      <Label>
+        유형
+        <ChannelSelect
+          value={form.channelType}
+          disabled={disabled}
+          onChange={(event) =>
+            setChannelForm((current) => ({
+              ...current,
+              channelType: event.target.value as ChannelType,
+            }))
+          }
+        >
+          {CHANNEL_TYPE_OPTIONS.map((channelType) => (
+            <option key={channelType} value={channelType}>
+              {channelType}
+            </option>
+          ))}
+        </ChannelSelect>
       </Label>
       <Label>
         접근 수준

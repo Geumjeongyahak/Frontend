@@ -221,6 +221,7 @@ const emptyUserForm: UserFormState = {
 const emptyChannelForm: ChannelFormState = {
   name: "",
   description: "",
+  channelType: "NOTICE",
   accessLevel: "READ_WRITE",
   allowGuestRead: false,
   isDefault: false,
@@ -379,6 +380,7 @@ function mapChannelFormToPayload(form: ChannelFormState) {
   return {
     name: form.name.trim(),
     description: form.description.trim() || undefined,
+    channelType: form.channelType,
     accessLevel: form.accessLevel,
     allowGuestRead: form.allowGuestRead,
     isDefault: form.isDefault,
@@ -808,17 +810,21 @@ export default function AdminDashboardPage() {
   const channels = useMemo(() => channelsQuery.data ?? [], [channelsQuery.data]);
   const filteredChannels = useMemo(() => {
     const keyword = channelSearch.trim().toLowerCase();
-    const collator = new Intl.Collator(["ko-KR", "en-US"], {
-      numeric: true,
-      sensitivity: "base",
-    });
     const searchedChannels = keyword
-      ? channels.filter((item) => item.name?.toLowerCase().includes(keyword))
+      ? channels.filter(
+          (item) =>
+            item.name?.toLowerCase().includes(keyword) ||
+            item.description?.toLowerCase().includes(keyword) ||
+            String(item.id ?? "").includes(keyword),
+        )
       : channels;
 
-    return [...searchedChannels].sort((first, second) =>
-      collator.compare(first.name ?? "", second.name ?? ""),
-    );
+    return [...searchedChannels].sort((first, second) => {
+      const firstId = typeof first.id === "number" ? first.id : Number.POSITIVE_INFINITY;
+      const secondId = typeof second.id === "number" ? second.id : Number.POSITIVE_INFINITY;
+
+      return firstId - secondId;
+    });
   }, [channelSearch, channels]);
   const posts = postsQuery.data?.content ?? [];
   const purchases = useMemo(
@@ -935,6 +941,7 @@ export default function AdminDashboardPage() {
     setChannelForm({
       name: item.name ?? "",
       description: item.description ?? "",
+      channelType: item.channelType ?? "NOTICE",
       accessLevel: item.accessLevel ?? "READ_WRITE",
       allowGuestRead: item.allowGuestRead ?? false,
       isDefault: item.isDefault ?? false,
