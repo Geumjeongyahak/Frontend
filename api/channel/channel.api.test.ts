@@ -63,6 +63,7 @@ describe("channel.api", () => {
 
     const body = {
       name: "Board",
+      channelType: "GUIDE" as const,
       accessLevel: "READ_WRITE",
     };
 
@@ -76,9 +77,12 @@ describe("channel.api", () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     await expect(getChannel({ id: 1 })).resolves.toMatchObject({ id: 1 });
-    await expect(updateChannel({ id: 1 }, { isActive: false })).resolves.toMatchObject({
+    await expect(
+      updateChannel({ id: 1 }, { isActive: false, channelType: "EVENT" }),
+    ).resolves.toMatchObject({
       id: 1,
       isActive: false,
+      channelType: "EVENT",
     });
   });
 });

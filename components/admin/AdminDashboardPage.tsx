@@ -90,6 +90,7 @@ import type {
   PurchaseTransactionResponseDto,
 } from "@/api/request/request.dto";
 import {
+  assignUserClassroom,
   addUserPermission,
   createUser,
   deleteUser,
@@ -97,10 +98,12 @@ import {
   getUserDetail,
   getUserPermissions,
   getUsers,
+  releaseUserClassroom,
   removeUserPermission,
   updateUser,
 } from "@/api/user/user.api";
 import type { PermissionDefinitionDto } from "@/api/user/user.dto";
+import type { UserResponseDto } from "@/api/user/user.dto";
 import { getLessonExchangeRequests } from "@/api/lessonExchange/lessonExchange.api";
 import { getTeacherApplications } from "@/api/teacherApplication/teacherApplication.api";
 import { chargeVendor, createVendor, getVendors } from "@/api/vendor/vendor.api";
@@ -109,6 +112,11 @@ import type { UserListItemDto } from "@/api/user/user.dto";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
+import { archiveDocumentConfigs } from "@/config/archiveDocuments";
+import {
+  resolveArchiveChannel,
+  resolveArchiveChannelByName,
+} from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { toBirthDateInputValue } from "@/utils/birthDate";
 
@@ -212,11 +220,13 @@ const emptyUserForm: UserFormState = {
   birthDate: "",
   role: "VOLUNTEER",
   departmentId: "",
+  classroomId: "",
 };
 
 const emptyChannelForm: ChannelFormState = {
   name: "",
   description: "",
+  channelType: "NOTICE",
   accessLevel: "READ_WRITE",
   allowGuestRead: false,
   isDefault: false,
@@ -281,6 +291,8 @@ const emptyPermissionForm: PermissionFormState = {
   scope: "GLOBAL",
   target: "",
 };
+type AdminPostCategoryFilter = "all" | "board" | "handover" | "exam" | "forms" | "event";
+const ADMIN_COMPOSITE_POST_FETCH_SIZE = 100;
 
 function toNumber(value: string) {
   const parsed = Number(value);
@@ -312,6 +324,8 @@ function mapCreateUserFormToPayload(form: UserFormState) {
     birthDate: form.birthDate,
     role: form.role,
     departmentId: form.departmentId ? (toNumber(form.departmentId) ?? null) : null,
+    classroomId:
+      form.role === "VOLUNTEER" && form.classroomId ? (toNumber(form.classroomId) ?? null) : null,
   };
 }
 
@@ -326,10 +340,54 @@ function mapUpdateUserFormToPayload(form: UserFormState) {
   };
 }
 
+function mapUserToFormState(user?: UserResponseDto, fallback?: UserFormState): UserFormState {
+  if (!user) {
+    return {
+      email: fallback?.email ?? "",
+      nickname: fallback?.nickname ?? "",
+      password: "",
+      confirmPassword: "",
+      name: fallback?.name ?? "",
+      phoneNumber: fallback?.phoneNumber ?? "",
+      birthDate: fallback?.birthDate ?? "",
+      role: fallback?.role ?? "VOLUNTEER",
+      departmentId: fallback?.departmentId ?? "",
+      classroomId: fallback?.classroomId ?? "",
+    };
+  }
+
+  return {
+    email: user.email ?? fallback?.email ?? "",
+    nickname: user.nickname ?? fallback?.nickname ?? "",
+    password: "",
+    confirmPassword: "",
+    name: user.name ?? fallback?.name ?? "",
+    phoneNumber: user.phoneNumber ?? fallback?.phoneNumber ?? "",
+    birthDate:
+      toBirthDateInputValue(user.birthDate ?? user.residentRegistrationNumberPrefix) ||
+      fallback?.birthDate ||
+      "",
+    role: user.role ?? fallback?.role ?? "VOLUNTEER",
+    departmentId:
+      user.departmentId !== null && user.departmentId !== undefined
+        ? String(user.departmentId)
+        : typeof user.department?.id === "number"
+          ? String(user.department.id)
+          : "",
+    classroomId:
+      typeof user.classroom?.id === "number"
+        ? String(user.classroom.id)
+        : typeof user.classroomId === "number"
+          ? String(user.classroomId)
+          : "",
+  };
+}
+
 function mapChannelFormToPayload(form: ChannelFormState) {
   return {
     name: form.name.trim(),
     description: form.description.trim() || undefined,
+    channelType: form.channelType,
     accessLevel: form.accessLevel,
     allowGuestRead: form.allowGuestRead,
     isDefault: form.isDefault,
@@ -427,6 +485,7 @@ export default function AdminDashboardPage() {
   const [channelSearch, setChannelSearch] = useState("");
   const [postTitleSearch, setPostTitleSearch] = useState("");
   const [postPage, setPostPage] = useState(1);
+  const [postCategoryFilter, setPostCategoryFilter] = useState<AdminPostCategoryFilter>("all");
   const [postChannelTypeFilter, setPostChannelTypeFilter] = useState("all");
   const [postScopeFilter, setPostScopeFilter] = useState("all");
   const [classroomSearch, setClassroomSearch] = useState("");
@@ -584,32 +643,91 @@ export default function AdminDashboardPage() {
     queryFn: () => getChannels(),
     enabled: isAdmin,
   });
+  const eventChannel = channelsQuery.data?.find(
+    (channel) => channel.channelType === "EVENT" && typeof channel.id === "number",
+  );
+  const examChannel = resolveArchiveChannel(channelsQuery.data, archiveDocumentConfigs.exam);
+  const formsChannel = resolveArchiveChannel(channelsQuery.data, archiveDocumentConfigs.forms);
+  const handoverConfig = archiveDocumentConfigs.handover;
+  const handoverScopeLabel =
+    postChannelTypeFilter === "CLASSROOM"
+      ? classroomsQuery.data?.content?.find((classroom) => String(classroom.id) === postScopeFilter)?.name
+      : postChannelTypeFilter === "DEPARTMENT"
+        ? departmentsQuery.data?.departments?.find(
+            (department) => String(department.id) === postScopeFilter,
+          )?.name
+        : undefined;
+  const handoverScopedChannel =
+    handoverScopeLabel && postScopeFilter !== "all"
+      ? resolveArchiveChannelByName(
+          channelsQuery.data,
+          `${handoverScopeLabel} ${handoverConfig.title}`,
+        )
+      : undefined;
+  const postsQueryChannelType =
+    postCategoryFilter === "board"
+      ? postChannelTypeFilter === "all"
+        ? undefined
+        : postChannelTypeFilter
+      : postCategoryFilter === "event"
+        ? "EVENT"
+        : undefined;
+  const postsQueryChannelId =
+    postCategoryFilter === "exam"
+      ? examChannel?.id
+      : postCategoryFilter === "forms"
+        ? formsChannel?.id
+        : postCategoryFilter === "event"
+          ? eventChannel?.id
+          : postCategoryFilter === "handover" && handoverScopedChannel?.id
+            ? handoverScopedChannel.id
+            : undefined;
+  const postsQueryClassroomId =
+    postCategoryFilter === "board" &&
+    postChannelTypeFilter === "CLASSROOM" &&
+    postScopeFilter !== "all"
+      ? (toNumber(postScopeFilter) ?? undefined)
+      : undefined;
+  const postsQueryDepartmentId =
+    postCategoryFilter === "board" &&
+    postChannelTypeFilter === "DEPARTMENT" &&
+    postScopeFilter !== "all"
+      ? (toNumber(postScopeFilter) ?? undefined)
+      : undefined;
+  const useClientPostFiltering =
+    (postCategoryFilter === "board" && postChannelTypeFilter === "all") ||
+    (postCategoryFilter === "handover" &&
+      (!postChannelTypeFilter ||
+        postChannelTypeFilter === "all" ||
+        postScopeFilter === "all"));
+  const postsQueryPage = useClientPostFiltering ? 0 : postPage - 1;
+  const postsQuerySize = useClientPostFiltering
+    ? ADMIN_COMPOSITE_POST_FETCH_SIZE
+    : ADMIN_POSTS_PER_PAGE;
   const postsQuery = useQuery({
     queryKey: [
       "admin",
       "posts",
       {
-        page: postPage - 1,
-        size: ADMIN_POSTS_PER_PAGE,
+        page: postsQueryPage,
+        size: postsQuerySize,
         title: postTitleSearch || undefined,
-        channelType: postChannelTypeFilter === "all" ? undefined : postChannelTypeFilter,
+        category: postCategoryFilter,
+        channelType: postsQueryChannelType,
+        channelId: postsQueryChannelId,
         scope: postScopeFilter,
+        clientFiltered: useClientPostFiltering,
       },
     ],
     queryFn: () =>
       getPosts({
-        page: postPage - 1,
-        size: ADMIN_POSTS_PER_PAGE,
+        page: postsQueryPage,
+        size: postsQuerySize,
         title: postTitleSearch || undefined,
-        channelType: postChannelTypeFilter === "all" ? undefined : postChannelTypeFilter,
-        classroomId:
-          postChannelTypeFilter === "CLASSROOM" && postScopeFilter !== "all"
-            ? (toNumber(postScopeFilter) ?? undefined)
-            : undefined,
-        departmentId:
-          postChannelTypeFilter === "DEPARTMENT" && postScopeFilter !== "all"
-            ? (toNumber(postScopeFilter) ?? undefined)
-            : undefined,
+        channelType: postsQueryChannelType,
+        channelId: postsQueryChannelId,
+        classroomId: postsQueryClassroomId,
+        departmentId: postsQueryDepartmentId,
       }),
     enabled: isAdmin,
     placeholderData: (previousData) => previousData,
@@ -741,10 +859,6 @@ export default function AdminDashboardPage() {
   );
   const filteredClassrooms = useMemo(() => {
     const keyword = classroomSearch.trim().toLowerCase();
-    const collator = new Intl.Collator(["ko-KR", "en-US"], {
-      numeric: true,
-      sensitivity: "base",
-    });
     const searchedClassrooms = keyword
       ? classrooms.filter((item) =>
           [item.id ? String(item.id) : "", item.name, item.type, item.description].some((value) =>
@@ -753,24 +867,31 @@ export default function AdminDashboardPage() {
         )
       : classrooms;
 
-    return [...searchedClassrooms].sort((first, second) =>
-      collator.compare(first.name ?? "", second.name ?? ""),
-    );
+    return [...searchedClassrooms].sort((first, second) => {
+      const firstId = typeof first.id === "number" ? first.id : Number.NEGATIVE_INFINITY;
+      const secondId = typeof second.id === "number" ? second.id : Number.NEGATIVE_INFINITY;
+
+      return firstId - secondId;
+    });
   }, [classroomSearch, classrooms]);
   const channels = useMemo(() => channelsQuery.data ?? [], [channelsQuery.data]);
   const filteredChannels = useMemo(() => {
     const keyword = channelSearch.trim().toLowerCase();
-    const collator = new Intl.Collator(["ko-KR", "en-US"], {
-      numeric: true,
-      sensitivity: "base",
-    });
     const searchedChannels = keyword
-      ? channels.filter((item) => item.name?.toLowerCase().includes(keyword))
+      ? channels.filter(
+          (item) =>
+            item.name?.toLowerCase().includes(keyword) ||
+            item.description?.toLowerCase().includes(keyword) ||
+            String(item.id ?? "").includes(keyword),
+        )
       : channels;
 
-    return [...searchedChannels].sort((first, second) =>
-      collator.compare(first.name ?? "", second.name ?? ""),
-    );
+    return [...searchedChannels].sort((first, second) => {
+      const firstId = typeof first.id === "number" ? first.id : Number.POSITIVE_INFINITY;
+      const secondId = typeof second.id === "number" ? second.id : Number.POSITIVE_INFINITY;
+
+      return firstId - secondId;
+    });
   }, [channelSearch, channels]);
   const posts = postsQuery.data?.content ?? [];
   const purchases = useMemo(
@@ -861,23 +982,20 @@ export default function AdminDashboardPage() {
     setSelectedUserId(item.id);
     setIsUserEditing(false);
     setIsUserDeleteConfirmOpen(false);
-    setUserForm({
-      email: item.email ?? "",
-      nickname: item.nickname ?? "",
-      password: "",
-      confirmPassword: "",
-      name: item.name ?? "",
-      phoneNumber: item.phoneNumber ?? "",
-      birthDate:
-        toBirthDateInputValue(item.birthDate ?? item.residentRegistrationNumberPrefix) || "",
-      role: item.role ?? "VOLUNTEER",
-      departmentId:
-        item.departmentId !== null && item.departmentId !== undefined
-          ? String(item.departmentId)
-          : typeof item.department?.id === "number"
-            ? String(item.department.id)
+    setUserForm(
+      mapUserToFormState(item, {
+        ...emptyUserForm,
+        classroomId:
+          typeof item.teacherAssignments?.find(
+            (assignment) => typeof assignment.classroomId === "number",
+          )?.classroomId === "number"
+            ? String(
+                item.teacherAssignments?.find((assignment) => typeof assignment.classroomId === "number")
+                  ?.classroomId,
+              )
             : "",
-    });
+      }),
+    );
   }
 
   function selectChannel(item: (typeof channels)[number]) {
@@ -890,6 +1008,7 @@ export default function AdminDashboardPage() {
     setChannelForm({
       name: item.name ?? "",
       description: item.description ?? "",
+      channelType: item.channelType ?? "NOTICE",
       accessLevel: item.accessLevel ?? "READ_WRITE",
       allowGuestRead: item.allowGuestRead ?? false,
       isDefault: item.isDefault ?? false,
@@ -966,11 +1085,94 @@ export default function AdminDashboardPage() {
     onError: (error) => notifyError(getErrorMessage(error, "사용자 생성에 실패했습니다.")),
   });
   const updateUserMutation = useMutation({
-    mutationFn: () =>
-      updateUser({ userId: selectedUserId ?? 0 }, mapUpdateUserFormToPayload(userForm)),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const userId = selectedUserId ?? 0;
+      const updatedUser = await updateUser({ userId }, mapUpdateUserFormToPayload(userForm));
+      const previousClassroomId =
+        typeof userDetailQuery.data?.classroom?.id === "number"
+          ? userDetailQuery.data.classroom.id
+          : typeof userDetailQuery.data?.classroomId === "number"
+            ? userDetailQuery.data.classroomId
+            : null;
+      const nextClassroomId =
+        userForm.role === "VOLUNTEER" && userForm.classroomId
+          ? (toNumber(userForm.classroomId) ?? null)
+          : null;
+
+      if (nextClassroomId !== previousClassroomId) {
+        if (nextClassroomId == null) {
+          await releaseUserClassroom({ userId });
+        } else {
+          await assignUserClassroom({ userId }, { classroomId: nextClassroomId });
+        }
+      }
+
+      return getUserDetail({ userId });
+    },
+    onSuccess: (updatedUser) => {
       notifySuccess("사용자를 수정했습니다.");
       setIsUserEditing(false);
+      setUserForm((current) => mapUserToFormState(updatedUser, current));
+      if (selectedUserId) {
+        queryClient.setQueryData(queryKeys.admin.userDetail(selectedUserId), {
+          ...updatedUser,
+          departmentId:
+            userForm.departmentId === "" ? null : (updatedUser.departmentId ?? null),
+          classroomId:
+            userForm.classroomId === "" ? null : (updatedUser.classroomId ?? null),
+          department:
+            userForm.departmentId === "" ? undefined : updatedUser.department,
+          classroom:
+            userForm.classroomId === "" ? undefined : updatedUser.classroom,
+          classroomName:
+            userForm.classroomId === "" ? null : (updatedUser.classroomName ?? null),
+        });
+      }
+      queryClient.setQueryData(
+        [
+          "admin",
+          "users",
+          {
+            page: userPage - 1,
+            size: ADMIN_USERS_PER_PAGE,
+            name: userSearch.trim() || undefined,
+          },
+        ],
+        (previous: { content?: UserListItemDto[]; [key: string]: unknown } | undefined) =>
+          previous
+            ? {
+                ...previous,
+                content: (previous.content ?? []).map((item) =>
+                  item.id === updatedUser.id
+                    ? {
+                        ...item,
+                        ...updatedUser,
+                        departmentId:
+                          userForm.departmentId === ""
+                            ? null
+                            : (updatedUser.departmentId ?? item.departmentId),
+                        classroomId:
+                          userForm.classroomId === ""
+                            ? null
+                            : (updatedUser.classroomId ?? item.classroomId),
+                        department:
+                          userForm.departmentId === ""
+                            ? undefined
+                            : (updatedUser.department ?? item.department),
+                        classroom:
+                          userForm.classroomId === ""
+                            ? undefined
+                            : (updatedUser.classroom ?? item.classroom),
+                        classroomName:
+                          userForm.classroomId === ""
+                            ? null
+                            : (updatedUser.classroomName ?? item.classroomName),
+                      }
+                    : item,
+                ),
+              }
+            : previous,
+      );
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       invalidateDepartmentMembershipQueries();
       if (selectedUserId) {
@@ -1564,6 +1766,7 @@ export default function AdminDashboardPage() {
             <AdminUsersSection
               filteredUsers={filteredUsers}
               departments={departments}
+              classrooms={classrooms}
               selectedUserId={selectedUserId}
               isUserEditing={isUserEditing}
               isUserCreateModalOpen={isUserCreateModalOpen}
@@ -1629,12 +1832,14 @@ export default function AdminDashboardPage() {
               posts={posts}
               selectedPost={selectedPost}
               postTitleSearch={postTitleSearch}
+              postCategoryFilter={postCategoryFilter}
               postChannelTypeFilter={postChannelTypeFilter}
               postScopeFilter={postScopeFilter}
               postCreate={postCreate}
               postEdit={postEdit}
               isPostEditing={isPostEditing}
               isPostCreateModalOpen={isPostCreateModalOpen}
+              useClientPostFiltering={useClientPostFiltering}
               postsQuery={postsQuery}
               currentPage={postPage}
               totalPages={Math.max(1, postsQuery.data?.totalPages ?? 1)}
@@ -1644,6 +1849,7 @@ export default function AdminDashboardPage() {
               pinPostMutation={pinPostMutation}
               deletePostMutation={deletePostMutation}
               setPostTitleSearch={setPostTitleSearch}
+              setPostCategoryFilter={setPostCategoryFilter}
               setPostChannelTypeFilter={setPostChannelTypeFilter}
               setPostScopeFilter={setPostScopeFilter}
               setPostCreate={setPostCreate}

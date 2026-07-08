@@ -96,6 +96,26 @@ export const userHandlers: RequestHandler[] = [
     const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({ ...USER_DETAIL_RESPONSE, id: Number(params.userId), ...body });
   }),
+  http.put(`${API_BASE_URL}/api/v1/users/:userId/classroom`, async ({ request, params }) => {
+    const unauthorizedResponse = unauthorizedWhenNeeded(request);
+    if (unauthorizedResponse) return unauthorizedResponse;
+
+    const body = (await request.json()) as { classroomId?: number };
+    return HttpResponse.json({
+      ...USER_DETAIL_RESPONSE,
+      id: Number(params.userId),
+      classroomId: body.classroomId,
+      classroom: body.classroomId
+        ? {
+            id: body.classroomId,
+            name: `분반 ${body.classroomId}`,
+          }
+        : null,
+    });
+  }),
+  http.delete(`${API_BASE_URL}/api/v1/users/:userId/classroom`, ({ request }) => {
+    return unauthorizedWhenNeeded(request) ?? new HttpResponse(null, { status: 200 });
+  }),
   http.delete(`${API_BASE_URL}/api/v1/users/:userId`, ({ request }) => {
     return unauthorizedWhenNeeded(request) ?? new HttpResponse(null, { status: 204 });
   }),

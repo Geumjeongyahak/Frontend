@@ -11,7 +11,10 @@ type ToastEditorFieldProps = {
 type ToastEditorInstance = {
   destroy: () => void;
   getHTML: () => string;
+  setMinHeight?: (height: string) => void;
 };
+
+const MIN_EDITOR_HEIGHT = "22rem";
 
 export default function ToastEditorField({ initialValue, onChange }: ToastEditorFieldProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -22,6 +25,26 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
   const isMountedRef = useRef(false);
 
   initialValueRef.current = initialValue;
+
+  function applyMinEditorHeight() {
+    const root = rootRef.current;
+
+    if (!root) {
+      return;
+    }
+
+    root.style.minHeight = MIN_EDITOR_HEIGHT;
+
+    const defaultUi = root.querySelector(".toastui-editor-defaultUI") as HTMLElement | null;
+    const main = root.querySelector(".toastui-editor-main") as HTMLElement | null;
+    const mainContainer = root.querySelector(".toastui-editor-main-container") as HTMLElement | null;
+    const wwContainer = root.querySelector(".toastui-editor-ww-container") as HTMLElement | null;
+
+    defaultUi?.style.setProperty("min-height", MIN_EDITOR_HEIGHT);
+    main?.style.setProperty("min-height", MIN_EDITOR_HEIGHT);
+    mainContainer?.style.setProperty("min-height", MIN_EDITOR_HEIGHT);
+    wwContainer?.style.setProperty("min-height", MIN_EDITOR_HEIGHT);
+  }
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -40,7 +63,7 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
 
       const editor = new Editor({
         el: rootRef.current,
-        height: "22rem",
+        height: "auto",
 
         // 핵심: 일반 글쓰기 모드
         initialEditType: "wysiwyg",
@@ -84,9 +107,11 @@ export default function ToastEditorField({ initialValue, onChange }: ToastEditor
             onChangeRef.current(nextValue);
           },
         },
-      }) as ToastEditorInstance;
+      }) as unknown as ToastEditorInstance;
 
       editorRef.current = editor;
+      editor.setMinHeight?.(MIN_EDITOR_HEIGHT);
+      requestAnimationFrame(applyMinEditorHeight);
       editorValueRef.current = initialValueRef.current;
     }
 

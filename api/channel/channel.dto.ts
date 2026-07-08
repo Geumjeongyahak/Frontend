@@ -25,7 +25,7 @@ export interface ChannelListQueryParamsDto {
 export interface CreateChannelRequestDto {
   name: string;
   description?: string;
-  channelType?: Extract<ChannelType, "NOTICE" | "EVENT" | "RESOURCE" | "GUIDE" | "CUSTOM">;
+  channelType?: ChannelType;
   accessLevel: ChannelAccessLevel;
   allowGuestRead?: boolean;
   isDefault?: boolean;
@@ -35,6 +35,7 @@ export interface CreateChannelRequestDto {
 export interface UpdateChannelRequestDto {
   name?: string;
   description?: string;
+  channelType?: ChannelType;
   accessLevel?: ChannelAccessLevel;
   allowGuestRead?: boolean;
   isDefault?: boolean;

@@ -13,6 +13,13 @@ import { queryKeys } from "@/lib/queryKeys";
 import { parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
+function autoResizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
+
 export default function AbsenceRequestForm() {
   const queryClient = useQueryClient();
   const [lessonDateText, setLessonDateText] = useState("");
@@ -169,7 +176,12 @@ export default function AbsenceRequestForm() {
 
         <Section>
           <Label htmlFor="reason">결강 신청 사유</Label>
-          <TextArea id="reason" name="reason" placeholder="결강 신청 사유" />
+          <TextArea
+            id="reason"
+            name="reason"
+            placeholder="결강 신청 사유"
+            onInput={(event) => autoResizeTextarea(event.currentTarget)}
+          />
         </Section>
       </Form>
     </PageWrapper>

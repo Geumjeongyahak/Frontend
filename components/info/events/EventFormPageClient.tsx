@@ -7,7 +7,13 @@ import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { deleteAttachment } from "@/api/file/file.api";
-import { attachPostFile, createPost, getPost, publishPost, updatePost } from "@/api/post/post.api";
+import {
+  attachPostAttachment,
+  createPost,
+  getPost,
+  publishPost,
+  updatePost,
+} from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
@@ -30,7 +36,6 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { uploadEventDocument } from "@/lib/googleDrive";
 import { queryKeys } from "@/lib/queryKeys";
 import { layout, spacing } from "@/styles/tokens";
 
@@ -112,21 +117,11 @@ export default function EventFormPageClient({
           throw new Error("행사 정보 초안을 저장하지 못했습니다.");
         }
 
-        const registeredFiles = await Promise.all(
-          selectedFiles.map((file) => uploadEventDocument(file)),
-        );
-
-        for (const [index, registered] of registeredFiles.entries()) {
-          if (!registered.fileId) {
-            throw new Error("행사 자료 파일 메타데이터 등록에 실패했습니다.");
-          }
-
-          await attachPostFile(
+        for (const file of selectedFiles) {
+          await attachPostAttachment(
             { channelId, postId: draftPost.id },
-            {
-              fileId: registered.fileId,
-              sortOrder: visibleExistingAttachments.length + index,
-            },
+            file,
+            file.name,
           );
         }
 

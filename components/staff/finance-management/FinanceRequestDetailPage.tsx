@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, FormEvent, Fragment, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { IconDownload, IconFilePlus, IconX } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -24,6 +24,11 @@ import type {
   PurchaseRequestStatus,
 } from "@/api/request/request.dto";
 import { getVendors } from "@/api/vendor/vendor.api";
+import {
+  AttachmentEditorPanel,
+  AttachmentDownloadList,
+  type AttachmentItem,
+} from "@/components/common/AttachmentField";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
@@ -34,6 +39,13 @@ import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 type FinanceRequestDetailPageProps = {
   requestId: number;
 };
+
+function autoResizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
 
 type PaymentType = "PREPAID" | "ACTUAL";
 
@@ -397,6 +409,16 @@ function cloneReportItems(items: ReportItem[]) {
   return items.map((item) => ({ ...item }));
 }
 
+function getPrepaidReceiptAttachments(purchase?: ExtendedPurchaseRequest): AttachmentItem[] {
+  return (purchase?.transactions ?? [])
+    .filter((transaction) => Boolean(transaction.receiptFileUrl))
+    .map((transaction, index) => ({
+      id: String(transaction.id ?? `receipt-${index}`),
+      label: purchase?.transactions?.length === 1 ? "영수증" : `영수증 ${index + 1}`,
+      href: transaction.receiptFileUrl ?? "#",
+    }));
+}
+
 function findPurchaseItemForTransaction(
   transactionItemNames?: string[],
   items?: PurchaseRequestItemResponseDto[],
@@ -420,6 +442,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const [editItems, setEditItems] = useState<EditableItem[]>([]);
   const [editPrepaidContent, setEditPrepaidContent] = useState<ParsedPrepaidContent | null>(null);
   const [editPrepaidDepartmentId, setEditPrepaidDepartmentId] = useState("");
+  const [editReceiptFiles, setEditReceiptFiles] = useState<File[]>([]);
+  const editSummaryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [reportItems, setReportItems] = useState<ReportItem[]>([]);
   const [savedPrepaidReportItems, setSavedPrepaidReportItems] = useState<ReportItem[]>([]);
   const [customReportFieldModal, setCustomReportFieldModal] = useState<{
@@ -428,6 +452,10 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   } | null>(null);
   const [customReportFieldDraft, setCustomReportFieldDraft] = useState("");
   const [isReportEditing, setIsReportEditing] = useState(false);
+
+  useEffect(() => {
+    autoResizeTextarea(editSummaryTextareaRef.current);
+  }, [editPrepaidContent?.summary, isEditing]);
   const {
     data: request,
     isLoading,
@@ -476,6 +504,10 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const parsedPrepaidContent = useMemo(
     () => (requestPaymentType === "PREPAID" ? parsePrepaidContent(purchase) : null),
     [purchase, requestPaymentType],
+  );
+  const prepaidReceiptAttachments = useMemo(
+    () => (requestPaymentType === "PREPAID" ? getPrepaidReceiptAttachments(request) : []),
+    [request, requestPaymentType],
   );
   const activePrepaidContent = isEditing ? editPrepaidContent : parsedPrepaidContent;
   const initialReportItems = useMemo(() => mapPurchaseItemsToReportItems(purchase), [purchase]);
@@ -576,7 +608,9 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       toast.error(
         extractApiErrorMessage(
           error,
-          isReportEditing ? "구매 완료 보고 수정에 실패했습니다." : "구매 완료 보고에 실패했습니다.",
+          isReportEditing
+            ? "구매 완료 보고 수정에 실패했습니다."
+            : "구매 완료 보고에 실패했습니다.",
         ),
       );
     },
@@ -641,8 +675,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const canDeleteRequest = request?.status === "PENDING" && canManageRequest;
   const canShowReportForm = request?.status === "APPROVED" && isRequester;
   const canEditPurchaseReport =
-    (request?.status === "PURCHASED" || request?.status === "CONFIRMED") &&
-    canManagePurchaseReport;
+    (request?.status === "PURCHASED" || request?.status === "CONFIRMED") && canManagePurchaseReport;
   const canShowReportSection =
     requestPaymentType === "PREPAID"
       ? canShowReportForm || canEditPurchaseReport || isReportEditing
@@ -983,6 +1016,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       return;
     }
 
+    setEditReceiptFiles([]);
     setEditTitle(request.title ?? "");
     setEditAffiliationValue(requestAffiliationValue);
     if (requestPaymentType === "PREPAID" && parsedPrepaidContent) {
@@ -1010,6 +1044,11 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   function cancelReportEditing() {
     setReportItems([]);
     setIsReportEditing(false);
+  }
+
+  function cancelEditing() {
+    setEditReceiptFiles([]);
+    setIsEditing(false);
   }
 
   function handleReportSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1114,7 +1153,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
               }
             : current,
       );
-      setIsEditing(false);
+      cancelEditing();
       return;
     }
 
@@ -1155,7 +1194,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
             }
           : current,
     );
-    setIsEditing(false);
+    cancelEditing();
   }
 
   return (
@@ -1183,7 +1222,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                   <ActionButton type="submit" form="finance-request-edit-form" $variant="edit">
                     수정 완료
                   </ActionButton>
-                  <CancelTopButton type="button" onClick={() => setIsEditing(false)}>
+                  <CancelTopButton type="button" onClick={cancelEditing}>
                     취소
                   </CancelTopButton>
                 </>
@@ -1352,9 +1391,13 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                 <SummaryLabelCell>품의 개요</SummaryLabelCell>
                                 <SummaryWideCell colSpan={3}>
                                   <SummaryTextareaInput
+                                    ref={editSummaryTextareaRef}
                                     value={editPrepaidContent.summary}
                                     onChange={(event) =>
-                                      updateEditPrepaidContent({ summary: event.target.value })
+                                      {
+                                        updateEditPrepaidContent({ summary: event.target.value });
+                                        autoResizeTextarea(event.currentTarget);
+                                      }
                                     }
                                   />
                                 </SummaryWideCell>
@@ -1744,6 +1787,30 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                           </ApprovalTable>
                         </ResponsiveTableWrap>
                       </Section>
+
+                      <Section>
+                        <SectionTitle>영수증</SectionTitle>
+                        <AttachmentEditorPanel
+                          existingAttachments={[]}
+                          selectedFiles={editReceiptFiles}
+                          onSelectFiles={(files) =>
+                            setEditReceiptFiles((current) => [...current, ...files])
+                          }
+                          onRemoveSelected={(file) =>
+                            setEditReceiptFiles((current) =>
+                              current.filter(
+                                (currentFile) =>
+                                  !(
+                                    currentFile.name === file.name &&
+                                    currentFile.lastModified === file.lastModified
+                                  ),
+                              ),
+                            )
+                          }
+                          selectLabel="영수증 파일 선택"
+                          emptyText="첨부된 영수증 파일이 없습니다."
+                        />
+                      </Section>
                     </>
                   ) : activePrepaidContent ? (
                     <>
@@ -1935,6 +2002,14 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                             </tbody>
                           </ApprovalTable>
                         </ResponsiveTableWrap>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>영수증</SectionTitle>
+                        <AttachmentDownloadList
+                          attachments={prepaidReceiptAttachments}
+                          emptyText="첨부된 파일이 없습니다."
+                        />
                       </Section>
                     </>
                   ) : null}
@@ -2205,6 +2280,14 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                             </tbody>
                           </ApprovalTable>
                         </ResponsiveTableWrap>
+                      </Section>
+
+                      <Section>
+                        <SectionTitle>영수증</SectionTitle>
+                        <AttachmentDownloadList
+                          attachments={prepaidReceiptAttachments}
+                          emptyText="첨부된 파일이 없습니다."
+                        />
                       </Section>
                     </>
                   ) : (
@@ -2746,6 +2829,17 @@ const SectionTitle = styled.h2`
 
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize20};
+  }
+`;
+
+const ReceiptSectionDescription = styled.p`
+  margin: 0;
+  color: ${colors.placeholder};
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight150};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize18};
   }
 `;
 

@@ -61,6 +61,8 @@ export interface UserResponseDto {
   phoneNumber?: string;
   role?: UserRole;
   departmentId?: number | null;
+  classroomId?: number | null;
+  classroomName?: string | null;
   department?: DepartmentResponseDto;
   classroom?: UserClassroomResponseDto;
   teacherAssignments?: UserTeacherAssignmentResponseDto[];
@@ -128,6 +130,10 @@ export interface UpdateUserRequestDto {
   role?: UserRole;
   departmentId?: number | null;
   classroomId?: number | null;
+}
+
+export interface AssignUserClassroomRequestDto {
+  classroomId: number;
 }
 
 export interface UpdateSelfRequestDto {

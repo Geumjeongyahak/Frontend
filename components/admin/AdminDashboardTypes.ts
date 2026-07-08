@@ -1,4 +1,4 @@
-import type { ChannelAccessLevel } from "@/api/channel/channel.dto";
+import type { ChannelAccessLevel, ChannelType } from "@/api/channel/channel.dto";
 import type { ClassroomType } from "@/api/classroom/classroom.dto";
 import type { PostStatus } from "@/api/post/post.dto";
 import type { UserRole } from "@/api/user/user.dto";
@@ -26,11 +26,13 @@ export type UserFormState = {
   birthDate: string;
   role: UserRole;
   departmentId: string;
+  classroomId: string;
 };
 
 export type ChannelFormState = {
   name: string;
   description: string;
+  channelType: ChannelType;
   accessLevel: ChannelAccessLevel;
   allowGuestRead: boolean;
   isDefault: boolean;

@@ -264,7 +264,7 @@ export function AdminTeacherApplicationsSection() {
         <TextInput
           value={keyword}
           onChange={(event) => handleSearchChange(event.target.value)}
-          placeholder="ID or 이름 or 연락처 or 상태 검색"
+          placeholder="이름 or 연락처 or 상태 검색"
         />
       </ControlRow>
 
@@ -280,7 +280,6 @@ export function AdminTeacherApplicationsSection() {
           <Table>
             <thead>
               <tr>
-                <th>ID</th>
                 <th>이름</th>
                 <th>연락처</th>
                 <th>희망 수업</th>
@@ -291,7 +290,6 @@ export function AdminTeacherApplicationsSection() {
             <tbody>
               {pagedApplications.map((item) => (
                 <tr key={item.id} onClick={() => selectApplication(item)}>
-                  <td>{item.id ?? "-"}</td>
                   <td>{item.applicantName ?? "-"}</td>
                   <td>{item.applicantPhoneNumber ?? "-"}</td>
                   <td>{formatTeacherApplicationPreference(item)}</td>
@@ -301,7 +299,7 @@ export function AdminTeacherApplicationsSection() {
               ))}
               {pagedApplications.length > 0 ? (
                 <TablePaddingRows
-                  columnCount={6}
+                  columnCount={5}
                   visibleRowCount={pagedApplications.length}
                   padTo={APPLICATIONS_PER_PAGE}
                   keyPrefix="admin-teacher-applications"

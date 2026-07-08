@@ -74,6 +74,7 @@ export const channelHandlers: RequestHandler[] = [
       id: 2,
       name: body.name,
       description: body.description,
+      channelType: body.channelType ?? CHANNEL_RESPONSE.channelType,
       accessLevel: body.accessLevel,
       allowGuestRead: body.allowGuestRead,
       isDefault: body.isDefault,

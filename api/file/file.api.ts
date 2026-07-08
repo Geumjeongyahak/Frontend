@@ -5,7 +5,6 @@ import type {
   FileDownloadUrlResponseDto,
   FilePathParamsDto,
   FileUploadResponseDto,
-  RegisterDriveFileRequestDto,
 } from "./file.dto";
 
 function createMultipartFormData(file: Blob, filename?: string) {
@@ -62,12 +61,6 @@ export async function uploadAdminVendorReceiptImage(file: Blob, filename?: strin
 // 기존 관리자 구매 요청 영수증 이미지 업로드 경로를 호출하는 요청
 export async function uploadAdminPurchaseRequestReceiptImage(file: Blob, filename?: string) {
   return uploadImage("/admin/request/purchase/purchase-requests/receipt-images", file, filename);
-}
-
-// 프론트에서 Apps Script로 업로드한 Drive 파일 메타데이터를 등록하는 요청
-export async function registerDriveFile(body: RegisterDriveFileRequestDto) {
-  const response = await authClient.post<FileUploadResponseDto>("/api/v1/files/drive", body);
-  return response.data;
 }
 
 // 백엔드를 통해 Shared Drive 대상 폴더로 파일을 직접 업로드하는 요청

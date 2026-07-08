@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -27,6 +27,13 @@ import {
   mapClassJournalDetailView,
   type ClassJournalDetailView,
 } from "@/utils/mapClassJournalDetailView";
+
+function autoResizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
 
 const emptyJournal: ClassJournalDetailView = {
   createdAt: "",
@@ -80,6 +87,7 @@ type ClassJournalDetailPageClientProps = {
 export default function ClassJournalDetailPageClient({
   dailyScheduleId,
 }: ClassJournalDetailPageClientProps) {
+  const lessonNoteRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const router = useRouter();
   const queryClient = useQueryClient();
   const { status: authStatus, user } = useAuthSession();
@@ -89,6 +97,11 @@ export default function ClassJournalDetailPageClient({
   const [editableAttendance, setEditableAttendance] = useState<DailyStudentAttendanceStatus[]>(() =>
     Array.from({ length: ATTENDANCE_SLOT_COUNT }, () => "ABSENT"),
   );
+
+  useEffect(() => {
+    if (!isEditing) return;
+    lessonNoteRefs.current.forEach((element) => autoResizeTextarea(element));
+  }, [editableNotes, isEditing]);
 
   const scheduleQuery = useQuery({
     queryKey: ["daily-schedules", "detail", dailyScheduleId] as const,
@@ -215,6 +228,9 @@ export default function ClassJournalDetailPageClient({
               <FieldLabel>{index + 1}교시</FieldLabel>
               {isEditing ? (
                 <LessonNoteInput
+                  ref={(element) => {
+                    lessonNoteRefs.current[index] = element;
+                  }}
                   value={editableNotes[index] ?? ""}
                   onChange={(event) =>
                     setEditableNotes((current) =>
@@ -223,6 +239,7 @@ export default function ClassJournalDetailPageClient({
                       ),
                     )
                   }
+                  onInput={(event) => autoResizeTextarea(event.currentTarget)}
                 />
               ) : (
                 <LessonContent>{lesson}</LessonContent>

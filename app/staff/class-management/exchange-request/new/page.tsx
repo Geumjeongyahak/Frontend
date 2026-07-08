@@ -17,6 +17,13 @@ import {
 } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
+function autoResizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
+
 export default function Page() {
   const queryClient = useQueryClient();
   const [lessonDateText, setLessonDateText] = useState("");
@@ -210,7 +217,12 @@ export default function Page() {
 
         <Section>
           <Label htmlFor="reason">교환 신청 사유</Label>
-          <InlineInput id="reason" name="reason" placeholder="교환 신청 사유" />
+          <ReasonInput
+            id="reason"
+            name="reason"
+            placeholder="교환 신청 사유"
+            onInput={(event) => autoResizeTextarea(event.currentTarget)}
+          />
         </Section>
 
         <Section>
@@ -438,6 +450,36 @@ const InlineInput = styled.input`
 
   @media (min-width: 120rem) {
     min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const ReasonInput = styled.textarea`
+  width: 100%;
+  min-height: 6.875rem;
+  padding: 0.8125rem ${spacing.space12};
+  font-size: ${typography.fontSize14};
+  font-weight: 400;
+  line-height: ${typography.lineHeight130};
+  border: 1px solid #c0c0c0;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  font-family: inherit;
+
+  &::placeholder {
+    color: #c0c0c0;
+  }
+
+  &:disabled {
+    background: #b5b5b5;
+    color: #4f4f4f;
+    cursor: not-allowed;
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 9.6875rem;
     padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
   }

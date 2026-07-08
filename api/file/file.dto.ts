@@ -31,10 +31,3 @@ export interface DriveFileUploadQueryParamsDto {
   scopeType?: string;
   scopeId?: number;
 }
-
-export interface RegisterDriveFileRequestDto {
-  driveUrl: string;
-  originalName: string;
-  mimeType?: string;
-  fileSize?: number;
-}

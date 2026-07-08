@@ -28,6 +28,13 @@ import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import { formatPhone } from "@/utils/formatPhone";
 import { getKstTodayIsoDate, parseKoreanShortDateToIsoDate } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+
+function autoResizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
 import {
   dailyStudentAttendanceOptions,
   getDailyStudentAttendanceStatusOrDefault,
@@ -477,6 +484,7 @@ export default function ClassJournalCreatePage() {
                 id={`lesson-${period}`}
                 name={`lesson${period}`}
                 placeholder={`${period}교시 수업 내용을 작성해주세요`}
+                onInput={(event) => autoResizeTextarea(event.currentTarget)}
                 disabled={
                   !hasTodayLessons ||
                   isAttendanceBlocked ||

@@ -32,7 +32,6 @@ import {
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import {
-  getUploadArchiveDocument,
   publishArchivePostWithNewFiles,
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
 import type { ArchiveDocumentConfig } from "@/config/archiveDocuments";
@@ -131,12 +130,11 @@ export default function ArchiveDocumentDetailPage({
 
       const title = editTitle.trim();
       const contentHtml = editContent.trim();
-      const uploadArchiveDocument = getUploadArchiveDocument(config.category);
-      const hasFileUpload = Boolean(uploadArchiveDocument) && editFiles.length > 0;
+      const hasFileUpload = editFiles.length > 0;
       shouldShowUploadToastRef.current = hasFileUpload;
       setIsUploadingFiles(hasFileUpload);
 
-      if (hasFileUpload && uploadArchiveDocument) {
+      if (hasFileUpload) {
         return publishArchivePostWithNewFiles({
           mode: "update",
           postId,
@@ -146,8 +144,6 @@ export default function ArchiveDocumentDetailPage({
           allowComment: editAllowComment,
           isPinned: editIsPinned,
           files: editFiles,
-          uploadDocument: uploadArchiveDocument,
-          sortOrderStart: editableAttachments.length,
           errorLabel: config.title,
           initialPinned: visiblePost?.isPinned ?? false,
         });

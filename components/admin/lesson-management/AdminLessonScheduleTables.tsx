@@ -46,7 +46,6 @@ const WEEKDAY_COLUMNS: { value: SubjectDayOfWeek; label: string }[] = [
 
 const WEEKEND_COLUMNS: { value: SubjectDayOfWeek; label: string }[] = [
   { value: "SATURDAY", label: "토" },
-  { value: "SUNDAY", label: "일" },
 ];
 
 const DISPLAY_PERIODS = [1, 2, 3] as const;

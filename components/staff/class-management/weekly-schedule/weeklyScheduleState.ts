@@ -15,7 +15,6 @@ export const WEEKDAY_COLUMNS: { value: SubjectDayOfWeek; label: string; isoWeekd
 
 export const WEEKEND_COLUMNS: { value: SubjectDayOfWeek; label: string; isoWeekday: number }[] = [
   { value: "SATURDAY", label: "토", isoWeekday: 6 },
-  { value: "SUNDAY", label: "일", isoWeekday: 7 },
 ];
 
 export const DISPLAY_PERIODS = [1, 2, 3] as const;

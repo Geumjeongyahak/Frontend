@@ -13,10 +13,12 @@ import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
 import {
+  assignUserClassroom,
   createUser,
   getAssignablePermissions,
   getTeacherContacts,
   getUsers,
+  releaseUserClassroom,
   removeUserPermission,
   updateUser,
   updateCurrentUser,
@@ -171,6 +173,89 @@ describe("user.api", () => {
       role: "VOLUNTEER",
       departmentId: 2,
     });
+  });
+
+  it("updates a user with null departmentId and classroomId for unassignment", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedBody: unknown;
+
+    server.use(
+      http.patch(`${API_BASE_URL}/api/v1/users/1`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({
+          ...USER_LIST_RESPONSE.content[0],
+          departmentId: null,
+          classroomId: null,
+          department: null,
+          classroom: null,
+        });
+      }),
+    );
+
+    const response = await updateUser(
+      { userId: 1 },
+      {
+        name: "Teacher One",
+        email: "teacher1@example.com",
+        phoneNumber: "010-2222-3333",
+        birthDate: "1990-01-01",
+        role: "VOLUNTEER",
+        departmentId: null,
+        classroomId: null,
+      },
+    );
+
+    expect(response.departmentId).toBeNull();
+    expect(response.classroomId).toBeNull();
+    expect(observedBody).toEqual({
+      name: "Teacher One",
+      email: "teacher1@example.com",
+      phoneNumber: "010-2222-3333",
+      birthDate: "1990-01-01",
+      role: "VOLUNTEER",
+      departmentId: null,
+      classroomId: null,
+    });
+  });
+
+  it("assigns a user's classroom with the expected PUT body", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedBody: unknown;
+
+    server.use(
+      http.put(`${API_BASE_URL}/api/v1/users/1/classroom`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({
+          ...USER_LIST_RESPONSE.content[0],
+          classroomId: 3,
+          classroom: { id: 3, name: "개나리반" },
+        });
+      }),
+    );
+
+    const response = await assignUserClassroom({ userId: 1 }, { classroomId: 3 });
+
+    expect(response.classroomId).toBe(3);
+    expect(response.classroom?.name).toBe("개나리반");
+    expect(observedBody).toEqual({ classroomId: 3 });
+  });
+
+  it("releases a user's classroom with DELETE /classroom", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let called = false;
+
+    server.use(
+      http.delete(`${API_BASE_URL}/api/v1/users/1/classroom`, () => {
+        called = true;
+        return new HttpResponse(null, { status: 200 });
+      }),
+    );
+
+    await expect(releaseUserClassroom({ userId: 1 })).resolves.toBeUndefined();
+    expect(called).toBe(true);
   });
 
   it("sends DELETE body data when removing a user permission", async () => {
