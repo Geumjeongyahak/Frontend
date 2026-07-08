@@ -790,10 +790,6 @@ export default function AdminDashboardPage() {
   );
   const filteredClassrooms = useMemo(() => {
     const keyword = classroomSearch.trim().toLowerCase();
-    const collator = new Intl.Collator(["ko-KR", "en-US"], {
-      numeric: true,
-      sensitivity: "base",
-    });
     const searchedClassrooms = keyword
       ? classrooms.filter((item) =>
           [item.id ? String(item.id) : "", item.name, item.type, item.description].some((value) =>
@@ -802,9 +798,12 @@ export default function AdminDashboardPage() {
         )
       : classrooms;
 
-    return [...searchedClassrooms].sort((first, second) =>
-      collator.compare(first.name ?? "", second.name ?? ""),
-    );
+    return [...searchedClassrooms].sort((first, second) => {
+      const firstId = typeof first.id === "number" ? first.id : Number.NEGATIVE_INFINITY;
+      const secondId = typeof second.id === "number" ? second.id : Number.NEGATIVE_INFINITY;
+
+      return firstId - secondId;
+    });
   }, [classroomSearch, classrooms]);
   const channels = useMemo(() => channelsQuery.data ?? [], [channelsQuery.data]);
   const filteredChannels = useMemo(() => {
