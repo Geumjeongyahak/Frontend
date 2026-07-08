@@ -11,6 +11,7 @@ import { getDepartments } from "@/api/department/department.api";
 import { createPurchaseRequest } from "@/api/request/request.api";
 import type { CreatePurchaseRequestDto } from "@/api/request/request.dto";
 import { getVendors } from "@/api/vendor/vendor.api";
+import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
@@ -190,6 +191,7 @@ export default function FinanceRequestCreatePage() {
   const [prepaidProducts, setPrepaidProducts] = useState<PrepaidProductForm[]>([
     initialPrepaidProduct,
   ]);
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
   const [approvalEntries, setApprovalEntries] = useState<ApprovalEntry[]>(initialApprovalEntries);
   const [cooperationEntries, setCooperationEntries] =
     useState<ApprovalEntry[]>(initialCooperationEntries);
@@ -1157,6 +1159,32 @@ export default function FinanceRequestCreatePage() {
                     </ApprovalTable>
                   </ResponsiveTableWrap>
                 </Section>
+
+                <Section>
+                  <SectionTitle>영수증</SectionTitle>
+                  <ReceiptSectionDescription>
+                    현재는 품의서 작성 단계이지만, 추후 구매 완료 보고를 통한 결의서 작성 시 사용할
+                    영수증을 미리 첨부해 둘 수 있습니다.
+                  </ReceiptSectionDescription>
+                  <AttachmentEditorPanel
+                    existingAttachments={[]}
+                    selectedFiles={receiptFiles}
+                    onSelectFiles={(files) => setReceiptFiles((current) => [...current, ...files])}
+                    onRemoveSelected={(file) =>
+                      setReceiptFiles((current) =>
+                        current.filter(
+                          (currentFile) =>
+                            !(
+                              currentFile.name === file.name &&
+                              currentFile.lastModified === file.lastModified
+                            ),
+                        ),
+                      )
+                    }
+                    selectLabel="영수증 파일 선택"
+                    emptyText="첨부된 영수증 파일이 없습니다."
+                  />
+                </Section>
               </>
             ) : (
               <Section>
@@ -1219,7 +1247,6 @@ export default function FinanceRequestCreatePage() {
                 </AddItemButton>
               </Section>
             )}
-
           </Form>
         </Content>
       </Stage>
@@ -1411,6 +1438,17 @@ const SectionTitle = styled.h2`
 
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize20};
+  }
+`;
+
+const ReceiptSectionDescription = styled.p`
+  margin: 0;
+  color: ${colors.placeholder};
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight150};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize18};
   }
 `;
 
