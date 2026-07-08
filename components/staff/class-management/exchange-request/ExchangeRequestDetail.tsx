@@ -1,11 +1,19 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import styled from "styled-components";
 import type { LessonExchangeRequestStatus } from "@/api/lessonExchange/lessonExchange.dto";
 import { layout, spacing, typography } from "@/styles/tokens";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import { useExchangePostPage } from "@/app/staff/class-management/exchange-request/[postId]/useExchangePostPage";
+
+function autoResizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
 
 export type ExchangeStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -25,9 +33,15 @@ function normalizeRequestStatusTone(
 }
 
 export function ExchangePostDetail({ page, showExpiresAt = true }: ExchangeRequestDetailProps) {
+  const editContentRef = useRef<HTMLTextAreaElement | null>(null);
   const request = page.request;
 
   const detailStatusTone = normalizeRequestStatusTone(request?.status);
+
+  useEffect(() => {
+    if (!page.isEditing) return;
+    autoResizeTextarea(editContentRef.current);
+  }, [page.editForm.watch("content"), page.isEditing]);
   const detailStatus = page.requestError ? "확인 불가" : formatRequestStatus(request?.status);
 
   return (
@@ -78,7 +92,14 @@ export function ExchangePostDetail({ page, showExpiresAt = true }: ExchangeReque
             <ApplicantBoxLabel>교환 신청 사유</ApplicantBoxLabel>
 
             {page.isEditing ? (
-              <EditInput {...page.editForm.register("content")} />
+              <EditReasonInput
+                {...page.editForm.register("content")}
+                ref={(element) => {
+                  page.editForm.register("content").ref(element);
+                  editContentRef.current = element;
+                }}
+                onInput={(event) => autoResizeTextarea(event.currentTarget)}
+              />
             ) : (
               <ApplicantFieldValue>{request?.content || "—"}</ApplicantFieldValue>
             )}
@@ -297,12 +318,34 @@ const EditInput = styled.input`
   border: 1px solid #c0c0c0;
   background: #ffffff;
   outline: none;
-
+ 
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
 
   @media (min-width: 120rem) {
     min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const EditReasonInput = styled.textarea`
+  width: 100%;
+  min-height: 6.875rem;
+  padding: 0.8125rem ${spacing.space12};
+
+  border: 1px solid #c0c0c0;
+  background: #ffffff;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  font-family: inherit;
+
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 9.6875rem;
     padding: ${spacing.space20};
     font-size: ${typography.fontSize20};
   }

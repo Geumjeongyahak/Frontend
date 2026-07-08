@@ -53,6 +53,13 @@ const budgetItemNameOptions = [
 const paymentAccountOptions = ["국비04", "구비01", "구비08"] as const;
 const customDetailBusinessOptionValue = "__custom_detail_business__";
 
+function autoResizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
+
 type PaymentType = "PREPAID" | "ACTUAL";
 
 type FinanceItemForm = {
@@ -178,6 +185,7 @@ export default function FinanceRequestCreatePage() {
   const [prepaidSummary, setPrepaidSummary] = useState(() =>
     getPrepaidSummaryTemplate(getTodayInputValue()),
   );
+  const prepaidSummaryRef = useRef<HTMLTextAreaElement | null>(null);
   const [paymentAccount, setPaymentAccount] = useState("");
   const [requestDepartmentId, setRequestDepartmentId] = useState("");
   const [approvalDate, setApprovalDate] = useState(getTodayInputValue);
@@ -196,6 +204,10 @@ export default function FinanceRequestCreatePage() {
   const [cooperationEntries, setCooperationEntries] =
     useState<ApprovalEntry[]>(initialCooperationEntries);
   const previousApplicantNameRef = useRef("");
+
+  useEffect(() => {
+    autoResizeTextarea(prepaidSummaryRef.current);
+  }, [prepaidSummary]);
 
   const { data: classroomData } = useQuery({
     queryKey: ["classrooms", "finance-request-create"],
@@ -748,8 +760,12 @@ export default function FinanceRequestCreatePage() {
                           <SummaryLabelCell>품의 개요</SummaryLabelCell>
                           <SummaryWideCell colSpan={3}>
                             <SummaryTextarea
+                              ref={prepaidSummaryRef}
                               value={prepaidSummary}
-                              onChange={(event) => setPrepaidSummary(event.target.value)}
+                              onChange={(event) => {
+                                setPrepaidSummary(event.target.value);
+                                autoResizeTextarea(event.currentTarget);
+                              }}
                               placeholder="품의 개요를 입력해 주세요."
                               required
                             />

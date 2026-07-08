@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, FormEvent, Fragment, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { IconDownload, IconFilePlus, IconX } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -39,6 +39,13 @@ import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 type FinanceRequestDetailPageProps = {
   requestId: number;
 };
+
+function autoResizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
 
 type PaymentType = "PREPAID" | "ACTUAL";
 
@@ -436,6 +443,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const [editPrepaidContent, setEditPrepaidContent] = useState<ParsedPrepaidContent | null>(null);
   const [editPrepaidDepartmentId, setEditPrepaidDepartmentId] = useState("");
   const [editReceiptFiles, setEditReceiptFiles] = useState<File[]>([]);
+  const editSummaryTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [reportItems, setReportItems] = useState<ReportItem[]>([]);
   const [savedPrepaidReportItems, setSavedPrepaidReportItems] = useState<ReportItem[]>([]);
   const [customReportFieldModal, setCustomReportFieldModal] = useState<{
@@ -444,6 +452,10 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   } | null>(null);
   const [customReportFieldDraft, setCustomReportFieldDraft] = useState("");
   const [isReportEditing, setIsReportEditing] = useState(false);
+
+  useEffect(() => {
+    autoResizeTextarea(editSummaryTextareaRef.current);
+  }, [editPrepaidContent?.summary, isEditing]);
   const {
     data: request,
     isLoading,
@@ -1379,9 +1391,13 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                 <SummaryLabelCell>품의 개요</SummaryLabelCell>
                                 <SummaryWideCell colSpan={3}>
                                   <SummaryTextareaInput
+                                    ref={editSummaryTextareaRef}
                                     value={editPrepaidContent.summary}
                                     onChange={(event) =>
-                                      updateEditPrepaidContent({ summary: event.target.value })
+                                      {
+                                        updateEditPrepaidContent({ summary: event.target.value });
+                                        autoResizeTextarea(event.currentTarget);
+                                      }
                                     }
                                   />
                                 </SummaryWideCell>

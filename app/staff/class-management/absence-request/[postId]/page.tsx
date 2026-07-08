@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "react-toastify";
@@ -20,6 +20,13 @@ import { queryKeys } from "@/lib/queryKeys";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 
+function autoResizeTextarea(element: HTMLTextAreaElement | null) {
+  if (!element) return;
+
+  element.style.height = "auto";
+  element.style.height = `${element.scrollHeight}px`;
+}
+
 function normalizeStatusTone(status?: AbsenceRequestStatus): ExchangeStatus {
   if (status === "APPROVED") return "APPROVED";
   if (status === "REJECTED" || status === "CANCELLED" || status === "EXPIRED") return "REJECTED";
@@ -27,6 +34,7 @@ function normalizeStatusTone(status?: AbsenceRequestStatus): ExchangeStatus {
 }
 
 export default function AbsencePostPage() {
+  const editReasonRef = useRef<HTMLTextAreaElement | null>(null);
   const params = useParams<{ postId: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -37,6 +45,11 @@ export default function AbsencePostPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editReason, setEditReason] = useState("");
+
+  useEffect(() => {
+    if (!isEditing) return;
+    autoResizeTextarea(editReasonRef.current);
+  }, [editReason, isEditing]);
   const deleteAbsenceMutation = useMutation({
     mutationFn: deleteAbsenceRequest,
     onSuccess: () => {
@@ -189,9 +202,11 @@ export default function AbsencePostPage() {
 
           <Label>결강 신청 사유</Label>
           {isEditing ? (
-            <EditInput
+            <EditReasonInput
+              ref={editReasonRef}
               value={editReason}
               onChange={(event) => setEditReason(event.target.value)}
+              onInput={(event) => autoResizeTextarea(event.currentTarget)}
             />
           ) : (
             <TextBox>{detailReason}</TextBox>
@@ -355,6 +370,26 @@ const EditInput = styled.input`
   outline: none;
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
+
+  @media (min-width: 120rem) {
+    min-height: 4rem;
+    padding: ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const EditReasonInput = styled.textarea`
+  width: 100%;
+  min-height: 2.6875rem;
+  padding: 0.8125rem ${spacing.space12};
+  border: 1px solid #c0c0c0;
+  background: #ffffff;
+  outline: none;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+  resize: none;
+  overflow: hidden;
+  font-family: inherit;
 
   @media (min-width: 120rem) {
     min-height: 4rem;
