@@ -9,7 +9,14 @@ import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
 import { deleteAttachment } from "@/api/file/file.api";
-import { attachPostFile, createPost, getPost, pinPost, publishPost, updatePost } from "@/api/post/post.api";
+import {
+  attachPostAttachment,
+  createPost,
+  getPost,
+  pinPost,
+  publishPost,
+  updatePost,
+} from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
@@ -37,9 +44,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
-import { uploadBoardDocument } from "@/lib/googleDrive";
 import { queryKeys } from "@/lib/queryKeys";
-import type { UploadTargetConfig } from "@/lib/googleDrive/uploadTargets";
 
 type OpenDropdown = "type" | "scope" | null;
 
@@ -225,17 +230,6 @@ export default function BoardCreatePageClient({
       : scopeOptions.find((option) => option.value === selectedBoardScope)?.label ??
         (selectedBoardType === "CLASSROOM" ? "반별 게시판" : "부서별 게시판");
 
-  function resolveBoardUploadTarget(): UploadTargetConfig {
-    if (selectedBoardType === "NOTICE") {
-      return { targetType: "notice", targetName: "공지사항" };
-    }
-
-    if (selectedBoardType === "CLASSROOM") {
-      return { targetType: "classroom", targetName: selectedScopeLabel };
-    }
-
-    return { targetType: "department", targetName: selectedScopeLabel };
-  }
   const { mutate, isPending, isError } = useMutation({
     mutationFn: async () => {
       const channelId = isEditMode ? editChannelId : selectedChannelId;
@@ -267,22 +261,11 @@ export default function BoardCreatePageClient({
           throw new Error("게시글 초안을 저장하지 못했습니다.");
         }
 
-        const boardUploadTarget = resolveBoardUploadTarget();
-        const registeredFiles = await Promise.all(
-          selectedFiles.map((file) => uploadBoardDocument(file, boardUploadTarget)),
-        );
-
-        for (const [index, registered] of registeredFiles.entries()) {
-          if (!registered.fileId) {
-            throw new Error("게시판 파일 메타데이터 등록에 실패했습니다.");
-          }
-
-          await attachPostFile(
+        for (const file of selectedFiles) {
+          await attachPostAttachment(
             { channelId, postId: draftPost.id },
-            {
-              fileId: registered.fileId,
-              sortOrder: (isEditMode ? visibleExistingAttachments.length : 0) + index,
-            },
+            file,
+            file.name,
           );
         }
 

@@ -1,29 +1,6 @@
-import type { FileUploadResponseDto } from "@/api/file/file.dto";
-import { attachPostFile, createPost, pinPost, publishPost, updatePost } from "@/api/post/post.api";
+import { attachPostAttachment, createPost, pinPost, publishPost, updatePost } from "@/api/post/post.api";
 import type { PostDetailResponseDto } from "@/api/post/post.dto";
-import {
-  uploadDocumentFormsDocument,
-  uploadExamMaterialsDocument,
-  uploadHandoverDocument,
-} from "@/lib/googleDrive";
 import type { ArchiveDocumentCategory } from "@/config/archiveDocuments";
-
-export type UploadArchiveDocumentFn = (file: File) => Promise<FileUploadResponseDto>;
-
-export function getUploadArchiveDocument(
-  category: ArchiveDocumentCategory,
-): UploadArchiveDocumentFn | null {
-  switch (category) {
-    case "handover":
-      return uploadHandoverDocument;
-    case "exam":
-      return uploadExamMaterialsDocument;
-    case "forms":
-      return uploadDocumentFormsDocument;
-    default:
-      return null;
-  }
-}
 
 type PublishArchivePostWithNewFilesParams = {
   channelId: number;
@@ -32,8 +9,6 @@ type PublishArchivePostWithNewFilesParams = {
   allowComment: boolean;
   isPinned: boolean;
   files: File[];
-  uploadDocument: UploadArchiveDocumentFn;
-  sortOrderStart: number;
   errorLabel: string;
 } & ({ mode: "create" } | { mode: "update"; postId: number; initialPinned: boolean });
 
@@ -48,8 +23,6 @@ export async function publishArchivePostWithNewFiles(
     allowComment,
     isPinned,
     files,
-    uploadDocument,
-    sortOrderStart,
     errorLabel,
   } = params;
   const publishBody = { title, contentHtml, allowComment };
@@ -66,17 +39,16 @@ export async function publishArchivePostWithNewFiles(
     throw new Error(`${errorLabel} 초안을 저장하지 못했습니다.`);
   }
 
-  const registeredFiles = await Promise.all(files.map((file) => uploadDocument(file)));
-
-  for (const [index, registered] of registeredFiles.entries()) {
-    if (!registered.fileId) {
-      throw new Error(`${errorLabel} 파일 메타데이터 등록에 실패했습니다.`);
-    }
-
-    await attachPostFile(
+  for (const file of files) {
+    const uploaded = await attachPostAttachment(
       { channelId, postId: draftPost.id },
-      { fileId: registered.fileId, sortOrder: sortOrderStart + index },
+      file,
+      file.name,
     );
+
+    if (!uploaded.fileId) {
+      throw new Error(`${errorLabel} 파일 업로드에 실패했습니다.`);
+    }
   }
 
   const publishedPost = await publishPost({ channelId, postId: draftPost.id }, publishBody);

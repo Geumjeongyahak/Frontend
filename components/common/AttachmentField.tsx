@@ -126,22 +126,13 @@ export function AttachmentDownloadList({
       if (!finalHref || finalHref === "#") {
         return;
       }
-
-      const response = await fetch(finalHref);
-
-      if (!response.ok) {
-        throw new Error(`첨부 파일 다운로드에 실패했습니다. status=${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const objectUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = objectUrl;
-      link.download = attachment.label;
+      link.href = finalHref;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(objectUrl);
     } finally {
       setDownloadingId((current) => (current === attachment.id ? null : current));
     }

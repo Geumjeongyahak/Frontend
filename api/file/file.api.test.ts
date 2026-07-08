@@ -17,7 +17,6 @@ import { setAccessToken } from "../client/tokenStorage";
 import {
   deleteAttachment,
   getAttachmentDownloadUrl,
-  registerDriveFile,
   uploadAdminPurchaseRequestReceiptImage,
   uploadAdminVendorReceiptImage,
   uploadPurchaseItemImage,
@@ -121,31 +120,6 @@ describe("file.api", () => {
     ]);
     expect(observedContentTypes.every((contentType) => contentType.includes("multipart/form-data")))
       .toBe(true);
-  });
-
-  it("registers Google Drive file metadata", async () => {
-    setAccessToken(VALID_ACCESS_TOKEN);
-
-    let observedBody: unknown;
-
-    server.use(
-      http.post(`${API_BASE_URL}/api/v1/files/drive`, async ({ request }) => {
-        observedBody = await request.json();
-        return HttpResponse.json(FILE_UPLOAD_RESPONSE);
-      }),
-    );
-
-    const body = {
-      driveUrl: "https://drive.google.com/file/d/abc123/view?usp=sharing",
-      originalName: "handover.pdf",
-      mimeType: "application/pdf",
-      fileSize: 1024,
-    };
-
-    const response = await registerDriveFile(body);
-
-    expect(response).toEqual(FILE_UPLOAD_RESPONSE);
-    expect(observedBody).toEqual(body);
   });
 
   it("deletes an attachment through the expected endpoint", async () => {

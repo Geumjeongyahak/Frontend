@@ -38,7 +38,6 @@ import {
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import {
-  getUploadArchiveDocument,
   publishArchivePostWithNewFiles,
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
 import type { ArchiveDocumentConfig } from "@/config/archiveDocuments";
@@ -360,12 +359,10 @@ export default function ArchiveDocumentFormPage({
 
       const title = visibleTitle.trim();
       const contentHtml = visibleDescription.trim();
-      const uploadArchiveDocument = getUploadArchiveDocument(config.category);
-      const sortOrderStart = isEditMode ? visibleExistingAttachments.length : 0;
-      const hasFileUpload = Boolean(uploadArchiveDocument) && files.length > 0;
+      const hasFileUpload = files.length > 0;
       shouldShowUploadToastRef.current = hasFileUpload;
 
-      if (hasFileUpload && uploadArchiveDocument) {
+      if (hasFileUpload) {
         return publishArchivePostWithNewFiles({
           channelId,
           title,
@@ -373,8 +370,6 @@ export default function ArchiveDocumentFormPage({
           allowComment: visibleAllowComment,
           isPinned: visibleIsPinned,
           files,
-          uploadDocument: uploadArchiveDocument,
-          sortOrderStart,
           errorLabel: config.title,
           ...(isEditMode
             ? {
