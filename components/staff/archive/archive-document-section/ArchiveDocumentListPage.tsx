@@ -1,18 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { IconEdit, IconSearch } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
+import { getClassrooms } from "@/api/classroom/classroom.api";
+import { getDepartments } from "@/api/department/department.api";
 import { getPosts } from "@/api/post/post.api";
 import type { PostSummaryResponseDto } from "@/api/post/post.dto";
+import BoardDropdown, { type DropdownOption } from "@/components/staff/board/BoardDropdown";
+import {
+  CLASSROOM_WRITE_SCOPE_OPTIONS,
+  DEPARTMENT_WRITE_SCOPE_OPTIONS,
+} from "@/components/staff/board/boardOptions";
 import {
   ARCHIVE_DOCUMENTS_PER_PAGE,
   type ArchiveDocumentConfig,
 } from "@/config/archiveDocuments";
-import { resolveArchiveChannel } from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
+import {
+  resolveArchiveChannel,
+  resolveArchiveChannelByName,
+} from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import ListPanel, { type ListPanelRow } from "@/components/staff/common/ListPanel";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
@@ -23,6 +33,36 @@ type ArchiveDocumentListPageProps = {
   config: ArchiveDocumentConfig;
   initialPage: number;
 };
+
+type ArchiveScopeType = "CLASSROOM" | "DEPARTMENT";
+type OpenDropdown = "type" | "scope" | null;
+
+const ARCHIVE_SCOPE_TYPE_OPTIONS = [
+  { label: "반별", value: "CLASSROOM" },
+  { label: "부서별", value: "DEPARTMENT" },
+] as const satisfies readonly DropdownOption<ArchiveScopeType>[];
+const EMPTY_SCOPE_OPTION: DropdownOption<string> = { label: "선택", value: "__empty__" };
+
+const CLASSROOM_SCOPE_ORDER = CLASSROOM_WRITE_SCOPE_OPTIONS.map((option) => option.label);
+const DEPARTMENT_SCOPE_ORDER = DEPARTMENT_WRITE_SCOPE_OPTIONS.map((option) => option.label);
+
+function sortOptionsByReference(
+  options: DropdownOption<string>[],
+  referenceOrder: readonly string[],
+) {
+  const orderMap = new Map(referenceOrder.map((label, index) => [label, index]));
+
+  return [...options].sort((a, b) => {
+    const aIndex = orderMap.get(a.label) ?? Number.MAX_SAFE_INTEGER;
+    const bIndex = orderMap.get(b.label) ?? Number.MAX_SAFE_INTEGER;
+
+    if (aIndex !== bIndex) {
+      return aIndex - bIndex;
+    }
+
+    return a.label.localeCompare(b.label, "ko");
+  });
+}
 
 function getPostTime(post: PostSummaryResponseDto) {
   const dateValue = post.createdAt ?? post.updatedAt;
@@ -42,10 +82,14 @@ export default function ArchiveDocumentListPage({
 }: ArchiveDocumentListPageProps) {
   const router = useRouter();
   const { user, status: authStatus } = useAuthSession();
+  const isHandoverPage = config.category === "handover";
   const [mineOnly, setMineOnly] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const [scopeType, setScopeType] = useState<ArchiveScopeType>("CLASSROOM");
+  const [scopeValue, setScopeValue] = useState("");
+  const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null);
 
   const requestedPage = Number.isInteger(initialPage) && initialPage >= 1 ? initialPage : 1;
   const isAuthenticated = authStatus === "authenticated";
@@ -62,19 +106,84 @@ export default function ArchiveDocumentListPage({
     enabled: isAuthenticated,
     retry: false,
   });
+  const classroomsQuery = useQuery({
+    queryKey: ["staff", "archive", "handover", "classrooms"],
+    queryFn: () => getClassrooms({ size: 100 }),
+    enabled: isAuthenticated && isHandoverPage,
+    retry: false,
+  });
+  const departmentsQuery = useQuery({
+    queryKey: ["staff", "archive", "handover", "departments"],
+    queryFn: () => getDepartments(),
+    enabled: isAuthenticated && isHandoverPage,
+    retry: false,
+  });
 
+  const scopeOptions = useMemo<readonly DropdownOption<string>[]>(() => {
+    if (!isHandoverPage) return [];
+
+    if (scopeType === "CLASSROOM") {
+      const options =
+        classroomsQuery.data?.content
+          ?.filter((classroom) => typeof classroom.id === "number")
+          .map((classroom) => ({
+            label: classroom.name ?? `반 ${classroom.id}`,
+            value: String(classroom.id),
+          })) ?? [];
+
+      return sortOptionsByReference(options, CLASSROOM_SCOPE_ORDER);
+    }
+
+    const options =
+      departmentsQuery.data?.departments
+        ?.filter((department) => typeof department.id === "number")
+        .map((department) => ({
+          label: department.name ?? `부서 ${department.id}`,
+          value: String(department.id),
+        })) ?? [];
+
+    return sortOptionsByReference(options, DEPARTMENT_SCOPE_ORDER);
+  }, [classroomsQuery.data, departmentsQuery.data, isHandoverPage, scopeType]);
+  const scopeDropdownOptions =
+    scopeOptions.length > 0 ? scopeOptions : [EMPTY_SCOPE_OPTION];
+
+  useEffect(() => {
+    if (!isHandoverPage) return;
+    if (scopeOptions.length === 0) {
+      setScopeValue("");
+      return;
+    }
+
+    const currentScopeExists = scopeOptions.some((option) => option.value === scopeValue);
+    if (currentScopeExists) return;
+
+    const firstMatchedOption = scopeOptions.find((option) =>
+      resolveArchiveChannelByName(channelsQuery.data, `${option.label} ${config.title}`),
+    );
+
+    setScopeValue(firstMatchedOption?.value ?? scopeOptions[0]?.value ?? "");
+  }, [channelsQuery.data, config.title, isHandoverPage, scopeOptions, scopeValue]);
+
+  const selectedScopeOption = scopeOptions.find((option) => option.value === scopeValue);
+  const targetChannelName =
+    isHandoverPage && selectedScopeOption ? `${selectedScopeOption.label} ${config.title}` : config.title;
   const channel = useMemo(
-    () => (isAuthenticated ? resolveArchiveChannel(channelsQuery.data, config) : undefined),
-    [channelsQuery.data, config, isAuthenticated],
+    () =>
+      isAuthenticated
+        ? isHandoverPage
+          ? resolveArchiveChannelByName(channelsQuery.data, targetChannelName)
+          : resolveArchiveChannel(channelsQuery.data, config)
+        : undefined,
+    [channelsQuery.data, config, isAuthenticated, isHandoverPage, targetChannelName],
   );
-  const channelId = channel?.id ?? (channelsQuery.isError ? config.channelId : undefined);
+  const channelId = channel?.id ?? (!isHandoverPage && channelsQuery.isError ? config.channelId : undefined);
   const channelType = channel?.channelType;
 
   const postsQuery = useQuery({
     queryKey: queryKeys.posts.boardList({
       page: requestedPage,
       channelType: channelType ?? "RESOURCE",
-      boardScope: String(channelId),
+      boardScope: `${channelId ?? ""}:${scopeType}:${scopeValue}:${targetChannelName}`,
       searchKeyword,
       mineOnly,
       author: currentAuthor,
@@ -88,7 +197,10 @@ export default function ArchiveDocumentListPage({
         page: Math.max(0, requestedPage - 1),
         size: ARCHIVE_DOCUMENTS_PER_PAGE,
     }),
-    enabled: isAuthenticated && Boolean(channelId),
+    enabled:
+      isAuthenticated &&
+      Boolean(channelId) &&
+      (!isHandoverPage || Boolean(scopeValue && selectedScopeOption)),
     retry: false,
   });
 
@@ -133,6 +245,8 @@ export default function ArchiveDocumentListPage({
 
   const emptyMessage = postsQuery.isLoading
     ? `${config.title}를 불러오는 중입니다.`
+    : isHandoverPage && selectedScopeOption && !channel
+      ? `${targetChannelName} 채널을 찾지 못했습니다.`
     : postsQuery.isError
       ? `${config.title}를 불러오지 못했습니다.`
       : config.emptyMessage;
@@ -164,6 +278,46 @@ export default function ArchiveDocumentListPage({
       writeIcon={<IconEdit aria-hidden="true" size={16} stroke={2} />}
       showClassColumn={false}
       showStatusColumn={false}
+      filterSlot={
+        isHandoverPage ? (
+          <FilterBar aria-label="인수인계서 필터">
+            <BoardDropdown
+              label="인수인계서 분류 유형"
+              options={ARCHIVE_SCOPE_TYPE_OPTIONS}
+              value={scopeType}
+              isOpen={openDropdown === "type"}
+              onToggle={() => setOpenDropdown((current) => (current === "type" ? null : "type"))}
+              onSelect={(nextValue) => {
+                resetToFirstPage();
+                setScopeType(nextValue);
+                setScopeValue("");
+                setOpenDropdown(null);
+                setRefreshNonce((current) => current + 1);
+              }}
+              width="compact"
+            />
+            <BoardDropdown
+              label="인수인계서 분류 선택"
+              options={scopeDropdownOptions}
+              value={scopeValue || scopeDropdownOptions[0]?.value || EMPTY_SCOPE_OPTION.value}
+              disabled={scopeOptions.length === 0}
+              isOpen={openDropdown === "scope"}
+              onToggle={() =>
+                setOpenDropdown((current) =>
+                  current === "scope" || scopeOptions.length === 0 ? null : "scope",
+                )
+              }
+              onSelect={(nextValue) => {
+                resetToFirstPage();
+                setScopeValue(nextValue);
+                setOpenDropdown(null);
+                setRefreshNonce((current) => current + 1);
+              }}
+              width="compact"
+            />
+          </FilterBar>
+        ) : null
+      }
       searchSlot={
         <SearchForm
           role="search"
@@ -188,6 +342,17 @@ export default function ArchiveDocumentListPage({
     />
   );
 }
+
+const FilterBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space20};
+
+  @media (max-width: ${layout.breakpointMobile}) {
+    align-items: stretch;
+    flex-direction: column;
+  }
+`;
 
 const SearchForm = styled.form`
   display: flex;

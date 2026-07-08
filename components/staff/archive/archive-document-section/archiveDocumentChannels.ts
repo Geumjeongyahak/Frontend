@@ -30,3 +30,18 @@ export function resolveArchiveChannel(
     archiveChannels?.find((channel) => channel.id === config.channelId)
   );
 }
+
+export function resolveArchiveChannelByName(
+  channels: ChannelResponseDto[] | undefined,
+  channelName: string,
+) {
+  const normalizedName = channelName.trim();
+  const archiveChannels = channels?.filter((channel) =>
+    isArchiveDocumentChannelType(channel.channelType),
+  );
+
+  return (
+    archiveChannels?.find((channel) => channel.name?.trim() === normalizedName) ??
+    archiveChannels?.find((channel) => channel.name?.includes(normalizedName))
+  );
+}
