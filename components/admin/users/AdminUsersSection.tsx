@@ -2,6 +2,7 @@
 
 import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import styled from "styled-components";
+import type { ClassroomListItemDto } from "@/api/classroom/classroom.dto";
 import type { DepartmentListItemDto } from "@/api/department/department.dto";
 import type {
   PermissionDefinitionDto,
@@ -34,6 +35,51 @@ import { formatPhoneNumber } from "@/utils/phoneNumber";
 
 export const ADMIN_USERS_PER_PAGE = 11;
 
+function getUserFormStateFromUser(user?: UserResponseDto, fallback?: UserFormState): UserFormState {
+  if (!user) {
+    return (
+      fallback ?? {
+        email: "",
+        nickname: "",
+        password: "",
+        confirmPassword: "",
+        name: "",
+        phoneNumber: "",
+        birthDate: "",
+        role: "VOLUNTEER",
+        departmentId: "",
+        classroomId: "",
+      }
+    );
+  }
+
+  return {
+    email: user.email ?? fallback?.email ?? "",
+    nickname: user.nickname ?? fallback?.nickname ?? "",
+    password: "",
+    confirmPassword: "",
+    name: user.name ?? fallback?.name ?? "",
+    phoneNumber: user.phoneNumber ?? fallback?.phoneNumber ?? "",
+    birthDate:
+      toBirthDateInputValue(user.birthDate ?? user.residentRegistrationNumberPrefix) ||
+      fallback?.birthDate ||
+      "",
+    role: user.role ?? fallback?.role ?? "VOLUNTEER",
+    departmentId:
+      user.departmentId !== null && user.departmentId !== undefined
+        ? String(user.departmentId)
+        : typeof user.department?.id === "number"
+          ? String(user.department.id)
+          : "",
+    classroomId:
+      typeof user.classroom?.id === "number"
+        ? String(user.classroom.id)
+        : typeof user.classroomId === "number"
+          ? String(user.classroomId)
+          : "",
+  };
+}
+
 function getDepartmentLabel(item: UserListItemDto, departments: DepartmentListItemDto[]) {
   if (item.department?.name) {
     return item.department.name;
@@ -43,6 +89,58 @@ function getDepartmentLabel(item: UserListItemDto, departments: DepartmentListIt
     return (
       departments.find((department) => department.id === item.departmentId)?.name ??
       `부서 ${item.departmentId}`
+    );
+  }
+
+  return "-";
+}
+
+function getClassroomLabel(
+  item: Pick<UserListItemDto, "classroom" | "classroomId" | "classroomName" | "teacherAssignments">,
+  classrooms: ClassroomListItemDto[],
+) {
+  if (item.classroom?.name) {
+    return item.classroom.name;
+  }
+
+  if (typeof item.classroom?.id === "number") {
+    return (
+      classrooms.find((classroom) => classroom.id === item.classroom?.id)?.name ??
+      `분반 ${item.classroom.id}`
+    );
+  }
+
+  if (item.classroomName?.trim()) {
+    return item.classroomName.trim();
+  }
+
+  if (typeof item.classroomId === "number") {
+    return (
+      classrooms.find((classroom) => classroom.id === item.classroomId)?.name ??
+      `분반 ${item.classroomId}`
+    );
+  }
+
+  const assignmentClassroomNames = Array.from(
+    new Set(
+      (item.teacherAssignments ?? [])
+        .map((assignment) => assignment.classroomName?.trim() ?? "")
+        .filter(Boolean),
+    ),
+  );
+
+  if (assignmentClassroomNames.length > 0) {
+    return assignmentClassroomNames.join(", ");
+  }
+
+  const assignmentClassroomId = (item.teacherAssignments ?? []).find(
+    (assignment) => typeof assignment.classroomId === "number",
+  )?.classroomId;
+
+  if (typeof assignmentClassroomId === "number") {
+    return (
+      classrooms.find((classroom) => classroom.id === assignmentClassroomId)?.name ??
+      `분반 ${assignmentClassroomId}`
     );
   }
 
@@ -100,6 +198,7 @@ type ValueMutationAction<TVariables> = {
 type AdminUsersSectionProps = {
   filteredUsers: UserListItemDto[];
   departments: DepartmentListItemDto[];
+  classrooms: ClassroomListItemDto[];
   selectedUserId: number | null;
   isUserEditing: boolean;
   isUserCreateModalOpen: boolean;
@@ -136,6 +235,7 @@ type AdminUsersSectionProps = {
 export function AdminUsersSection({
   filteredUsers,
   departments,
+  classrooms,
   selectedUserId,
   isUserEditing,
   isUserCreateModalOpen,
@@ -196,51 +296,13 @@ export function AdminUsersSection({
   }
 
   function cancelEditing() {
-    const detail = userDetailQuery.data;
-
-    setUserForm({
-      email: detail?.email ?? userForm.email,
-      nickname: detail?.nickname ?? userForm.nickname,
-      password: "",
-      confirmPassword: "",
-      name: detail?.name ?? userForm.name,
-      phoneNumber: detail?.phoneNumber ?? userForm.phoneNumber,
-      birthDate:
-        toBirthDateInputValue(detail?.birthDate ?? detail?.residentRegistrationNumberPrefix) ||
-        userForm.birthDate,
-      role: detail?.role ?? userForm.role,
-      departmentId:
-        detail?.departmentId !== null && detail?.departmentId !== undefined
-          ? String(detail.departmentId)
-          : typeof detail?.department?.id === "number"
-            ? String(detail.department.id)
-            : userForm.departmentId,
-    });
+    setUserForm(getUserFormStateFromUser(userDetailQuery.data, userForm));
     setIsUserEditing(false);
   }
 
   function startEditing() {
-    const detail = userDetailQuery.data;
-
-    if (detail) {
-      setUserForm((current) => ({
-        email: detail.email ?? current.email,
-        nickname: detail.nickname ?? current.nickname,
-        password: "",
-        confirmPassword: "",
-        name: detail.name ?? current.name,
-        phoneNumber: detail.phoneNumber ?? current.phoneNumber,
-        birthDate:
-          toBirthDateInputValue(detail.birthDate ?? detail.residentRegistrationNumberPrefix) ||
-          current.birthDate,
-        role: detail.role ?? current.role,
-        departmentId:
-          detail.departmentId !== null && detail.departmentId !== undefined
-            ? String(detail.departmentId)
-            : typeof detail.department?.id === "number"
-              ? String(detail.department.id)
-              : current.departmentId,
-      }));
+    if (userDetailQuery.data) {
+      setUserForm((current) => getUserFormStateFromUser(userDetailQuery.data, current));
     }
 
     setIsUserEditing(true);
@@ -248,27 +310,7 @@ export function AdminUsersSection({
 
   const detailForm =
     userDetailQuery.data && !isUserEditing
-      ? {
-          email: userDetailQuery.data.email ?? userForm.email,
-          nickname: userDetailQuery.data.nickname ?? userForm.nickname,
-          password: "",
-          confirmPassword: "",
-          name: userDetailQuery.data.name ?? userForm.name,
-          phoneNumber: userDetailQuery.data.phoneNumber ?? userForm.phoneNumber,
-          birthDate:
-            toBirthDateInputValue(
-              userDetailQuery.data.birthDate ?? userDetailQuery.data.residentRegistrationNumberPrefix,
-            ) ||
-            userForm.birthDate,
-          role: userDetailQuery.data.role ?? userForm.role,
-          departmentId:
-            userDetailQuery.data.departmentId !== null &&
-            userDetailQuery.data.departmentId !== undefined
-              ? String(userDetailQuery.data.departmentId)
-              : typeof userDetailQuery.data.department?.id === "number"
-                ? String(userDetailQuery.data.department.id)
-                : userForm.departmentId,
-        }
+      ? getUserFormStateFromUser(userDetailQuery.data, userForm)
       : userForm;
 
   function handleUserListSectionClick(event: MouseEvent<HTMLElement>) {
@@ -322,6 +364,7 @@ export function AdminUsersSection({
                   <th>이메일</th>
                   <th>역할</th>
                   <th>부서</th>
+                  <th>분반</th>
                 </tr>
               </thead>
               <tbody>
@@ -331,10 +374,11 @@ export function AdminUsersSection({
                     <td>{item.email ?? "-"}</td>
                     <td>{item.role ?? "-"}</td>
                     <td>{getDepartmentLabel(item, departments)}</td>
+                    <td>{getClassroomLabel(item, classrooms)}</td>
                   </tr>
                 ))}
                 <TablePaddingRows
-                  columnCount={4}
+                  columnCount={5}
                   visibleRowCount={pagedUsers.length}
                   padTo={ADMIN_USERS_PER_PAGE}
                   keyPrefix="admin-users"
@@ -406,6 +450,7 @@ export function AdminUsersSection({
                       <UserFields
                         form={userForm}
                         departments={departments}
+                        classrooms={classrooms}
                         disabled={updateUserMutation.isPending}
                         setUserForm={setUserForm}
                       />
@@ -415,6 +460,7 @@ export function AdminUsersSection({
                       <UserFields
                         form={detailForm}
                         departments={departments}
+                        classrooms={classrooms}
                         disabled
                         setUserForm={setUserForm}
                       />
@@ -665,6 +711,7 @@ export function AdminUsersSection({
               <UserFields
                 form={userForm}
                 departments={departments}
+                classrooms={classrooms}
                 disabled={createUserMutation.isPending}
                 setUserForm={setUserForm}
                 includePassword
@@ -732,6 +779,7 @@ export function AdminUsersSection({
 type UserFieldsProps = {
   form: UserFormState;
   departments: DepartmentListItemDto[];
+  classrooms: ClassroomListItemDto[];
   disabled: boolean;
   includePassword?: boolean;
   setUserForm: Dispatch<SetStateAction<UserFormState>>;
@@ -740,6 +788,7 @@ type UserFieldsProps = {
 function UserFields({
   form,
   departments,
+  classrooms,
   disabled,
   includePassword = false,
   setUserForm,
@@ -750,7 +799,6 @@ function UserFields({
       : form.password === form.confirmPassword
         ? "matched"
         : "mismatched";
-
   return (
     <>
       <Label>
@@ -850,6 +898,7 @@ function UserFields({
               ...current,
               role,
               departmentId: role === "GUEST" ? "" : current.departmentId,
+              classroomId: role === "VOLUNTEER" ? current.classroomId : "",
             }));
           }}
         >
@@ -878,6 +927,29 @@ function UserFields({
             .map((department) => (
               <option key={department.id} value={String(department.id)}>
                 {department.name ?? `부서 ${department.id}`}
+              </option>
+            ))}
+        </UserSelect>
+      </Label>
+      <Label>
+        분반
+        <UserSelect
+          value={form.classroomId}
+          disabled={disabled}
+          onChange={(event) =>
+            setUserForm((current) => ({
+              ...current,
+              classroomId: event.target.value,
+              role: event.target.value ? "VOLUNTEER" : current.role,
+            }))
+          }
+        >
+          <option value="">분반 없음</option>
+          {classrooms
+            .filter((classroom) => typeof classroom.id === "number")
+            .map((classroom) => (
+              <option key={classroom.id} value={String(classroom.id)}>
+                {classroom.name ?? `분반 ${classroom.id}`}
               </option>
             ))}
         </UserSelect>

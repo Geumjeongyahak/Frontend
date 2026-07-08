@@ -1,6 +1,7 @@
 import authClient from "../client/authClient";
 import { toBirthDateInputValue, toResidentRegistrationNumberPrefix } from "../../utils/birthDate";
 import type {
+  AssignUserClassroomRequestDto,
   CreateUserRequestDto,
   PermissionDefinitionDto,
   PermissionResponseDto,
@@ -57,6 +58,23 @@ export async function updateUser(pathParams: UserPathParamsDto, body: UpdateUser
     body,
   );
   return normalizeUserResponse(response.data);
+}
+
+// 특정 사용자의 대표 분반을 지정/변경하는 요청
+export async function assignUserClassroom(
+  pathParams: UserPathParamsDto,
+  body: AssignUserClassroomRequestDto,
+) {
+  const response = await authClient.put<UserResponseDto>(
+    `/api/v1/users/${pathParams.userId}/classroom`,
+    body,
+  );
+  return normalizeUserResponse(response.data);
+}
+
+// 특정 사용자의 대표 분반을 해제하는 요청
+export async function releaseUserClassroom(pathParams: UserPathParamsDto) {
+  await authClient.delete(`/api/v1/users/${pathParams.userId}/classroom`);
 }
 
 // 특정 사용자를 삭제하는 요청

@@ -90,6 +90,7 @@ import type {
   PurchaseTransactionResponseDto,
 } from "@/api/request/request.dto";
 import {
+  assignUserClassroom,
   addUserPermission,
   createUser,
   deleteUser,
@@ -97,10 +98,12 @@ import {
   getUserDetail,
   getUserPermissions,
   getUsers,
+  releaseUserClassroom,
   removeUserPermission,
   updateUser,
 } from "@/api/user/user.api";
 import type { PermissionDefinitionDto } from "@/api/user/user.dto";
+import type { UserResponseDto } from "@/api/user/user.dto";
 import { getLessonExchangeRequests } from "@/api/lessonExchange/lessonExchange.api";
 import { getTeacherApplications } from "@/api/teacherApplication/teacherApplication.api";
 import { chargeVendor, createVendor, getVendors } from "@/api/vendor/vendor.api";
@@ -212,6 +215,7 @@ const emptyUserForm: UserFormState = {
   birthDate: "",
   role: "VOLUNTEER",
   departmentId: "",
+  classroomId: "",
 };
 
 const emptyChannelForm: ChannelFormState = {
@@ -312,6 +316,8 @@ function mapCreateUserFormToPayload(form: UserFormState) {
     birthDate: form.birthDate,
     role: form.role,
     departmentId: form.departmentId ? (toNumber(form.departmentId) ?? null) : null,
+    classroomId:
+      form.role === "VOLUNTEER" && form.classroomId ? (toNumber(form.classroomId) ?? null) : null,
   };
 }
 
@@ -323,6 +329,49 @@ function mapUpdateUserFormToPayload(form: UserFormState) {
     birthDate: form.birthDate || undefined,
     role: form.role,
     departmentId: form.departmentId ? (toNumber(form.departmentId) ?? null) : null,
+  };
+}
+
+function mapUserToFormState(user?: UserResponseDto, fallback?: UserFormState): UserFormState {
+  if (!user) {
+    return {
+      email: fallback?.email ?? "",
+      nickname: fallback?.nickname ?? "",
+      password: "",
+      confirmPassword: "",
+      name: fallback?.name ?? "",
+      phoneNumber: fallback?.phoneNumber ?? "",
+      birthDate: fallback?.birthDate ?? "",
+      role: fallback?.role ?? "VOLUNTEER",
+      departmentId: fallback?.departmentId ?? "",
+      classroomId: fallback?.classroomId ?? "",
+    };
+  }
+
+  return {
+    email: user.email ?? fallback?.email ?? "",
+    nickname: user.nickname ?? fallback?.nickname ?? "",
+    password: "",
+    confirmPassword: "",
+    name: user.name ?? fallback?.name ?? "",
+    phoneNumber: user.phoneNumber ?? fallback?.phoneNumber ?? "",
+    birthDate:
+      toBirthDateInputValue(user.birthDate ?? user.residentRegistrationNumberPrefix) ||
+      fallback?.birthDate ||
+      "",
+    role: user.role ?? fallback?.role ?? "VOLUNTEER",
+    departmentId:
+      user.departmentId !== null && user.departmentId !== undefined
+        ? String(user.departmentId)
+        : typeof user.department?.id === "number"
+          ? String(user.department.id)
+          : "",
+    classroomId:
+      typeof user.classroom?.id === "number"
+        ? String(user.classroom.id)
+        : typeof user.classroomId === "number"
+          ? String(user.classroomId)
+          : "",
   };
 }
 
@@ -861,23 +910,20 @@ export default function AdminDashboardPage() {
     setSelectedUserId(item.id);
     setIsUserEditing(false);
     setIsUserDeleteConfirmOpen(false);
-    setUserForm({
-      email: item.email ?? "",
-      nickname: item.nickname ?? "",
-      password: "",
-      confirmPassword: "",
-      name: item.name ?? "",
-      phoneNumber: item.phoneNumber ?? "",
-      birthDate:
-        toBirthDateInputValue(item.birthDate ?? item.residentRegistrationNumberPrefix) || "",
-      role: item.role ?? "VOLUNTEER",
-      departmentId:
-        item.departmentId !== null && item.departmentId !== undefined
-          ? String(item.departmentId)
-          : typeof item.department?.id === "number"
-            ? String(item.department.id)
+    setUserForm(
+      mapUserToFormState(item, {
+        ...emptyUserForm,
+        classroomId:
+          typeof item.teacherAssignments?.find(
+            (assignment) => typeof assignment.classroomId === "number",
+          )?.classroomId === "number"
+            ? String(
+                item.teacherAssignments?.find((assignment) => typeof assignment.classroomId === "number")
+                  ?.classroomId,
+              )
             : "",
-    });
+      }),
+    );
   }
 
   function selectChannel(item: (typeof channels)[number]) {
@@ -966,11 +1012,94 @@ export default function AdminDashboardPage() {
     onError: (error) => notifyError(getErrorMessage(error, "사용자 생성에 실패했습니다.")),
   });
   const updateUserMutation = useMutation({
-    mutationFn: () =>
-      updateUser({ userId: selectedUserId ?? 0 }, mapUpdateUserFormToPayload(userForm)),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const userId = selectedUserId ?? 0;
+      const updatedUser = await updateUser({ userId }, mapUpdateUserFormToPayload(userForm));
+      const previousClassroomId =
+        typeof userDetailQuery.data?.classroom?.id === "number"
+          ? userDetailQuery.data.classroom.id
+          : typeof userDetailQuery.data?.classroomId === "number"
+            ? userDetailQuery.data.classroomId
+            : null;
+      const nextClassroomId =
+        userForm.role === "VOLUNTEER" && userForm.classroomId
+          ? (toNumber(userForm.classroomId) ?? null)
+          : null;
+
+      if (nextClassroomId !== previousClassroomId) {
+        if (nextClassroomId == null) {
+          await releaseUserClassroom({ userId });
+        } else {
+          await assignUserClassroom({ userId }, { classroomId: nextClassroomId });
+        }
+      }
+
+      return getUserDetail({ userId });
+    },
+    onSuccess: (updatedUser) => {
       notifySuccess("사용자를 수정했습니다.");
       setIsUserEditing(false);
+      setUserForm((current) => mapUserToFormState(updatedUser, current));
+      if (selectedUserId) {
+        queryClient.setQueryData(queryKeys.admin.userDetail(selectedUserId), {
+          ...updatedUser,
+          departmentId:
+            userForm.departmentId === "" ? null : (updatedUser.departmentId ?? null),
+          classroomId:
+            userForm.classroomId === "" ? null : (updatedUser.classroomId ?? null),
+          department:
+            userForm.departmentId === "" ? undefined : updatedUser.department,
+          classroom:
+            userForm.classroomId === "" ? undefined : updatedUser.classroom,
+          classroomName:
+            userForm.classroomId === "" ? null : (updatedUser.classroomName ?? null),
+        });
+      }
+      queryClient.setQueryData(
+        [
+          "admin",
+          "users",
+          {
+            page: userPage - 1,
+            size: ADMIN_USERS_PER_PAGE,
+            name: userSearch.trim() || undefined,
+          },
+        ],
+        (previous: { content?: UserListItemDto[]; [key: string]: unknown } | undefined) =>
+          previous
+            ? {
+                ...previous,
+                content: (previous.content ?? []).map((item) =>
+                  item.id === updatedUser.id
+                    ? {
+                        ...item,
+                        ...updatedUser,
+                        departmentId:
+                          userForm.departmentId === ""
+                            ? null
+                            : (updatedUser.departmentId ?? item.departmentId),
+                        classroomId:
+                          userForm.classroomId === ""
+                            ? null
+                            : (updatedUser.classroomId ?? item.classroomId),
+                        department:
+                          userForm.departmentId === ""
+                            ? undefined
+                            : (updatedUser.department ?? item.department),
+                        classroom:
+                          userForm.classroomId === ""
+                            ? undefined
+                            : (updatedUser.classroom ?? item.classroom),
+                        classroomName:
+                          userForm.classroomId === ""
+                            ? null
+                            : (updatedUser.classroomName ?? item.classroomName),
+                      }
+                    : item,
+                ),
+              }
+            : previous,
+      );
       queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
       invalidateDepartmentMembershipQueries();
       if (selectedUserId) {
@@ -1564,6 +1693,7 @@ export default function AdminDashboardPage() {
             <AdminUsersSection
               filteredUsers={filteredUsers}
               departments={departments}
+              classrooms={classrooms}
               selectedUserId={selectedUserId}
               isUserEditing={isUserEditing}
               isUserCreateModalOpen={isUserCreateModalOpen}

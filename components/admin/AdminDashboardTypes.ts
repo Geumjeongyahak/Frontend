@@ -26,6 +26,7 @@ export type UserFormState = {
   birthDate: string;
   role: UserRole;
   departmentId: string;
+  classroomId: string;
 };
 
 export type ChannelFormState = {
