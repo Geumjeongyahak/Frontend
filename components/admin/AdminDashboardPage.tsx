@@ -112,6 +112,11 @@ import type { UserListItemDto } from "@/api/user/user.dto";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { queryKeys } from "@/lib/queryKeys";
+import { archiveDocumentConfigs } from "@/config/archiveDocuments";
+import {
+  resolveArchiveChannel,
+  resolveArchiveChannelByName,
+} from "@/components/staff/archive/archive-document-section/archiveDocumentChannels";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { toBirthDateInputValue } from "@/utils/birthDate";
 
@@ -286,6 +291,8 @@ const emptyPermissionForm: PermissionFormState = {
   scope: "GLOBAL",
   target: "",
 };
+type AdminPostCategoryFilter = "all" | "board" | "handover" | "exam" | "forms" | "event";
+const ADMIN_COMPOSITE_POST_FETCH_SIZE = 100;
 
 function toNumber(value: string) {
   const parsed = Number(value);
@@ -478,6 +485,7 @@ export default function AdminDashboardPage() {
   const [channelSearch, setChannelSearch] = useState("");
   const [postTitleSearch, setPostTitleSearch] = useState("");
   const [postPage, setPostPage] = useState(1);
+  const [postCategoryFilter, setPostCategoryFilter] = useState<AdminPostCategoryFilter>("all");
   const [postChannelTypeFilter, setPostChannelTypeFilter] = useState("all");
   const [postScopeFilter, setPostScopeFilter] = useState("all");
   const [classroomSearch, setClassroomSearch] = useState("");
@@ -635,32 +643,91 @@ export default function AdminDashboardPage() {
     queryFn: () => getChannels(),
     enabled: isAdmin,
   });
+  const eventChannel = channelsQuery.data?.find(
+    (channel) => channel.channelType === "EVENT" && typeof channel.id === "number",
+  );
+  const examChannel = resolveArchiveChannel(channelsQuery.data, archiveDocumentConfigs.exam);
+  const formsChannel = resolveArchiveChannel(channelsQuery.data, archiveDocumentConfigs.forms);
+  const handoverConfig = archiveDocumentConfigs.handover;
+  const handoverScopeLabel =
+    postChannelTypeFilter === "CLASSROOM"
+      ? classroomsQuery.data?.content?.find((classroom) => String(classroom.id) === postScopeFilter)?.name
+      : postChannelTypeFilter === "DEPARTMENT"
+        ? departmentsQuery.data?.departments?.find(
+            (department) => String(department.id) === postScopeFilter,
+          )?.name
+        : undefined;
+  const handoverScopedChannel =
+    handoverScopeLabel && postScopeFilter !== "all"
+      ? resolveArchiveChannelByName(
+          channelsQuery.data,
+          `${handoverScopeLabel} ${handoverConfig.title}`,
+        )
+      : undefined;
+  const postsQueryChannelType =
+    postCategoryFilter === "board"
+      ? postChannelTypeFilter === "all"
+        ? undefined
+        : postChannelTypeFilter
+      : postCategoryFilter === "event"
+        ? "EVENT"
+        : undefined;
+  const postsQueryChannelId =
+    postCategoryFilter === "exam"
+      ? examChannel?.id
+      : postCategoryFilter === "forms"
+        ? formsChannel?.id
+        : postCategoryFilter === "event"
+          ? eventChannel?.id
+          : postCategoryFilter === "handover" && handoverScopedChannel?.id
+            ? handoverScopedChannel.id
+            : undefined;
+  const postsQueryClassroomId =
+    postCategoryFilter === "board" &&
+    postChannelTypeFilter === "CLASSROOM" &&
+    postScopeFilter !== "all"
+      ? (toNumber(postScopeFilter) ?? undefined)
+      : undefined;
+  const postsQueryDepartmentId =
+    postCategoryFilter === "board" &&
+    postChannelTypeFilter === "DEPARTMENT" &&
+    postScopeFilter !== "all"
+      ? (toNumber(postScopeFilter) ?? undefined)
+      : undefined;
+  const useClientPostFiltering =
+    (postCategoryFilter === "board" && postChannelTypeFilter === "all") ||
+    (postCategoryFilter === "handover" &&
+      (!postChannelTypeFilter ||
+        postChannelTypeFilter === "all" ||
+        postScopeFilter === "all"));
+  const postsQueryPage = useClientPostFiltering ? 0 : postPage - 1;
+  const postsQuerySize = useClientPostFiltering
+    ? ADMIN_COMPOSITE_POST_FETCH_SIZE
+    : ADMIN_POSTS_PER_PAGE;
   const postsQuery = useQuery({
     queryKey: [
       "admin",
       "posts",
       {
-        page: postPage - 1,
-        size: ADMIN_POSTS_PER_PAGE,
+        page: postsQueryPage,
+        size: postsQuerySize,
         title: postTitleSearch || undefined,
-        channelType: postChannelTypeFilter === "all" ? undefined : postChannelTypeFilter,
+        category: postCategoryFilter,
+        channelType: postsQueryChannelType,
+        channelId: postsQueryChannelId,
         scope: postScopeFilter,
+        clientFiltered: useClientPostFiltering,
       },
     ],
     queryFn: () =>
       getPosts({
-        page: postPage - 1,
-        size: ADMIN_POSTS_PER_PAGE,
+        page: postsQueryPage,
+        size: postsQuerySize,
         title: postTitleSearch || undefined,
-        channelType: postChannelTypeFilter === "all" ? undefined : postChannelTypeFilter,
-        classroomId:
-          postChannelTypeFilter === "CLASSROOM" && postScopeFilter !== "all"
-            ? (toNumber(postScopeFilter) ?? undefined)
-            : undefined,
-        departmentId:
-          postChannelTypeFilter === "DEPARTMENT" && postScopeFilter !== "all"
-            ? (toNumber(postScopeFilter) ?? undefined)
-            : undefined,
+        channelType: postsQueryChannelType,
+        channelId: postsQueryChannelId,
+        classroomId: postsQueryClassroomId,
+        departmentId: postsQueryDepartmentId,
       }),
     enabled: isAdmin,
     placeholderData: (previousData) => previousData,
@@ -1765,12 +1832,14 @@ export default function AdminDashboardPage() {
               posts={posts}
               selectedPost={selectedPost}
               postTitleSearch={postTitleSearch}
+              postCategoryFilter={postCategoryFilter}
               postChannelTypeFilter={postChannelTypeFilter}
               postScopeFilter={postScopeFilter}
               postCreate={postCreate}
               postEdit={postEdit}
               isPostEditing={isPostEditing}
               isPostCreateModalOpen={isPostCreateModalOpen}
+              useClientPostFiltering={useClientPostFiltering}
               postsQuery={postsQuery}
               currentPage={postPage}
               totalPages={Math.max(1, postsQuery.data?.totalPages ?? 1)}
@@ -1780,6 +1849,7 @@ export default function AdminDashboardPage() {
               pinPostMutation={pinPostMutation}
               deletePostMutation={deletePostMutation}
               setPostTitleSearch={setPostTitleSearch}
+              setPostCategoryFilter={setPostCategoryFilter}
               setPostChannelTypeFilter={setPostChannelTypeFilter}
               setPostScopeFilter={setPostScopeFilter}
               setPostCreate={setPostCreate}

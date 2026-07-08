@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import styled from "styled-components";
 import type { ChannelListItemDto } from "@/api/channel/channel.dto";
@@ -32,9 +32,15 @@ import {
 } from "@/components/admin/AdminDashboardSectionParts";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import ToastViewerField from "@/components/admin/posts/ToastViewerField";
+import {
+  archiveDocumentConfigs,
+  type ArchiveDocumentCategory,
+} from "@/config/archiveDocuments";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export const ADMIN_POSTS_PER_PAGE = 11;
+type PostPrimaryFilter = "all" | "board" | "handover" | "exam" | "forms" | "event";
+type PostBoardOrHandoverFilter = "all" | "NOTICE" | "CLASSROOM" | "DEPARTMENT";
 
 type QueryState<TData> = {
   data?: TData;
@@ -59,12 +65,14 @@ type AdminPostsSectionProps = {
   posts: PostSummaryResponseDto[];
   selectedPost: { channelId: number; postId: number } | null;
   postTitleSearch: string;
+  postCategoryFilter: PostPrimaryFilter;
   postChannelTypeFilter: string;
   postScopeFilter: string;
   postCreate: PostCreateState;
   postEdit: PostEditState;
   isPostEditing: boolean;
   isPostCreateModalOpen: boolean;
+  useClientPostFiltering: boolean;
   postsQuery: QueryState<unknown>;
   currentPage: number;
   totalPages: number;
@@ -74,6 +82,7 @@ type AdminPostsSectionProps = {
   pinPostMutation: ValueMutationAction<boolean>;
   deletePostMutation: VoidMutationAction;
   setPostTitleSearch: Dispatch<SetStateAction<string>>;
+  setPostCategoryFilter: Dispatch<SetStateAction<PostPrimaryFilter>>;
   setPostChannelTypeFilter: Dispatch<SetStateAction<string>>;
   setPostScopeFilter: Dispatch<SetStateAction<string>>;
   setPostCreate: Dispatch<SetStateAction<PostCreateState>>;
@@ -92,12 +101,14 @@ export function AdminPostsSection({
   posts,
   selectedPost,
   postTitleSearch,
+  postCategoryFilter,
   postChannelTypeFilter,
   postScopeFilter,
   postCreate,
   postEdit,
   isPostEditing,
   isPostCreateModalOpen,
+  useClientPostFiltering,
   postsQuery,
   currentPage,
   totalPages,
@@ -107,6 +118,7 @@ export function AdminPostsSection({
   pinPostMutation,
   deletePostMutation,
   setPostTitleSearch,
+  setPostCategoryFilter,
   setPostChannelTypeFilter,
   setPostScopeFilter,
   setPostCreate,
@@ -118,6 +130,10 @@ export function AdminPostsSection({
   closePostDetail,
 }: AdminPostsSectionProps) {
   const [isPostDeleteConfirmOpen, setIsPostDeleteConfirmOpen] = useState(false);
+  const handoverConfig = archiveDocumentConfigs.handover;
+  const isBoardFilterActive = postCategoryFilter === "board";
+  const isHandoverFilterActive = postCategoryFilter === "handover";
+  const normalizedBoardOrHandoverFilter = (postChannelTypeFilter || "all") as PostBoardOrHandoverFilter;
   const noticeChannelId =
     channels.find((channel) => channel.channelType === "NOTICE" && typeof channel.id === "number")
       ?.id ?? "";
@@ -161,8 +177,46 @@ export function AdminPostsSection({
     .filter((item): item is { targetId: string; channelId: string; label: string } =>
       Boolean(item),
     );
-  const postScopeOptions =
-    postChannelTypeFilter === "CLASSROOM"
+  const handoverClassroomChannelOptions = classrooms
+    .map((classroom) => {
+      const channel = channels.find(
+        (item) =>
+          item.name?.trim() === `${classroom.name} ${handoverConfig.title}` &&
+          typeof item.id === "number",
+      );
+
+      return channel?.id
+        ? {
+            targetId: String(classroom.id),
+            channelId: String(channel.id),
+            label: classroom.name,
+          }
+        : null;
+    })
+    .filter((item): item is { targetId: string; channelId: string; label: string } =>
+      Boolean(item),
+    );
+  const handoverDepartmentChannelOptions = departments
+    .map((department) => {
+      const channel = channels.find(
+        (item) =>
+          item.name?.trim() === `${department.name} ${handoverConfig.title}` &&
+          typeof item.id === "number",
+      );
+
+      return channel?.id
+        ? {
+            targetId: String(department.id),
+            channelId: String(channel.id),
+            label: department.name,
+          }
+        : null;
+    })
+    .filter((item): item is { targetId: string; channelId: string; label: string } =>
+      Boolean(item),
+    );
+  const boardScopeOptions =
+    normalizedBoardOrHandoverFilter === "CLASSROOM"
       ? [
           { value: "all", label: "전체" },
           ...classrooms
@@ -172,7 +226,7 @@ export function AdminPostsSection({
               label: classroom.name ?? `분반 ${classroom.id}`,
             })),
         ]
-      : postChannelTypeFilter === "DEPARTMENT"
+      : normalizedBoardOrHandoverFilter === "DEPARTMENT"
         ? [
             { value: "all", label: "전체" },
             ...departments
@@ -183,11 +237,128 @@ export function AdminPostsSection({
               })),
           ]
         : [{ value: "all", label: "전체" }];
+  const handoverScopeOptions =
+    normalizedBoardOrHandoverFilter === "CLASSROOM"
+      ? [
+          { value: "all", label: "전체" },
+          ...handoverClassroomChannelOptions.map((option) => ({
+            value: option.targetId,
+            label: option.label,
+          })),
+        ]
+      : normalizedBoardOrHandoverFilter === "DEPARTMENT"
+        ? [
+            { value: "all", label: "전체" },
+            ...handoverDepartmentChannelOptions.map((option) => ({
+              value: option.targetId,
+              label: option.label,
+            })),
+          ]
+        : [{ value: "all", label: "전체" }];
+  const postSecondaryOptions = isBoardFilterActive
+    ? [
+        { value: "all", label: "전체" },
+        { value: "NOTICE", label: "공지사항" },
+        { value: "CLASSROOM", label: "반별" },
+        { value: "DEPARTMENT", label: "부서별" },
+      ]
+    : isHandoverFilterActive
+      ? [
+          { value: "all", label: "전체" },
+          { value: "CLASSROOM", label: "반별" },
+          { value: "DEPARTMENT", label: "부서별" },
+        ]
+      : [{ value: "all", label: "전체" }];
+  const postScopeOptions = isHandoverFilterActive ? handoverScopeOptions : boardScopeOptions;
+  const isPostSecondaryDisabled = postCategoryFilter === "all" || postCategoryFilter === "exam" || postCategoryFilter === "forms" || postCategoryFilter === "event";
   const isPostScopeDisabled =
-    postChannelTypeFilter === "all" || postChannelTypeFilter === "NOTICE";
+    isPostSecondaryDisabled ||
+    normalizedBoardOrHandoverFilter === "all" ||
+    normalizedBoardOrHandoverFilter === "NOTICE";
+  const visiblePosts = useMemo(() => {
+    if (isBoardFilterActive) {
+      return posts.filter((post) => {
+        if (normalizedBoardOrHandoverFilter === "all") {
+          return (
+            post.channelType === "NOTICE" ||
+            post.channelType === "CLASSROOM" ||
+            post.channelType === "DEPARTMENT"
+          );
+        }
+
+        return post.channelType === normalizedBoardOrHandoverFilter;
+      });
+    }
+
+    if (!isHandoverFilterActive) {
+      return posts;
+    }
+
+    const classroomHandoverChannelIds = new Set(
+      handoverClassroomChannelOptions.map((option) => Number(option.channelId)),
+    );
+    const departmentHandoverChannelIds = new Set(
+      handoverDepartmentChannelOptions.map((option) => Number(option.channelId)),
+    );
+
+    return posts.filter((post) => {
+      const channelId = post.channelId ?? 0;
+      const channelName = post.channelName?.trim() ?? "";
+
+      if (!channelName.includes(handoverConfig.title)) {
+        return false;
+      }
+
+      if (normalizedBoardOrHandoverFilter === "CLASSROOM") {
+        if (!classroomHandoverChannelIds.has(channelId)) {
+          return false;
+        }
+
+        if (postScopeFilter === "all") {
+          return true;
+        }
+
+        return handoverClassroomChannelOptions.some(
+          (option) => option.targetId === postScopeFilter && Number(option.channelId) === channelId,
+        );
+      }
+
+      if (normalizedBoardOrHandoverFilter === "DEPARTMENT") {
+        if (!departmentHandoverChannelIds.has(channelId)) {
+          return false;
+        }
+
+        if (postScopeFilter === "all") {
+          return true;
+        }
+
+        return handoverDepartmentChannelOptions.some(
+          (option) => option.targetId === postScopeFilter && Number(option.channelId) === channelId,
+        );
+      }
+
+      return true;
+    });
+  }, [
+    isBoardFilterActive,
+    handoverClassroomChannelOptions,
+    handoverConfig.title,
+    handoverDepartmentChannelOptions,
+    isHandoverFilterActive,
+    normalizedBoardOrHandoverFilter,
+    postScopeFilter,
+    posts,
+  ]);
   const postView = postDetailQuery.data ? mapPostDetailToEditState(postDetailQuery.data) : postEdit;
-  const safeCurrentPage = Math.min(currentPage, totalPages);
-  const pagedPosts = posts;
+  const filteredTotalPages = Math.max(1, Math.ceil(visiblePosts.length / ADMIN_POSTS_PER_PAGE));
+  const effectiveTotalPages = useClientPostFiltering ? filteredTotalPages : totalPages;
+  const safeCurrentPage = Math.min(currentPage, effectiveTotalPages);
+  const pagedPosts = useClientPostFiltering
+    ? visiblePosts.slice(
+        (safeCurrentPage - 1) * ADMIN_POSTS_PER_PAGE,
+        safeCurrentPage * ADMIN_POSTS_PER_PAGE,
+      )
+    : visiblePosts;
 
   function closeCreateModal() {
     if (createPostMutation.isPending) {
@@ -451,22 +622,41 @@ export function AdminPostsSection({
 
         <PostControlRow>
           <FilterSelect
+            value={postCategoryFilter}
+            aria-label="게시글 1차 구분"
+            onChange={(event) => {
+              setPostCategoryFilter(event.target.value as PostPrimaryFilter);
+              setPostChannelTypeFilter("all");
+              setPostScopeFilter("all");
+              onPageChange(1);
+            }}
+          >
+            <option value="all">전체</option>
+            <option value="board">게시판</option>
+            <option value="handover">인수인계서</option>
+            <option value="exam">시험 문제 자료</option>
+            <option value="forms">서류 양식</option>
+            <option value="event">행사 정보</option>
+          </FilterSelect>
+          <FilterSelect
             value={postChannelTypeFilter}
-            aria-label="게시판 유형"
+            aria-label="게시글 2차 구분"
+            disabled={isPostSecondaryDisabled}
             onChange={(event) => {
               setPostChannelTypeFilter(event.target.value);
               setPostScopeFilter("all");
               onPageChange(1);
             }}
           >
-            <option value="all">전체</option>
-            <option value="NOTICE">공지사항</option>
-            <option value="CLASSROOM">반별</option>
-            <option value="DEPARTMENT">부서별</option>
+            {postSecondaryOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </FilterSelect>
           <FilterSelect
             value={postScopeFilter}
-            aria-label="게시판 선택"
+            aria-label="게시글 3차 구분"
             disabled={isPostScopeDisabled}
             onChange={(event) => {
               setPostScopeFilter(event.target.value);
@@ -511,7 +701,7 @@ export function AdminPostsSection({
               <tbody>
                 {pagedPosts.map((item) => (
                   <tr key={item.id} onClick={() => selectPost(item)}>
-                    <td>{item.title}</td>
+                  <td>{item.title}</td>
                     <td>{item.channelName ?? item.channelId}</td>
                     <td>{item.authorName ?? "-"}</td>
                     <td>{item.status}</td>
@@ -538,7 +728,7 @@ export function AdminPostsSection({
           >
             ◀
           </PageArrowButton>
-          {Array.from({ length: totalPages }, (_, index) => {
+          {Array.from({ length: effectiveTotalPages }, (_, index) => {
             const pageNumber = index + 1;
 
             return (
@@ -556,8 +746,8 @@ export function AdminPostsSection({
           <PageArrowButton
             type="button"
             aria-label="다음 페이지"
-            disabled={safeCurrentPage === totalPages}
-            onClick={() => onPageChange(Math.min(totalPages, safeCurrentPage + 1))}
+            disabled={safeCurrentPage === effectiveTotalPages}
+            onClick={() => onPageChange(Math.min(effectiveTotalPages, safeCurrentPage + 1))}
           >
             ▶
           </PageArrowButton>
