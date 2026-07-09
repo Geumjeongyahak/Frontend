@@ -153,7 +153,7 @@ export function AttachmentDownloadList({
         >
           <span>{attachment.label}</span>
           <DownloadBadge aria-hidden="true">
-            <IconDownload size={16} stroke={2.25} />
+            <IconDownload size={12} stroke={2.25} />
           </DownloadBadge>
         </FileLink>
       ))}
@@ -300,17 +300,18 @@ const List = styled.div`
 const FileLink = styled.a`
   display: inline-flex;
   align-items: center;
-  gap: ${spacing.space12};
+  gap: ${spacing.space8};
   border: 0;
   background: transparent;
   color: ${colors.text};
   font-size: ${typography.fontSize14};
-  font-weight: 500;
+  font-weight: 600;
   line-height: ${typography.lineHeight130};
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 0.125rem;
 
   @media (min-width: 120rem) {
-    gap: ${spacing.space20};
+    gap: ${spacing.space12};
     font-size: ${typography.fontSize20};
   }
 `;
@@ -319,19 +320,19 @@ const DownloadBadge = styled.span`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.2rem;
+  height: 1.2rem;
   border-radius: 50%;
   background-color: ${colors.point};
   color: ${colors.white};
 
   @media (min-width: 120rem) {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2rem;
+    height: 2rem;
 
     svg {
-      width: 1.5rem;
-      height: 1.5rem;
+      width: 1.25rem;
+      height: 1.25rem;
     }
   }
 `;

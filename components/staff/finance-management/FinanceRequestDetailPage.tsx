@@ -1393,12 +1393,10 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                   <SummaryTextareaInput
                                     ref={editSummaryTextareaRef}
                                     value={editPrepaidContent.summary}
-                                    onChange={(event) =>
-                                      {
-                                        updateEditPrepaidContent({ summary: event.target.value });
-                                        autoResizeTextarea(event.currentTarget);
-                                      }
-                                    }
+                                    onChange={(event) => {
+                                      updateEditPrepaidContent({ summary: event.target.value });
+                                      autoResizeTextarea(event.currentTarget);
+                                    }}
                                   />
                                 </SummaryWideCell>
                               </tr>
@@ -3443,8 +3441,8 @@ const ReceiptIcon = styled.span`
   }
 
   @media (min-width: 120rem) {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2rem;
+    height: 2rem;
 
     svg {
       width: 1.25rem;
@@ -3483,7 +3481,7 @@ const InlineReceiptLink = styled.a`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: ${spacing.space8};
+  gap: ${spacing.space12};
   color: #000000;
   font-weight: 600;
   text-decoration: underline;
