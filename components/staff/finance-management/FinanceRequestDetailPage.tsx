@@ -3481,11 +3481,15 @@ const InlineReceiptLink = styled.a`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: ${spacing.space12};
+  gap: ${spacing.space8};
   color: #000000;
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 0.125rem;
+
+  @media (min-width: 120rem) {
+    gap: ${spacing.space12};
+  }
 `;
 
 const ReportForm = styled.form`
