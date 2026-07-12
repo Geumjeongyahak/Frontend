@@ -7,6 +7,7 @@ import type {
   CreateAbsenceRequestDto,
   CreateLessonExchangeRequestDto,
   CreatePurchaseRequestDto,
+  GenerateExpenseDocumentRequestDto,
   LessonExchangeRequestListResponseDto,
   LessonExchangeRequestResponseDto,
   LessonExchangeRequestStatusQueryParamsDto,
@@ -232,6 +233,22 @@ export async function confirmPurchase(pathParams: RequestPathParamsDto) {
   const response = await authClient.patch<PurchaseRequestResponseDto>(
     `/api/v1/admin/purchase-requests/${pathParams.requestId}/confirm`,
   );
+  return response.data;
+}
+
+// 관리자 기준 지출증빙서류 DOCX를 생성하는 요청
+export async function generateExpenseDocument(
+  pathParams: RequestPathParamsDto,
+  body: GenerateExpenseDocumentRequestDto,
+) {
+  const response = await authClient.post<Blob>(
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/expense-document`,
+    body,
+    {
+      responseType: "blob",
+    },
+  );
+
   return response.data;
 }
 

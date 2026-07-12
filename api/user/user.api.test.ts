@@ -19,6 +19,7 @@ import {
   getTeacherContacts,
   getUsers,
   releaseUserClassroom,
+  releaseUserDepartment,
   removeUserPermission,
   updateUser,
   updateCurrentUser,
@@ -255,6 +256,22 @@ describe("user.api", () => {
     );
 
     await expect(releaseUserClassroom({ userId: 1 })).resolves.toBeUndefined();
+    expect(called).toBe(true);
+  });
+
+  it("releases a user's department with DELETE /department", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let called = false;
+
+    server.use(
+      http.delete(`${API_BASE_URL}/api/v1/users/1/department`, () => {
+        called = true;
+        return new HttpResponse(null, { status: 200 });
+      }),
+    );
+
+    await expect(releaseUserDepartment({ userId: 1 })).resolves.toBeUndefined();
     expect(called).toBe(true);
   });
 

@@ -13,6 +13,8 @@ import {
   getDailyScheduleDetail,
   getDailyScheduleDetailIfExists,
   getDailySchedules,
+  getJournalSheetLink,
+  getStudentAttendanceSheet,
   getVolunteerHours,
   updateStudentAttendances,
   updateTeacherAttendance,
@@ -98,6 +100,54 @@ describe("dailySchedule.api", () => {
     expect(observedVolunteerQueryString).toContain("teacherId=3");
     expect(observedVolunteerQueryString).toContain("from=2026-06-01");
     expect(observedVolunteerQueryString).toContain("to=2026-06-30");
+  });
+
+  it("returns the journal sheet link and student attendance sheet", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedAttendanceQueryString = "";
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/daily-schedules/journal-sheet-link`, () => {
+        return HttpResponse.json({
+          url: "https://docs.google.com/spreadsheets/d/example/edit",
+        });
+      }),
+      http.get(`${API_BASE_URL}/api/v1/attendance-sheets`, ({ request }) => {
+        observedAttendanceQueryString = new URL(request.url).search;
+        return HttpResponse.json({
+          year: 2026,
+          month: 6,
+          classroomId: 2,
+          classroomName: "한글반",
+          students: [{ studentId: 5, studentName: "김학생" }],
+          schedules: [
+            {
+              dailyScheduleId: 1,
+              lessonDate: "2026-06-01",
+              day: 1,
+              dayOfWeek: "월",
+              status: "SCHEDULED",
+              studentAttendances: [{ attendanceId: 1, studentId: 5, status: "PRESENT" }],
+            },
+          ],
+        });
+      }),
+    );
+
+    await expect(getJournalSheetLink()).resolves.toEqual({
+      url: "https://docs.google.com/spreadsheets/d/example/edit",
+    });
+    await expect(
+      getStudentAttendanceSheet({ year: 2026, month: 6, classroomId: 2 }),
+    ).resolves.toMatchObject({
+      classroomName: "한글반",
+      students: [expect.objectContaining({ studentId: 5 })],
+    });
+
+    expect(observedAttendanceQueryString).toContain("year=2026");
+    expect(observedAttendanceQueryString).toContain("month=6");
+    expect(observedAttendanceQueryString).toContain("classroomId=2");
   });
 
   it("returns null when no daily schedule exists", async () => {

@@ -18,8 +18,9 @@ import { setAccessToken } from "../client/tokenStorage";
 import {
   approvePurchaseRequest,
   createAdminPurchaseRequest,
-  createPurchaseRequest,
   createLessonExchangeRequest,
+  createPurchaseRequest,
+  generateExpenseDocument,
   getAbsenceRequests,
   getAllPurchaseRequests,
   getLessonExchangeRequests,
@@ -398,6 +399,49 @@ describe("request.api", () => {
     );
 
     expect(observedPathname).toBe("/api/v1/admin/purchase-requests/4/report");
+  });
+
+  it("generates an expense document blob through the admin endpoint", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedPathname = "";
+    let observedBody: unknown;
+
+    server.use(
+      http.post(
+        `${API_BASE_URL}/api/v1/admin/purchase-requests/4/expense-document`,
+        async ({ request }) => {
+          observedPathname = new URL(request.url).pathname;
+          observedBody = await request.json();
+          return new HttpResponse(new Blob(["docx-content"]), {
+            status: 200,
+            headers: {
+              "Content-Type":
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            },
+          });
+        },
+      ),
+    );
+
+    const response = await generateExpenseDocument(
+      { requestId: 4 },
+      {
+        fiscalYear: "2026년",
+        paymentMethod: "TRANSFER",
+        items: [{ spec: "A4", unitPrice: 3000 }],
+        draftApprovals: [{ position: "담당", name: "김담당" }],
+      },
+    );
+
+    expect(response).toBeInstanceOf(Blob);
+    expect(observedPathname).toBe("/api/v1/admin/purchase-requests/4/expense-document");
+    expect(observedBody).toEqual({
+      fiscalYear: "2026년",
+      paymentMethod: "TRANSFER",
+      items: [{ spec: "A4", unitPrice: 3000 }],
+      draftApprovals: [{ position: "담당", name: "김담당" }],
+    });
   });
 
   it("updates purchase item receipts through the requester endpoint", async () => {

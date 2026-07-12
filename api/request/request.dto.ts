@@ -14,6 +14,12 @@ export type PurchaseRequestStatus =
   | "CONFIRMED"
   | "REJECTED";
 export type PaymentType = "PREPAID" | "ACTUAL";
+export type ExpenseDocumentPaymentMethod =
+  | "CASH"
+  | "CARD"
+  | "TRANSFER"
+  | "AUTO_TRANSFER"
+  | "OTHER";
 
 export interface RequestStatusQueryParamsDto {
   status?: RequestStatus;
@@ -234,4 +240,42 @@ export interface ApproveLessonExchangeRequestDto {
 
 export interface RejectRequestDto {
   note: string;
+}
+
+export interface ApprovalLineDto {
+  position?: string;
+  name?: string;
+}
+
+export interface ExpenseDocumentItemDto {
+  spec?: string;
+  unitPrice?: number;
+}
+
+export interface GenerateExpenseDocumentRequestDto {
+  fiscalYear?: string;
+  draftDocumentNumber?: string;
+  resolutionDocumentNumber?: string;
+  policyProject?: string;
+  unitProject?: string;
+  detailProject?: string;
+  budgetDetail?: string;
+  budgetBalance?: number;
+  projectBalance?: number;
+  requestDepartment?: string;
+  draftDate?: string;
+  completionDate?: string;
+  receiver?: string;
+  paymentMethod?: ExpenseDocumentPaymentMethod;
+  initiationDate?: string;
+  resolutionDate?: string;
+  paymentDate?: string;
+  bankAccount?: string;
+  businessNumber?: string;
+  accountHolder?: string;
+  note?: string;
+  items?: ExpenseDocumentItemDto[];
+  draftApprovals?: ApprovalLineDto[];
+  draftCooperations?: ApprovalLineDto[];
+  resolutionApprovals?: ApprovalLineDto[];
 }
