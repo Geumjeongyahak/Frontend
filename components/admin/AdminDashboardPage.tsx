@@ -99,6 +99,7 @@ import {
   getUserPermissions,
   getUsers,
   releaseUserClassroom,
+  releaseUserDepartment,
   removeUserPermission,
   updateUser,
 } from "@/api/user/user.api";
@@ -1087,7 +1088,22 @@ export default function AdminDashboardPage() {
   const updateUserMutation = useMutation({
     mutationFn: async () => {
       const userId = selectedUserId ?? 0;
-      const updatedUser = await updateUser({ userId }, mapUpdateUserFormToPayload(userForm));
+      const previousDepartmentId =
+        typeof userDetailQuery.data?.department?.id === "number"
+          ? userDetailQuery.data.department.id
+          : typeof userDetailQuery.data?.departmentId === "number"
+            ? userDetailQuery.data.departmentId
+            : null;
+      const nextDepartmentId = userForm.departmentId ? (toNumber(userForm.departmentId) ?? null) : null;
+      const updatePayload =
+        previousDepartmentId !== null && nextDepartmentId === null
+          ? {
+              ...mapUpdateUserFormToPayload(userForm),
+              departmentId: undefined,
+            }
+          : mapUpdateUserFormToPayload(userForm);
+
+      const updatedUser = await updateUser({ userId }, updatePayload);
       const previousClassroomId =
         typeof userDetailQuery.data?.classroom?.id === "number"
           ? userDetailQuery.data.classroom.id
@@ -1105,6 +1121,10 @@ export default function AdminDashboardPage() {
         } else {
           await assignUserClassroom({ userId }, { classroomId: nextClassroomId });
         }
+      }
+
+      if (previousDepartmentId !== null && nextDepartmentId === null) {
+        await releaseUserDepartment({ userId });
       }
 
       return getUserDetail({ userId });

@@ -77,6 +77,11 @@ export async function releaseUserClassroom(pathParams: UserPathParamsDto) {
   await authClient.delete(`/api/v1/users/${pathParams.userId}/classroom`);
 }
 
+// 특정 사용자의 소속 부서를 해제하는 요청
+export async function releaseUserDepartment(pathParams: UserPathParamsDto) {
+  await authClient.delete(`/api/v1/users/${pathParams.userId}/department`);
+}
+
 // 특정 사용자를 삭제하는 요청
 export async function deleteUser(pathParams: UserPathParamsDto) {
   await authClient.delete(`/api/v1/users/${pathParams.userId}`);

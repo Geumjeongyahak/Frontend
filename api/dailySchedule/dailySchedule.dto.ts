@@ -24,6 +24,12 @@ export interface DailyScheduleVolunteerHoursQueryParamsDto {
   teacherId?: number;
 }
 
+export interface StudentAttendanceSheetQueryParamsDto {
+  year: number;
+  month: number;
+  classroomId: number;
+}
+
 export interface DailyScheduleLessonResponseDto {
   lessonId?: number;
   period?: number;
@@ -139,4 +145,37 @@ export interface DailyScheduleVolunteerHoursResponseDto {
   to?: string | null;
   totalVolunteerServiceMinutes?: number;
   totalVolunteerServiceHours?: number;
+}
+
+export interface DailyScheduleJournalSheetLinkResponseDto {
+  url?: string;
+}
+
+export interface StudentAttendanceSheetAttendanceResponseDto {
+  attendanceId?: number;
+  studentId?: number;
+  status?: DailyStudentAttendanceStatus;
+}
+
+export interface StudentAttendanceSheetStudentResponseDto {
+  studentId?: number;
+  studentName?: string;
+}
+
+export interface StudentAttendanceSheetScheduleResponseDto {
+  dailyScheduleId?: number;
+  lessonDate?: string;
+  day?: number;
+  dayOfWeek?: string;
+  status?: DailyScheduleStatus;
+  studentAttendances?: StudentAttendanceSheetAttendanceResponseDto[];
+}
+
+export interface StudentAttendanceSheetResponseDto {
+  year?: number;
+  month?: number;
+  classroomId?: number;
+  classroomName?: string;
+  students?: StudentAttendanceSheetStudentResponseDto[];
+  schedules?: StudentAttendanceSheetScheduleResponseDto[];
 }

@@ -15,6 +15,9 @@ export * as channelDto from "./channel/channel.dto";
 export * as commentApi from "./comment/comment.api";
 export * as commentDto from "./comment/comment.dto";
 
+export * as dailyScheduleApi from "./dailySchedule/dailySchedule.api";
+export * as dailyScheduleDto from "./dailySchedule/dailySchedule.dto";
+
 export * as departmentApi from "./department/department.api";
 export * as departmentDto from "./department/department.dto";
 

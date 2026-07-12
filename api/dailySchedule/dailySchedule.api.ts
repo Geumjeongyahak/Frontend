@@ -4,11 +4,14 @@ import type {
   CreateDailyScheduleJournalRequestDto,
   DailyScheduleDetailQueryParamsDto,
   DailyScheduleDetailResponseDto,
+  DailyScheduleJournalSheetLinkResponseDto,
   DailyScheduleListResponseDto,
   DailyScheduleListQueryParamsDto,
   DailySchedulePathParamsDto,
   DailyScheduleVolunteerHoursQueryParamsDto,
   DailyScheduleVolunteerHoursResponseDto,
+  StudentAttendanceSheetQueryParamsDto,
+  StudentAttendanceSheetResponseDto,
   UpdateDailyScheduleJournalRequestDto,
   UpdateDailyScheduleStatusRequestDto,
   UpdateDailyStudentAttendancesRequestDto,
@@ -60,6 +63,27 @@ export async function getDailyScheduleDetailIfExists(query: DailyScheduleDetailQ
 export async function getVolunteerHours(query?: DailyScheduleVolunteerHoursQueryParamsDto) {
   const response = await authClient.get<DailyScheduleVolunteerHoursResponseDto>(
     "/api/v1/daily-schedules/volunteer-hours",
+    {
+      params: query,
+    },
+  );
+
+  return response.data;
+}
+
+// 수업일지 관리 시트 링크를 조회하는 요청
+export async function getJournalSheetLink() {
+  const response = await authClient.get<DailyScheduleJournalSheetLinkResponseDto>(
+    "/api/v1/daily-schedules/journal-sheet-link",
+  );
+
+  return response.data;
+}
+
+// 월간 학생 출석부를 조회하는 요청
+export async function getStudentAttendanceSheet(query: StudentAttendanceSheetQueryParamsDto) {
+  const response = await authClient.get<StudentAttendanceSheetResponseDto>(
+    "/api/v1/attendance-sheets",
     {
       params: query,
     },
