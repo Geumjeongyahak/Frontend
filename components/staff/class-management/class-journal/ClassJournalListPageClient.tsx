@@ -2,12 +2,18 @@
 
 import Link from "next/link";
 import { IconEdit } from "@tabler/icons-react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "react-toastify";
 import styled from "styled-components";
-import { getDailySchedules } from "@/api/dailySchedule/dailySchedule.api";
+import {
+  getDailySchedules,
+  getJournalSheetLink,
+} from "@/api/dailySchedule/dailySchedule.api";
+import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import { ClassJournalSearch } from "@/components/staff/class-management/class-journal/ClassJournalSearch";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { buildClassJournalHref } from "@/utils/classJournalHref";
 import { mapClassJournalListItem } from "@/utils/mapClassJournalListItem";
@@ -23,6 +29,24 @@ export default function ClassJournalListPageClient() {
   const pageParam = Number(searchParams.get("page"));
   const isAuthenticated = authStatus === "authenticated";
   const requestedPage = Number.isInteger(pageParam) && pageParam >= 1 ? pageParam : 1;
+
+  const journalSheetLinkMutation = useMutation({
+    mutationFn: getJournalSheetLink,
+    onSuccess: ({ url }) => {
+      if (!url) {
+        toast.error("수업 일지 출력 링크를 불러오지 못했습니다.");
+        return;
+      }
+
+      const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
+      if (!openedWindow) {
+        window.location.assign(url);
+      }
+    },
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "수업 일지 출력 링크 조회에 실패했습니다."));
+    },
+  });
 
   const { data: schedulePage } = useQuery({
     queryKey: [
@@ -63,7 +87,17 @@ export default function ClassJournalListPageClient() {
       <HeaderRow>
         <Title>수업 일지</Title>
         <ActionGroup $isVisible={isAuthenticated} aria-hidden={!isAuthenticated}>
-          <ActionButton type="button" disabled={!isAuthenticated}>
+          {journalSheetLinkMutation.isPending ? (
+            <FileUploadProgressNotice message="스프레드시트 불러오는 중..." />
+          ) : null}
+          <ActionButton
+            type="button"
+            disabled={!isAuthenticated || journalSheetLinkMutation.isPending}
+            onClick={() => {
+              if (!isAuthenticated || journalSheetLinkMutation.isPending) return;
+              journalSheetLinkMutation.mutate();
+            }}
+          >
             수업 일지 출력
           </ActionButton>
           <ActionLink
