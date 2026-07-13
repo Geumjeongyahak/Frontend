@@ -26,6 +26,7 @@ import {
   SUBJECT_DAY_OPTIONS,
   validateSubjectCreateForm,
 } from "@/components/admin/subjects/shared/subjectCreateForm";
+import { filterAssignableTeachers } from "@/components/admin/teacherAssignmentRoles";
 import { queryKeys } from "@/lib/queryKeys";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { colors, spacing, typography } from "@/styles/tokens";
@@ -156,12 +157,12 @@ export function AdminSubjectCreateForm() {
   });
 
   const teachersQuery = useQuery({
-    queryKey: ["admin", "subjects", "teachers", { role: "VOLUNTEER" }],
-    queryFn: () => getUsers({ role: "VOLUNTEER", page: 0, size: 100 }),
+    queryKey: ["admin", "subjects", "teachers"],
+    queryFn: () => getUsers({ page: 0, size: 100 }),
   });
 
   const classrooms = classroomsQuery.data?.content ?? [];
-  const teachers = teachersQuery.data?.content ?? [];
+  const teachers = filterAssignableTeachers(teachersQuery.data?.content);
 
   const createSubjectMutation = useMutation({
     mutationFn: createSubject,

@@ -96,7 +96,7 @@ export const queryKeys = {
     classroomDetail: (classroomId: number) =>
       ["admin", "classrooms", "detail", classroomId] as const,
     subjects: (classroomId?: number) => ["admin", "subjects", { classroomId }] as const,
-    activeVolunteerTeachers: () => ["admin", "users", "active-volunteer-teachers"] as const,
+    activeAssignableTeachers: () => ["admin", "users", "active-assignable-teachers"] as const,
     purchaseRequests: (
       params?:
         | string

@@ -31,6 +31,7 @@ import {
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
 import { normalizeLessonTimeForApi } from "@/components/admin/lesson-management/lessonCreateError";
+import { filterAssignableTeachers } from "@/components/admin/teacherAssignmentRoles";
 import { formatSubjectTeacherName } from "@/components/admin/subjects/shared/subjectDisplay";
 import { queryKeys } from "@/lib/queryKeys";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
@@ -317,8 +318,8 @@ export function AdminLessonScheduleTables() {
   });
 
   const teachersQuery = useQuery({
-    queryKey: queryKeys.admin.activeVolunteerTeachers(),
-    queryFn: () => getUsers({ role: "VOLUNTEER", page: 0, size: 100 }),
+    queryKey: queryKeys.admin.activeAssignableTeachers(),
+    queryFn: () => getUsers({ page: 0, size: 100 }),
   });
 
   const classrooms = useMemo(
@@ -333,7 +334,10 @@ export function AdminLessonScheduleTables() {
   const weekdayClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKDAY"));
   const weekendClassrooms = classrooms.filter((classroom) => isClassroomType(classroom, "WEEKEND"));
   const hasClassrooms = weekdayClassrooms.length > 0 || weekendClassrooms.length > 0;
-  const teachers = teachersQuery.data?.content ?? [];
+  const teachers = useMemo(
+    () => filterAssignableTeachers(teachersQuery.data?.content),
+    [teachersQuery.data?.content],
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;

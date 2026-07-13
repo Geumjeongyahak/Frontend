@@ -7,8 +7,9 @@ import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
 import { getUserDetail, getUsers } from "@/api/user/user.api";
 import type { UserListItemDto, UserListQueryParamsDto } from "@/api/user/user.dto";
 import { resolveLessonCreateClassroomId } from "@/components/admin/lesson-management/lessonCreateClassroomFallback";
+import { filterAssignableTeachers } from "@/components/admin/teacherAssignmentRoles";
 
-type VolunteerUsersQuery = UserListQueryParamsDto & { role?: "VOLUNTEER" };
+type AssignableTeacherUsersQuery = UserListQueryParamsDto;
 
 export type LessonCreateSelection = {
   teacherId: number | null;
@@ -19,21 +20,20 @@ export function useLessonCreateOptions() {
   const [selectedTeacherId, setSelectedTeacherId] = useState<number | null>(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
 
-  const volunteersQuery = useQuery({
-    queryKey: ["admin", "lesson-create", "volunteers"],
+  const teachersQuery = useQuery({
+    queryKey: ["admin", "lesson-create", "teachers"],
     queryFn: () =>
       getUsers({
         page: 0,
         size: 100,
-        role: "VOLUNTEER",
-      } satisfies VolunteerUsersQuery),
+      } satisfies AssignableTeacherUsersQuery),
     retry: false,
   });
 
-  const volunteers = useMemo(() => {
-    const items = volunteersQuery.data?.content ?? [];
-    return items.filter((user) => user.role === "VOLUNTEER" || user.role == null);
-  }, [volunteersQuery.data?.content]);
+  const teachers = useMemo(
+    () => filterAssignableTeachers(teachersQuery.data?.content),
+    [teachersQuery.data?.content],
+  );
 
   const teacherDetailQuery = useQuery({
     queryKey: ["admin", "lesson-create", "teacher-detail", selectedTeacherId],
@@ -44,9 +44,9 @@ export function useLessonCreateOptions() {
 
   const classroomId = useMemo(() => {
     const teacher =
-      teacherDetailQuery.data ?? volunteers.find((user) => user.id === selectedTeacherId);
+      teacherDetailQuery.data ?? teachers.find((user) => user.id === selectedTeacherId);
     return resolveLessonCreateClassroomId(teacher);
-  }, [teacherDetailQuery.data, volunteers, selectedTeacherId]);
+  }, [teacherDetailQuery.data, teachers, selectedTeacherId]);
 
   const subjectsQuery = useQuery({
     queryKey: ["admin", "lesson-create", "subjects", classroomId],
@@ -73,8 +73,8 @@ export function useLessonCreateOptions() {
   };
 
   return {
-    volunteers,
-    volunteersQuery,
+    teachers,
+    teachersQuery,
     selectedTeacherId,
     selectTeacher,
     teacherDetailQuery,

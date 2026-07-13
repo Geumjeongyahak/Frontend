@@ -7,6 +7,7 @@ import { assignSubjectTeacher } from "@/api/subject/subject.api";
 import type { SubjectDetailResponseDto } from "@/api/subject/subject.dto";
 import { getUsers } from "@/api/user/user.api";
 import type { UserListItemDto } from "@/api/user/user.dto";
+import { filterAssignableTeachers } from "@/components/admin/teacherAssignmentRoles";
 import { getSubjectId } from "@/components/admin/subjects/shared/subjectDisplay";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
@@ -46,16 +47,15 @@ export function useAdminSubjectTeacherAssign({ subject }: UseAdminSubjectTeacher
   }>({ subjectId: null, message: null });
 
   const teachersQuery = useQuery({
-    queryKey: queryKeys.admin.activeVolunteerTeachers(),
+    queryKey: queryKeys.admin.activeAssignableTeachers(),
     queryFn: () =>
       getUsers({
-        role: "VOLUNTEER",
         page: 0,
         size: 100,
       }),
   });
 
-  const teachers = teachersQuery.data?.content ?? [];
+  const teachers = filterAssignableTeachers(teachersQuery.data?.content);
   const selectedTeacherId =
     selectedTeacherState.subjectId === subjectId ? selectedTeacherState.teacherId : null;
   const submitError = submitErrorState.subjectId === subjectId ? submitErrorState.message : null;

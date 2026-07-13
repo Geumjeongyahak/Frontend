@@ -305,8 +305,8 @@ function renderSubjectContent({
 
 export function AdminLessonCreateForm() {
   const {
-    volunteers,
-    volunteersQuery,
+    teachers,
+    teachersQuery,
     selectedTeacherId,
     selectTeacher,
     teacherDetailQuery,
@@ -351,13 +351,13 @@ export function AdminLessonCreateForm() {
         <CreateTopRow>
           <TeacherField>
             담당 교사
-            {volunteersQuery.isLoading ? (
+            {teachersQuery.isLoading ? (
               <TeacherSelectWrap>
                 <TeacherSelect disabled value="">
                   <option value="">불러오는 중...</option>
                 </TeacherSelect>
               </TeacherSelectWrap>
-            ) : volunteersQuery.isError ? (
+            ) : teachersQuery.isError ? (
               <InlineStatus role="alert">교원 목록을 불러오지 못했습니다.</InlineStatus>
             ) : (
               <TeacherSelectWrap>
@@ -369,8 +369,8 @@ export function AdminLessonCreateForm() {
                     selectTeacher(Number.isInteger(value) && value > 0 ? value : null);
                   }}
                 >
-                  <option value="">{volunteers.length === 0 ? "등록된 교원 없음" : "교원 선택"}</option>
-                  {volunteers.map((teacher) => (
+                  <option value="">{teachers.length === 0 ? "등록된 교원 없음" : "교원 선택"}</option>
+                  {teachers.map((teacher) => (
                     <option key={teacher.id} value={teacher.id}>
                       {getTeacherLabel(teacher)}
                     </option>
