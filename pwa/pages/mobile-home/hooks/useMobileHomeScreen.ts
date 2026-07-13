@@ -53,13 +53,13 @@ function hasLessonStartedToday(startTime?: string) {
     return false;
   }
 
-  const startedAt = dayjs(`${getTodayIsoDate()}T${startTime}`);
+  const attendanceAvailableAt = dayjs(`${getTodayIsoDate()}T${startTime}`).subtract(30, "minute");
 
-  if (!startedAt.isValid()) {
+  if (!attendanceAvailableAt.isValid()) {
     return false;
   }
 
-  return !startedAt.isAfter(dayjs());
+  return !attendanceAvailableAt.isAfter(dayjs());
 }
 
 export function useMobileHomeScreen() {
@@ -223,7 +223,7 @@ export function useMobileHomeScreen() {
       : typeof attendanceQuery.data?.dailyScheduleId !== "number"
           ? "오늘 수업 일정이 아직 생성되지 않았습니다."
           : !hasLessonStarted
-            ? "수업 시간이 되면 출석할 수 있습니다."
+            ? "수업 시작 30분 전부터 출석할 수 있습니다."
           : hasCheckedOut
             ? "오늘 수업의 출석과 퇴근을 모두 완료했습니다."
             : hasCompletedAttendance
