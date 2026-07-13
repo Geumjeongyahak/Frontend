@@ -90,7 +90,6 @@ import type {
   PurchaseTransactionResponseDto,
 } from "@/api/request/request.dto";
 import {
-  assignUserClassroom,
   addUserPermission,
   createUser,
   deleteUser,
@@ -98,7 +97,6 @@ import {
   getUserDetail,
   getUserPermissions,
   getUsers,
-  releaseUserClassroom,
   releaseUserDepartment,
   removeUserPermission,
   updateUser,
@@ -1104,24 +1102,6 @@ export default function AdminDashboardPage() {
           : mapUpdateUserFormToPayload(userForm);
 
       const updatedUser = await updateUser({ userId }, updatePayload);
-      const previousClassroomId =
-        typeof userDetailQuery.data?.classroom?.id === "number"
-          ? userDetailQuery.data.classroom.id
-          : typeof userDetailQuery.data?.classroomId === "number"
-            ? userDetailQuery.data.classroomId
-            : null;
-      const nextClassroomId =
-        userForm.role === "VOLUNTEER" && userForm.classroomId
-          ? (toNumber(userForm.classroomId) ?? null)
-          : null;
-
-      if (nextClassroomId !== previousClassroomId) {
-        if (nextClassroomId == null) {
-          await releaseUserClassroom({ userId });
-        } else {
-          await assignUserClassroom({ userId }, { classroomId: nextClassroomId });
-        }
-      }
 
       if (previousDepartmentId !== null && nextDepartmentId === null) {
         await releaseUserDepartment({ userId });
@@ -1134,19 +1114,7 @@ export default function AdminDashboardPage() {
       setIsUserEditing(false);
       setUserForm((current) => mapUserToFormState(updatedUser, current));
       if (selectedUserId) {
-        queryClient.setQueryData(queryKeys.admin.userDetail(selectedUserId), {
-          ...updatedUser,
-          departmentId:
-            userForm.departmentId === "" ? null : (updatedUser.departmentId ?? null),
-          classroomId:
-            userForm.classroomId === "" ? null : (updatedUser.classroomId ?? null),
-          department:
-            userForm.departmentId === "" ? undefined : updatedUser.department,
-          classroom:
-            userForm.classroomId === "" ? undefined : updatedUser.classroom,
-          classroomName:
-            userForm.classroomId === "" ? null : (updatedUser.classroomName ?? null),
-        });
+        queryClient.setQueryData(queryKeys.admin.userDetail(selectedUserId), updatedUser);
       }
       queryClient.setQueryData(
         [
@@ -1163,32 +1131,7 @@ export default function AdminDashboardPage() {
             ? {
                 ...previous,
                 content: (previous.content ?? []).map((item) =>
-                  item.id === updatedUser.id
-                    ? {
-                        ...item,
-                        ...updatedUser,
-                        departmentId:
-                          userForm.departmentId === ""
-                            ? null
-                            : (updatedUser.departmentId ?? item.departmentId),
-                        classroomId:
-                          userForm.classroomId === ""
-                            ? null
-                            : (updatedUser.classroomId ?? item.classroomId),
-                        department:
-                          userForm.departmentId === ""
-                            ? undefined
-                            : (updatedUser.department ?? item.department),
-                        classroom:
-                          userForm.classroomId === ""
-                            ? undefined
-                            : (updatedUser.classroom ?? item.classroom),
-                        classroomName:
-                          userForm.classroomId === ""
-                            ? null
-                            : (updatedUser.classroomName ?? item.classroomName),
-                      }
-                    : item,
+                  item.id === updatedUser.id ? { ...item, ...updatedUser } : item,
                 ),
               }
             : previous,

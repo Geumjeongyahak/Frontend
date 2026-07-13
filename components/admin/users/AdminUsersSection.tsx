@@ -147,6 +147,17 @@ function getClassroomLabel(
   return "-";
 }
 
+function getClassroomLabelFromForm(classroomId: string, classrooms: ClassroomListItemDto[]) {
+  if (!classroomId) {
+    return "분반 없음";
+  }
+
+  return (
+    classrooms.find((classroom) => String(classroom.id) === classroomId)?.name ??
+    `분반 ${classroomId}`
+  );
+}
+
 function getPermissionActions(permissionOptions: PermissionDefinitionDto[], resourceType: string) {
   return permissionOptions
     .filter((option) => option.resourceCode === resourceType)
@@ -452,6 +463,8 @@ export function AdminUsersSection({
                         departments={departments}
                         classrooms={classrooms}
                         disabled={updateUserMutation.isPending}
+                        isClassroomReadOnly
+                        showClassroomReadOnlyHint
                         setUserForm={setUserForm}
                       />
                     </DetailFormView>
@@ -462,6 +475,7 @@ export function AdminUsersSection({
                         departments={departments}
                         classrooms={classrooms}
                         disabled
+                        isClassroomReadOnly
                         setUserForm={setUserForm}
                       />
                     </DetailFormView>
@@ -782,6 +796,8 @@ type UserFieldsProps = {
   classrooms: ClassroomListItemDto[];
   disabled: boolean;
   includePassword?: boolean;
+  isClassroomReadOnly?: boolean;
+  showClassroomReadOnlyHint?: boolean;
   setUserForm: Dispatch<SetStateAction<UserFormState>>;
 };
 
@@ -791,6 +807,8 @@ function UserFields({
   classrooms,
   disabled,
   includePassword = false,
+  isClassroomReadOnly = false,
+  showClassroomReadOnlyHint = false,
   setUserForm,
 }: UserFieldsProps) {
   const passwordMatchState =
@@ -898,7 +916,7 @@ function UserFields({
               ...current,
               role,
               departmentId: role === "GUEST" ? "" : current.departmentId,
-              classroomId: role === "VOLUNTEER" ? current.classroomId : "",
+              classroomId: isClassroomReadOnly || role === "VOLUNTEER" ? current.classroomId : "",
             }));
           }}
         >
@@ -933,26 +951,37 @@ function UserFields({
       </Label>
       <Label>
         분반
-        <UserSelect
-          value={form.classroomId}
-          disabled={disabled}
-          onChange={(event) =>
-            setUserForm((current) => ({
-              ...current,
-              classroomId: event.target.value,
-              role: event.target.value ? "VOLUNTEER" : current.role,
-            }))
-          }
-        >
-          <option value="">분반 없음</option>
-          {classrooms
-            .filter((classroom) => typeof classroom.id === "number")
-            .map((classroom) => (
-              <option key={classroom.id} value={String(classroom.id)}>
-                {classroom.name ?? `분반 ${classroom.id}`}
-              </option>
-            ))}
-        </UserSelect>
+        {isClassroomReadOnly ? (
+          <>
+            <ReadOnlyField aria-readonly="true">
+              {getClassroomLabelFromForm(form.classroomId, classrooms)}
+            </ReadOnlyField>
+            {showClassroomReadOnlyHint ? (
+              <FieldHint>* 분반은 &quot;수업 관리&quot; 섹션에서 수정 가능합니다.</FieldHint>
+            ) : null}
+          </>
+        ) : (
+          <UserSelect
+            value={form.classroomId}
+            disabled={disabled}
+            onChange={(event) =>
+              setUserForm((current) => ({
+                ...current,
+                classroomId: event.target.value,
+                role: event.target.value ? "VOLUNTEER" : current.role,
+              }))
+            }
+          >
+            <option value="">분반 없음</option>
+            {classrooms
+              .filter((classroom) => typeof classroom.id === "number")
+              .map((classroom) => (
+                <option key={classroom.id} value={String(classroom.id)}>
+                  {classroom.name ?? `분반 ${classroom.id}`}
+                </option>
+              ))}
+          </UserSelect>
+        )}
       </Label>
     </>
   );
@@ -1191,6 +1220,25 @@ const EmptyPermissionItem = styled.li`
   font-size: ${typography.fontSize13};
 `;
 
+const ReadOnlyField = styled.div`
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.375rem;
+  border: 1px solid ${colors.border};
+  border-radius: 0.375rem;
+  padding: 0 ${spacing.space12};
+  background-color: ${colors.white};
+  color: #64706c;
+  font-size: ${typography.fontSize14};
+`;
+
+const FieldHint = styled.span`
+  color: #7c8581;
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight150};
+`;
+
 const UserSelect = styled.select`
   width: 100%;
   min-height: 2.375rem;
@@ -1329,7 +1377,11 @@ const PasswordInput = styled(TextInput)<{
 
   &:focus {
     border-color: ${({ $matchState }) =>
-      $matchState === "matched" ? colors.point : $matchState === "mismatched" ? "#de8c85" : colors.point};
+      $matchState === "matched"
+        ? colors.point
+        : $matchState === "mismatched"
+          ? "#de8c85"
+          : colors.point};
     outline: 2px solid
       ${({ $matchState }) =>
         $matchState === "matched"
