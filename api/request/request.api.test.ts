@@ -30,6 +30,10 @@ import {
   updateAdminPurchaseRequest,
   updateAdminPurchaseItemReceipts,
   updatePurchaseItemReceipts,
+  attachPurchaseRequestProposalReceipt,
+  deletePurchaseRequestProposalReceipt,
+  generateAdminPurchaseRequestResolutionDocument,
+  savePurchaseRequestProposal,
 } from "./request.api";
 
 describe("request.api", () => {
@@ -442,6 +446,64 @@ describe("request.api", () => {
       items: [{ spec: "A4", unitPrice: 3000 }],
       draftApprovals: [{ position: "담당", name: "김담당" }],
     });
+  });
+
+  it("saves proposal data with the documented PUT method", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedBody: unknown;
+    server.use(
+      http.put(`${API_BASE_URL}/api/v1/purchase-requests/4/proposal`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({ id: 1, proposalTitle: "7월 교재 구입" });
+      }),
+    );
+
+    const response = await savePurchaseRequestProposal(
+      { requestId: 4 },
+      { proposalTitle: "7월 교재 구입", items: [] },
+    );
+
+    expect(response.proposalTitle).toBe("7월 교재 구입");
+    expect(observedBody).toEqual({ proposalTitle: "7월 교재 구입", items: [] });
+  });
+
+  it("attaches and removes a proposal receipt through documented endpoints", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let deletedPathname = "";
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/purchase-requests/4/proposal/receipts`, () =>
+        HttpResponse.json({ id: 1, receipts: [{ id: 9, fileId: "file-1" }] }),
+      ),
+      http.delete(`${API_BASE_URL}/api/v1/purchase-requests/4/proposal/receipts/9`, ({ request }) => {
+        deletedPathname = new URL(request.url).pathname;
+        return new HttpResponse(null, { status: 200 });
+      }),
+    );
+
+    const response = await attachPurchaseRequestProposalReceipt(
+      { requestId: 4 },
+      { fileId: "file-1" },
+    );
+    await deletePurchaseRequestProposalReceipt({ requestId: 4, receiptId: 9 });
+
+    expect(response.receipts).toEqual([{ id: 9, fileId: "file-1" }]);
+    expect(deletedPathname).toBe("/api/v1/purchase-requests/4/proposal/receipts/9");
+  });
+
+  it("returns an admin resolution document as a blob", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/admin/purchase-requests/4/resolution-document`, () =>
+        new HttpResponse(new Blob(["docx-content"]), { status: 200 }),
+      ),
+    );
+
+    await expect(generateAdminPurchaseRequestResolutionDocument({ requestId: 4 })).resolves.toBeInstanceOf(
+      Blob,
+    );
   });
 
   it("updates purchase item receipts through the requester endpoint", async () => {

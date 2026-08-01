@@ -18,8 +18,12 @@ import type {
   ReportPurchaseRequestDto,
   RequestPathParamsDto,
   RequestReconfirmationResponseDto,
+  ProposalReceiptPathParamsDto,
   ReviewPurchaseRequestDto,
   RequestStatusQueryParamsDto,
+  SavePurchaseRequestProposalRequestDto,
+  AttachPurchaseRequestProposalReceiptRequestDto,
+  PurchaseRequestProposalResponseDto,
   UpdateAbsenceRequestDto,
   UpdateAdminPurchaseRequestDto,
 } from "./request.dto";
@@ -128,6 +132,111 @@ export async function getPurchaseRequestDetail(pathParams: RequestPathParamsDto)
     `/api/v1/purchase-requests/${pathParams.requestId}`,
   );
   return response.data;
+}
+
+async function generatePurchaseRequestDocument(endpoint: string) {
+  const response = await authClient.post<Blob>(endpoint, undefined, {
+    responseType: "blob",
+  });
+  return response.data;
+}
+
+// 구매 요청의 품의 정보를 저장하거나 전체 교체하는 요청
+export async function savePurchaseRequestProposal(
+  pathParams: RequestPathParamsDto,
+  body: SavePurchaseRequestProposalRequestDto,
+) {
+  const response = await authClient.put<PurchaseRequestProposalResponseDto>(
+    `/api/v1/purchase-requests/${pathParams.requestId}/proposal`,
+    body,
+  );
+  return response.data;
+}
+
+// 관리자 권한으로 구매 요청의 품의 정보를 저장하거나 전체 교체하는 요청
+export async function saveAdminPurchaseRequestProposal(
+  pathParams: RequestPathParamsDto,
+  body: SavePurchaseRequestProposalRequestDto,
+) {
+  const response = await authClient.put<PurchaseRequestProposalResponseDto>(
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/proposal`,
+    body,
+  );
+  return response.data;
+}
+
+// 구매 요청 품의에 업로드된 영수증 파일을 첨부하는 요청
+export async function attachPurchaseRequestProposalReceipt(
+  pathParams: RequestPathParamsDto,
+  body: AttachPurchaseRequestProposalReceiptRequestDto,
+) {
+  const response = await authClient.post<PurchaseRequestProposalResponseDto>(
+    `/api/v1/purchase-requests/${pathParams.requestId}/proposal/receipts`,
+    body,
+  );
+  return response.data;
+}
+
+// 관리자 권한으로 구매 요청 품의에 업로드된 영수증 파일을 첨부하는 요청
+export async function attachAdminPurchaseRequestProposalReceipt(
+  pathParams: RequestPathParamsDto,
+  body: AttachPurchaseRequestProposalReceiptRequestDto,
+) {
+  const response = await authClient.post<PurchaseRequestProposalResponseDto>(
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/proposal/receipts`,
+    body,
+  );
+  return response.data;
+}
+
+// 구매 요청 품의에서 영수증 파일을 제거하는 요청
+export async function deletePurchaseRequestProposalReceipt(
+  pathParams: ProposalReceiptPathParamsDto,
+) {
+  await authClient.delete(
+    `/api/v1/purchase-requests/${pathParams.requestId}/proposal/receipts/${pathParams.receiptId}`,
+  );
+}
+
+// 관리자 권한으로 구매 요청 품의에서 영수증 파일을 제거하는 요청
+export async function deleteAdminPurchaseRequestProposalReceipt(
+  pathParams: ProposalReceiptPathParamsDto,
+) {
+  await authClient.delete(
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/proposal/receipts/${pathParams.receiptId}`,
+  );
+}
+
+// 구매 요청의 최신 품의서 DOCX를 생성하는 요청
+export async function generatePurchaseRequestProposalDocument(pathParams: RequestPathParamsDto) {
+  return generatePurchaseRequestDocument(
+    `/api/v1/purchase-requests/${pathParams.requestId}/proposal-document`,
+  );
+}
+
+// 관리자 권한으로 구매 요청의 최신 품의서 DOCX를 생성하는 요청
+export async function generateAdminPurchaseRequestProposalDocument(
+  pathParams: RequestPathParamsDto,
+) {
+  return generatePurchaseRequestDocument(
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/proposal-document`,
+  );
+}
+
+// 구매 요청의 최신 결의서 DOCX를 생성하는 요청
+export async function generatePurchaseRequestResolutionDocument(pathParams: RequestPathParamsDto) {
+  return generatePurchaseRequestDocument(
+    `/api/v1/purchase-requests/${pathParams.requestId}/resolution-document`,
+  );
+}
+
+// 관리자 권한으로 구매 요청의 최신 결의서 DOCX를 생성하는 요청
+export async function generateAdminPurchaseRequestResolutionDocument(
+  pathParams: RequestPathParamsDto,
+) {
+  return generatePurchaseRequestDocument(
+    `/api/v1/admin/purchase-requests/${pathParams.requestId}/resolution-document`,
+  );
 }
 
 // 특정 구매 요청을 승인하는 요청
