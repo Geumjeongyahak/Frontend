@@ -20,6 +20,7 @@ import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 type FinanceRequestListPageProps = {
   currentPage: number;
   initialKeyword: string;
+  initialPaymentType?: PaymentType;
 };
 
 type PaymentTypeFilter = "all" | PaymentType;
@@ -50,8 +51,11 @@ function getRequestTime(createdAt?: string) {
   return Number.isNaN(time) ? 0 : time;
 }
 
-function getAffiliationLabel(request: { departmentName?: string; classroomName?: string }) {
-  return request.departmentName ?? request.classroomName ?? "-";
+function getAffiliationLabel(request: {
+  departmentName?: string | null;
+  classroomName?: string | null;
+}) {
+  return request.classroomName ?? request.departmentName ?? "-";
 }
 
 function getPaymentTypeLabel(paymentType?: PaymentType) {
@@ -85,21 +89,28 @@ function getListPaymentType(request: {
   return undefined;
 }
 
-function buildFinanceListUrl(keyword: string) {
+function buildFinanceListUrl(keyword: string, paymentType: PaymentTypeFilter) {
   const trimmedKeyword = keyword.trim();
-  return trimmedKeyword
-    ? `/staff/finance-management?keyword=${encodeURIComponent(trimmedKeyword)}`
-    : "/staff/finance-management";
+  const params = new URLSearchParams();
+
+  if (trimmedKeyword) params.set("keyword", trimmedKeyword);
+  if (paymentType !== "all") params.set("paymentType", paymentType);
+
+  const query = params.toString();
+  return query ? `/staff/finance-management?${query}` : "/staff/finance-management";
 }
 
 export default function FinanceRequestListPage({
   currentPage,
   initialKeyword,
+  initialPaymentType,
 }: FinanceRequestListPageProps) {
   const router = useRouter();
-  const { user, status: authStatus } = useAuthSession();
+  const { status: authStatus } = useAuthSession();
   const [mineOnly, setMineOnly] = useState(false);
-  const [paymentTypeFilter, setPaymentTypeFilter] = useState<PaymentTypeFilter>("all");
+  const [paymentTypeFilter, setPaymentTypeFilter] = useState<PaymentTypeFilter>(
+    initialPaymentType ?? "all",
+  );
   const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null);
   const [searchInput, setSearchInput] = useState(initialKeyword);
   const [searchKeyword, setSearchKeyword] = useState(initialKeyword);
@@ -110,6 +121,7 @@ export default function FinanceRequestListPage({
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.requests.purchaseList({
       mine: mineOnly || undefined,
+      paymentType: paymentTypeFilter === "all" ? undefined : paymentTypeFilter,
       keyword: trimmedKeyword || undefined,
       page: currentPage - 1,
       size: FINANCE_REQUESTS_PER_PAGE,
@@ -117,6 +129,7 @@ export default function FinanceRequestListPage({
     queryFn: () =>
       getPurchaseRequests({
         mine: mineOnly || undefined,
+        paymentType: paymentTypeFilter === "all" ? undefined : paymentTypeFilter,
         keyword: trimmedKeyword || undefined,
         page: currentPage - 1,
         size: FINANCE_REQUESTS_PER_PAGE,
@@ -125,24 +138,9 @@ export default function FinanceRequestListPage({
     retry: false,
   });
 
-  const currentAuthor = user?.name ?? user?.nickname ?? user?.email;
-  const requests = (isAuthenticated ? (data?.content ?? []) : [])
-    .filter((request) => {
-      const matchesMine =
-        !mineOnly ||
-        Boolean(
-          currentAuthor &&
-          (request.requestedByName === user?.name ||
-            request.requestedByName === user?.nickname ||
-            request.requestedByName === user?.email),
-        );
-      const paymentType = getListPaymentType(request as never);
-      const matchesPaymentType =
-        paymentTypeFilter === "all" || paymentType === paymentTypeFilter;
-
-      return matchesMine && matchesPaymentType;
-    })
-    .sort((a, b) => getRequestTime(b.createdAt) - getRequestTime(a.createdAt));
+  const requests = (isAuthenticated ? (data?.content ?? []) : []).sort(
+    (a, b) => getRequestTime(b.createdAt) - getRequestTime(a.createdAt),
+  );
   const totalPages = Math.max(1, isAuthenticated ? (data?.totalPages ?? 1) : 1);
   const totalCount = isAuthenticated ? (data?.totalElements ?? requests.length) : 0;
   const safeCurrentPage =
@@ -195,6 +193,7 @@ export default function FinanceRequestListPage({
             mineOnly={mineOnly}
             persistentQuery={{
               keyword: trimmedKeyword || undefined,
+              paymentType: paymentTypeFilter === "all" ? undefined : paymentTypeFilter,
             }}
             showExtraColumn
             extraHeader="결제 유형"
@@ -223,6 +222,7 @@ export default function FinanceRequestListPage({
                   onSelect={(nextValue) => {
                     setPaymentTypeFilter(nextValue);
                     setOpenDropdown(null);
+                    router.replace(buildFinanceListUrl(trimmedKeyword, nextValue), { scroll: false });
                   }}
                   width="compact"
                 />
@@ -235,7 +235,7 @@ export default function FinanceRequestListPage({
                   event.preventDefault();
                   const nextKeyword = searchInput.trim();
                   setSearchKeyword(nextKeyword);
-                  router.replace(buildFinanceListUrl(nextKeyword), { scroll: false });
+                  router.replace(buildFinanceListUrl(nextKeyword, paymentTypeFilter), { scroll: false });
                 }}
               >
                 <SearchInput

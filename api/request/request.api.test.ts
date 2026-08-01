@@ -28,9 +28,13 @@ import {
   reportAdminPurchase,
   reportPurchase,
   updateAdminPurchaseRequest,
+  updatePurchaseRequest,
   updateAdminPurchaseItemReceipts,
   updatePurchaseItemReceipts,
+  attachAdminPurchaseRequestProposalReceipt,
   attachPurchaseRequestProposalReceipt,
+  deleteAdminPurchaseRequestProposalReceipt,
+  deletePurchaseRequest,
   deletePurchaseRequestProposalReceipt,
   generateAdminPurchaseRequestResolutionDocument,
   savePurchaseRequestProposal,
@@ -177,13 +181,14 @@ describe("request.api", () => {
     await createPurchaseRequest({
       title: "교재 결제 신청",
       content: "신청자: 홍길동",
+      paymentType: "PREPAID",
+      classroomId: null,
       departmentId: 7,
       items: [
         {
           name: "국어 교재",
           quantity: 3,
           reason: "수업 교재",
-          paymentType: "PREPAID",
         },
       ],
     });
@@ -191,13 +196,14 @@ describe("request.api", () => {
     expect(observedBody).toEqual({
       title: "교재 결제 신청",
       content: "신청자: 홍길동",
+      paymentType: "PREPAID",
+      classroomId: null,
       departmentId: 7,
       items: [
         {
           name: "국어 교재",
           quantity: 3,
           reason: "수업 교재",
-          paymentType: "PREPAID",
         },
       ],
     });
@@ -223,6 +229,8 @@ describe("request.api", () => {
 
     const response = await getPurchaseRequests({
       mine: true,
+      paymentType: "PREPAID",
+      departmentName: "교육연구부",
       keyword: "교재",
       page: 0,
       size: 10,
@@ -230,6 +238,8 @@ describe("request.api", () => {
 
     expect(response.content).toEqual([{ id: 21, title: "교재 결제 신청", status: "PENDING" }]);
     expect(observedQueryString).toContain("mine=true");
+    expect(observedQueryString).toContain("paymentType=PREPAID");
+    expect(observedQueryString).toContain("departmentName=%EA%B5%90%EC%9C%A1%EC%97%B0%EA%B5%AC%EB%B6%80");
     expect(observedQueryString).toContain("keyword=%EA%B5%90%EC%9E%AC");
     expect(observedQueryString).toContain("page=0");
     expect(observedQueryString).toContain("size=10");
@@ -255,6 +265,7 @@ describe("request.api", () => {
 
     const response = await getAllPurchaseRequests({
       status: "APPROVED",
+      paymentType: "ACTUAL",
       keyword: "문구",
       page: 0,
       size: 20,
@@ -262,6 +273,7 @@ describe("request.api", () => {
 
     expect(response.content).toEqual([{ id: 31, title: "문구 구입", status: "APPROVED" }]);
     expect(observedQueryString).toContain("status=APPROVED");
+    expect(observedQueryString).toContain("paymentType=ACTUAL");
     expect(observedQueryString).toContain("keyword=%EB%AC%B8%EA%B5%AC");
     expect(observedQueryString).toContain("page=0");
     expect(observedQueryString).toContain("size=20");
@@ -287,6 +299,7 @@ describe("request.api", () => {
             vendorId: 2,
             itemNames: ["국어 교재", "수학 교재"],
             amount: 45000,
+            paymentMethod: "CARD",
             receiptFileId: "11111111-1111-1111-1111-111111111111",
           },
         ],
@@ -299,6 +312,7 @@ describe("request.api", () => {
           vendorId: 2,
           itemNames: ["국어 교재", "수학 교재"],
           amount: 45000,
+          paymentMethod: "CARD",
           receiptFileId: "11111111-1111-1111-1111-111111111111",
         },
       ],
@@ -316,7 +330,7 @@ describe("request.api", () => {
         observedCreateBody = await request.json();
         return HttpResponse.json({ id: 50, status: "PENDING" });
       }),
-      http.patch(`${API_BASE_URL}/api/v1/admin/purchase-requests/50`, async ({ request }) => {
+      http.put(`${API_BASE_URL}/api/v1/admin/purchase-requests/50`, async ({ request }) => {
         observedUpdateBody = await request.json();
         return HttpResponse.json({ id: 50, status: "PENDING", title: "수정됨" });
       }),
@@ -326,12 +340,12 @@ describe("request.api", () => {
       requestedById: 3,
       title: "대리 구입 요청",
       content: "관리자가 대신 등록",
+      paymentType: "ACTUAL",
       classroomId: 1,
       items: [
         {
           name: "프린트 용지",
           quantity: 2,
-          paymentType: "ACTUAL",
         },
       ],
     });
@@ -341,11 +355,12 @@ describe("request.api", () => {
       {
         title: "수정됨",
         content: "품목 수정",
+        classroomId: null,
+        departmentId: 7,
         items: [
           {
             name: "프린트 용지",
             quantity: 3,
-            paymentType: "ACTUAL",
           },
         ],
       },
@@ -355,23 +370,24 @@ describe("request.api", () => {
       requestedById: 3,
       title: "대리 구입 요청",
       content: "관리자가 대신 등록",
+      paymentType: "ACTUAL",
       classroomId: 1,
       items: [
         {
           name: "프린트 용지",
           quantity: 2,
-          paymentType: "ACTUAL",
         },
       ],
     });
     expect(observedUpdateBody).toEqual({
       title: "수정됨",
       content: "품목 수정",
+      classroomId: null,
+      departmentId: 7,
       items: [
         {
           name: "프린트 용지",
           quantity: 3,
-          paymentType: "ACTUAL",
         },
       ],
     });
@@ -448,6 +464,50 @@ describe("request.api", () => {
     });
   });
 
+  it("updates a requester purchase request through the documented PUT endpoint", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedBody: unknown;
+    server.use(
+      http.put(`${API_BASE_URL}/api/v1/purchase-requests/21`, async ({ request }) => {
+        observedBody = await request.json();
+        return HttpResponse.json({ id: 21, status: "PENDING" });
+      }),
+    );
+
+    await updatePurchaseRequest(
+      { requestId: 21 },
+      {
+        title: "교재 수량 변경",
+        content: "수량을 조정합니다.",
+        departmentId: 7,
+        items: [{ name: "국어 교재", quantity: 4, paymentType: "PREPAID" }],
+      },
+    );
+
+    expect(observedBody).toEqual({
+      title: "교재 수량 변경",
+      content: "수량을 조정합니다.",
+      departmentId: 7,
+      items: [{ name: "국어 교재", quantity: 4 }],
+    });
+  });
+
+  it("deletes a newly created purchase request through the requester endpoint", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let deletedPathname = "";
+    server.use(
+      http.delete(`${API_BASE_URL}/api/v1/purchase-requests/21`, ({ request }) => {
+        deletedPathname = new URL(request.url).pathname;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await expect(deletePurchaseRequest({ requestId: 21 })).resolves.toBeUndefined();
+    expect(deletedPathname).toBe("/api/v1/purchase-requests/21");
+  });
+
   it("saves proposal data with the documented PUT method", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
@@ -471,10 +531,15 @@ describe("request.api", () => {
   it("attaches and removes a proposal receipt through documented endpoints", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
+    let attachedBody: unknown;
     let deletedPathname = "";
     server.use(
-      http.post(`${API_BASE_URL}/api/v1/purchase-requests/4/proposal/receipts`, () =>
-        HttpResponse.json({ id: 1, receipts: [{ id: 9, fileId: "file-1" }] }),
+      http.post(
+        `${API_BASE_URL}/api/v1/purchase-requests/4/proposal/receipts`,
+        async ({ request }) => {
+          attachedBody = await request.json();
+          return HttpResponse.json({ id: 1, receipts: [{ id: 9, fileId: "file-1" }] });
+        },
       ),
       http.delete(`${API_BASE_URL}/api/v1/purchase-requests/4/proposal/receipts/9`, ({ request }) => {
         deletedPathname = new URL(request.url).pathname;
@@ -489,7 +554,53 @@ describe("request.api", () => {
     await deletePurchaseRequestProposalReceipt({ requestId: 4, receiptId: 9 });
 
     expect(response.receipts).toEqual([{ id: 9, fileId: "file-1" }]);
+    expect(attachedBody).toEqual({ fileId: "file-1" });
     expect(deletedPathname).toBe("/api/v1/purchase-requests/4/proposal/receipts/9");
+  });
+
+  it("attaches a proposal receipt through the admin endpoint with the file ID payload", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedPathname = "";
+    let observedBody: unknown;
+    server.use(
+      http.post(
+        `${API_BASE_URL}/api/v1/admin/purchase-requests/4/proposal/receipts`,
+        async ({ request }) => {
+          observedPathname = new URL(request.url).pathname;
+          observedBody = await request.json();
+          return HttpResponse.json({ id: 1, receipts: [{ id: 9, fileId: "file-1" }] });
+        },
+      ),
+    );
+
+    const response = await attachAdminPurchaseRequestProposalReceipt(
+      { requestId: 4 },
+      { fileId: "file-1" },
+    );
+
+    expect(response.receipts).toEqual([{ id: 9, fileId: "file-1" }]);
+    expect(observedPathname).toBe("/api/v1/admin/purchase-requests/4/proposal/receipts");
+    expect(observedBody).toEqual({ fileId: "file-1" });
+  });
+
+  it("removes a proposal receipt through the admin endpoint", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let deletedPathname = "";
+    server.use(
+      http.delete(
+        `${API_BASE_URL}/api/v1/admin/purchase-requests/4/proposal/receipts/9`,
+        ({ request }) => {
+          deletedPathname = new URL(request.url).pathname;
+          return new HttpResponse(null, { status: 200 });
+        },
+      ),
+    );
+
+    await deleteAdminPurchaseRequestProposalReceipt({ requestId: 4, receiptId: 9 });
+
+    expect(deletedPathname).toBe("/api/v1/admin/purchase-requests/4/proposal/receipts/9");
   });
 
   it("returns an admin resolution document as a blob", async () => {

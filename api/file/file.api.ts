@@ -90,8 +90,9 @@ export async function uploadAttachment(file: Blob, filename?: string) {
     "/api/v1/files/attachments",
     createMultipartFormData(file, filename),
     {
+      // Clear the JSON default so Axios/browser can generate the multipart boundary.
       headers: {
-        "Content-Type": "multipart/form-data",
+        "Content-Type": undefined,
       },
     },
   );

@@ -1475,6 +1475,7 @@ export default function AdminDashboardPage() {
             .map((item) => item.itemReason.trim())
             .filter(Boolean)
             .join("\n") || `${purchaseCreate.title.trim()} 결제 요청`,
+        paymentType: purchaseCreate.items[0]?.itemPaymentType ?? "ACTUAL",
         classroomId: toNumber(purchaseCreate.classroomId) ?? 0,
         items: purchaseCreate.items.map((item) => ({
           name: item.itemName.trim(),

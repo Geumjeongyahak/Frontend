@@ -19,6 +19,7 @@ import {
   getAttachmentDownloadUrl,
   uploadAdminPurchaseRequestReceiptImage,
   uploadAdminVendorReceiptImage,
+  uploadAttachment,
   uploadPurchaseItemImage,
   uploadSiteContentImage,
 } from "./file.api";
@@ -29,11 +30,13 @@ describe("file.api", () => {
 
     let observedAuthorizationHeader: string | null = null;
     let observedContentType = "";
+    let observedBody = "";
 
     server.use(
       http.post(`${API_BASE_URL}/api/v1/files/images/purchase-items`, async ({ request }) => {
         observedAuthorizationHeader = request.headers.get("authorization");
         observedContentType = request.headers.get("content-type") ?? "";
+        observedBody = await request.text();
 
         return HttpResponse.json(FILE_UPLOAD_RESPONSE);
       }),
@@ -47,6 +50,8 @@ describe("file.api", () => {
     expect(response).toEqual(FILE_UPLOAD_RESPONSE);
     expect(observedAuthorizationHeader).toBe(`Bearer ${VALID_ACCESS_TOKEN}`);
     expect(observedContentType).toContain("multipart/form-data");
+    expect(observedBody).toContain('name="file"');
+    expect(observedBody).toContain("Content-Type: image/png");
   });
 
   it("returns a signed attachment download url", async () => {
@@ -57,6 +62,35 @@ describe("file.api", () => {
     });
 
     expect(response).toEqual(ATTACHMENT_DOWNLOAD_URL_RESPONSE);
+  });
+
+  it("uploads a proposal receipt file as multipart form data", async () => {
+    setAccessToken(VALID_ACCESS_TOKEN);
+
+    let observedPathname = "";
+    let observedContentType = "";
+    let observedBody = "";
+
+    server.use(
+      http.post(`${API_BASE_URL}/api/v1/files/attachments`, async ({ request }) => {
+        observedPathname = new URL(request.url).pathname;
+        observedContentType = request.headers.get("content-type") ?? "";
+        observedBody = await request.text();
+        return HttpResponse.json(FILE_UPLOAD_RESPONSE);
+      }),
+    );
+
+    await expect(
+      uploadAttachment(
+        new File(["receipt"], "receipt.pdf", { type: "application/pdf" }),
+        "receipt.pdf",
+      ),
+    ).resolves.toEqual(FILE_UPLOAD_RESPONSE);
+
+    expect(observedPathname).toBe("/api/v1/files/attachments");
+    expect(observedContentType).toContain("multipart/form-data");
+    expect(observedContentType).toMatch(/boundary=/i);
+    expect(observedBody).toContain('name="file"');
   });
 
   it("uploads a site content image through the expected endpoint", async () => {

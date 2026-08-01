@@ -26,6 +26,7 @@ import type {
   PurchaseRequestProposalResponseDto,
   UpdateAbsenceRequestDto,
   UpdateAdminPurchaseRequestDto,
+  UpdatePurchaseRequestDto,
 } from "./request.dto";
 
 // 결석 요청 목록을 조회하는 요청
@@ -106,16 +107,16 @@ export async function getPurchaseRequests(query?: PurchaseRequestStatusQueryPara
 
 // 구매 요청을 생성하는 요청
 export async function createPurchaseRequest(body: CreatePurchaseRequestDto) {
-  const requestBody: CreatePurchaseRequestDto = {
+  const requestBody = {
     title: body.title,
     content: body.content,
-    ...(typeof body.classroomId === "number" ? { classroomId: body.classroomId } : {}),
-    ...(typeof body.departmentId === "number" ? { departmentId: body.departmentId } : {}),
+    paymentType: body.paymentType,
+    ...(body.classroomId !== undefined ? { classroomId: body.classroomId } : {}),
+    ...(body.departmentId !== undefined ? { departmentId: body.departmentId } : {}),
     items: body.items.map((item) => ({
       name: item.name,
       quantity: item.quantity,
       ...(item.reason ? { reason: item.reason } : {}),
-      paymentType: item.paymentType,
     })),
   };
 
@@ -130,6 +131,25 @@ export async function createPurchaseRequest(body: CreatePurchaseRequestDto) {
 export async function getPurchaseRequestDetail(pathParams: RequestPathParamsDto) {
   const response = await authClient.get<PurchaseRequestResponseDto>(
     `/api/v1/purchase-requests/${pathParams.requestId}`,
+  );
+  return response.data;
+}
+
+// 특정 구매 요청을 수정하는 요청
+export async function updatePurchaseRequest(
+  pathParams: RequestPathParamsDto,
+  body: UpdatePurchaseRequestDto,
+) {
+  const response = await authClient.put<PurchaseRequestResponseDto>(
+    `/api/v1/purchase-requests/${pathParams.requestId}`,
+    {
+      ...body,
+      items: body.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        ...(item.reason ? { reason: item.reason } : {}),
+      })),
+    },
   );
   return response.data;
 }
@@ -283,7 +303,14 @@ export async function getAllPurchaseRequests(query?: PurchaseRequestStatusQueryP
 export async function createAdminPurchaseRequest(body: CreateAdminPurchaseRequestDto) {
   const response = await authClient.post<PurchaseRequestResponseDto>(
     "/api/v1/admin/purchase-requests",
-    body,
+    {
+      ...body,
+      items: body.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        ...(item.reason ? { reason: item.reason } : {}),
+      })),
+    },
   );
   return response.data;
 }
@@ -306,9 +333,16 @@ export async function updateAdminPurchaseRequest(
   pathParams: RequestPathParamsDto,
   body: UpdateAdminPurchaseRequestDto,
 ) {
-  const response = await authClient.patch<PurchaseRequestResponseDto>(
+  const response = await authClient.put<PurchaseRequestResponseDto>(
     `/api/v1/admin/purchase-requests/${pathParams.requestId}`,
-    body,
+    {
+      ...body,
+      items: body.items.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        ...(item.reason ? { reason: item.reason } : {}),
+      })),
+    },
   );
   return response.data;
 }

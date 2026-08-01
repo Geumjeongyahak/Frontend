@@ -67,6 +67,7 @@ export const queryKeys = {
     absenceDetail: (requestId: number) => ["absence-request", requestId] as const,
     purchaseList: (params?: {
       status?: string;
+      paymentType?: "PREPAID" | "ACTUAL";
       mine?: boolean;
       keyword?: string;
       page?: number;
@@ -100,7 +101,14 @@ export const queryKeys = {
     purchaseRequests: (
       params?:
         | string
-        | { status?: string; keyword?: string; mine?: boolean; page?: number; size?: number },
+        | {
+            status?: string;
+            paymentType?: "PREPAID" | "ACTUAL";
+            keyword?: string;
+            mine?: boolean;
+            page?: number;
+            size?: number;
+          },
     ) => {
       const normalizedParams = typeof params === "string" ? { status: params } : (params ?? {});
 

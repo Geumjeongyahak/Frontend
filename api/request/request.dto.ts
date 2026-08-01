@@ -21,6 +21,8 @@ export type ExpenseDocumentPaymentMethod =
   | "AUTO_TRANSFER"
   | "OTHER";
 
+export type PurchasePaymentMethod = ExpenseDocumentPaymentMethod;
+
 export type ProposalPaymentAccount =
   | "NATIONAL_SUBSIDY_04"
   | "DISTRICT_BUDGET_01"
@@ -67,9 +69,11 @@ export interface RequestStatusQueryParamsDto {
 
 export interface PurchaseRequestStatusQueryParamsDto {
   status?: PurchaseRequestStatus;
+  paymentType?: PaymentType;
   mine?: boolean;
   keyword?: string;
   classroomName?: string;
+  departmentName?: string;
   requestedByName?: string;
   sort?: string;
   page?: number;
@@ -222,8 +226,9 @@ export type AbsenceRequestListItemDto = AbsenceRequestResponseDto;
 export interface CreatePurchaseRequestDto {
   title: string;
   content: string;
-  classroomId?: number;
-  departmentId?: number;
+  paymentType: PaymentType;
+  classroomId?: number | null;
+  departmentId?: number | null;
   items: PurchaseRequestItemDto[];
 }
 
@@ -235,17 +240,21 @@ export interface PurchaseRequestItemDto {
   name: string;
   quantity: number;
   reason?: string;
-  paymentType: PaymentType;
+  /** @deprecated 결제 유형은 요청 단위의 paymentType으로 전달합니다. */
+  paymentType?: PaymentType;
 }
 
 export interface PurchaseTransactionReportDto {
   vendorId: number;
   itemNames: string[];
   amount: number;
+  paymentMethod?: PurchasePaymentMethod;
   receiptFileId?: string;
 }
 
 export interface ReportPurchaseRequestDto {
+  classroomId?: number | null;
+  departmentId?: number | null;
   transactions: PurchaseTransactionReportDto[];
 }
 
@@ -253,11 +262,11 @@ export interface ReviewPurchaseRequestDto {
   note: string;
 }
 
-export interface UpdateAdminPurchaseRequestDto {
+export interface UpdatePurchaseRequestDto {
   title: string;
   content: string;
-  classroomId?: number;
-  departmentId?: number;
+  classroomId?: number | null;
+  departmentId?: number | null;
   items: PurchaseRequestItemDto[];
 }
 
@@ -279,16 +288,19 @@ export interface PurchaseTransactionResponseDto {
   vendorName?: string;
   itemNames?: string[];
   amount?: number;
+  paymentMethod?: PurchasePaymentMethod;
   receiptFileId?: string;
   receiptFileUrl?: string;
 }
 
 export interface PurchaseRequestSummaryResponseDto {
   id?: number;
-  classroomId?: number;
-  classroomName?: string;
-  departmentId?: number;
-  departmentName?: string;
+  paymentType?: PaymentType;
+  classroomId?: number | null;
+  classroomName?: string | null;
+  departmentId?: number | null;
+  departmentName?: string | null;
+  requestedById?: number;
   requestedByName?: string;
   title?: string;
   totalPrice?: number;
@@ -311,7 +323,10 @@ export interface PurchaseRequestResponseDto extends PurchaseRequestSummaryRespon
   note?: string;
   items?: PurchaseRequestItemResponseDto[];
   transactions?: PurchaseTransactionResponseDto[];
+  proposal?: PurchaseRequestProposalResponseDto | null;
 }
+
+export type UpdateAdminPurchaseRequestDto = UpdatePurchaseRequestDto;
 
 export type PurchaseRequestListItemDto = PurchaseRequestResponseDto;
 
