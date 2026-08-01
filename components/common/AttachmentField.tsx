@@ -22,6 +22,7 @@ type AttachmentEditorPanelProps = {
   selectLabel?: string;
   emptyText?: string;
   disabled?: boolean;
+  accept?: string;
 };
 
 type AttachmentDownloadListProps = {
@@ -38,6 +39,7 @@ export function AttachmentEditorPanel({
   selectLabel = "파일 선택",
   emptyText = "선택된 파일이 없습니다.",
   disabled = false,
+  accept,
 }: AttachmentEditorPanelProps) {
   const hasFiles = existingAttachments.length > 0 || selectedFiles.length > 0;
 
@@ -87,6 +89,7 @@ export function AttachmentEditorPanel({
           name="files"
           multiple
           disabled={disabled}
+          accept={accept}
           onChange={(event) => {
             onSelectFiles(Array.from(event.target.files ?? []));
             event.target.value = "";

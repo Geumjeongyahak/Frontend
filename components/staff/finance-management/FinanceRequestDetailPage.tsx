@@ -11,15 +11,26 @@ import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
 import { uploadPurchaseItemImage } from "@/api/file/file.api";
 import {
+  attachAdminPurchaseRequestProposalReceipt,
+  attachPurchaseRequestProposalReceipt,
+  deleteAdminPurchaseRequestProposalReceipt,
   deletePurchaseRequest,
+  deletePurchaseRequestProposalReceipt,
+  generateAdminPurchaseRequestProposalDocument,
+  generateAdminPurchaseRequestResolutionDocument,
+  generatePurchaseRequestProposalDocument,
+  generatePurchaseRequestResolutionDocument,
   getPurchaseRequestDetail,
   reportPurchase,
+  saveAdminPurchaseRequestProposal,
+  savePurchaseRequestProposal,
+  updateAdminPurchaseRequest,
   updateAdminPurchaseItemReceipts,
   updatePurchaseItemReceipts,
 } from "@/api/request/request.api";
 import type {
+  PurchasePaymentMethod,
   PurchaseRequestItemResponseDto,
-  PurchaseRequestListResponseDto,
   PurchaseRequestResponseDto,
   PurchaseRequestStatus,
 } from "@/api/request/request.dto";
@@ -30,6 +41,10 @@ import {
   type AttachmentItem,
 } from "@/components/common/AttachmentField";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
+import {
+  getInvalidProposalReceiptImages,
+  proposalReceiptImageAccept,
+} from "@/components/staff/finance-management/proposalReceiptFiles";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
@@ -69,7 +84,7 @@ type ExtendedPurchaseRequest = PurchaseRequestResponseDto;
 const fallbackVendorNames = ["예소디자인", "목민서관", "지성문구", "마트"] as const;
 
 function getAffiliationLabel(request?: PurchaseRequestResponseDto) {
-  return request?.departmentName ?? request?.classroomName ?? "-";
+  return request?.classroomName ?? request?.departmentName ?? "-";
 }
 
 type EditableItem = {
@@ -160,9 +175,41 @@ const budgetItemNameOptions = [
   "청소용품",
   "프린트토너",
 ] as const;
-const paymentAccountOptions = ["국비04", "구비01", "구비08"] as const;
 const paymentMethodOptions = ["현금", "법인카드", "계좌이체", "자동이체", "기타 납부"] as const;
+const paymentMethodValueMap: Record<(typeof paymentMethodOptions)[number], PurchasePaymentMethod> =
+  {
+    현금: "CASH",
+    법인카드: "CARD",
+    계좌이체: "TRANSFER",
+    자동이체: "AUTO_TRANSFER",
+    "기타 납부": "OTHER",
+  };
 const reportCustomOptionValue = "__report_custom__";
+
+const paymentAccountValueMap = {
+  국비04: "NATIONAL_SUBSIDY_04",
+  구비01: "DISTRICT_BUDGET_01",
+  구비08: "DISTRICT_BUDGET_08",
+} as const;
+
+function getPaymentAccountLabel(paymentAccount?: string | null) {
+  return (
+    Object.entries(paymentAccountValueMap).find(([, value]) => value === paymentAccount)?.[0] ??
+    paymentAccount ??
+    ""
+  );
+}
+
+function downloadDocument(blob: Blob, fileName: string) {
+  const href = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = href;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(href);
+}
 
 const statusLabels: Record<PurchaseRequestStatus, string> = {
   PENDING: "대기 중",
@@ -227,9 +274,25 @@ function mapPurchaseItemsToEditableItems(items?: PurchaseRequestItemResponseDto[
   });
 }
 
-function getRequestPaymentType(items?: PurchaseRequestItemResponseDto[]): PaymentType {
-  const paymentType = items?.find((item) => item.paymentType)?.paymentType;
-  return paymentType === "PREPAID" ? "PREPAID" : "ACTUAL";
+function getRequestPaymentType(request?: PurchaseRequestResponseDto): PaymentType {
+  if (request?.paymentType) {
+    return request.paymentType;
+  }
+
+  const itemPaymentType = request?.items?.find((item) => item.paymentType)?.paymentType;
+  if (itemPaymentType) {
+    return itemPaymentType;
+  }
+
+  if (request?.content?.includes("결제 유형: 선금 결제")) {
+    return "PREPAID";
+  }
+
+  if (request?.content?.includes("결제 유형: 실 결제")) {
+    return "ACTUAL";
+  }
+
+  return "ACTUAL";
 }
 
 function parseNumericValue(value: string) {
@@ -238,15 +301,6 @@ function parseNumericValue(value: string) {
 
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function getApprovalNumber(referenceDate: string, paymentAccount: string) {
-  if (!paymentAccount.trim()) {
-    return "";
-  }
-
-  const year = referenceDate.slice(0, 4) || String(new Date().getFullYear());
-  return `${year}품-${paymentAccount}-01`;
 }
 
 function getContentLineValue(content: string | undefined, label: string) {
@@ -282,12 +336,12 @@ function getContentSection(content: string | undefined, label: string, nextLabel
 function buildApprovalEntries(requestedByName?: string) {
   return [
     { position: "총무", name: requestedByName ?? "" },
-    { position: "교장", name: "정혜웅" },
+    { position: "교장", name: "정해웅" },
     { position: "", name: "" },
   ];
 }
 
-function buildCooperationEntries(departmentName?: string) {
+function buildCooperationEntries(departmentName?: string | null) {
   const firstPosition = departmentName && departmentName !== "총무부" ? `${departmentName}장` : "";
 
   return [
@@ -303,6 +357,7 @@ function parsePrepaidContent(purchase?: PurchaseRequestResponseDto): ParsedPrepa
   }
 
   const content = purchase.content ?? "";
+  const proposal = purchase.proposal;
   const summary =
     getContentSection(content, "[품의 개요]", ["정책 사업:", "[예산 내역]"]) ||
     purchase.content ||
@@ -350,15 +405,20 @@ function parsePrepaidContent(purchase?: PurchaseRequestResponseDto): ParsedPrepa
   });
 
   return {
-    approvalNumber: getContentLineValue(content, "품의 번호"),
-    paymentAccount: getContentLineValue(content, "결제 통장"),
-    summary,
-    policyProject: getContentLineValue(content, "정책 사업"),
+    approvalNumber: proposal?.proposalNumber ?? getContentLineValue(content, "품의 번호"),
+    paymentAccount: getPaymentAccountLabel(
+      proposal?.paymentAccount ?? getContentLineValue(content, "결제 통장"),
+    ),
+    summary: proposal?.overview ?? summary,
+    policyProject: proposal?.policyProject ?? getContentLineValue(content, "정책 사업"),
     requestDepartmentName:
-      getContentLineValue(content, "요구 부서") || purchase.departmentName || "-",
-    approvalDate: getContentLineValue(content, "품의 일자"),
-    detailBusiness: getContentLineValue(content, "세부 사업"),
-    approvalAmount: getContentLineValue(content, "품의 금액").replaceAll("원", "").trim(),
+      proposal?.requestDepartmentName ?? (getContentLineValue(content, "요구 부서") || "-"),
+    approvalDate: proposal?.proposalDate ?? getContentLineValue(content, "품의 일자"),
+    detailBusiness: proposal?.detailProject ?? getContentLineValue(content, "세부 사업"),
+    approvalAmount:
+      proposal?.proposalAmount != null
+        ? String(proposal.proposalAmount)
+        : getContentLineValue(content, "품의 금액").replaceAll("원", "").trim(),
     budgetItems,
     products,
     approvalEntries: buildApprovalEntries(purchase.requestedByName),
@@ -369,9 +429,12 @@ function parsePrepaidContent(purchase?: PurchaseRequestResponseDto): ParsedPrepa
 }
 
 function mapPurchaseItemsToReportItems(purchase?: ExtendedPurchaseRequest): ReportItem[] {
+  const proposalReceipts = purchase?.proposal?.receipts ?? [];
+
   if (purchase?.transactions?.length) {
     return purchase.transactions.map((transaction, index) => {
       const item = findPurchaseItemForTransaction(transaction.itemNames, purchase.items);
+      const proposalReceipt = proposalReceipts[index];
 
       return {
         itemId: transaction.id ?? item?.id ?? index + 1,
@@ -379,30 +442,50 @@ function mapPurchaseItemsToReportItems(purchase?: ExtendedPurchaseRequest): Repo
         vendorName: transaction.vendorName ?? "",
         name: transaction.itemNames?.join(", ") || item?.name || "",
         price: typeof transaction.amount === "number" ? String(transaction.amount) : "0",
-        paymentMethod: "",
+        paymentMethod: transaction.paymentMethod
+          ? (Object.entries(paymentMethodValueMap).find(
+              ([, value]) => value === transaction.paymentMethod,
+            )?.[0] ?? "")
+          : "",
         receiptFile: null,
         receiptFileName:
-          transaction.receiptFileId || transaction.receiptFileUrl
-            ? getReceiptName({ receiptFileId: transaction.receiptFileId })
-            : "",
-        receiptFileId: transaction.receiptFileId,
-        receiptFileUrl: transaction.receiptFileUrl,
+          proposalReceipt?.originalName ??
+          (proposalReceipt?.fileId ||
+          proposalReceipt?.fileUrl ||
+          transaction.receiptFileId ||
+          transaction.receiptFileUrl
+            ? getReceiptName({
+                receiptFileId: proposalReceipt?.fileId ?? transaction.receiptFileId,
+              })
+            : ""),
+        receiptFileId: proposalReceipt?.fileId ?? transaction.receiptFileId,
+        receiptFileUrl: proposalReceipt?.fileUrl ?? transaction.receiptFileUrl,
       };
     });
   }
 
   return (purchase?.items ?? [])
     .filter((item) => typeof item.id === "number")
-    .map((item) => ({
-      itemId: item.id ?? 0,
-      vendorId: "",
-      vendorName: purchase?.vendorName ?? "",
-      name: item.name ?? "",
-      price: "0",
-      paymentMethod: "",
-      receiptFile: null,
-      receiptFileName: "",
-    }));
+    .map((item, index) => {
+      const proposalReceipt = proposalReceipts[index];
+
+      return {
+        itemId: item.id ?? 0,
+        vendorId: "",
+        vendorName: purchase?.vendorName ?? "",
+        name: item.name ?? "",
+        price: "0",
+        paymentMethod: "",
+        receiptFile: null,
+        receiptFileName:
+          proposalReceipt?.originalName ??
+          (proposalReceipt?.fileId || proposalReceipt?.fileUrl
+            ? getReceiptName({ receiptFileId: proposalReceipt.fileId })
+            : ""),
+        receiptFileId: proposalReceipt?.fileId,
+        receiptFileUrl: proposalReceipt?.fileUrl,
+      };
+    });
 }
 
 function cloneReportItems(items: ReportItem[]) {
@@ -410,12 +493,26 @@ function cloneReportItems(items: ReportItem[]) {
 }
 
 function getPrepaidReceiptAttachments(purchase?: ExtendedPurchaseRequest): AttachmentItem[] {
+  const proposalReceipts = (purchase?.proposal?.receipts ?? [])
+    .filter((receipt) => Boolean(receipt.fileId || receipt.fileUrl))
+    .map((receipt, index) => ({
+      id: `proposal-receipt-${receipt.id ?? index}`,
+      label: receipt.originalName ?? `영수증 ${index + 1}`,
+      fileId: receipt.fileId,
+      href: receipt.fileUrl,
+    }));
+
+  if (proposalReceipts.length > 0) {
+    return proposalReceipts;
+  }
+
   return (purchase?.transactions ?? [])
-    .filter((transaction) => Boolean(transaction.receiptFileUrl))
+    .filter((transaction) => Boolean(transaction.receiptFileId || transaction.receiptFileUrl))
     .map((transaction, index) => ({
       id: String(transaction.id ?? `receipt-${index}`),
       label: purchase?.transactions?.length === 1 ? "영수증" : `영수증 ${index + 1}`,
-      href: transaction.receiptFileUrl ?? "#",
+      fileId: transaction.receiptFileId,
+      href: transaction.receiptFileUrl,
     }));
 }
 
@@ -452,6 +549,19 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   } | null>(null);
   const [customReportFieldDraft, setCustomReportFieldDraft] = useState("");
   const [isReportEditing, setIsReportEditing] = useState(false);
+
+  function addEditReceiptFiles(files: File[]) {
+    const invalidFiles = getInvalidProposalReceiptImages(files);
+
+    if (invalidFiles.length > 0) {
+      toast.error("영수증은 JPG, PNG, GIF, WEBP 이미지 파일만 첨부할 수 있습니다.");
+    }
+
+    const validFiles = files.filter((file) => !invalidFiles.includes(file));
+    if (validFiles.length > 0) {
+      setEditReceiptFiles((current) => [...current, ...validFiles]);
+    }
+  }
 
   useEffect(() => {
     autoResizeTextarea(editSummaryTextareaRef.current);
@@ -495,8 +605,176 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     },
   });
 
+  const proposalMutation = useMutation({
+    mutationFn: async () => {
+      if (!request || !editPrepaidContent) {
+        throw new Error("수정할 품의 정보를 찾을 수 없습니다.");
+      }
+
+      const selectedDepartment = departments.find(
+        (department) => String(department.id) === editPrepaidDepartmentId,
+      );
+      const selectedAffiliation = affiliationOptions.find(
+        (option) => option.value === editAffiliationValue,
+      );
+      if (
+        isAdmin &&
+        request.status === "PENDING" &&
+        editAffiliationValue !== requestAffiliationValue
+      ) {
+        if (!selectedAffiliation) {
+          throw new Error("소속을 선택해 주세요.");
+        }
+      }
+      const firstBudgetItem = editPrepaidContent.budgetItems[0];
+      const saveProposal = isAdmin ? saveAdminPurchaseRequestProposal : savePurchaseRequestProposal;
+      const proposal = await saveProposal(
+        { requestId },
+        {
+          ...(!areRequiredFieldsLocked
+            ? {
+                proposalTitle: editTitle,
+                resolutionTitle: editTitle,
+              }
+            : {}),
+          completionDate: editPrepaidContent.approvalDate,
+          draftApprovals: editPrepaidContent.approvalEntries,
+          draftCooperations: editPrepaidContent.cooperationEntries,
+          overview: editPrepaidContent.summary.trim(),
+          policyProject: editPrepaidContent.policyProject,
+          unitProject: unitBusinessLabel,
+          detailProject: editPrepaidContent.detailBusiness,
+          ...(selectedDepartment?.id != null ? { requestDepartmentId: selectedDepartment.id } : {}),
+          proposalDate: editPrepaidContent.approvalDate,
+          proposalAmount: parseNumericValue(editPrepaidContent.approvalAmount),
+          ...(paymentAccountValueMap[
+            editPrepaidContent.paymentAccount as keyof typeof paymentAccountValueMap
+          ]
+            ? {
+                paymentAccount:
+                  paymentAccountValueMap[
+                    editPrepaidContent.paymentAccount as keyof typeof paymentAccountValueMap
+                  ],
+              }
+            : {}),
+          ...(!areRequiredFieldsLocked
+            ? {
+                budget: firstBudgetItem
+                  ? {
+                      itemCategory: "DIRECT_INPUT",
+                      customItemCategory: firstBudgetItem.reason,
+                      calculationDetail: "DIRECT_INPUT",
+                      customCalculationDetail: firstBudgetItem.name,
+                    }
+                  : null,
+              }
+            : {}),
+          items: editPrepaidContent.products.map((item) => ({
+            content: item.description,
+            specification: item.specification,
+            quantity: parseNumericValue(item.quantity),
+            estimatedUnitPrice: parseNumericValue(item.unitPrice),
+            expectedAmountWithinRange:
+              parseNumericValue(item.amount) <=
+              parseNumericValue(editPrepaidContent.approvalAmount),
+          })),
+        },
+      );
+
+      if (
+        isAdmin &&
+        request.status === "PENDING" &&
+        editAffiliationValue !== requestAffiliationValue &&
+        selectedAffiliation
+      ) {
+        await updateAdminPurchaseRequest(
+          { requestId },
+          {
+            title: request.title ?? "",
+            content: request.content ?? "",
+            ...(selectedAffiliation.type === "classroom"
+              ? { classroomId: selectedAffiliation.id, departmentId: null }
+              : { classroomId: null, departmentId: selectedAffiliation.id }),
+            items: (request.items ?? []).map((item) => ({
+              name: item.name ?? "",
+              quantity: item.quantity ?? 1,
+              ...(item.reason ? { reason: item.reason } : {}),
+              paymentType: item.paymentType ?? requestPaymentType,
+            })),
+          },
+        );
+      }
+
+      if (editReceiptFiles.length > 0) {
+        const uploadedReceiptIds = await Promise.all(
+          editReceiptFiles.map(async (receiptFile) => {
+            const uploaded = await uploadPurchaseItemImage(receiptFile, receiptFile.name);
+            if (!uploaded.fileId) {
+              throw new Error("영수증 파일 업로드에 실패했습니다.");
+            }
+            return uploaded.fileId;
+          }),
+        );
+        const existingReceiptIds = (request.proposal?.receipts ?? []).map((receipt) => receipt.id);
+
+        if (
+          !existingReceiptIds.every(
+            (receiptId): receiptId is number => typeof receiptId === "number",
+          )
+        ) {
+          throw new Error("기존 품의서 영수증 정보를 확인할 수 없습니다.");
+        }
+
+        const deleteProposalReceipt = isAdmin
+          ? deleteAdminPurchaseRequestProposalReceipt
+          : deletePurchaseRequestProposalReceipt;
+        const attachProposalReceipt = isAdmin
+          ? attachAdminPurchaseRequestProposalReceipt
+          : attachPurchaseRequestProposalReceipt;
+
+        for (const receiptId of existingReceiptIds) {
+          await deleteProposalReceipt({ requestId, receiptId });
+        }
+
+        for (const fileId of uploadedReceiptIds) {
+          await attachProposalReceipt({ requestId }, { fileId });
+        }
+      }
+
+      return proposal;
+    },
+    onSuccess: async () => {
+      cancelEditing();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseDetail(requestId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseList() }),
+      ]);
+      toast.success("품의서를 수정했습니다.");
+    },
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "품의서 수정에 실패했습니다."));
+    },
+  });
+
+  const documentMutation = useMutation({
+    mutationFn: async (documentType: "proposal" | "resolution") => {
+      const document =
+        documentType === "proposal"
+          ? isAdmin
+            ? await generateAdminPurchaseRequestProposalDocument({ requestId })
+            : await generatePurchaseRequestProposalDocument({ requestId })
+          : isAdmin
+            ? await generateAdminPurchaseRequestResolutionDocument({ requestId })
+            : await generatePurchaseRequestResolutionDocument({ requestId });
+      downloadDocument(document, documentType === "proposal" ? "품의서.docx" : "결의서.docx");
+    },
+    onError: (error) => {
+      toast.error(extractApiErrorMessage(error, "문서 출력에 실패했습니다."));
+    },
+  });
+
   const purchase = request as ExtendedPurchaseRequest | undefined;
-  const requestPaymentType = getRequestPaymentType(request?.items);
+  const requestPaymentType = getRequestPaymentType(request);
   const initialEditItems = useMemo(
     () => mapPurchaseItemsToEditableItems(request?.items),
     [request?.items],
@@ -519,6 +797,31 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       : requestPaymentType === "PREPAID"
         ? persistedPrepaidReportItems
         : initialReportItems;
+  const displayedReportItems = useMemo(() => {
+    if (
+      !isEditing ||
+      requestPaymentType !== "PREPAID" ||
+      editReceiptFiles.length === 0
+    ) {
+      return activeReportItems;
+    }
+
+    return activeReportItems.map((item, index) => {
+      if (item.receiptFile) {
+        return item;
+      }
+
+      const receiptFile = editReceiptFiles[index];
+
+      return {
+        ...item,
+        receiptFileName: receiptFile?.name ?? "",
+        receiptFileId: undefined,
+        receiptFileUrl: undefined,
+        receiptPreviewUrl: undefined,
+      };
+    });
+  }, [activeReportItems, editReceiptFiles, isEditing, requestPaymentType]);
   const classrooms = useMemo(() => classroomData?.content ?? [], [classroomData]);
   const departments = useMemo(() => departmentData?.departments ?? [], [departmentData]);
   const affiliationOptions = useMemo<AffiliationOption[]>(
@@ -542,19 +845,22 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     ],
     [classrooms, departments],
   );
-  const selectedAffiliation = affiliationOptions.find(
-    (option) => option.value === editAffiliationValue,
-  );
   const requestAffiliationValue = useMemo(() => {
-    const currentAffiliation = affiliationOptions.find((option) =>
-      option.type === "department"
-        ? typeof request?.departmentId === "number"
-          ? option.id === request.departmentId
-          : option.label === request?.departmentName
-        : typeof request?.classroomId === "number"
-          ? option.id === request.classroomId
-          : option.label === request?.classroomName,
-    );
+    const currentAffiliation =
+      affiliationOptions.find(
+        (option) =>
+          option.type === "classroom" &&
+          (typeof request?.classroomId === "number"
+            ? option.id === request.classroomId
+            : option.label === request?.classroomName),
+      ) ??
+      affiliationOptions.find(
+        (option) =>
+          option.type === "department" &&
+          (typeof request?.departmentId === "number"
+            ? option.id === request.departmentId
+            : option.label === request?.departmentName),
+      );
 
     return currentAffiliation?.value ?? "";
   }, [affiliationOptions, request]);
@@ -568,7 +874,11 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
           }
 
           const uploaded = await uploadPurchaseItemImage(item.receiptFile, item.receiptFile.name);
-          return uploaded.fileId ?? null;
+          if (!uploaded.fileId) {
+            throw new Error("영수증 파일 업로드에 실패했습니다.");
+          }
+
+          return uploaded.fileId;
         }),
       );
 
@@ -580,19 +890,64 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
             .map((name) => name.trim())
             .filter(Boolean),
           amount: Number(item.price),
+          ...(requestPaymentType === "PREPAID"
+            ? {
+                paymentMethod:
+                  paymentMethodValueMap[
+                    item.paymentMethod as (typeof paymentMethodOptions)[number]
+                  ],
+              }
+            : {}),
           ...(uploadedReceiptIds[index] || item.receiptFileId
             ? { receiptFileId: uploadedReceiptIds[index] ?? item.receiptFileId }
             : {}),
         })),
       };
 
-      if (isReportEditing) {
-        return user?.role === "ADMIN"
+      const report = isReportEditing
+        ? isAdmin
           ? updateAdminPurchaseItemReceipts({ requestId }, body)
-          : updatePurchaseItemReceipts({ requestId }, body);
+          : updatePurchaseItemReceipts({ requestId }, body)
+        : reportPurchase({ requestId }, body);
+
+      const response = await report;
+      const currentProposalReceiptFileIds = [
+        ...new Set(
+          body.transactions
+            .map((transaction) => transaction.receiptFileId)
+            .filter((fileId): fileId is string => Boolean(fileId?.trim())),
+        ),
+      ];
+
+      if (uploadedReceiptIds.some((fileId) => Boolean(fileId?.trim()))) {
+        const existingProposalReceipts = request?.proposal?.receipts ?? [];
+        const existingProposalReceiptIds = existingProposalReceipts.map((receipt) => receipt.id);
+
+        if (
+          !existingProposalReceiptIds.every(
+            (receiptId): receiptId is number => typeof receiptId === "number",
+          )
+        ) {
+          throw new Error("기존 품의서 영수증 정보를 확인할 수 없습니다.");
+        }
+
+        const deleteProposalReceipt = isAdmin
+          ? deleteAdminPurchaseRequestProposalReceipt
+          : deletePurchaseRequestProposalReceipt;
+        const attachProposalReceipt = isAdmin
+          ? attachAdminPurchaseRequestProposalReceipt
+          : attachPurchaseRequestProposalReceipt;
+
+        for (const receiptId of existingProposalReceiptIds) {
+          await deleteProposalReceipt({ requestId, receiptId });
+        }
+
+        for (const fileId of currentProposalReceiptFileIds) {
+          await attachProposalReceipt({ requestId }, { fileId });
+        }
       }
 
-      return reportPurchase({ requestId }, body);
+      return response;
     },
     onSuccess: () => {
       if (requestPaymentType === "PREPAID") {
@@ -671,7 +1026,16 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   const isAdmin = authStatus === "authenticated" && user?.role === "ADMIN";
   const canManageRequest = isAdmin || isRequester;
   const canManagePurchaseReport = authStatus === "authenticated" && canManageRequest;
-  const canEditRequest = request?.status === "PENDING" && canManageRequest;
+  const canEditProposal =
+    requestPaymentType === "PREPAID" &&
+    canManageRequest &&
+    (request?.status === "PENDING" ||
+      request?.status === "APPROVED" ||
+      request?.status === "PURCHASED");
+  const areRequiredFieldsLocked =
+    request?.status === "APPROVED" ||
+    request?.status === "PURCHASED" ||
+    request?.status === "CONFIRMED";
   const canDeleteRequest = request?.status === "PENDING" && canManageRequest;
   const canShowReportForm = request?.status === "APPROVED" && isRequester;
   const canEditPurchaseReport =
@@ -803,12 +1167,21 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   function updateEditItem(itemId: number, patch: Partial<EditableItem>) {
     setEditItems((current) =>
       (current.length ? current : initialEditItems).map((item) =>
-        item.id === itemId ? { ...item, ...patch } : item,
+        item.id === itemId
+          ? {
+              ...item,
+              ...(areRequiredFieldsLocked ? { reason: patch.reason ?? item.reason } : patch),
+            }
+          : item,
       ),
     );
   }
 
   function addEditItem() {
+    if (areRequiredFieldsLocked) {
+      return;
+    }
+
     setEditItems((current) => {
       const source = current.length ? current : initialEditItems;
       const nextId = source.length ? Math.max(...source.map((item) => item.id)) + 1 : 1;
@@ -826,6 +1199,10 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   }
 
   function removeEditItem(itemId: number) {
+    if (areRequiredFieldsLocked) {
+      return;
+    }
+
     setEditItems((current) => {
       const source = current.length ? current : initialEditItems;
 
@@ -886,6 +1263,10 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   }
 
   function updateEditPrepaidBudgetItem(itemId: number, patch: Partial<ParsedPrepaidBudgetItem>) {
+    if (areRequiredFieldsLocked) {
+      return;
+    }
+
     setEditPrepaidContent((current) =>
       current
         ? {
@@ -1012,7 +1393,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
   }
 
   function startEditing() {
-    if (!request) {
+    if (!request || !canEditProposal) {
       return;
     }
 
@@ -1021,9 +1402,13 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     setEditAffiliationValue(requestAffiliationValue);
     if (requestPaymentType === "PREPAID" && parsedPrepaidContent) {
       setEditPrepaidContent(parsedPrepaidContent);
-      const matchedDepartment = departments.find(
-        (department) => department.name === parsedPrepaidContent.requestDepartmentName,
-      );
+      const proposalDepartmentId = request.proposal?.requestDepartmentId;
+      const matchedDepartment =
+        proposalDepartmentId != null
+          ? departments.find((department) => department.id === proposalDepartmentId)
+          : departments.find(
+              (department) => department.name === parsedPrepaidContent.requestDepartmentName,
+            );
       setEditPrepaidDepartmentId(matchedDepartment?.id != null ? String(matchedDepartment.id) : "");
       setEditItems([]);
     } else {
@@ -1059,142 +1444,14 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     reportMutation.mutate();
   }
 
-  function handleEditSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!request) {
+  function submitEdit() {
+    if (!request || !canEditProposal) {
       return;
     }
 
     if (requestPaymentType === "PREPAID" && editPrepaidContent) {
-      const selectedDepartment = departments.find(
-        (department) => String(department.id) === editPrepaidDepartmentId,
-      );
-      const nextApprovalNumber = getApprovalNumber(
-        editPrepaidContent.approvalDate,
-        editPrepaidContent.paymentAccount,
-      );
-      const budgetContent = editPrepaidContent.budgetItems
-        .map(
-          (item, index) =>
-            `${index + 1}. 세부사업: ${item.detailBusiness || editPrepaidContent.detailBusiness || "-"} / 세부 항목: ${item.reason || "-"} / 산출 내역: ${item.name || "-"}`,
-        )
-        .join("\n");
-      const productContent =
-        editPrepaidContent.products.length > 0
-          ? editPrepaidContent.products
-              .map(
-                (item, index) =>
-                  `${index + 1}. 내용: ${item.description || "-"} / 규격: ${item.specification || "-"} / 수량: ${item.quantity || 0} / 예상 단가: ${item.unitPrice || 0} / 예상 금액: ${item.amount || 0}`,
-              )
-              .join("\n")
-          : "없음";
-      const nextContent = [
-        `분반: ${selectedAffiliation?.label ?? getAffiliationLabel(request)}`,
-        `신청자: ${request.requestedByName ?? "-"}`,
-        "결제 유형: 선금 결제",
-        "",
-        `[품의 번호]`,
-        `품의 번호: ${nextApprovalNumber || "-"}`,
-        `결제 통장: ${editPrepaidContent.paymentAccount || "-"}`,
-        "",
-        `[품의 개요]`,
-        editPrepaidContent.summary.trim(),
-        `정책 사업: ${editPrepaidContent.policyProject || "-"}`,
-        `요구 부서: ${selectedDepartment?.name ?? editPrepaidContent.requestDepartmentName ?? "-"}`,
-        `단위 사업: ${unitBusinessLabel}`,
-        `품의 일자: ${editPrepaidContent.approvalDate || "-"}`,
-        `세부 사업: ${editPrepaidContent.detailBusiness || "-"}`,
-        `품의 금액: ${editPrepaidContent.approvalAmount || "0"}원`,
-        "",
-        `[예산 내역]`,
-        budgetContent,
-        "",
-        `[품목 내역]`,
-        productContent,
-      ].join("\n");
-
-      const nextRequest = {
-        ...request,
-        title: editTitle.trim() || request.title,
-        classroomId:
-          selectedAffiliation?.type === "classroom" ? selectedAffiliation.id : request.classroomId,
-        classroomName:
-          selectedAffiliation?.type === "classroom"
-            ? selectedAffiliation.label
-            : request.classroomName,
-        departmentId:
-          selectedAffiliation?.type === "department"
-            ? selectedAffiliation.id
-            : request.departmentId,
-        departmentName:
-          selectedAffiliation?.type === "department"
-            ? selectedAffiliation.label
-            : request.departmentName,
-        content: nextContent,
-        items: editPrepaidContent.budgetItems.map((item) => ({
-          id: item.id,
-          name: item.name.trim(),
-          reason: item.reason.trim() || undefined,
-          quantity: 1,
-          paymentType: "PREPAID" as const,
-        })),
-      };
-
-      queryClient.setQueryData(queryKeys.requests.purchaseDetail(requestId), nextRequest);
-      queryClient.setQueryData<PurchaseRequestListResponseDto | undefined>(
-        queryKeys.requests.purchaseList(),
-        (current) =>
-          current
-            ? {
-                ...current,
-                content: current.content.map((item) =>
-                  item.id === requestId ? { ...item, ...nextRequest } : item,
-                ),
-              }
-            : current,
-      );
-      cancelEditing();
-      return;
+      proposalMutation.mutate();
     }
-
-    const nextRequest = {
-      ...request,
-      title: editTitle.trim() || request.title,
-      classroomId:
-        selectedAffiliation?.type === "classroom" ? selectedAffiliation.id : request.classroomId,
-      classroomName:
-        selectedAffiliation?.type === "classroom"
-          ? selectedAffiliation.label
-          : request.classroomName,
-      departmentId:
-        selectedAffiliation?.type === "department" ? selectedAffiliation.id : request.departmentId,
-      departmentName:
-        selectedAffiliation?.type === "department"
-          ? selectedAffiliation.label
-          : request.departmentName,
-      items: (editItems.length ? editItems : initialEditItems).map((item) => ({
-        id: item.id,
-        name: item.name.trim(),
-        reason: item.reason.trim() || undefined,
-        quantity: Number(item.quantity),
-        paymentType: getRequestPaymentType(request.items),
-      })),
-    };
-
-    queryClient.setQueryData(queryKeys.requests.purchaseDetail(requestId), nextRequest);
-    queryClient.setQueryData<PurchaseRequestListResponseDto | undefined>(
-      queryKeys.requests.purchaseList(),
-      (current) =>
-        current
-          ? {
-              ...current,
-              content: current.content.map((item) =>
-                item.id === requestId ? { ...item, ...nextRequest } : item,
-              ),
-            }
-          : current,
-    );
-    cancelEditing();
   }
 
   return (
@@ -1206,11 +1463,21 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
           <Actions>
             {!isEditing && requestPaymentType === "PREPAID" ? (
               <ActionGroup>
-                <ActionButton type="button" $variant="edit" disabled={!canPrintApprovalForm}>
-                  품의서 출력
+                <ActionButton
+                  type="button"
+                  $variant="edit"
+                  disabled={!canPrintApprovalForm || documentMutation.isPending}
+                  onClick={() => documentMutation.mutate("proposal")}
+                >
+                  {documentMutation.isPending ? "출력 준비 중" : "품의서 출력"}
                 </ActionButton>
-                <ActionButton type="button" $variant="edit" disabled={!canPrintResolutionForm}>
-                  결의서 출력
+                <ActionButton
+                  type="button"
+                  $variant="edit"
+                  disabled={!canPrintResolutionForm || documentMutation.isPending}
+                  onClick={() => documentMutation.mutate("resolution")}
+                >
+                  {documentMutation.isPending ? "출력 준비 중" : "결의서 출력"}
                 </ActionButton>
               </ActionGroup>
             ) : (
@@ -1219,8 +1486,18 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
             <ActionGroup>
               {isEditing ? (
                 <>
-                  <ActionButton type="submit" form="finance-request-edit-form" $variant="edit">
-                    수정 완료
+                  <ActionButton
+                    type="button"
+                    $variant="edit"
+                    disabled={proposalMutation.isPending || !canEditProposal}
+                    title={
+                      canEditProposal
+                        ? undefined
+                        : "품의서는 대기, 승인 또는 구매 완료 상태에서 작성자와 관리자만 수정할 수 있습니다."
+                    }
+                    onClick={submitEdit}
+                  >
+                    {proposalMutation.isPending ? "품의서 수정 중" : "수정 완료"}
                   </ActionButton>
                   <CancelTopButton type="button" onClick={cancelEditing}>
                     취소
@@ -1246,11 +1523,11 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                       <ActionButton
                         type="button"
                         $variant="edit"
-                        disabled={!canEditRequest}
+                        disabled={!canEditProposal}
                         title={
-                          canEditRequest
+                          canEditProposal
                             ? undefined
-                            : "관리자이거나 대기 중인 본인 작성 글만 수정할 수 있습니다."
+                            : "품의서는 대기, 승인 또는 구매 완료 상태에서 작성자와 관리자만 수정할 수 있습니다."
                         }
                         onClick={startEditing}
                       >
@@ -1269,19 +1546,28 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
             <StateMessage role="alert">결제 신청 정보를 불러오지 못했습니다.</StateMessage>
           ) : null}
           {request ? (
-            <ContentColumn
-              as={isEditing ? "form" : "article"}
-              id={isEditing ? "finance-request-edit-form" : undefined}
-              onSubmit={handleEditSubmit}
-            >
+            <ContentColumn>
               <DateBar>{formatUtcToKstShortDate(request.createdAt)}</DateBar>
 
+              {isEditing ? (
+                <RequiredFieldGuide>
+                  *로 표시된 항목은 필수이며, 관리자 승인 후 수정할 수 없습니다.
+                </RequiredFieldGuide>
+              ) : null}
+
               <Section>
-                <Label>제목</Label>
+                <Label>
+                  제목{isEditing ? <RequiredMarker aria-hidden="true">*</RequiredMarker> : null}
+                </Label>
                 {isEditing ? (
                   <EditInput
                     value={editTitle}
                     onChange={(event) => setEditTitle(event.target.value)}
+                    readOnly={areRequiredFieldsLocked}
+                    disabled={areRequiredFieldsLocked}
+                    aria-label={
+                      areRequiredFieldsLocked ? "제목 (관리자 승인 후 수정 불가)" : "제목"
+                    }
                   />
                 ) : (
                   <Field>{request.title ?? "-"}</Field>
@@ -1293,14 +1579,17 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                 <InfoRow>
                   <InlineLabel htmlFor="edit-affiliation" as="label">
                     소속
+                    {isEditing && !areRequiredFieldsLocked && isAdmin ? (
+                      <RequiredMarker aria-hidden="true">*</RequiredMarker>
+                    ) : null}
                   </InlineLabel>
-                  {isEditing ? (
+                  {isEditing && !areRequiredFieldsLocked && isAdmin ? (
                     <EditSelect
                       id="edit-affiliation"
                       name="affiliation"
                       value={editAffiliationValue}
                       onChange={(event) => setEditAffiliationValue(event.target.value)}
-                      required
+                      aria-label="소속"
                     >
                       <option value="">소속 선택</option>
                       {affiliationOptions.map((option) => (
@@ -1318,14 +1607,17 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
               </Section>
 
               <Section>
-                <SectionTitle>결제 유형</SectionTitle>
+                <SectionTitle>
+                  결제 유형
+                  {isEditing ? <RequiredMarker aria-hidden="true">*</RequiredMarker> : null}
+                </SectionTitle>
                 <PaymentTypeGroup aria-disabled="true">
                   <PaymentTypeOption>
                     <input
                       type="checkbox"
                       name="edit-paymentType"
                       value="PREPAID"
-                      checked={getRequestPaymentType(request.items) === "PREPAID"}
+                      checked={getRequestPaymentType(request) === "PREPAID"}
                       disabled
                       readOnly
                     />
@@ -1336,7 +1628,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                       type="checkbox"
                       name="edit-paymentType"
                       value="ACTUAL"
-                      checked={getRequestPaymentType(request.items) === "ACTUAL"}
+                      checked={getRequestPaymentType(request) === "ACTUAL"}
                       disabled
                       readOnly
                     />
@@ -1350,29 +1642,25 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                   {isEditing && editPrepaidContent ? (
                     <>
                       <Section>
-                        <SectionTitle>품의 번호</SectionTitle>
+                        <SectionTitle>결제 통장 유형</SectionTitle>
                         <ApprovalNumberRow>
-                          <ApprovalNumberField>
-                            {getApprovalNumber(
-                              editPrepaidContent.approvalDate,
-                              editPrepaidContent.paymentAccount,
-                            ) || "-"}
-                          </ApprovalNumberField>
                           <EditSelect
+                            aria-label="결제 통장 유형"
                             value={editPrepaidContent.paymentAccount}
                             onChange={(event) =>
                               updateEditPrepaidContent({ paymentAccount: event.target.value })
                             }
                           >
-                            <option value="">결제 통장 선택</option>
-                            {paymentAccountOptions.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
+                            <option value="">결제 통장 유형 선택</option>
+                            {Object.keys(paymentAccountValueMap).map((account) => (
+                              <option key={account} value={account}>
+                                {account}
                               </option>
                             ))}
                             {editPrepaidContent.paymentAccount &&
-                            !paymentAccountOptions.some(
-                              (option) => option === editPrepaidContent.paymentAccount,
+                            !Object.prototype.hasOwnProperty.call(
+                              paymentAccountValueMap,
+                              editPrepaidContent.paymentAccount,
                             ) ? (
                               <option value={editPrepaidContent.paymentAccount}>
                                 {editPrepaidContent.paymentAccount}
@@ -1494,8 +1782,12 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                               <tr>
                                 <BudgetHeadCell>순번</BudgetHeadCell>
                                 <BudgetHeadCell>세부 사업</BudgetHeadCell>
-                                <BudgetHeadCell>세부 항목</BudgetHeadCell>
-                                <BudgetHeadCell>산출 내역</BudgetHeadCell>
+                                <BudgetHeadCell>
+                                  세부 항목<RequiredMarker aria-hidden="true">*</RequiredMarker>
+                                </BudgetHeadCell>
+                                <BudgetHeadCell>
+                                  산출 내역<RequiredMarker aria-hidden="true">*</RequiredMarker>
+                                </BudgetHeadCell>
                                 <BudgetHeadCell>품의 금액</BudgetHeadCell>
                                 <BudgetHeadCell>예산 잔액</BudgetHeadCell>
                                 <BudgetHeadCell>사업 잔액</BudgetHeadCell>
@@ -1506,63 +1798,84 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                 <tr key={item.id}>
                                   <BudgetBodyCell>{index + 1}</BudgetBodyCell>
                                   <BudgetBodyCell>
-                                    <BudgetInlineInput
-                                      value={
-                                        item.detailBusiness || editPrepaidContent.detailBusiness
-                                      }
-                                      onChange={(event) =>
-                                        updateEditPrepaidBudgetItem(item.id, {
-                                          detailBusiness: event.target.value,
-                                        })
-                                      }
-                                      placeholder="세부 사업"
-                                    />
-                                  </BudgetBodyCell>
-                                  <BudgetBodyCell>
                                     <BudgetInlineSelect
-                                      value={item.reason}
+                                      value={editPrepaidContent.detailBusiness}
                                       onChange={(event) =>
-                                        updateEditPrepaidBudgetItem(item.id, {
-                                          reason: event.target.value,
-                                        })
+                                        syncEditPrepaidDetailBusiness(event.target.value)
                                       }
                                     >
-                                      <option value="">세부 항목</option>
-                                      {budgetItemReasonOptions.map((option) => (
-                                        <option key={`${item.id}-${option}`} value={option}>
+                                      <option value="">세부 사업 선택</option>
+                                      {detailBusinessOptions.map((option) => (
+                                        <option
+                                          key={`${item.id}-detail-business-${option}`}
+                                          value={option}
+                                        >
                                           {option}
                                         </option>
                                       ))}
-                                      {item.reason &&
-                                      !budgetItemReasonOptions.some(
-                                        (option) => option === item.reason,
+                                      {editPrepaidContent.detailBusiness &&
+                                      !detailBusinessOptions.some(
+                                        (option) => option === editPrepaidContent.detailBusiness,
                                       ) ? (
-                                        <option value={item.reason}>{item.reason}</option>
+                                        <option value={editPrepaidContent.detailBusiness}>
+                                          {editPrepaidContent.detailBusiness}
+                                        </option>
                                       ) : null}
                                     </BudgetInlineSelect>
                                   </BudgetBodyCell>
                                   <BudgetBodyCell>
-                                    <BudgetInlineSelect
-                                      value={item.name}
-                                      onChange={(event) =>
-                                        updateEditPrepaidBudgetItem(item.id, {
-                                          name: event.target.value,
-                                        })
-                                      }
-                                    >
-                                      <option value="">산출 내역</option>
-                                      {budgetItemNameOptions.map((option) => (
-                                        <option key={`${item.id}-name-${option}`} value={option}>
-                                          {option}
-                                        </option>
-                                      ))}
-                                      {item.name &&
-                                      !budgetItemNameOptions.some(
-                                        (option) => option === item.name,
-                                      ) ? (
-                                        <option value={item.name}>{item.name}</option>
-                                      ) : null}
-                                    </BudgetInlineSelect>
+                                    {areRequiredFieldsLocked ? (
+                                      <BudgetInlineValue>{item.reason || "-"}</BudgetInlineValue>
+                                    ) : (
+                                      <BudgetInlineSelect
+                                        value={item.reason}
+                                        onChange={(event) =>
+                                          updateEditPrepaidBudgetItem(item.id, {
+                                            reason: event.target.value,
+                                          })
+                                        }
+                                      >
+                                        <option value="">세부 항목 선택</option>
+                                        {budgetItemReasonOptions.map((option) => (
+                                          <option key={`${item.id}-${option}`} value={option}>
+                                            {option}
+                                          </option>
+                                        ))}
+                                        {item.reason &&
+                                        !budgetItemReasonOptions.some(
+                                          (option) => option === item.reason,
+                                        ) ? (
+                                          <option value={item.reason}>{item.reason}</option>
+                                        ) : null}
+                                      </BudgetInlineSelect>
+                                    )}
+                                  </BudgetBodyCell>
+                                  <BudgetBodyCell>
+                                    {areRequiredFieldsLocked ? (
+                                      <BudgetInlineValue>{item.name || "-"}</BudgetInlineValue>
+                                    ) : (
+                                      <BudgetInlineSelect
+                                        value={item.name}
+                                        onChange={(event) =>
+                                          updateEditPrepaidBudgetItem(item.id, {
+                                            name: event.target.value,
+                                          })
+                                        }
+                                      >
+                                        <option value="">산출 내역 선택</option>
+                                        {budgetItemNameOptions.map((option) => (
+                                          <option key={`${item.id}-name-${option}`} value={option}>
+                                            {option}
+                                          </option>
+                                        ))}
+                                        {item.name &&
+                                        !budgetItemNameOptions.some(
+                                          (option) => option === item.name,
+                                        ) ? (
+                                          <option value={item.name}>{item.name}</option>
+                                        ) : null}
+                                      </BudgetInlineSelect>
+                                    )}
                                   </BudgetBodyCell>
                                   <BudgetBodyCell>
                                     <BudgetInlineInput
@@ -1789,11 +2102,11 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                       <Section>
                         <SectionTitle>영수증</SectionTitle>
                         <AttachmentEditorPanel
-                          existingAttachments={[]}
-                          selectedFiles={editReceiptFiles}
-                          onSelectFiles={(files) =>
-                            setEditReceiptFiles((current) => [...current, ...files])
+                          existingAttachments={
+                            editReceiptFiles.length > 0 ? [] : prepaidReceiptAttachments
                           }
+                          selectedFiles={editReceiptFiles}
+                          onSelectFiles={addEditReceiptFiles}
                           onRemoveSelected={(file) =>
                             setEditReceiptFiles((current) =>
                               current.filter(
@@ -1805,8 +2118,9 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                               ),
                             )
                           }
-                          selectLabel="영수증 파일 선택"
-                          emptyText="첨부된 영수증 파일이 없습니다."
+                          selectLabel="영수증 첨부"
+                          emptyText="첨부된 영수증 이미지가 없습니다."
+                          accept={proposalReceiptImageAccept}
                         />
                       </Section>
                     </>
@@ -1817,9 +2131,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                         <ApprovalNumberRow>
                           <ApprovalNumberField>
                             {activePrepaidContent.approvalNumber || "-"}
-                          </ApprovalNumberField>
-                          <ApprovalNumberField>
-                            {activePrepaidContent.paymentAccount || "-"}
                           </ApprovalNumberField>
                         </ApprovalNumberRow>
                       </Section>
@@ -2015,7 +2326,10 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
               ) : (
                 <Section>
                   <DetailSectionHeader>
-                    <SectionTitle>상세 품목</SectionTitle>
+                    <SectionTitle>
+                      상세 품목
+                      {isEditing ? <RequiredMarker aria-hidden="true">*</RequiredMarker> : null}
+                    </SectionTitle>
                     {canEditPurchaseReport && !isReportEditing ? (
                       <ReportEditTextButton type="button" onClick={startReportEditing}>
                         수정
@@ -2032,17 +2346,22 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                 {(editItems.length ? editItems : initialEditItems).length > 1
                                   ? `품목 ${index + 1}`
                                   : "품목"}
+                                <RequiredMarker aria-hidden="true">*</RequiredMarker>
                               </ItemLabel>
                               <EditInput
                                 id={`editItemName-${item.id}`}
                                 value={item.name}
+                                readOnly={areRequiredFieldsLocked}
+                                disabled={areRequiredFieldsLocked}
                                 onChange={(event) =>
                                   updateEditItem(item.id, { name: event.target.value })
                                 }
                               />
                             </ItemFieldRow>
                             <ItemFieldRow>
-                              <ItemLabel htmlFor={`editQuantity-${item.id}`}>개수</ItemLabel>
+                              <ItemLabel htmlFor={`editQuantity-${item.id}`}>
+                                개수<RequiredMarker aria-hidden="true">*</RequiredMarker>
+                              </ItemLabel>
                               <EditInput
                                 id={`editQuantity-${item.id}`}
                                 type="number"
@@ -2050,6 +2369,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                 step="1"
                                 inputMode="numeric"
                                 value={item.quantity}
+                                readOnly={areRequiredFieldsLocked}
+                                disabled={areRequiredFieldsLocked}
                                 onChange={(event) =>
                                   updateEditItem(item.id, { quantity: event.target.value })
                                 }
@@ -2069,6 +2390,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                               <EditItemActionRow>
                                 <DeleteItemButton
                                   type="button"
+                                  disabled={areRequiredFieldsLocked}
                                   onClick={() => removeEditItem(item.id)}
                                 >
                                   품목 삭제
@@ -2078,7 +2400,11 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                           </EditItemBlock>
                         ))}
                       </EditItemList>
-                      <AddItemButton type="button" onClick={addEditItem}>
+                      <AddItemButton
+                        type="button"
+                        disabled={areRequiredFieldsLocked}
+                        onClick={addEditItem}
+                      >
                         품목 추가하기
                       </AddItemButton>
                     </>
@@ -2089,9 +2415,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                         <ApprovalNumberRow>
                           <ApprovalNumberField>
                             {activePrepaidContent.approvalNumber || "-"}
-                          </ApprovalNumberField>
-                          <ApprovalNumberField>
-                            {activePrepaidContent.paymentAccount || "-"}
                           </ApprovalNumberField>
                         </ApprovalNumberRow>
                       </Section>
@@ -2134,9 +2457,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                 </SummaryValueCell>
                                 <SummaryLabelCell>품의 금액</SummaryLabelCell>
                                 <SummaryValueCell>
-                                  {activePrepaidContent.approvalAmount
-                                    ? `${activePrepaidContent.approvalAmount}`
-                                    : "-"}
+                                  {activePrepaidContent.approvalAmount || "-"}
                                 </SummaryValueCell>
                               </tr>
                             </tbody>
@@ -2314,7 +2635,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                   href={item.receipt.fileUrl ?? "#"}
                                   download={getReceiptName(item.receipt)}
                                 >
-                                  영수증
+                                  {getReceiptName(item.receipt)}
                                   <ReceiptIcon aria-hidden="true">
                                     <IconDownload size={12} stroke={2.25} />
                                   </ReceiptIcon>
@@ -2389,7 +2710,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                         </tr>
                       </thead>
                       <tbody>
-                        {activeReportItems.map((item, index) => (
+                        {displayedReportItems.map((item, index) => (
                           <tr key={item.itemId}>
                             <ReportBodyCell>
                               <ReportInlineText id={`reportName-${item.itemId}`}>
@@ -2500,14 +2821,14 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                     href={item.receiptFileUrl ?? item.receiptPreviewUrl ?? "#"}
                                     download={item.receiptFileName || "영수증"}
                                   >
-                                    영수증
+                                    {item.receiptFileName || "영수증"}
                                     <ReceiptIcon aria-hidden="true">
                                       <IconDownload size={12} stroke={2.25} />
                                     </ReceiptIcon>
                                   </InlineReceiptLink>
                                 ) : (
                                   <ReportInlineText>
-                                    {item.receiptFileName ? "영수증" : "-"}
+                                    {item.receiptFileName || "-"}
                                   </ReportInlineText>
                                 )
                               ) : (
@@ -2830,6 +3151,22 @@ const SectionTitle = styled.h2`
   }
 `;
 
+const RequiredMarker = styled.span`
+  margin-left: ${spacing.space4};
+  color: ${colors.notice};
+`;
+
+const RequiredFieldGuide = styled.p`
+  margin: 0;
+  color: ${colors.notice};
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight150};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize18};
+  }
+`;
+
 const ReceiptSectionDescription = styled.p`
   margin: 0;
   color: ${colors.placeholder};
@@ -2979,7 +3316,12 @@ const SummaryWideCell = styled(SummaryValueCell)`
 `;
 
 const SummaryReadOnlyBlock = styled.pre`
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 9rem;
   margin: 0;
+  padding: 0;
   white-space: pre-wrap;
   word-break: break-word;
   color: #000000;
@@ -2988,6 +3330,7 @@ const SummaryReadOnlyBlock = styled.pre`
   font-family: inherit;
 
   @media (min-width: 120rem) {
+    min-height: 12rem;
     font-size: ${typography.fontSize20};
   }
 `;
@@ -3089,6 +3432,19 @@ const BudgetInlineSelect = styled.select`
   font-size: ${typography.fontSize14};
   line-height: ${typography.lineHeight130};
   outline: none;
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const BudgetInlineValue = styled.span`
+  display: block;
+  width: 100%;
+  color: #000000;
+  font-size: ${typography.fontSize14};
+  line-height: ${typography.lineHeight130};
+  text-align: center;
 
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize20};

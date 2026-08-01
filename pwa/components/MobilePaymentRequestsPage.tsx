@@ -466,6 +466,7 @@ export default function MobilePaymentRequestsPage() {
         applicantName,
         items: normalizedItems,
       }),
+      paymentType: normalizedItems[0]?.paymentType ?? "ACTUAL",
       classroomId: selectedAffiliation.id,
       items: normalizedItems.map((item) => ({
         name: item.name,

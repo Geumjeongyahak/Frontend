@@ -8,11 +8,21 @@ import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
-import { createPurchaseRequest } from "@/api/request/request.api";
+import { uploadPurchaseItemImage } from "@/api/file/file.api";
+import {
+  attachPurchaseRequestProposalReceipt,
+  createPurchaseRequest,
+  deletePurchaseRequest,
+  savePurchaseRequestProposal,
+} from "@/api/request/request.api";
 import type { CreatePurchaseRequestDto } from "@/api/request/request.dto";
 import { getVendors } from "@/api/vendor/vendor.api";
 import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
 import StaffSidebar from "@/components/staff/common/StaffSidebar";
+import {
+  getInvalidProposalReceiptImages,
+  proposalReceiptImageAccept,
+} from "@/components/staff/finance-management/proposalReceiptFiles";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
@@ -53,6 +63,43 @@ const budgetItemNameOptions = [
 const paymentAccountOptions = ["국비04", "구비01", "구비08"] as const;
 const customDetailBusinessOptionValue = "__custom_detail_business__";
 
+const paymentAccountValueMap = {
+  "국비04": "NATIONAL_SUBSIDY_04",
+  "구비01": "DISTRICT_BUDGET_01",
+  "구비08": "DISTRICT_BUDGET_08",
+} as const;
+
+const budgetCategoryValueMap = {
+  교통비: "TRANSPORTATION",
+  교재비: "TEXTBOOK",
+  프로그램추진비: "PROGRAM_OPERATION",
+  임차료: "RENTAL",
+  홍보비: "PUBLIC_RELATIONS",
+  "기타 운영비": "OTHER_OPERATING",
+} as const;
+
+const calculationDetailValueMap = {
+  무급강사교통비: "UNPAID_INSTRUCTOR_TRANSPORTATION",
+  "무급행정담당자 교통비": "UNPAID_ADMIN_TRANSPORTATION",
+  시중교재: "COMMERCIAL_TEXTBOOK",
+  제본교재: "BOUND_TEXTBOOK",
+  "(소풍)식비": "PICNIC_MEAL",
+  행사물품: "EVENT_SUPPLIES",
+  현수막: "BANNER",
+  다과비: "REFRESHMENTS",
+  포스터: "POSTER",
+  소식지: "NEWSLETTER",
+  "입간판 및 배너, 스티커 제작": "SIGN_BANNER_STICKER_PRODUCTION",
+  "이체 수수료": "TRANSFER_FEE",
+  사무용품비: "OFFICE_SUPPLIES",
+  통신비: "COMMUNICATION",
+  전기비: "ELECTRICITY",
+  수도세: "WATER",
+  "정수기 필터교체": "WATER_PURIFIER_FILTER_REPLACEMENT",
+  청소용품: "CLEANING_SUPPLIES",
+  프린트토너: "PRINTER_TONER",
+} as const;
+
 function autoResizeTextarea(element: HTMLTextAreaElement | null) {
   if (!element) return;
 
@@ -90,6 +137,7 @@ type AffiliationOption = {
   id: number;
   label: string;
   value: string;
+  type: "classroom" | "department";
 };
 
 const initialItem: FinanceItemForm = {
@@ -113,7 +161,7 @@ const initialPrepaidProduct: PrepaidProductForm = {
 
 const initialApprovalEntries: ApprovalEntry[] = [
   { position: "총무", name: "" },
-  { position: "교장", name: "정혜웅" },
+  { position: "교장", name: "정해웅" },
   { position: "", name: "" },
 ];
 
@@ -165,15 +213,6 @@ function isPresetPaymentAccount(value: string) {
   return paymentAccountOptions.includes(value as (typeof paymentAccountOptions)[number]);
 }
 
-function getApprovalNumber(referenceDate: string, paymentAccount: string) {
-  if (!paymentAccount.trim()) {
-    return "";
-  }
-
-  const year = referenceDate.slice(0, 4) || String(new Date().getFullYear());
-  return `${year}품-${paymentAccount}-01`;
-}
-
 export default function FinanceRequestCreatePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -205,6 +244,19 @@ export default function FinanceRequestCreatePage() {
     useState<ApprovalEntry[]>(initialCooperationEntries);
   const previousApplicantNameRef = useRef("");
 
+  function addReceiptFiles(files: File[]) {
+    const invalidFiles = getInvalidProposalReceiptImages(files);
+
+    if (invalidFiles.length > 0) {
+      toast.error("영수증은 JPG, PNG, GIF, WEBP 이미지 파일만 첨부할 수 있습니다.");
+    }
+
+    const validFiles = files.filter((file) => !invalidFiles.includes(file));
+    if (validFiles.length > 0) {
+      setReceiptFiles((current) => [...current, ...validFiles]);
+    }
+  }
+
   useEffect(() => {
     autoResizeTextarea(prepaidSummaryRef.current);
   }, [prepaidSummary]);
@@ -228,15 +280,25 @@ export default function FinanceRequestCreatePage() {
   const classrooms = useMemo(() => classroomData?.content ?? [], [classroomData]);
   const departments = useMemo(() => departmentData?.departments ?? [], [departmentData]);
   const affiliationOptions = useMemo<AffiliationOption[]>(
-    () =>
-      classrooms
+    () => [
+      ...classrooms
         .filter((classroom) => typeof classroom.id === "number")
         .map((classroom) => ({
           id: classroom.id as number,
           label: classroom.name ?? `반 ${classroom.id}`,
           value: `classroom:${classroom.id}`,
+          type: "classroom" as const,
         })),
-    [classrooms],
+      ...departments
+        .filter((department) => typeof department.id === "number")
+        .map((department) => ({
+          id: department.id as number,
+          label: department.name ?? `부서 ${department.id}`,
+          value: `department:${department.id}`,
+          type: "department" as const,
+        })),
+    ],
+    [classrooms, departments],
   );
   const selectedAffiliation = affiliationOptions.find(
     (option) => option.value === affiliationValue,
@@ -254,11 +316,6 @@ export default function FinanceRequestCreatePage() {
         : fallbackVendorNames.map((name) => ({ name, balance: undefined })),
     [vendorData],
   );
-  const approvalNumber = useMemo(
-    () => getApprovalNumber(approvalDate, paymentAccount),
-    [approvalDate, paymentAccount],
-  );
-
   useEffect(() => {
     if (paymentType !== "PREPAID") {
       return;
@@ -271,7 +328,97 @@ export default function FinanceRequestCreatePage() {
   }, [paymentType]);
 
   const mutation = useMutation({
-    mutationFn: (body: CreatePurchaseRequestDto) => createPurchaseRequest(body),
+    mutationFn: async (body: CreatePurchaseRequestDto) => {
+      const purchaseRequest = await createPurchaseRequest(body);
+
+      if (paymentType !== "PREPAID" || typeof purchaseRequest.id !== "number") {
+        return purchaseRequest;
+      }
+
+      try {
+        await savePurchaseRequestProposal(
+          { requestId: purchaseRequest.id },
+          {
+          proposalTitle: body.title,
+          resolutionTitle: body.title,
+          completionDate: approvalDate,
+          draftApprovals: approvalEntries,
+          draftCooperations: cooperationEntries,
+          overview: prepaidSummary.trim(),
+          policyProject: getPolicyProjectLabel(approvalDate),
+          unitProject: unitBusinessLabel,
+          detailProject: detailBusiness,
+          ...(selectedDepartment?.id != null
+            ? { requestDepartmentId: selectedDepartment.id }
+            : {}),
+          proposalDate: approvalDate,
+          proposalAmount: approvalAmountValue,
+          ...(paymentAccountValueMap[paymentAccount as keyof typeof paymentAccountValueMap]
+            ? {
+                paymentAccount:
+                  paymentAccountValueMap[paymentAccount as keyof typeof paymentAccountValueMap],
+              }
+            : {}),
+          budget: {
+            ...(budgetCategoryValueMap[
+              (normalizedItems[0]?.reason ?? "") as keyof typeof budgetCategoryValueMap
+            ]
+              ? {
+                  itemCategory:
+                    budgetCategoryValueMap[
+                      (normalizedItems[0]?.reason ?? "") as keyof typeof budgetCategoryValueMap
+                    ],
+                }
+              : { itemCategory: "DIRECT_INPUT" as const, customItemCategory: normalizedItems[0]?.reason }),
+            ...(calculationDetailValueMap[
+              (normalizedItems[0]?.name ?? "") as keyof typeof calculationDetailValueMap
+            ]
+              ? {
+                  calculationDetail:
+                    calculationDetailValueMap[
+                      (normalizedItems[0]?.name ?? "") as keyof typeof calculationDetailValueMap
+                    ],
+                }
+              : {
+                  calculationDetail: "DIRECT_INPUT" as const,
+                  customCalculationDetail: normalizedItems[0]?.name,
+                }),
+          },
+          items: normalizedPrepaidProducts.map((item) => ({
+            content: item.description,
+            specification: item.specification,
+            quantity: item.quantity,
+            estimatedUnitPrice: item.unitPrice,
+            expectedAmountWithinRange: item.amount <= approvalAmountValue,
+          })),
+          },
+        );
+
+        for (const receiptFile of receiptFiles) {
+          const uploaded = await uploadPurchaseItemImage(receiptFile, receiptFile.name);
+          if (!uploaded.fileId) {
+            throw new Error("영수증 파일 업로드에 실패했습니다.");
+          }
+
+          await attachPurchaseRequestProposalReceipt(
+            { requestId: purchaseRequest.id },
+            { fileId: uploaded.fileId },
+          );
+        }
+      } catch (error) {
+        // 생성 직후의 PENDING 요청만 정리한다. 업로드된 파일 자체는 서버에서 원자적으로
+        // 되돌릴 수 없으므로, 원본 오류를 유지한 채 요청 레코드만 최선으로 삭제한다.
+        try {
+          await deletePurchaseRequest({ requestId: purchaseRequest.id });
+        } catch {
+          // 정리 실패가 최초 저장/업로드 오류를 가리지 않도록 한다.
+        }
+
+        throw error;
+      }
+
+      return purchaseRequest;
+    },
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: queryKeys.requests.purchaseList() });
       router.push("/staff/finance-management");
@@ -322,26 +469,24 @@ export default function FinanceRequestCreatePage() {
     0,
   );
 
-  const canSubmitPrepaid =
-    prepaidSummary.trim().length > 0 &&
-    requestDepartmentId.length > 0 &&
-    approvalDate.length > 0 &&
-    detailBusiness.length > 0 &&
-    approvalAmountValue > 0;
+  const hasSelectedPaymentType = paymentType === "PREPAID" || paymentType === "ACTUAL";
+  const hasRequiredPrepaidBudgetItem =
+    items[0]?.name.trim().length > 0 && items[0]?.reason.trim().length > 0;
+  const hasRequiredActualItems =
+    items.length > 0 &&
+    items.every(
+      (item) =>
+        item.name.trim().length > 0 &&
+        item.quantity.trim().length > 0 &&
+        Number.isInteger(Number(item.quantity)) &&
+        Number(item.quantity) >= 1,
+    );
 
   const canSubmit =
     title.trim().length > 0 &&
     Boolean(selectedAffiliation) &&
-    authStatus === "authenticated" &&
-    normalizedItems.length > 0 &&
-    !normalizedItems.some(
-      (item) =>
-        typeof item.quantity !== "number" ||
-        Number.isNaN(item.quantity) ||
-        item.quantity < 1 ||
-        !Number.isInteger(item.quantity),
-    ) &&
-    (paymentType === "PREPAID" ? canSubmitPrepaid : true) &&
+    hasSelectedPaymentType &&
+    (paymentType === "PREPAID" ? hasRequiredPrepaidBudgetItem : hasRequiredActualItems) &&
     !mutation.isPending;
 
   const applicantName =
@@ -375,7 +520,7 @@ export default function FinanceRequestCreatePage() {
         if (index === 1) {
           return {
             position: entry.position || "교장",
-            name: entry.name || "정혜웅",
+            name: entry.name || "정해웅",
           };
         }
 
@@ -401,6 +546,11 @@ export default function FinanceRequestCreatePage() {
     setItems((current) =>
       current.map((item) => (item.id === itemId ? { ...item, ...patch } : item)),
     );
+  }
+
+  function syncDetailBusiness(value: string) {
+    setDetailBusiness(value);
+    setItems((current) => current.map((item) => ({ ...item, detailBusiness: value })));
   }
 
   function addItem() {
@@ -502,7 +652,7 @@ export default function FinanceRequestCreatePage() {
     }
 
     if (customFieldModal.field === "topDetailBusiness") {
-      setDetailBusiness(nextValue);
+      syncDetailBusiness(nextValue);
     }
 
     if (customFieldModal.field === "paymentAccount") {
@@ -576,18 +726,8 @@ export default function FinanceRequestCreatePage() {
       `신청자: ${applicantName}`,
       "결제 유형: 선금 결제",
       "",
-      `[품의 번호]`,
-      `품의 번호: ${approvalNumber || "-"}`,
-      `결제 통장: ${paymentAccount || "-"}`,
-      "",
       `[품의 개요]`,
       prepaidSummary.trim(),
-      `정책 사업: ${getPolicyProjectLabel(approvalDate)}`,
-      `요구 부서: ${selectedDepartment?.name ?? "-"}`,
-      `단위 사업: ${unitBusinessLabel}`,
-      `품의 일자: ${approvalDate}`,
-      `세부 사업: ${detailBusiness}`,
-      `품의 금액: ${approvalAmountValue.toLocaleString()}원`,
       "",
       `[예산 내역]`,
       budgetContent,
@@ -609,7 +749,10 @@ export default function FinanceRequestCreatePage() {
     mutation.mutate({
       title: title.trim(),
       content: paymentType === "PREPAID" ? buildPrepaidContent() : buildActualContent(),
-      classroomId: selectedOption.id,
+      paymentType,
+      ...(selectedOption.type === "classroom"
+        ? { classroomId: selectedOption.id, departmentId: null }
+        : { classroomId: null, departmentId: selectedOption.id }),
       items: normalizedItems.map((item) => ({
         name: item.name,
         quantity: paymentType === "PREPAID" ? 1 : (item.quantity ?? 1),
@@ -632,9 +775,15 @@ export default function FinanceRequestCreatePage() {
             </SubmitButton>
           </HeaderRow>
 
-          <Form id="finance-request-form" onSubmit={handleSubmit}>
+          <Form id="finance-request-form" noValidate onSubmit={handleSubmit}>
+            <RequiredFieldGuide>
+              *로 표시된 항목은 필수이며, 관리자 승인 후 수정할 수 없습니다.
+            </RequiredFieldGuide>
+
             <Section>
-              <Label htmlFor="title">제목</Label>
+              <Label htmlFor="title">
+                제목<RequiredMarker aria-hidden="true">*</RequiredMarker>
+              </Label>
               <Input
                 id="title"
                 name="title"
@@ -648,7 +797,9 @@ export default function FinanceRequestCreatePage() {
             <Section>
               <SectionTitle>신청자 정보</SectionTitle>
               <InfoRow>
-                <FieldLabel htmlFor="affiliation">분반</FieldLabel>
+                <FieldLabel htmlFor="affiliation">
+                  분반<RequiredMarker aria-hidden="true">*</RequiredMarker>
+                </FieldLabel>
                 <InlineSelect
                   id="affiliation"
                   name="affiliation"
@@ -669,7 +820,9 @@ export default function FinanceRequestCreatePage() {
             </Section>
 
             <Section>
-              <SectionTitle>결제 유형</SectionTitle>
+              <SectionTitle>
+                결제 유형<RequiredMarker aria-hidden="true">*</RequiredMarker>
+              </SectionTitle>
               <PaymentTypeGroup>
                 <PaymentTypeOption>
                   <input
@@ -723,9 +876,8 @@ export default function FinanceRequestCreatePage() {
             {paymentType === "PREPAID" ? (
               <>
                 <Section>
-                  <SectionTitle>품의 번호</SectionTitle>
+                  <SectionTitle>결제 통장 유형</SectionTitle>
                   <ApprovalNumberRow>
-                    <ApprovalNumberInput value={approvalNumber} readOnly />
                     <ApprovalNumberSelect
                       value={paymentAccount}
                       onChange={(event) => {
@@ -779,7 +931,6 @@ export default function FinanceRequestCreatePage() {
                             <SummarySelect
                               value={requestDepartmentId}
                               onChange={(event) => setRequestDepartmentId(event.target.value)}
-                              required
                             >
                               <option value="">부서 선택</option>
                               {departments.map((department) => (
@@ -814,7 +965,7 @@ export default function FinanceRequestCreatePage() {
                                   return;
                                 }
 
-                                setDetailBusiness(event.target.value);
+                                syncDetailBusiness(event.target.value);
                               }}
                             >
                               <option value="">세부 사업 선택</option>
@@ -855,8 +1006,12 @@ export default function FinanceRequestCreatePage() {
                         <tr>
                           <BudgetHeadCell>순번</BudgetHeadCell>
                           <BudgetHeadCell>세부 사업</BudgetHeadCell>
-                          <BudgetHeadCell>세부 항목</BudgetHeadCell>
-                          <BudgetHeadCell>산출 내역</BudgetHeadCell>
+                          <BudgetHeadCell>
+                            세부 항목<RequiredMarker aria-hidden="true">*</RequiredMarker>
+                          </BudgetHeadCell>
+                          <BudgetHeadCell>
+                            산출 내역<RequiredMarker aria-hidden="true">*</RequiredMarker>
+                          </BudgetHeadCell>
                           <BudgetHeadCell>품의 금액</BudgetHeadCell>
                           <BudgetHeadCell>예산 잔액</BudgetHeadCell>
                           <BudgetHeadCell>사업 잔액</BudgetHeadCell>
@@ -867,11 +1022,28 @@ export default function FinanceRequestCreatePage() {
                           <tr key={item.id}>
                             <BudgetBodyCell>{index + 1}</BudgetBodyCell>
                             <BudgetBodyCell>
-                              <BudgetInlineInput
-                                value={item.detailBusiness || detailBusiness}
-                                placeholder="세부 사업"
-                                readOnly
-                              />
+                              <BudgetInlineSelect
+                                value={detailBusiness}
+                                onChange={(event) => {
+                                  if (event.target.value === customDetailBusinessOptionValue) {
+                                    openCustomFieldModal("topDetailBusiness");
+                                    return;
+                                  }
+
+                                  syncDetailBusiness(event.target.value);
+                                }}
+                              >
+                                <option value="">세부 사업 선택</option>
+                                {detailBusinessOptions.map((option) => (
+                                  <option key={`${item.id}-detail-business-${option}`} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                                {!isPresetDetailBusiness(detailBusiness) && detailBusiness ? (
+                                  <option value={detailBusiness}>{detailBusiness}</option>
+                                ) : null}
+                                <option value={customDetailBusinessOptionValue}>직접 입력</option>
+                              </BudgetInlineSelect>
                             </BudgetBodyCell>
                             <BudgetBodyCell>
                               <BudgetInlineSelect
@@ -888,7 +1060,7 @@ export default function FinanceRequestCreatePage() {
                                   });
                                 }}
                               >
-                                <option value="">세부 항목</option>
+                                <option value="">세부 항목 선택</option>
                                 {budgetItemReasonOptions.map((option) => (
                                   <option key={`${item.id}-reason-${option}`} value={option}>
                                     {option}
@@ -916,7 +1088,7 @@ export default function FinanceRequestCreatePage() {
                                 }}
                                 required={index === 0}
                               >
-                                <option value="">산출 내역</option>
+                                <option value="">산출 내역 선택</option>
                                 {budgetItemNameOptions.map((option) => (
                                   <option key={`${item.id}-name-${option}`} value={option}>
                                     {option}
@@ -1185,7 +1357,7 @@ export default function FinanceRequestCreatePage() {
                   <AttachmentEditorPanel
                     existingAttachments={[]}
                     selectedFiles={receiptFiles}
-                    onSelectFiles={(files) => setReceiptFiles((current) => [...current, ...files])}
+                    onSelectFiles={addReceiptFiles}
                     onRemoveSelected={(file) =>
                       setReceiptFiles((current) =>
                         current.filter(
@@ -1197,20 +1369,24 @@ export default function FinanceRequestCreatePage() {
                         ),
                       )
                     }
-                    selectLabel="영수증 파일 선택"
-                    emptyText="첨부된 영수증 파일이 없습니다."
+                    selectLabel="영수증 첨부"
+                    emptyText="첨부된 영수증 이미지가 없습니다."
+                    accept={proposalReceiptImageAccept}
                   />
                 </Section>
               </>
             ) : (
               <Section>
-                <SectionTitle>상세 품목</SectionTitle>
+                <SectionTitle>
+                  상세 품목<RequiredMarker aria-hidden="true">*</RequiredMarker>
+                </SectionTitle>
                 <ItemList>
                   {items.map((item, index) => (
                     <ItemBlock key={item.id}>
                       <ItemFieldRow>
                         <ItemLabel htmlFor={`itemName-${item.id}`}>
                           {items.length > 1 ? `품목 ${index + 1}` : "품목"}
+                          <RequiredMarker aria-hidden="true">*</RequiredMarker>
                         </ItemLabel>
                         <ItemInput
                           id={`itemName-${item.id}`}
@@ -1222,7 +1398,9 @@ export default function FinanceRequestCreatePage() {
                         />
                       </ItemFieldRow>
                       <ItemFieldRow>
-                        <ItemLabel htmlFor={`quantity-${item.id}`}>개수</ItemLabel>
+                        <ItemLabel htmlFor={`quantity-${item.id}`}>
+                          개수<RequiredMarker aria-hidden="true">*</RequiredMarker>
+                        </ItemLabel>
                         <ItemInput
                           id={`quantity-${item.id}`}
                           name={`quantity-${item.id}`}
@@ -1454,6 +1632,22 @@ const SectionTitle = styled.h2`
 
   @media (min-width: 120rem) {
     font-size: ${typography.fontSize20};
+  }
+`;
+
+const RequiredMarker = styled.span`
+  margin-left: ${spacing.space4};
+  color: ${colors.notice};
+`;
+
+const RequiredFieldGuide = styled.p`
+  margin: 0;
+  color: ${colors.notice};
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight150};
+
+  @media (min-width: 120rem) {
+    font-size: ${typography.fontSize18};
   }
 `;
 
