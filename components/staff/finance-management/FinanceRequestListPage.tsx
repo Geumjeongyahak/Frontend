@@ -117,25 +117,32 @@ export default function FinanceRequestListPage({
   const isAuthenticated = authStatus === "authenticated";
   const hasStoredToken = Boolean(getAccessToken() || getRefreshToken());
   const trimmedKeyword = searchKeyword.trim();
+  const requestListParams = {
+    mine: mineOnly || undefined,
+    paymentType: paymentTypeFilter === "all" ? undefined : paymentTypeFilter,
+    keyword: trimmedKeyword || undefined,
+    page: currentPage - 1,
+    size: FINANCE_REQUESTS_PER_PAGE,
+  };
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: queryKeys.requests.purchaseList({
-      mine: mineOnly || undefined,
-      paymentType: paymentTypeFilter === "all" ? undefined : paymentTypeFilter,
-      keyword: trimmedKeyword || undefined,
-      page: currentPage - 1,
-      size: FINANCE_REQUESTS_PER_PAGE,
-    }),
-    queryFn: () =>
-      getPurchaseRequests({
-        mine: mineOnly || undefined,
-        paymentType: paymentTypeFilter === "all" ? undefined : paymentTypeFilter,
-        keyword: trimmedKeyword || undefined,
-        page: currentPage - 1,
-        size: FINANCE_REQUESTS_PER_PAGE,
-      }),
+    queryKey: queryKeys.requests.purchaseList(requestListParams),
+    queryFn: () => getPurchaseRequests(requestListParams),
     enabled: hasStoredToken,
     retry: false,
+    placeholderData: (previousData, previousQuery) => {
+      const previousParams = previousQuery?.queryKey[1] as
+        | Omit<typeof requestListParams, "page">
+        | undefined;
+
+      return previousQuery?.queryKey[0] === "purchase-requests" &&
+        previousParams?.mine === requestListParams.mine &&
+        previousParams?.paymentType === requestListParams.paymentType &&
+        previousParams?.keyword === requestListParams.keyword &&
+        previousParams?.size === requestListParams.size
+        ? previousData
+        : undefined;
+    },
   });
 
   const requests = (isAuthenticated ? (data?.content ?? []) : []).sort(

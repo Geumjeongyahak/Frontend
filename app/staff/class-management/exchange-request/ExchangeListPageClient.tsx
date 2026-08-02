@@ -57,6 +57,13 @@ export default function ExchangeListPageClient() {
       }),
     enabled: isAuthenticated,
     retry: false,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[0] === "lesson-exchange-requests" &&
+      previousQuery.queryKey[2] === ITEMS_PER_PAGE &&
+      previousQuery.queryKey[3] === mineOnly &&
+      previousQuery.queryKey[4] === searchKeyword
+        ? previousData
+        : undefined,
   });
 
   const exchangeRequests = [...(isAuthenticated ? (exchangeRequestPage?.content ?? []) : [])].sort(

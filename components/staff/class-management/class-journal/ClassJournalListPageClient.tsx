@@ -66,6 +66,10 @@ export default function ClassJournalListPageClient() {
       }),
     enabled: isAuthenticated,
     retry: false,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[4] === keyword && previousQuery.queryKey[5] === mineOnly
+        ? previousData
+        : undefined,
   });
 
   const visibleJournals = isAuthenticated

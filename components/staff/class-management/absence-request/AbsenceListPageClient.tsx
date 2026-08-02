@@ -57,6 +57,13 @@ export default function AbsenceListPageClient() {
       }),
     enabled: isAuthenticated,
     retry: false,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery?.queryKey[0] === "absence-requests" &&
+      previousQuery.queryKey[2] === ITEMS_PER_PAGE &&
+      previousQuery.queryKey[3] === mineOnly &&
+      previousQuery.queryKey[4] === searchKeyword
+        ? previousData
+        : undefined,
   });
 
   const absenceRequests = [...(isAuthenticated ? (absenceRequestPage?.content ?? []) : [])].sort(
