@@ -223,13 +223,18 @@ export default function MobileClassRequestsPage() {
       }),
     enabled: isAuthenticated,
     retry: false,
-    placeholderData: (previousData, previousQuery) =>
-      previousQuery.queryKey.length === exchangeListQueryKey.length &&
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
+      return previousQuery.queryKey.length === exchangeListQueryKey.length &&
       previousQuery.queryKey.every(
         (value, index) => index === exchangeListQueryKey.length - 2 || value === exchangeListQueryKey[index],
       )
         ? previousData
-        : undefined,
+        : undefined;
+    },
   });
 
   const exchangeMineCountQuery = useQuery({
@@ -263,13 +268,18 @@ export default function MobileClassRequestsPage() {
       }),
     enabled: isAuthenticated,
     retry: false,
-    placeholderData: (previousData, previousQuery) =>
-      previousQuery.queryKey.length === absenceListQueryKey.length &&
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
+      return previousQuery.queryKey.length === absenceListQueryKey.length &&
       previousQuery.queryKey.every(
         (value, index) => index === absenceListQueryKey.length - 2 || value === absenceListQueryKey[index],
       )
         ? previousData
-        : undefined,
+        : undefined;
+    },
   });
 
   const absenceMineListQuery = useQuery({

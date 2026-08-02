@@ -207,6 +207,10 @@ export default function MobilePaymentRequestsPage() {
     queryKey: purchaseListQueryKey,
     queryFn: () => getPurchaseRequests(purchaseListParams),
     placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
       const previousParams = previousQuery.queryKey[1];
 
       return previousQuery.queryKey.length === purchaseListQueryKey.length &&

@@ -80,13 +80,18 @@ export default function MobileClassJournalListPage() {
       }),
     enabled: isAuthenticated,
     retry: false,
-    placeholderData: (previousData, previousQuery) =>
-      previousQuery.queryKey.length === journalListQueryKey.length &&
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
+      return previousQuery.queryKey.length === journalListQueryKey.length &&
       previousQuery.queryKey.every(
         (value, index) => index === journalListQueryKey.length - 1 || value === journalListQueryKey[index],
       )
         ? previousData
-        : undefined,
+        : undefined;
+    },
   });
   const attendanceQuery = useQuery({
     queryKey: ["daily-schedules", "detail", "mobile-journal", expandedId] as const,

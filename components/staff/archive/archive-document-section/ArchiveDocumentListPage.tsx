@@ -203,6 +203,10 @@ export default function ArchiveDocumentListPage({
       (!isHandoverPage || Boolean(scopeValue && selectedScopeOption)),
     retry: false,
     placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
       const previousFilters = previousQuery?.queryKey[2] as
         | {
             channelType?: string;

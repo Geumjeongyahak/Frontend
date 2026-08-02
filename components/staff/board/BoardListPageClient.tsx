@@ -258,6 +258,10 @@ export default function BoardListPageClient({
       (boardScope === "all" || isScopeDisabled || typeof selectedChannelId === "number"),
     retry: false,
     placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
       const previousFilters = previousQuery?.queryKey[2] as
         | {
             channelType?: string;

@@ -55,6 +55,10 @@ export default function MeetingRecordsPage({
     enabled: isAuthenticated,
     retry: false,
     placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
       const previousParams = previousQuery?.queryKey[2] as
         | Omit<typeof queryParams, "page">
         | undefined;

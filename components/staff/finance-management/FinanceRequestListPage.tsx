@@ -131,6 +131,10 @@ export default function FinanceRequestListPage({
     enabled: hasStoredToken,
     retry: false,
     placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
       const previousParams = previousQuery?.queryKey[1] as
         | Omit<typeof requestListParams, "page">
         | undefined;
