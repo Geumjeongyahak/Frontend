@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { IconChevronLeft } from "@tabler/icons-react";
 import { toast } from "react-toastify";
 import styled from "styled-components";
 import { setGoogleOAuthIntent } from "@/api/auth/googleOAuthState";
@@ -10,6 +11,7 @@ import { baseURL } from "@/api/client/publicClient";
 import { updateCurrentUser } from "@/api/user/user.api";
 import type { UpdateSelfRequestDto, UserResponseDto } from "@/api/user/user.dto";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { useAppBackNavigation } from "@/hooks/useAppBackNavigation";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { colors, radii, spacing, typography } from "@/styles/tokens";
 import {
@@ -73,6 +75,7 @@ function buildUpdatePayload(form: EditableProfileForm): UpdateSelfRequestDto {
 
 export default function MobileMyPage() {
   const router = useRouter();
+  const { handleBack } = useAppBackNavigation({ fallbackHref: "/" });
   const { status, user, refreshSession, signOut } = useAuthSession();
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState<EditableProfileForm>(() => createEditableForm(user));
@@ -122,9 +125,15 @@ export default function MobileMyPage() {
   return (
     <Page>
       <Header>
+        <BackButton type="button" onClick={handleBack} aria-label="이전 페이지로 이동">
+          <IconChevronLeft size={24} stroke={1.9} />
+        </BackButton>
+      </Header>
+
+      <Intro>
         <Eyebrow>마이페이지</Eyebrow>
         <Title>내 정보</Title>
-      </Header>
+      </Intro>
 
       <Panel>
         {status === "loading" ? <StateBlock>회원 정보 확인 중...</StateBlock> : null}
@@ -314,15 +323,33 @@ export default function MobileMyPage() {
 
 const Page = styled.main`
   min-height: 100lvh;
-  padding: 4.5rem 1.5625rem 2.5rem;
+  padding: 3.5rem 1.5625rem 2.5rem;
   background:
     radial-gradient(circle at top right, rgba(136, 205, 90, 0.2), transparent 34%),
     linear-gradient(180deg, #f7faf4 0%, #f3f3f3 42%, #f3f3f3 100%);
 `;
 
 const Header = styled.header`
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+`;
+
+const BackButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: ${colors.text};
+  padding: 0;
+  cursor: pointer;
+`;
+
+const Intro = styled.header`
   display: grid;
   gap: ${spacing.space12};
+  margin-top: ${spacing.space20};
   margin-bottom: 1rem;
 `;
 
