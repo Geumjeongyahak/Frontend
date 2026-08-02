@@ -355,6 +355,7 @@ describe("request.api", () => {
       {
         title: "수정됨",
         content: "품목 수정",
+        paymentType: "PREPAID",
         classroomId: null,
         departmentId: 7,
         items: [
@@ -382,6 +383,7 @@ describe("request.api", () => {
     expect(observedUpdateBody).toEqual({
       title: "수정됨",
       content: "품목 수정",
+      paymentType: "PREPAID",
       classroomId: null,
       departmentId: 7,
       items: [

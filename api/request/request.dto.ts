@@ -265,6 +265,7 @@ export interface ReviewPurchaseRequestDto {
 export interface UpdatePurchaseRequestDto {
   title: string;
   content: string;
+  paymentType?: PaymentType;
   classroomId?: number | null;
   departmentId?: number | null;
   items: PurchaseRequestItemDto[];
