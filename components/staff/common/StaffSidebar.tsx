@@ -80,10 +80,9 @@ type StaffSidebarProps = {
 export default function StaffSidebar({ mode = "accordion" }: StaffSidebarProps) {
   const pathname = usePathname();
   const { status, user } = useAuthSession();
-  const visibleSections =
-    status === "authenticated" && user?.role === "ADMIN"
-      ? [...staffSections, adminSection]
-      : staffSections;
+  const hasAdminAccess =
+    status === "authenticated" && (user?.role === "ADMIN" || user?.role === "MANAGER");
+  const visibleSections = hasAdminAccess ? [...staffSections, adminSection] : staffSections;
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
     getOpenSectionsForPath(pathname, staffSections),
   );
