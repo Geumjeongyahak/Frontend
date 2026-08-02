@@ -77,7 +77,7 @@ describe("lessonExchange.api", () => {
     expect(observedQueryString).toContain("keyword=");
   });
 
-  it("creates and updates a lesson exchange request with expected bodies", async () => {
+  it("creates and updates a lesson exchange request with expiresDate bodies", async () => {
     setAccessToken(VALID_ACCESS_TOKEN);
 
     let observedCreateBody: unknown;
@@ -98,17 +98,31 @@ describe("lessonExchange.api", () => {
       lessonDate: "2026-06-01",
       title: "수업 교환 요청",
       content: "교환이 필요합니다.",
-      expiresAt: "2026-05-31T22:00:00",
+      expiresDate: "2026-05-31",
     });
-    await updateLessonExchangeRequest({ requestId: 2 }, { title: "수정 요청" });
+    await updateLessonExchangeRequest({ requestId: 2 }, {
+      title: "수정 요청",
+      expiresDate: "2026-05-30",
+    });
 
     expect(observedCreateBody).toEqual({
       lessonDate: "2026-06-01",
       title: "수업 교환 요청",
       content: "교환이 필요합니다.",
-      expiresAt: "2026-05-31T22:00:00",
+      expiresDate: "2026-05-31",
     });
-    expect(observedUpdateBody).toEqual({ title: "수정 요청" });
+    expect(observedUpdateBody).toEqual({ title: "수정 요청", expiresDate: "2026-05-30" });
+
+    await createLessonExchangeRequest({
+      lessonDate: "2026-06-01",
+      title: "수업 교환 요청",
+      content: "교환이 필요합니다.",
+    });
+    expect(observedCreateBody).toEqual({
+      lessonDate: "2026-06-01",
+      title: "수업 교환 요청",
+      content: "교환이 필요합니다.",
+    });
   });
 
   it("approves and rejects a lesson exchange request with expected bodies", async () => {

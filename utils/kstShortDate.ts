@@ -22,23 +22,31 @@ export function parseKoreanShortDateToIsoDate(text: string): string | null {
   return `${fullYear}-${mm}-${dd}`;
 }
 
-export function koreanShortDateToLocalDateTime(
-  text: string,
-  time: string = "22:00:00",
-): string | null {
-  const datePart = parseKoreanShortDateToIsoDate(text);
-  if (!datePart) return null;
-  return `${datePart}T${time}`;
+export function isValidIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
 }
 
-/** 교환 신청 만료 시각을 API 문자열(YMDTHMS, 타임존 접미 없음)로 맞춘다. */
-export function normalizeLessonExchangeExpiresAtForApi(value: string): string | undefined {
-  const t = value.trim();
-  if (!t) return undefined;
-  const withMinutes = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})$/.exec(t);
-  if (withMinutes) return `${withMinutes[1]}T${withMinutes[2]}:${withMinutes[3]}:00`;
-  const withSeconds = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/.exec(t);
-  if (withSeconds) return withSeconds[1];
-  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return `${t}T23:59:59`;
-  return undefined;
+/**
+ * 교환 신청 만료일은 수업일 이전일 때만 전송한다.
+ * 미선택 또는 수업일 당일은 서버가 수업 시작 시각으로 만료 처리한다.
+ */
+export function getLessonExchangeExpiresDateForApi(
+  expiresDate: string,
+  lessonDate: string,
+): string | undefined {
+  const normalizedExpiresDate = expiresDate.trim();
+  if (!normalizedExpiresDate) return undefined;
+
+  if (!isValidIsoDate(normalizedExpiresDate) || !isValidIsoDate(lessonDate)) return undefined;
+  if (normalizedExpiresDate >= lessonDate) return undefined;
+
+  return normalizedExpiresDate;
 }

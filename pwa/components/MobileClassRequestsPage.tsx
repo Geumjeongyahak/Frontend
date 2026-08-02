@@ -29,10 +29,11 @@ import { queryKeys } from "@/lib/queryKeys";
 import AuthStatusSpinner from "@/pwa/pages/mobile-home/components/AuthStatusSpinner";
 import MobileRequestShell from "@/pwa/requests/components/MobileRequestShell";
 import RequestStatusBadge from "@/pwa/requests/components/RequestStatusBadge";
-import { getAssignmentClassNames, toExchangeExpiryAt } from "@/pwa/requests/requestFormUtils";
+import { getAssignmentClassNames } from "@/pwa/requests/requestFormUtils";
 import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
+import { getLessonExchangeExpiresDateForApi, isValidIsoDate } from "@/utils/kstShortDate";
 
 type RequestTab = "exchange" | "absence";
 type RequestViewMode = "mine" | "all";
@@ -410,7 +411,9 @@ export default function MobileClassRequestsPage() {
   const canSubmitExchange =
     exchangeForm.title.trim().length > 0 &&
     exchangeForm.lessonDate.length > 0 &&
-    exchangeForm.expiresOn.length > 0 &&
+    (exchangeForm.expiresOn.length === 0 ||
+      (isValidIsoDate(exchangeForm.expiresOn) &&
+        exchangeForm.expiresOn <= exchangeForm.lessonDate)) &&
     exchangeForm.content.trim().length > 0 &&
     !exchangeCreateMutation.isPending;
   const canSubmitAbsence =
@@ -445,12 +448,10 @@ export default function MobileClassRequestsPage() {
   }
 
   function handleExchangeLessonDateChange(value: string) {
-    const expiresOn = value ? dayjs(value).subtract(3, "day").format("YYYY-MM-DD") : "";
-
     setExchangeForm((current) => ({
       ...current,
       lessonDate: value,
-      expiresOn,
+      expiresOn: value,
     }));
   }
 
@@ -475,11 +476,16 @@ export default function MobileClassRequestsPage() {
       return;
     }
 
+    const expiresDate = getLessonExchangeExpiresDateForApi(
+      exchangeForm.expiresOn,
+      exchangeForm.lessonDate,
+    );
+
     exchangeCreateMutation.mutate({
       title: exchangeForm.title.trim(),
       content: exchangeForm.content.trim(),
       lessonDate: exchangeForm.lessonDate,
-      expiresAt: toExchangeExpiryAt(exchangeForm.expiresOn),
+      ...(expiresDate ? { expiresDate } : {}),
     });
   }
 
@@ -702,9 +708,7 @@ export default function MobileClassRequestsPage() {
                           value={exchangeForm.expiresOn}
                           max={
                             exchangeForm.lessonDate
-                              ? dayjs(exchangeForm.lessonDate)
-                                  .subtract(3, "day")
-                                  .format("YYYY-MM-DD")
+                              ? exchangeForm.lessonDate
                               : undefined
                           }
                           onChange={(event) =>

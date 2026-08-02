@@ -25,7 +25,8 @@ import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import {
-  normalizeLessonExchangeExpiresAtForApi,
+  getLessonExchangeExpiresDateForApi,
+  isValidIsoDate,
   parseKoreanShortDateToIsoDate,
 } from "@/utils/kstShortDate";
 
@@ -55,7 +56,7 @@ interface EditFormValues {
   title: string;
   lessonDate: string;
   content: string;
-  expiresAt: string;
+  expiresDate: string;
 }
 
 export function useExchangePostPage() {
@@ -74,7 +75,7 @@ export function useExchangePostPage() {
       title: "",
       lessonDate: "",
       content: "",
-      expiresAt: "",
+      expiresDate: "",
     },
   });
 
@@ -245,7 +246,7 @@ export function useExchangePostPage() {
       title: request.title ?? "",
       lessonDate: toIsoDateOnly(request.lessonDate),
       content: request.content ?? "",
-      expiresAt: toIsoDateOnly(request.expiresAt),
+      expiresDate: toIsoDateOnly(request.expiresAt),
     });
 
     setIsEditing(true);
@@ -260,7 +261,8 @@ export function useExchangePostPage() {
   const saveEdit = editForm.handleSubmit((data) => {
     const title = data.title.trim();
     const content = data.content.trim();
-    const expiresAt = normalizeLessonExchangeExpiresAtForApi(data.expiresAt);
+    const lessonDate = normalizeLessonDateForApi(data.lessonDate);
+    const expiresDateInput = data.expiresDate.trim();
 
     if (!title) {
       window.alert("제목을 입력해 주세요.");
@@ -272,16 +274,23 @@ export function useExchangePostPage() {
       return;
     }
 
-    if (!expiresAt) {
-      window.alert("만료일 시각을 입력해 주세요.");
+    if (expiresDateInput && !isValidIsoDate(expiresDateInput)) {
+      window.alert("만료일을 올바른 날짜 형식으로 입력해 주세요.");
       return;
     }
+
+    if (expiresDateInput && (!lessonDate || expiresDateInput > lessonDate)) {
+      window.alert("만료일은 수업 일자 이후로 선택할 수 없습니다.");
+      return;
+    }
+
+    const expiresDate = getLessonExchangeExpiresDateForApi(expiresDateInput, lessonDate ?? "");
 
     updateRequestMutation.mutate({
       title,
       content,
-      lessonDate: normalizeLessonDateForApi(data.lessonDate),
-      expiresAt,
+      lessonDate,
+      ...(expiresDate ? { expiresDate } : {}),
     });
   });
 
