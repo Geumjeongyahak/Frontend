@@ -150,18 +150,16 @@ export default function ClassJournalDetailPageClient({
     },
   });
 
-  const journal = scheduleQuery.data
-    ? mapClassJournalDetailView(scheduleQuery.data)
-    : emptyJournal;
+  const journal = scheduleQuery.data ? mapClassJournalDetailView(scheduleQuery.data) : emptyJournal;
 
   const isSubmitting = updateJournalMutation.isPending || deleteJournalMutation.isPending;
   const canManageJournal =
     isAuthenticated &&
     Boolean(
       user?.role === "ADMIN" ||
-        (typeof user?.id === "number" &&
-          typeof scheduleQuery.data?.teacherId === "number" &&
-          user.id === scheduleQuery.data.teacherId),
+      (typeof user?.id === "number" &&
+        typeof scheduleQuery.data?.teacherId === "number" &&
+        user.id === scheduleQuery.data.teacherId),
     );
 
   const handleDeleteClick = () => {
@@ -570,8 +568,6 @@ const AttendanceStatusCell = styled.div`
   justify-content: center;
   min-width: 0;
   min-height: 2.75rem;
-  padding: ${spacing.space8};
-  border: 0;
   border-right: 1px solid #c0c0c0;
   border-bottom: 1px solid #c0c0c0;
   background-color: transparent;
@@ -600,6 +596,11 @@ const AttendanceStatusSelect = styled.select`
   text-align-last: center;
   outline: none;
   cursor: pointer;
+
+  &:disabled {
+    color: #6d6d6d;
+    cursor: not-allowed;
+  }
 
   @media (min-width: 120rem) {
     min-height: 3.875rem;
