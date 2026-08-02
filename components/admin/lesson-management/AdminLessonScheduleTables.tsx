@@ -842,8 +842,7 @@ const ScheduleGrid = styled.div<{ $columns: number }>`
   grid-template-columns: 8.5rem repeat(${({ $columns }) => $columns - 1}, 10rem);
   width: max-content;
   max-width: none;
-  border-right: 1px solid ${colors.borderStrong};
-  border-bottom: 1px solid ${colors.borderStrong};
+  border: 1px solid ${colors.borderStrong};
   border-radius: 0.25rem;
   overflow: hidden;
 
@@ -877,6 +876,11 @@ const HeaderCell = styled(BaseCell)`
   font-size: ${typography.fontSize14};
   font-weight: 900;
   line-height: ${typography.lineHeight130};
+  border-top: 0;
+
+  &:first-child {
+    border-left: 0;
+  }
 
   @media (min-width: 120rem) {
     min-height: 5.5rem;
@@ -893,6 +897,7 @@ const ClassroomCell = styled(BaseCell)`
   padding: ${spacing.space12};
   background-color: ${colors.pointSoft};
   text-align: center;
+  border-left: 0;
 
   @media (min-width: 120rem) {
     min-height: 8.75rem;
