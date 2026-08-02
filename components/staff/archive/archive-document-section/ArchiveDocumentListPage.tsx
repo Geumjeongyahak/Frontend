@@ -202,6 +202,33 @@ export default function ArchiveDocumentListPage({
       Boolean(channelId) &&
       (!isHandoverPage || Boolean(scopeValue && selectedScopeOption)),
     retry: false,
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
+      const previousFilters = previousQuery?.queryKey[2] as
+        | {
+            channelType?: string;
+            boardScope?: string;
+            searchKeyword?: string;
+            mineOnly?: boolean;
+            author?: string;
+            refreshNonce?: number;
+          }
+        | undefined;
+
+      return previousQuery?.queryKey[0] === "posts" &&
+        previousQuery.queryKey[1] === "board" &&
+        previousFilters?.channelType === (channelType ?? "RESOURCE") &&
+        previousFilters.boardScope === `${channelId ?? ""}:${scopeType}:${scopeValue}:${targetChannelName}` &&
+        previousFilters.searchKeyword === searchKeyword &&
+        previousFilters.mineOnly === mineOnly &&
+        previousFilters.author === currentAuthor &&
+        previousFilters.refreshNonce === refreshNonce
+        ? previousData
+        : undefined;
+    },
   });
 
   const filteredPosts = (isAuthenticated ? (postsQuery.data?.content ?? []) : [])

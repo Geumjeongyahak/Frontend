@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  koreanShortDateToLocalDateTime,
-  normalizeLessonExchangeExpiresAtForApi,
+  getLessonExchangeExpiresDateForApi,
+  isValidIsoDate,
   parseKoreanShortDateToIsoDate,
 } from "./kstShortDate";
 
@@ -13,23 +13,17 @@ describe("kstShortDate", () => {
     expect(parseKoreanShortDateToIsoDate("bad")).toBeNull();
   });
 
-  it("builds API expiresAt-style datetime", () => {
-    expect(koreanShortDateToLocalDateTime("26.06.01")).toBe("2026-06-01T22:00:00");
-    expect(koreanShortDateToLocalDateTime("26.06.01", "15:30:00")).toBe("2026-06-01T15:30:00");
+  it("validates strict ISO date input", () => {
+    expect(isValidIsoDate("2026-06-07")).toBe(true);
+    expect(isValidIsoDate("2026-02-29")).toBe(false);
+    expect(isValidIsoDate("2026-6-07")).toBe(false);
   });
 
-  it("normalizes expiresAt payload for PATCH", () => {
-    expect(normalizeLessonExchangeExpiresAtForApi("")).toBeUndefined();
-    expect(normalizeLessonExchangeExpiresAtForApi("2026-06-07T22:00")).toBe("2026-06-07T22:00:00");
-    expect(normalizeLessonExchangeExpiresAtForApi("2026-06-07T09:05")).toBe(
-      "2026-06-07T09:05:00",
-    );
-    expect(normalizeLessonExchangeExpiresAtForApi("2026-06-07T22:00:59")).toBe(
-      "2026-06-07T22:00:59",
-    );
-    expect(normalizeLessonExchangeExpiresAtForApi("2026-06-07")).toBe("2026-06-07T23:59:59");
-    expect(normalizeLessonExchangeExpiresAtForApi("  2026-06-07T08:01  ")).toBe(
-      "2026-06-07T08:01:00",
-    );
+  it("sends expiresDate only when it precedes the lesson date", () => {
+    expect(getLessonExchangeExpiresDateForApi("", "2026-06-10")).toBeUndefined();
+    expect(getLessonExchangeExpiresDateForApi("2026-06-10", "2026-06-10")).toBeUndefined();
+    expect(getLessonExchangeExpiresDateForApi("2026-06-11", "2026-06-10")).toBeUndefined();
+    expect(getLessonExchangeExpiresDateForApi("2026-06-09", "2026-06-10")).toBe("2026-06-09");
+    expect(getLessonExchangeExpiresDateForApi("2026-02-29", "2026-06-10")).toBeUndefined();
   });
 });

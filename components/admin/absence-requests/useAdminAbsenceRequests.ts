@@ -39,6 +39,18 @@ export function useAdminAbsenceRequests() {
 
       return getAbsenceRequests(query);
     },
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
+      return previousQuery.queryKey[0] === "absence-requests" &&
+      previousQuery.queryKey[1] === statusFilter &&
+      previousQuery.queryKey[2] === keyword &&
+      previousQuery.queryKey[4] === ABSENCE_ITEMS_PER_PAGE
+        ? previousData
+        : undefined;
+    },
   });
 
   const totalPages = Math.max(1, absenceRequestsQuery.data?.totalPages ?? 1);

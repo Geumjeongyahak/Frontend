@@ -342,7 +342,7 @@ export interface CreateLessonExchangeRequestDto {
   lessonDate: string;
   title: string;
   content: string;
-  expiresAt: string;
+  expiresDate?: string;
 }
 
 export interface LessonExchangeRequestResponseDto {

@@ -322,7 +322,7 @@ export const requestHandlers: RequestHandler[] = [
       lessonDate?: string;
       title?: string;
       content?: string;
-      expiresAt?: string;
+      expiresDate?: string;
     };
     return HttpResponse.json({ ...LESSON_EXCHANGE_REQUEST_RESPONSE, ...body, id: 30 });
   }),

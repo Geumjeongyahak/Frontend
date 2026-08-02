@@ -97,7 +97,7 @@ describe("request.api", () => {
       lessonDate: "2026-06-10",
       title: "Emergency swap",
       content: "Need a replacement",
-      expiresAt: "2026-06-07T22:00:00",
+      expiresDate: "2026-06-07",
     });
 
     expect(response.id).toBe(30);
@@ -105,7 +105,7 @@ describe("request.api", () => {
       lessonDate: "2026-06-10",
       title: "Emergency swap",
       content: "Need a replacement",
-      expiresAt: "2026-06-07T22:00:00",
+      expiresDate: "2026-06-07",
     });
   });
 

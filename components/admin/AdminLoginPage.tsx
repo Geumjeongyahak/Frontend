@@ -64,7 +64,9 @@ export default function AdminLoginPage() {
 
       const user = await getCurrentUser();
 
-      if (user.role !== "ADMIN") {
+      const hasAdminAccess = user.role === "ADMIN" || user.role === "MANAGER";
+
+      if (!hasAdminAccess) {
         clearTokens();
         setStatusMessage("관리자 계정으로만 접근할 수 있습니다.");
         return;

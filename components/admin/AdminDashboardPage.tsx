@@ -468,7 +468,8 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { status, user, signOut } = useAuthSession();
-  const isAdmin = status === "authenticated" && user?.role === "ADMIN";
+  const hasAdminAccess =
+    status === "authenticated" && (user?.role === "ADMIN" || user?.role === "MANAGER");
   const [activeMenu, setActiveMenu] = useState<AdminMenu>("dashboard");
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
@@ -551,10 +552,10 @@ export default function AdminDashboardPage() {
   }
 
   useEffect(() => {
-    if (status === "unauthenticated" || (status === "authenticated" && user?.role !== "ADMIN")) {
+    if (status === "unauthenticated" || (status === "authenticated" && !hasAdminAccess)) {
       router.replace("/admin/login");
     }
-  }, [router, status, user?.role]);
+  }, [hasAdminAccess, router, status]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !isReloadNavigation()) {
@@ -603,44 +604,44 @@ export default function AdminDashboardPage() {
         size: ADMIN_USERS_PER_PAGE,
         name: userSearch.trim() || undefined,
       }),
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
     placeholderData: (previousData) => previousData,
   });
   const departmentsQuery = useQuery({
     queryKey: queryKeys.admin.departments(),
     queryFn: getDepartments,
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
   });
   const classroomsQuery = useQuery({
     queryKey: queryKeys.admin.classrooms(),
     queryFn: () => getClassrooms({ page: 0, size: 100 }),
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
     placeholderData: (previousData) => previousData,
   });
   const pendingPurchasesQuery = useQuery({
     queryKey: queryKeys.admin.purchaseRequests({ status: "PENDING" }),
     queryFn: () => getAllPurchaseRequests({ status: "PENDING" }),
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
   });
   const pendingAbsenceRequestsQuery = useQuery({
     queryKey: [...queryKeys.requests.absenceList(), "dashboard", "PENDING"],
     queryFn: () => getAbsenceRequests({ status: "PENDING", page: 0, size: 1 }),
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
   });
   const pendingLessonExchangeRequestsQuery = useQuery({
     queryKey: [...queryKeys.requests.lessonExchangeList(), "dashboard", "PENDING"],
     queryFn: () => getLessonExchangeRequests({ status: "PENDING", page: 0, size: 1 }),
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
   });
   const pendingTeacherApplicationsQuery = useQuery({
     queryKey: [...queryKeys.teacherApplications.adminList({ status: "PENDING" }), "dashboard"],
     queryFn: () => getTeacherApplications({ status: "PENDING", page: 0, size: 1 }),
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
   });
   const channelsQuery = useQuery({
     queryKey: queryKeys.admin.channels(),
     queryFn: () => getChannels(),
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
   });
   const eventChannel = channelsQuery.data?.find(
     (channel) => channel.channelType === "EVENT" && typeof channel.id === "number",
@@ -728,7 +729,7 @@ export default function AdminDashboardPage() {
         classroomId: postsQueryClassroomId,
         departmentId: postsQueryDepartmentId,
       }),
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
     placeholderData: (previousData) => previousData,
   });
   const purchasesQuery = useQuery({
@@ -745,60 +746,60 @@ export default function AdminDashboardPage() {
         page: purchasePage - 1,
         size: 11,
       }),
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
     placeholderData: (previousData) => previousData,
   });
   const vendorsQuery = useQuery({
     queryKey: queryKeys.vendors.list(),
     queryFn: () => getVendors(),
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
   });
   const permissionRegistryQuery = useQuery({
     queryKey: queryKeys.admin.permissionRegistry(),
     queryFn: getAssignablePermissions,
-    enabled: isAdmin,
+    enabled: hasAdminAccess,
   });
   const userDetailQuery = useQuery({
     queryKey: selectedUserId
       ? queryKeys.admin.userDetail(selectedUserId)
       : ["admin", "users", "detail", "none"],
     queryFn: () => getUserDetail({ userId: selectedUserId ?? 0 }),
-    enabled: isAdmin && selectedUserId !== null,
+    enabled: hasAdminAccess && selectedUserId !== null,
   });
   const userPermissionsQuery = useQuery({
     queryKey: selectedUserId
       ? queryKeys.admin.userPermissions(selectedUserId)
       : ["admin", "users", "permissions", "none"],
     queryFn: () => getUserPermissions({ userId: selectedUserId ?? 0 }),
-    enabled: isAdmin && selectedUserId !== null,
+    enabled: hasAdminAccess && selectedUserId !== null,
   });
   const channelDetailQuery = useQuery({
     queryKey: selectedChannelId
       ? queryKeys.admin.channelDetail(selectedChannelId)
       : ["admin", "channels", "detail", "none"],
     queryFn: () => getChannel({ id: selectedChannelId ?? 0 }),
-    enabled: isAdmin && selectedChannelId !== null,
+    enabled: hasAdminAccess && selectedChannelId !== null,
   });
   const postDetailQuery = useQuery({
     queryKey: selectedPost
       ? queryKeys.admin.postDetail(selectedPost.channelId, selectedPost.postId)
       : ["admin", "posts", "detail", "none"],
     queryFn: () => getPost(selectedPost ?? { channelId: 0, postId: 0 }),
-    enabled: isAdmin && selectedPost !== null,
+    enabled: hasAdminAccess && selectedPost !== null,
   });
   const departmentDetailQuery = useQuery({
     queryKey: selectedDepartmentId
       ? queryKeys.admin.departmentDetail(selectedDepartmentId)
       : ["admin", "departments", "detail", "none"],
     queryFn: () => getDepartmentDetail({ id: selectedDepartmentId ?? 0 }),
-    enabled: isAdmin && selectedDepartmentId !== null,
+    enabled: hasAdminAccess && selectedDepartmentId !== null,
   });
   const classroomDetailQuery = useQuery({
     queryKey: selectedClassroomId
       ? queryKeys.admin.classroomDetail(selectedClassroomId)
       : ["admin", "classrooms", "detail", "none"],
     queryFn: () => getClassroomDetail({ id: selectedClassroomId ?? 0 }),
-    enabled: isAdmin && selectedClassroomId !== null,
+    enabled: hasAdminAccess && selectedClassroomId !== null,
   });
   const classroomStudentsQuery = useQuery({
     queryKey:
@@ -806,14 +807,14 @@ export default function AdminDashboardPage() {
         ? queryKeys.students.list({ classroomId: selectedClassroomId })
         : ["students", "list", "classroom", "none"],
     queryFn: () => getStudents({ classroomId: selectedClassroomId ?? 0 }),
-    enabled: isAdmin && selectedClassroomId !== null,
+    enabled: hasAdminAccess && selectedClassroomId !== null,
   });
   const purchaseDetailQuery = useQuery({
     queryKey: selectedPurchaseId
       ? queryKeys.admin.purchaseRequestDetail(selectedPurchaseId)
       : ["admin", "purchase-requests", "detail", "none"],
     queryFn: () => getAdminPurchaseRequestDetail({ requestId: selectedPurchaseId ?? 0 }),
-    enabled: isAdmin && selectedPurchaseId !== null,
+    enabled: hasAdminAccess && selectedPurchaseId !== null,
   });
 
   const users = useMemo(() => usersQuery.data?.content ?? [], [usersQuery.data?.content]);
@@ -1635,7 +1636,7 @@ export default function AdminDashboardPage() {
     window.location.replace("/admin");
   }
 
-  if (!isAdmin) {
+  if (!hasAdminAccess) {
     return (
       <Main>
         <AdminContent $compact>

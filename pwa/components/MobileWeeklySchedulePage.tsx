@@ -671,8 +671,7 @@ const ScheduleGrid = styled.div<{ $columns: number }>`
   display: grid;
   grid-template-columns: 6.75rem repeat(${({ $columns }) => $columns - 1}, 8.25rem);
   width: max-content;
-  border-right: 1px solid #d9dfd5;
-  border-bottom: 1px solid #d9dfd5;
+  border: 1px solid #d9dfd5;
   border-radius: 1rem;
   overflow: hidden;
 `;
@@ -695,6 +694,11 @@ const HeaderCell = styled(BaseCell)`
   min-height: 3rem;
   padding: ${spacing.space8};
   background: #f4f8ef;
+  border-top: 0;
+
+  &:first-child {
+    border-left: 0;
+  }
 `;
 
 const HeaderDay = styled.span`
@@ -718,6 +722,7 @@ const ClassroomCell = styled(BaseCell)`
   padding: ${spacing.space8};
   background: #f4f8ef;
   text-align: center;
+  border-left: 0;
 `;
 
 const ClassroomName = styled.span`

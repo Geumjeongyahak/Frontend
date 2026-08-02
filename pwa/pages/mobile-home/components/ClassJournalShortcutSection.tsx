@@ -1,6 +1,6 @@
 "use client";
 
-import { IconBook2, IconChevronRight } from "@tabler/icons-react";
+import { IconBook2, IconChevronRight, IconPencil } from "@tabler/icons-react";
 import styled from "styled-components";
 import {
   MOBILE_HOME_CARD_RADIUS,
@@ -12,10 +12,12 @@ import {
 
 type ClassJournalShortcutSectionProps = {
   onWriteClick: () => void;
+  onListClick: () => void;
 };
 
 export default function ClassJournalShortcutSection({
   onWriteClick,
+  onListClick,
 }: ClassJournalShortcutSectionProps) {
   return (
     <Section>
@@ -23,11 +25,23 @@ export default function ClassJournalShortcutSection({
       <Grid>
         <ShortcutButton type="button" onClick={onWriteClick}>
           <IconWrap>
-            <IconBook2 size={24} stroke={1.85} />
+            <IconPencil size={24} stroke={1.85} />
           </IconWrap>
           <TextGroup>
             <CardTitle>새 수업 일지 작성</CardTitle>
             <CardDescription>오늘의 수업 내용을 작성하고 퇴근을 마무리합니다.</CardDescription>
+          </TextGroup>
+          <ArrowWrap>
+            <IconChevronRight size={18} stroke={2} />
+          </ArrowWrap>
+        </ShortcutButton>
+        <ShortcutButton type="button" onClick={onListClick}>
+          <IconWrap>
+            <IconBook2 size={24} stroke={1.85} />
+          </IconWrap>
+          <TextGroup>
+            <CardTitle>수업 일지 목록</CardTitle>
+            <CardDescription>작성된 전체 혹은 나의 수업 일지를 확인합니다.</CardDescription>
           </TextGroup>
           <ArrowWrap>
             <IconChevronRight size={18} stroke={2} />

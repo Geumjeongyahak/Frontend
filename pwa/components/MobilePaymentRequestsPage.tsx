@@ -202,10 +202,33 @@ export default function MobilePaymentRequestsPage() {
     size: REQUESTS_PER_PAGE,
   };
 
+  const purchaseListQueryKey = [...queryKeys.requests.purchaseList(purchaseListParams), "mobile"];
   const purchaseListQuery = useQuery({
-    queryKey: [...queryKeys.requests.purchaseList(purchaseListParams), "mobile"],
+    queryKey: purchaseListQueryKey,
     queryFn: () => getPurchaseRequests(purchaseListParams),
-    placeholderData: (previousData) => previousData,
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
+      const previousParams = previousQuery.queryKey[1];
+
+      return previousQuery.queryKey.length === purchaseListQueryKey.length &&
+        previousQuery.queryKey[0] === purchaseListQueryKey[0] &&
+        previousQuery.queryKey[2] === purchaseListQueryKey[2] &&
+        typeof previousParams === "object" &&
+        previousParams !== null &&
+        "mine" in previousParams &&
+        "keyword" in previousParams &&
+        "page" in previousParams &&
+        "size" in previousParams &&
+        Object.keys(previousParams).length === Object.keys(purchaseListParams).length &&
+        previousParams.mine === purchaseListParams.mine &&
+        previousParams.keyword === purchaseListParams.keyword &&
+        previousParams.size === purchaseListParams.size
+        ? previousData
+        : undefined;
+    },
     enabled: isAuthenticated,
     retry: false,
   });

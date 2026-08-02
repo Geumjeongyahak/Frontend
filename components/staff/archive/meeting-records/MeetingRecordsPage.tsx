@@ -54,6 +54,23 @@ export default function MeetingRecordsPage({
     queryFn: () => getMeetingRecords(queryParams),
     enabled: isAuthenticated,
     retry: false,
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
+      const previousParams = previousQuery?.queryKey[2] as
+        | Omit<typeof queryParams, "page">
+        | undefined;
+
+      return previousQuery?.queryKey[0] === "meeting-records" &&
+        previousQuery.queryKey[1] === "list" &&
+        previousParams?.size === queryParams.size &&
+        previousParams?.keyword === queryParams.keyword &&
+        previousParams?.mineOnly === queryParams.mineOnly
+        ? previousData
+        : undefined;
+    },
   });
 
   const totalElements = isAuthenticated ? (data?.totalElements ?? data?.content?.length ?? 0) : 0;

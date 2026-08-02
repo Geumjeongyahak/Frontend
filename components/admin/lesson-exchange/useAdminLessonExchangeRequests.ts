@@ -51,6 +51,19 @@ export function useAdminLessonExchangeRequests() {
 
       return getLessonExchangeRequests(query);
     },
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
+      return previousQuery.queryKey[0] === "lesson-exchange-requests" &&
+      previousQuery.queryKey[1] === "admin" &&
+      previousQuery.queryKey[2] === statusFilter &&
+      previousQuery.queryKey[3] === keyword &&
+      previousQuery.queryKey[5] === LESSON_EXCHANGE_ITEMS_PER_PAGE
+        ? previousData
+        : undefined;
+    },
   });
 
   const totalPages = Math.max(1, lessonExchangeRequestsQuery.data?.totalPages ?? 1);

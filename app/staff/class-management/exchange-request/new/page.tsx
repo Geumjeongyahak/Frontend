@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { IconCalendarMonth } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import styled from "styled-components";
 import { createLessonExchangeRequest } from "@/api/lessonExchange/lessonExchange.api";
@@ -12,7 +11,7 @@ import { getCurrentUser } from "@/api/user/user.api";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import {
-  koreanShortDateToLocalDateTime,
+  getLessonExchangeExpiresDateForApi,
   parseKoreanShortDateToIsoDate,
 } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -89,7 +88,11 @@ export default function Page() {
     valueSetter?: React.Dispatch<React.SetStateAction<string>>,
   ) => {
     const value = event.target.value;
-    if (!value) return;
+    if (!value) {
+      valueSetter?.("");
+      setter("");
+      return;
+    }
 
     const [year, month, day] = value.split("-");
     valueSetter?.(value);
@@ -102,10 +105,8 @@ export default function Page() {
 
     handleDateChange(event, setLessonDateText, setLessonDateValue);
 
-    const autoExpireDate = dayjs(value).subtract(3, "day").format("YYYY-MM-DD");
-    const [year, month, day] = autoExpireDate.split("-");
-    setExpireDateValue(autoExpireDate);
-    setExpireDateText(`${year.slice(-2)}.${month}.${day}`);
+    setExpireDateValue(value);
+    setExpireDateText(`${value.slice(2, 4)}.${value.slice(5, 7)}.${value.slice(8, 10)}`);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -116,7 +117,7 @@ export default function Page() {
     const title = String(formData.get("title") ?? "").trim();
     const content = String(formData.get("reason") ?? "").trim();
     const lessonDate = parseKoreanShortDateToIsoDate(lessonDateText.trim());
-    const expiresAt = koreanShortDateToLocalDateTime(expireDateText.trim(), "23:59:59");
+    const expiresDateInput = parseKoreanShortDateToIsoDate(expireDateText.trim());
 
     if (!title || !content) {
       window.alert("필수 입력값을 확인해주세요.");
@@ -126,16 +127,22 @@ export default function Page() {
       window.alert("수업 일자를 선택해 주세요.");
       return;
     }
-    if (!expiresAt) {
+    if (expireDateText.trim() && !expiresDateInput) {
       window.alert("만료일을 달력에서 선택해 주세요.");
       return;
     }
+    if (expiresDateInput && expiresDateInput > lessonDate) {
+      window.alert("만료일은 수업 일자 이후로 선택할 수 없습니다.");
+      return;
+    }
+
+    const expiresDate = getLessonExchangeExpiresDateForApi(expiresDateInput ?? "", lessonDate);
 
     createLessonExchangeMutation.mutate({
       lessonDate,
       title,
       content,
-      expiresAt,
+      ...(expiresDate ? { expiresDate } : {}),
     });
   };
 
@@ -239,7 +246,7 @@ export default function Page() {
             <HiddenNativeDateInput
               ref={expireDateInputRef}
               type="date"
-              max={lessonDateValue ? dayjs(lessonDateValue).subtract(3, "day").format("YYYY-MM-DD") : undefined}
+              max={lessonDateValue || undefined}
               value={expireDateValue}
               onChange={(e) => handleDateChange(e, setExpireDateText, setExpireDateValue)}
               aria-hidden="true"

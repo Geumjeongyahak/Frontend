@@ -29,7 +29,9 @@ export default function RequestShortcutSection({
           </IconWrap>
           <TextGroup>
             <CardTitle>결제 신청</CardTitle>
-            <CardDescription>품목별 결제 요청과 진행 상태를 한 번에 관리합니다.</CardDescription>
+            <CardDescription>
+              필요한 품목에 대해 결제 신청을 작성하고 진행 상태를 확인합니다.
+            </CardDescription>
           </TextGroup>
           <ArrowWrap>
             <IconChevronRight size={18} stroke={2} />
@@ -42,9 +44,7 @@ export default function RequestShortcutSection({
           </IconWrap>
           <TextGroup>
             <CardTitle>교환 · 결강 신청</CardTitle>
-            <CardDescription>
-              수업 교환과 결강 신청 흐름을 모바일에서 바로 처리합니다.
-            </CardDescription>
+            <CardDescription>수업 교환 및 결강을 신청하고 신청 내역을 확인합니다.</CardDescription>
           </TextGroup>
           <ArrowWrap>
             <IconChevronRight size={18} stroke={2} />

@@ -47,7 +47,14 @@ export function useStudentContactSection() {
 
   const [openClassIds, setOpenClassIds] = useState<Set<string> | null>(null);
 
-  const classes = apiClasses;
+  const classes = [...apiClasses]
+    .map((studentClass) => ({
+      ...studentClass,
+      students: [...studentClass.students].sort((first, second) =>
+        first.name.localeCompare(second.name, "ko"),
+      ),
+    }))
+    .sort((first, second) => first.name.localeCompare(second.name, "ko"));
   const defaultOpenClassIds = new Set<string>();
   const resolvedOpenClassIds = openClassIds ?? defaultOpenClassIds;
 

@@ -29,10 +29,6 @@ export function getAssignmentClassNames(assignments?: UserTeacherAssignmentRespo
   );
 }
 
-export function toExchangeExpiryAt(value: string) {
-  return value ? `${value}T23:59:59` : "";
-}
-
 export function formatCompactDateTime(value?: string) {
   if (!value) {
     return "-";

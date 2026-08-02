@@ -110,7 +110,11 @@ export function ExchangePostDetail({ page, showExpiresAt = true }: ExchangeReque
               <ApplicantBoxLabel>만료일</ApplicantBoxLabel>
 
               {page.isEditing ? (
-                <ExpiresEditInput type="date" {...page.editForm.register("expiresAt")} />
+                <ExpiresEditInput
+                  type="date"
+                  max={page.editForm.watch("lessonDate") || undefined}
+                  {...page.editForm.register("expiresDate")}
+                />
               ) : (
                 <ExpiresDateBox>{formatUtcToKstShortDate(request?.expiresAt)}</ExpiresDateBox>
               )}

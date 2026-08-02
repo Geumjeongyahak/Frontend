@@ -3,7 +3,6 @@ import {
   buildPurchaseRequestContent,
   formatCompactDateTime,
   getAssignmentClassNames,
-  toExchangeExpiryAt,
 } from "./requestFormUtils";
 
 describe("requestFormUtils", () => {
@@ -40,11 +39,6 @@ describe("requestFormUtils", () => {
         { classroomName: "" },
       ]),
     ).toEqual(["한글반", "기초반"]);
-  });
-
-  it("converts exchange expiry date to local date-time string", () => {
-    expect(toExchangeExpiryAt("2026-07-01")).toBe("2026-07-01T23:59:59");
-    expect(toExchangeExpiryAt("")).toBe("");
   });
 
   it("formats compact date-time text for request detail", () => {

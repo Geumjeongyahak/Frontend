@@ -5,6 +5,12 @@ export type TeacherContact = {
   phone: string;
 };
 
+export type TeacherClass = {
+  id: string;
+  name: string;
+  teachers: TeacherContact[];
+};
+
 export type StudentContact = {
   id: number;
   name: string;

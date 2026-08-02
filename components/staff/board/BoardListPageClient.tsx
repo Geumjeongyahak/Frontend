@@ -257,6 +257,33 @@ export default function BoardListPageClient({
       (isAuthenticated || isPublicNoticeView) &&
       (boardScope === "all" || isScopeDisabled || typeof selectedChannelId === "number"),
     retry: false,
+    placeholderData: (previousData, previousQuery) => {
+      if (!previousQuery) {
+        return undefined;
+      }
+
+      const previousFilters = previousQuery?.queryKey[2] as
+        | {
+            channelType?: string;
+            boardScope?: string;
+            searchKeyword?: string;
+            mineOnly?: boolean;
+            author?: string;
+            refreshNonce?: number;
+          }
+        | undefined;
+
+      return previousQuery?.queryKey[0] === "posts" &&
+        previousQuery.queryKey[1] === "board" &&
+        previousFilters?.channelType === boardType &&
+        previousFilters.boardScope === boardScope &&
+        previousFilters.searchKeyword === searchKeyword &&
+        previousFilters.mineOnly === mineOnly &&
+        previousFilters.author === currentAuthor &&
+        previousFilters.refreshNonce === refreshNonce
+        ? previousData
+        : undefined;
+    },
   });
 
   const rawPosts = ((isAuthenticated || isPublicNoticeView) ? (data?.content ?? []) : []).filter(
