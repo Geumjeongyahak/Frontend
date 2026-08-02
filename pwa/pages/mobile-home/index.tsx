@@ -148,6 +148,7 @@ export default function MobileHomeScreen() {
 
         <ClassJournalShortcutSection
           onWriteClick={() => screen.navigateWhenAuthenticated("/journal/write")}
+          onListClick={() => screen.navigateWhenAuthenticated("/journal")}
         />
 
         <RequestShortcutSection

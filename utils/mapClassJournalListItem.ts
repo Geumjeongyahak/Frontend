@@ -27,7 +27,7 @@ export function mapClassJournalListItem(
   const subjectLabel = orderedLessons
     .map((lesson) => lesson.subjectName)
     .filter((name): name is string => Boolean(name))
-    .join(" ");
+    .join("/");
 
   return {
     id: schedule.dailyScheduleId,
