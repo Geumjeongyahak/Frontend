@@ -421,10 +421,21 @@ function parsePrepaidContent(purchase?: PurchaseRequestResponseDto): ParsedPrepa
         : getContentLineValue(content, "품의 금액").replaceAll("원", "").trim(),
     budgetItems,
     products,
-    approvalEntries: buildApprovalEntries(purchase.requestedByName),
-    cooperationEntries: buildCooperationEntries(
-      getContentLineValue(content, "요구 부서") || purchase.departmentName,
-    ),
+    approvalEntries:
+      proposal?.draftApprovals?.map((entry) => ({
+        position: entry.position ?? "",
+        name: entry.name ?? "",
+      })) ?? buildApprovalEntries(purchase.requestedByName),
+    cooperationEntries: proposal?.draftCooperations
+      ? [...proposal.draftCooperations]
+          .sort((left, right) => (left.sortOrder ?? 0) - (right.sortOrder ?? 0))
+          .map((entry) => ({
+            position: entry.position ?? "",
+            name: entry.name ?? "",
+          }))
+      : buildCooperationEntries(
+          getContentLineValue(content, "요구 부서") || purchase.departmentName,
+        ),
   };
 }
 
@@ -614,6 +625,10 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       const selectedDepartment = departments.find(
         (department) => String(department.id) === editPrepaidDepartmentId,
       );
+      const requestDepartmentId = selectedDepartment?.id ?? request.proposal?.requestDepartmentId;
+      if (requestDepartmentId == null) {
+        throw new Error("요구 부서를 선택해 주세요.");
+      }
       const selectedAffiliation = affiliationOptions.find(
         (option) => option.value === editAffiliationValue,
       );
@@ -639,12 +654,13 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
             : {}),
           completionDate: editPrepaidContent.approvalDate,
           draftApprovals: editPrepaidContent.approvalEntries,
+          resolutionApprovals: editPrepaidContent.approvalEntries,
           draftCooperations: editPrepaidContent.cooperationEntries,
           overview: editPrepaidContent.summary.trim(),
           policyProject: editPrepaidContent.policyProject,
           unitProject: unitBusinessLabel,
           detailProject: editPrepaidContent.detailBusiness,
-          ...(selectedDepartment?.id != null ? { requestDepartmentId: selectedDepartment.id } : {}),
+          requestDepartmentId,
           proposalDate: editPrepaidContent.approvalDate,
           proposalAmount: parseNumericValue(editPrepaidContent.approvalAmount),
           ...(paymentAccountValueMap[
@@ -657,18 +673,16 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                   ],
               }
             : {}),
-          ...(!areRequiredFieldsLocked
-            ? {
-                budget: firstBudgetItem
-                  ? {
-                      itemCategory: "DIRECT_INPUT",
-                      customItemCategory: firstBudgetItem.reason,
-                      calculationDetail: "DIRECT_INPUT",
-                      customCalculationDetail: firstBudgetItem.name,
-                    }
-                  : null,
-              }
-            : {}),
+          budget: !areRequiredFieldsLocked
+            ? firstBudgetItem
+              ? {
+                  itemCategory: "DIRECT_INPUT",
+                  customItemCategory: firstBudgetItem.reason,
+                  calculationDetail: "DIRECT_INPUT",
+                  customCalculationDetail: firstBudgetItem.name,
+                }
+              : null
+            : request.proposal?.budget ?? null,
           items: editPrepaidContent.products.map((item) => ({
             content: item.description,
             specification: item.specification,
@@ -692,6 +706,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
           {
             title: request.title ?? "",
             content: request.content ?? "",
+            paymentType: requestPaymentType,
             ...(selectedAffiliation.type === "classroom"
               ? { classroomId: selectedAffiliation.id, departmentId: null }
               : { classroomId: null, departmentId: selectedAffiliation.id }),
@@ -788,7 +803,25 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     [request, requestPaymentType],
   );
   const activePrepaidContent = isEditing ? editPrepaidContent : parsedPrepaidContent;
-  const initialReportItems = useMemo(() => mapPurchaseItemsToReportItems(purchase), [purchase]);
+  const initialReportItems = useMemo(() => {
+    const reportItems = mapPurchaseItemsToReportItems(purchase);
+
+    if (requestPaymentType !== "PREPAID" || purchase?.transactions?.length) {
+      return reportItems;
+    }
+
+    const firstReportItem = reportItems[0];
+    if (!firstReportItem) {
+      return reportItems;
+    }
+
+    return [
+      {
+        ...firstReportItem,
+        name: (purchase?.items ?? []).map((item) => item.name ?? "").join(", "),
+      },
+    ];
+  }, [purchase, requestPaymentType]);
   const persistedPrepaidReportItems =
     savedPrepaidReportItems.length > 0 ? savedPrepaidReportItems : initialReportItems;
   const activeReportItems =
@@ -882,13 +915,22 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
         }),
       );
 
+      const reportItems =
+        requestPaymentType === "PREPAID" && !isReportEditing
+          ? activeReportItems.slice(0, 1)
+          : activeReportItems;
+      const prepaidItemNames = (request?.items ?? [])
+        .map((item) => item.name ?? "");
       const body = {
-        transactions: activeReportItems.map((item, index) => ({
+        transactions: reportItems.map((item, index) => ({
           vendorId: Number(item.vendorId),
-          itemNames: item.name
-            .split(",")
-            .map((name) => name.trim())
-            .filter(Boolean),
+          itemNames:
+            requestPaymentType === "PREPAID"
+              ? prepaidItemNames
+              : item.name
+                  .split(",")
+                  .map((name) => name.trim())
+                  .filter(Boolean),
           amount: Number(item.price),
           ...(requestPaymentType === "PREPAID"
             ? {
@@ -1077,7 +1119,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
         item.price.trim().length > 0 &&
         Number.isFinite(Number(item.price)) &&
         Number(item.price) >= 1 &&
-        (requestPaymentType !== "PREPAID" || item.paymentMethod.trim().length > 0),
+        (requestPaymentType !== "PREPAID" ||
+          paymentMethodValueMap[item.paymentMethod as (typeof paymentMethodOptions)[number]] != null),
     ) &&
     !reportMutation.isPending;
   const prepaidQuantityTotal =
@@ -2685,7 +2728,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                       <SectionTitle>
                         {isReportEditing ? "구매 완료 보고 수정" : "구매 완료 보고"}
                       </SectionTitle>
-                      {canEditPurchaseReport && !isReportEditing ? (
+                      {canEditPurchaseReport && request?.status !== "CONFIRMED" && !isReportEditing ? (
                         <ReportEditTextButton type="button" onClick={startReportEditing}>
                           수정
                         </ReportEditTextButton>
@@ -2809,7 +2852,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
                                         {option}
                                       </option>
                                     ))}
-                                    <option value={reportCustomOptionValue}>직접 입력</option>
                                   </ReportSelect>
                                 )}
                               </ReportBodyCell>

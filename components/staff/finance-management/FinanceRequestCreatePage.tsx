@@ -343,6 +343,7 @@ export default function FinanceRequestCreatePage() {
           resolutionTitle: body.title,
           completionDate: approvalDate,
           draftApprovals: approvalEntries,
+          resolutionApprovals: approvalEntries,
           draftCooperations: cooperationEntries,
           overview: prepaidSummary.trim(),
           policyProject: getPolicyProjectLabel(approvalDate),
