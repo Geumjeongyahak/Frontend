@@ -438,11 +438,13 @@ const JournalInfo = styled.div`
 `;
 const TopRow = styled.div`
   display: flex;
+  min-width: 0;
   align-items: center;
   justify-content: space-between;
   gap: ${spacing.space12};
 `;
 const JournalClass = styled.h3`
+  flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
   color: ${colors.text};
