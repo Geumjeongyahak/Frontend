@@ -61,8 +61,16 @@ export default function MobileClassJournalListPage() {
     if (status === "error" && hasStoredToken) refreshSession().catch(() => undefined);
   }, [hasStoredToken, refreshSession, status]);
 
+  const journalListQueryKey = [
+    "daily-schedules",
+    "list",
+    "mobile",
+    viewMode,
+    searchKeyword,
+    currentPage,
+  ] as const;
   const journalQuery = useQuery({
-    queryKey: ["daily-schedules", "list", "mobile", viewMode, searchKeyword, currentPage] as const,
+    queryKey: journalListQueryKey,
     queryFn: () =>
       getDailySchedules({
         mine: viewMode === "mine" || undefined,
@@ -72,7 +80,13 @@ export default function MobileClassJournalListPage() {
       }),
     enabled: isAuthenticated,
     retry: false,
-    placeholderData: (previousData) => previousData,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery.queryKey.length === journalListQueryKey.length &&
+      previousQuery.queryKey.every(
+        (value, index) => index === journalListQueryKey.length - 1 || value === journalListQueryKey[index],
+      )
+        ? previousData
+        : undefined,
   });
   const attendanceQuery = useQuery({
     queryKey: ["daily-schedules", "detail", "mobile-journal", expandedId] as const,

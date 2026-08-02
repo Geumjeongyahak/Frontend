@@ -204,15 +204,16 @@ export default function MobileClassRequestsPage() {
     }
   }, [hasStoredToken, refreshSession, status]);
 
+  const exchangeListQueryKey = [
+    ...queryKeys.requests.lessonExchangeList(),
+    "mobile",
+    viewMode,
+    searchKeyword,
+    exchangePage,
+    REQUESTS_PER_PAGE,
+  ] as const;
   const exchangeListQuery = useQuery({
-    queryKey: [
-      ...queryKeys.requests.lessonExchangeList(),
-      "mobile",
-      viewMode,
-      searchKeyword,
-      exchangePage,
-      REQUESTS_PER_PAGE,
-    ],
+    queryKey: exchangeListQueryKey,
     queryFn: () =>
       getLessonExchangeRequests({
         mine: viewMode === "mine" ? true : undefined,
@@ -222,6 +223,13 @@ export default function MobileClassRequestsPage() {
       }),
     enabled: isAuthenticated,
     retry: false,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery.queryKey.length === exchangeListQueryKey.length &&
+      previousQuery.queryKey.every(
+        (value, index) => index === exchangeListQueryKey.length - 2 || value === exchangeListQueryKey[index],
+      )
+        ? previousData
+        : undefined,
   });
 
   const exchangeMineCountQuery = useQuery({
@@ -236,15 +244,16 @@ export default function MobileClassRequestsPage() {
     retry: false,
   });
 
+  const absenceListQueryKey = [
+    ...queryKeys.requests.absenceList(),
+    "mobile",
+    viewMode,
+    searchKeyword,
+    absencePage,
+    REQUESTS_PER_PAGE,
+  ] as const;
   const absenceListQuery = useQuery({
-    queryKey: [
-      ...queryKeys.requests.absenceList(),
-      "mobile",
-      viewMode,
-      searchKeyword,
-      absencePage,
-      REQUESTS_PER_PAGE,
-    ],
+    queryKey: absenceListQueryKey,
     queryFn: () =>
       getAbsenceRequests({
         mine: viewMode === "mine" ? true : undefined,
@@ -254,6 +263,13 @@ export default function MobileClassRequestsPage() {
       }),
     enabled: isAuthenticated,
     retry: false,
+    placeholderData: (previousData, previousQuery) =>
+      previousQuery.queryKey.length === absenceListQueryKey.length &&
+      previousQuery.queryKey.every(
+        (value, index) => index === absenceListQueryKey.length - 2 || value === absenceListQueryKey[index],
+      )
+        ? previousData
+        : undefined,
   });
 
   const absenceMineListQuery = useQuery({
