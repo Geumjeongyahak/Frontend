@@ -41,7 +41,7 @@ export default function ClassJournalShortcutSection({
           </IconWrap>
           <TextGroup>
             <CardTitle>수업 일지 목록</CardTitle>
-            <CardDescription>작성된 수업 일지를 확인합니다.</CardDescription>
+            <CardDescription>작성된 전체 혹은 나의 수업 일지를 확인합니다.</CardDescription>
           </TextGroup>
           <ArrowWrap>
             <IconChevronRight size={18} stroke={2} />

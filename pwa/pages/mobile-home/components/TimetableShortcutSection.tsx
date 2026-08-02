@@ -27,9 +27,7 @@ export default function TimetableShortcutSection({
           </IconWrap>
           <TextGroup>
             <CardTitle>주간 시간표</CardTitle>
-            <CardDescription>
-              주차별 수업 편성과 교환, 결강, 대체 상태를 한 번에 확인합니다.
-            </CardDescription>
+            <CardDescription>주차별 수업 편성 및 교직원 출퇴근 상태를 확인합니다.</CardDescription>
           </TextGroup>
           <ArrowWrap>
             <IconChevronRight size={18} stroke={2} />
