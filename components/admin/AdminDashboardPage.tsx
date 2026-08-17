@@ -552,8 +552,13 @@ export default function AdminDashboardPage() {
   }
 
   useEffect(() => {
-    if (status === "unauthenticated" || (status === "authenticated" && !hasAdminAccess)) {
-      router.replace("/admin/login");
+    if (status === "unauthenticated" || status === "error") {
+      router.replace("/login?returnTo=/admin");
+      return;
+    }
+
+    if (status === "authenticated" && !hasAdminAccess) {
+      router.replace("/admin/access-denied");
     }
   }, [hasAdminAccess, router, status]);
 
@@ -570,7 +575,7 @@ export default function AdminDashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || !hasAdminAccess) {
       return;
     }
 
@@ -578,7 +583,7 @@ export default function AdminDashboardPage() {
     window.history.pushState({ __adminBackGuard: true }, "", adminUrl);
 
     function handlePopState() {
-      window.history.pushState({ __adminBackGuard: true }, "", adminUrl);
+      window.location.replace("/admin");
     }
 
     window.addEventListener("popstate", handlePopState);
@@ -586,7 +591,7 @@ export default function AdminDashboardPage() {
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, []);
+  }, [hasAdminAccess]);
 
   const usersQuery = useQuery({
     queryKey: [
@@ -1621,7 +1626,7 @@ export default function AdminDashboardPage() {
 
   async function handleLogout() {
     await signOut();
-    router.replace("/admin/login");
+    router.replace("/");
   }
 
   function handleGoHome() {
@@ -1641,7 +1646,7 @@ export default function AdminDashboardPage() {
       <Main>
         <AdminContent $compact>
           <StatePanel>
-            <LoadingSpinner label="관리자 권한 확인 중" />
+            <LoadingSpinner label="관리자 페이지로 이동 중입니다" />
           </StatePanel>
         </AdminContent>
       </Main>

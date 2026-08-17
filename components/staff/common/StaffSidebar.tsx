@@ -44,7 +44,7 @@ const staffSections = [
 
 const adminSection = {
   title: "관리자",
-  items: [{ label: "대시보드", href: "/admin/login" }],
+  items: [{ label: "대시보드", href: "/admin" }],
 };
 
 type StaffSection = (typeof staffSections)[number];

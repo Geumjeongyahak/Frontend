@@ -282,7 +282,7 @@ export default function MobileMyPage() {
                 </>
               ) : (
                 <>
-                  <ActionButton type="button" onClick={() => setIsEditing(true)}>
+                  <ActionButton type="button" $textTone="dark" onClick={() => setIsEditing(true)}>
                     정보 수정
                   </ActionButton>
                   <ActionButton type="button" $variant="outline" onClick={handleGoogleConnect}>
@@ -492,7 +492,10 @@ const GoogleMark = styled.svg`
   flex: 0 0 auto;
 `;
 
-const ActionButton = styled.button<{ $variant?: "default" | "muted" | "outline" }>`
+const ActionButton = styled.button<{
+  $variant?: "default" | "muted" | "outline";
+  $textTone?: "dark";
+}>`
   min-height: 3rem;
   display: inline-flex;
   align-items: center;
@@ -506,7 +509,8 @@ const ActionButton = styled.button<{ $variant?: "default" | "muted" | "outline" 
           : colors.borderStrong};
   border-radius: ${radii.radius15};
   background: ${({ $variant }) => ($variant === "muted" ? colors.background : colors.white)};
-  color: ${({ $variant }) => ($variant === "default" ? colors.point : colors.text)};
+  color: ${({ $textTone, $variant }) =>
+    $textTone === "dark" ? colors.text : $variant === "default" ? colors.point : colors.text};
   font-size: ${typography.fontSize14};
   font-weight: 700;
 

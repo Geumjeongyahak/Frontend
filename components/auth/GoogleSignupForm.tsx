@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { googleSignup } from "@/api/auth/auth.api";
-import { clearGoogleOAuthIntent } from "@/api/auth/googleOAuthState";
+import { clearGoogleOAuthIntent, getGoogleOAuthReturnTo } from "@/api/auth/googleOAuthState";
 import type { GoogleCallbackRedirectQueryParamsDto } from "@/api/auth/auth.dto";
 import {
   Field,
@@ -17,6 +17,7 @@ import {
 import AuthShell from "@/components/auth/AuthShell";
 import { openDatePicker } from "@/utils/datePicker";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
+import { getSafeLoginReturnTo } from "@/lib/navigation/loginRedirect";
 
 type GoogleSignupFormState = {
   name: string;
@@ -69,9 +70,10 @@ export default function GoogleSignupForm({ searchParams }: GoogleSignupFormProps
         phoneNumber: form.phoneNumber.trim() || undefined,
         birthDate: form.birthDate,
       });
+      const returnTo = getSafeLoginReturnTo(getGoogleOAuthReturnTo());
       clearGoogleOAuthIntent();
-      setStatusMessage("구글 회원가입이 완료되었습니다. 잠시 후 메인으로 이동합니다.");
-      router.replace("/");
+      setStatusMessage("구글 회원가입이 완료되었습니다. 잠시 후 이동합니다.");
+      router.replace(returnTo);
     } catch {
       setStatusMessage("구글 회원가입 처리에 실패했습니다. 입력 정보를 확인해 주세요.");
     } finally {

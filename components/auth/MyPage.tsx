@@ -307,7 +307,7 @@ export default function MyPage() {
                   </>
                 ) : (
                   <>
-                    <ActionButton type="button" onClick={startEditing}>
+                    <ActionButton type="button" $textTone="dark" onClick={startEditing}>
                       정보 수정
                     </ActionButton>
                     <ActionButton type="button" $variant="outline" onClick={handleGoogleConnect}>
@@ -589,7 +589,10 @@ const PrimaryLink = styled.a`
   }
 `;
 
-const ActionButton = styled.button<{ $variant?: "default" | "muted" | "outline" }>`
+const ActionButton = styled.button<{
+  $variant?: "default" | "muted" | "outline";
+  $textTone?: "dark";
+}>`
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -600,7 +603,14 @@ const ActionButton = styled.button<{ $variant?: "default" | "muted" | "outline" 
       $variant === "default" ? colors.point : $variant === "muted" ? colors.border : colors.borderStrong};
   border-radius: 0.375rem;
   background-color: ${({ $variant }) => ($variant === "muted" ? colors.background : colors.white)};
-  color: ${({ $variant }) => ($variant === "muted" ? colors.text : $variant === "outline" ? colors.text : colors.point)};
+  color: ${({ $textTone, $variant }) =>
+    $textTone === "dark"
+      ? colors.text
+      : $variant === "muted"
+        ? colors.text
+        : $variant === "outline"
+          ? colors.text
+          : colors.point};
   font-family: inherit;
   font-size: ${typography.fontSize14};
   font-weight: 500;

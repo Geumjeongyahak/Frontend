@@ -18,6 +18,7 @@ import {
 } from "@/components/auth/AuthFormParts";
 import GoogleLoginButton from "@/components/auth/GoogleLoginButton";
 import AuthShell from "@/components/auth/AuthShell";
+import { getSafeLoginReturnTo } from "@/lib/navigation/loginRedirect";
 import { colors, spacing, typography } from "@/styles/tokens";
 
 type LoginFormState = {
@@ -30,7 +31,11 @@ const initialState: LoginFormState = {
   password: "",
 };
 
-export default function LoginForm() {
+type LoginFormProps = {
+  returnTo?: string;
+};
+
+export default function LoginForm({ returnTo: requestedReturnTo }: LoginFormProps) {
   const router = useRouter();
   const [form, setForm] = useState(initialState);
   const [statusMessage, setStatusMessage] = useState("");
@@ -40,6 +45,7 @@ export default function LoginForm() {
   const passwordResetHref = form.email.trim()
     ? `/auth/password-reset?email=${encodeURIComponent(form.email.trim())}`
     : "/auth/password-reset";
+  const returnTo = getSafeLoginReturnTo(requestedReturnTo);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,7 +63,7 @@ export default function LoginForm() {
         password: form.password,
       });
       setStatusMessage("로그인되었습니다. 잠시 후 메인으로 이동합니다.");
-      router.replace("/", { scroll: true });
+      router.replace(returnTo, { scroll: true });
     } catch {
       setStatusMessage("입력하신 정보를 다시 확인해주세요.");
     } finally {
@@ -66,7 +72,7 @@ export default function LoginForm() {
   }
 
   function handleGoogleLogin() {
-    setGoogleOAuthIntent("login");
+    setGoogleOAuthIntent("login", returnTo);
     window.location.assign(`${baseURL}/api/v1/auth/google`);
   }
 
