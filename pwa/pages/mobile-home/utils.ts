@@ -22,6 +22,17 @@ const CLASS_ICON_PATHS: Array<{ keyword: string; src: string }> = [
   { keyword: "개나리", src: "/class/forsythia.svg" },
   { keyword: "장미", src: "/class/rose.svg" },
   { keyword: "해바라기", src: "/class/sunflower.svg" },
+  { keyword: "스마트폰", src: "/class/smart_phone.svg" },
+  { keyword: "나무 1", src: "/class/tree_1.svg" },
+  { keyword: "나무 2", src: "/class/tree_2.svg" },
+  { keyword: "새싹 1", src: "/class/sprout_1.svg" },
+  { keyword: "새싹 2", src: "/class/sprout_2.svg" },
+  { keyword: "열매 1", src: "/class/fruit_1.svg" },
+  { keyword: "열매 2", src: "/class/fruit_2.svg" },
+  { keyword: "상현달", src: "/class/first_quarter_moon.svg" },
+  { keyword: "하현달", src: "/class/last_quarter_moon.svg" },
+  { keyword: "초승달", src: "/class/crescent_moon.svg" },
+  { keyword: "씨앗", src: "/class/seed.svg" },
 ];
 
 const CLASS_TONES: Array<{ keyword: string; background: string; accent: string }> = [
