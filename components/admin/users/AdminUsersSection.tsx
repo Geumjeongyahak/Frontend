@@ -32,6 +32,7 @@ import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { toBirthDateInputValue } from "@/utils/birthDate";
 import { openDatePicker } from "@/utils/datePicker";
 import { formatPhoneNumber } from "@/utils/phoneNumber";
+import { getPermissionDescription } from "@/components/admin/permissions/permissionDescription";
 
 export const ADMIN_USERS_PER_PAGE = 11;
 
@@ -183,13 +184,6 @@ function getDefaultPermissionScope(definition?: PermissionDefinitionDto) {
   return canUseGlobal ? "GLOBAL" : "TARGET";
 }
 
-function getPermissionDescription(permission: PermissionResponseDto) {
-  const code = permission.permissionCode ?? permission.code ?? "";
-  const description = permission.description ?? permission.label ?? permission.name ?? "";
-
-  return description && description !== code ? description : "";
-}
-
 type QueryState<TData> = {
   data?: TData;
   isLoading: boolean;
@@ -283,6 +277,14 @@ export function AdminUsersSection({
   const permissionResources = Array.from(
     new Set(permissionOptions.map((option) => option.resourceCode).filter(Boolean)),
   );
+  const permissionTarget = permissionForm.target.trim();
+  const generatedPermissionCode = `${permissionForm.resourceType}:${permissionForm.actionType}:${
+    permissionForm.scope === "GLOBAL" ? "*" : permissionTarget || "대상 ID"
+  }`;
+  const permissionPreviewDescription =
+    permissionForm.scope === "TARGET" && !permissionTarget
+      ? "특정 대상 권한을 추가하려면 대상 ID를 입력하세요."
+      : getPermissionDescription(generatedPermissionCode, permissionOptions);
 
   function closeUserDetail() {
     setSelectedUserId(null);
@@ -504,9 +506,9 @@ export function AdminUsersSection({
                               <ListItem key={code || permission.id}>
                                 <PermissionItemContent>
                                   <PermissionCode>{code || permission.label || "-"}</PermissionCode>
-                                  {getPermissionDescription(permission) ? (
+                                  {getPermissionDescription(code, permissionOptions, permission) ? (
                                     <PermissionDescription>
-                                      {getPermissionDescription(permission)}
+                                      {getPermissionDescription(code, permissionOptions, permission)}
                                     </PermissionDescription>
                                   ) : null}
                                 </PermissionItemContent>
@@ -538,6 +540,15 @@ export function AdminUsersSection({
                         <PermissionAddHeader>
                           <PermissionAddTitle>권한 추가</PermissionAddTitle>
                         </PermissionAddHeader>
+                        <PermissionPreview aria-live="polite">
+                          <PermissionPreviewLabel>추가 예정 권한</PermissionPreviewLabel>
+                          <PermissionPreviewCard>
+                            <PermissionPreviewCode>{generatedPermissionCode}</PermissionPreviewCode>
+                            <PermissionPreviewDescription>
+                              {permissionPreviewDescription}
+                            </PermissionPreviewDescription>
+                          </PermissionPreviewCard>
+                        </PermissionPreview>
                         <Label>
                           리소스
                           <UserSelect
@@ -1205,6 +1216,42 @@ const PermissionDescription = styled.span`
   color: #64706c;
   font-size: ${typography.fontSize13};
   font-weight: 500;
+  line-height: ${typography.lineHeight130};
+  word-break: keep-all;
+`;
+
+const PermissionPreview = styled.div`
+  display: grid;
+  gap: ${spacing.space4};
+`;
+
+const PermissionPreviewLabel = styled.span`
+  color: #64706c;
+  font-size: ${typography.fontSize13};
+  font-weight: 800;
+  line-height: ${typography.lineHeight130};
+`;
+
+const PermissionPreviewCard = styled.div`
+  display: grid;
+  gap: ${spacing.space4};
+  padding: ${spacing.space8} ${spacing.space12};
+  border: 1px solid ${colors.border};
+  border-radius: 0.375rem;
+  background-color: ${colors.background};
+`;
+
+const PermissionPreviewCode = styled.span`
+  color: #1f2b28;
+  font-size: ${typography.fontSize13};
+  font-weight: 700;
+  line-height: ${typography.lineHeight130};
+  word-break: break-word;
+`;
+
+const PermissionPreviewDescription = styled.span`
+  color: #64706c;
+  font-size: ${typography.fontSize13};
   line-height: ${typography.lineHeight130};
   word-break: keep-all;
 `;

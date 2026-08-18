@@ -12,6 +12,7 @@ import {
 import {
   clearGoogleOAuthIntent,
   getGoogleOAuthIntent,
+  getGoogleOAuthReturnTo,
 } from "@/api/auth/googleOAuthState";
 import {
   getAccessToken,
@@ -20,6 +21,7 @@ import {
 import AuthShell from "@/components/auth/AuthShell";
 import LoadingSpinner from "@/components/common/LoadingSpinner";
 import { colors, spacing, typography } from "@/styles/tokens";
+import { getSafeLoginReturnTo } from "@/lib/navigation/loginRedirect";
 
 function hasStoredToken() {
   return Boolean(getAccessToken() || getRefreshToken());
@@ -75,6 +77,7 @@ export default function GoogleCallbackPage({ searchParams }: GoogleCallbackPageP
 
       try {
         const intent = getGoogleOAuthIntent();
+        const returnTo = getSafeLoginReturnTo(getGoogleOAuthReturnTo());
 
         if (intent === "connect" && hasStoredToken()) {
           await connectLocalAccount({ tempToken });
@@ -85,9 +88,9 @@ export default function GoogleCallbackPage({ searchParams }: GoogleCallbackPageP
         }
 
         await googleLogin({ tempToken });
-        setStatusMessage("구글 로그인되었습니다. 잠시 후 메인으로 이동합니다.");
+        setStatusMessage("구글 로그인되었습니다. 잠시 후 이동합니다.");
         clearGoogleOAuthIntent();
-        router.replace("/");
+        router.replace(returnTo);
       } catch {
         setHasError(true);
         setStatusMessage("구글 로그인 처리에 실패했습니다. 다시 시도해 주세요.");

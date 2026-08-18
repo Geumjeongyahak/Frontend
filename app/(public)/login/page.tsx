@@ -3,11 +3,18 @@ import LoginForm from "@/components/auth/LoginForm";
 import MobileLoginPage from "@/pwa/components/MobileLoginPage";
 import { layout } from "@/styles/tokens";
 
-export default function Page() {
+type LoginPageProps = {
+  searchParams?: Promise<{ returnTo?: string }>;
+};
+
+export default async function Page({ searchParams }: LoginPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const returnTo = resolvedSearchParams?.returnTo;
+
   return (
     <>
       <DesktopShell>
-        <LoginForm />
+        <LoginForm returnTo={returnTo} />
       </DesktopShell>
       <MobileShell>
         <MobileLoginPage />

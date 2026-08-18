@@ -13,12 +13,27 @@ vi.mock("@/api/event/eventDisplay", () => ({
 
 let toAllScheduleItems: typeof import("./utils").toAllScheduleItems;
 let hasWrittenClassJournal: typeof import("./utils").hasWrittenClassJournal;
+let getClassIconSrc: typeof import("./utils").getClassIconSrc;
 
 beforeEach(async () => {
-  ({ toAllScheduleItems, hasWrittenClassJournal } = await import("./utils"));
+  ({ toAllScheduleItems, hasWrittenClassJournal, getClassIconSrc } = await import("./utils"));
 });
 
 describe("mobile-home utils", () => {
+  it("matches each classroom keyword to its icon", () => {
+    expect(getClassIconSrc("주말 스마트폰반")).toBe("/class/smart_phone.svg");
+    expect(getClassIconSrc("나무 1반")).toBe("/class/tree_1.svg");
+    expect(getClassIconSrc("나무 2반")).toBe("/class/tree_2.svg");
+    expect(getClassIconSrc("새싹 1반")).toBe("/class/sprout_1.svg");
+    expect(getClassIconSrc("새싹 2반")).toBe("/class/sprout_2.svg");
+    expect(getClassIconSrc("열매 1반")).toBe("/class/fruit_1.svg");
+    expect(getClassIconSrc("열매 2반")).toBe("/class/fruit_2.svg");
+    expect(getClassIconSrc("상현달반")).toBe("/class/first_quarter_moon.svg");
+    expect(getClassIconSrc("하현달반")).toBe("/class/last_quarter_moon.svg");
+    expect(getClassIconSrc("초승달반")).toBe("/class/crescent_moon.svg");
+    expect(getClassIconSrc("씨앗반")).toBe("/class/seed.svg");
+  });
+
   it("groups weekly lesson items by classroom and date for the all schedule view", () => {
     const lessons: LessonSummaryResponseDto[] = [
       {
