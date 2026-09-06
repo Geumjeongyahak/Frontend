@@ -23,11 +23,13 @@ const JOURNALS_PER_PAGE = 8;
 export default function ClassJournalListPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { status: authStatus } = useAuthSession();
+  const { status: authStatus, user } = useAuthSession();
   const keyword = searchParams.get("keyword")?.trim() ?? "";
   const mineOnly = searchParams.get("mine") === "1";
   const pageParam = Number(searchParams.get("page"));
   const isAuthenticated = authStatus === "authenticated";
+  const canPrintJournal =
+    isAuthenticated && (user?.role === "ADMIN" || user?.role === "MANAGER");
   const requestedPage = Number.isInteger(pageParam) && pageParam >= 1 ? pageParam : 1;
 
   const journalSheetLinkMutation = useMutation({
@@ -99,16 +101,18 @@ export default function ClassJournalListPageClient() {
           {journalSheetLinkMutation.isPending ? (
             <FileUploadProgressNotice message="스프레드시트 불러오는 중..." />
           ) : null}
-          <ActionButton
-            type="button"
-            disabled={!isAuthenticated || journalSheetLinkMutation.isPending}
-            onClick={() => {
-              if (!isAuthenticated || journalSheetLinkMutation.isPending) return;
-              journalSheetLinkMutation.mutate();
-            }}
-          >
-            수업 일지 출력
-          </ActionButton>
+          {canPrintJournal ? (
+            <ActionButton
+              type="button"
+              disabled={!isAuthenticated || journalSheetLinkMutation.isPending}
+              onClick={() => {
+                if (!isAuthenticated || journalSheetLinkMutation.isPending) return;
+                journalSheetLinkMutation.mutate();
+              }}
+            >
+              수업 일지 출력
+            </ActionButton>
+          ) : null}
           <ActionLink
             href="/staff/class-management/class-journal/new"
             tabIndex={isAuthenticated ? undefined : -1}
