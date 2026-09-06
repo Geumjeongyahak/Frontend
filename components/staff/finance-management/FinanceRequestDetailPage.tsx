@@ -1066,6 +1066,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
     typeof request?.requestedById === "number" &&
     user.id === request.requestedById;
   const isAdmin = authStatus === "authenticated" && user?.role === "ADMIN";
+  const isManager = authStatus === "authenticated" && user?.role === "MANAGER";
+  const canPrintDocuments = isRequester || isAdmin || isManager;
   const canManageRequest = isAdmin || isRequester;
   const canManagePurchaseReport = authStatus === "authenticated" && canManageRequest;
   const canEditProposal =
@@ -1504,7 +1506,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
 
         <Content>
           <Actions>
-            {!isEditing && requestPaymentType === "PREPAID" ? (
+            {!isEditing && requestPaymentType === "PREPAID" && canPrintDocuments ? (
               <ActionGroup>
                 <ActionButton
                   type="button"
