@@ -40,10 +40,7 @@ export default function ClassJournalListPageClient() {
         return;
       }
 
-      const openedWindow = window.open(url, "_blank", "noopener,noreferrer");
-      if (!openedWindow) {
-        window.location.assign(url);
-      }
+      window.open(url, "_blank", "noopener,noreferrer");
     },
     onError: (error) => {
       toast.error(extractApiErrorMessage(error, "수업 일지 출력 링크 조회에 실패했습니다."));
