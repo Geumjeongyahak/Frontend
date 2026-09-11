@@ -285,6 +285,9 @@ export default function MobileMyPage() {
                   <ActionButton type="button" $textTone="dark" onClick={() => setIsEditing(true)}>
                     정보 수정
                   </ActionButton>
+                  <ActionButton type="button" onClick={() => router.push("/settings")}>
+                    환경 설정
+                  </ActionButton>
                   <ActionButton type="button" $variant="outline" onClick={handleGoogleConnect}>
                     <GoogleConnectContent>
                       <GoogleMark aria-hidden="true" viewBox="0 0 18 18">
