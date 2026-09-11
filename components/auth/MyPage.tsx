@@ -25,6 +25,7 @@ type EditableProfileForm = {
   phoneNumber: string;
   birthDate: string;
   password: string;
+  confirmPassword: string;
 };
 
 function getDisplayValue(value: string | number | null | undefined, fallback: string) {
@@ -53,6 +54,7 @@ function createEditableForm(user: UserResponseDto | null): EditableProfileForm {
     phoneNumber: user?.phoneNumber ?? "",
     birthDate: toBirthDateInputValue(user?.birthDate ?? user?.residentRegistrationNumberPrefix) || "",
     password: "",
+    confirmPassword: "",
   };
 }
 
@@ -88,7 +90,16 @@ export default function MyPage() {
     form.name.trim().length > 0 &&
     form.email.trim().length > 0 &&
     form.birthDate.length > 0 &&
-    (form.password.length === 0 || form.password.length >= 8);
+    ((form.password.length === 0 && form.confirmPassword.length === 0) ||
+      (form.password.length >= 8 &&
+        form.confirmPassword.length > 0 &&
+        form.password === form.confirmPassword));
+  const passwordMatchState =
+    form.confirmPassword.length === 0
+      ? "idle"
+      : form.password === form.confirmPassword
+        ? "matched"
+        : "mismatched";
 
   async function handleLogout() {
     await signOut();
@@ -230,21 +241,52 @@ export default function MyPage() {
                 </ProfileItem>
 
                 {isEditing ? (
-                  <ProfileItem>
-                    <ProfileLabel htmlFor="mypage-password">새 비밀번호</ProfileLabel>
-                    <ProfileInput
-                      id="mypage-password"
-                      name="password"
-                      type="password"
-                      autoComplete="new-password"
-                      placeholder="변경할 때만 8자 이상 입력"
-                      value={form.password}
-                      onChange={(event) =>
-                        setForm((current) => ({ ...current, password: event.target.value }))
-                      }
-                      minLength={8}
-                    />
-                  </ProfileItem>
+                  <>
+                    <ProfileItem>
+                      <ProfileLabel htmlFor="mypage-password">새 비밀번호</ProfileLabel>
+                      <PasswordInput
+                        id="mypage-password"
+                        name="password"
+                        type="password"
+                        autoComplete="new-password"
+                        placeholder="변경할 때만 8자 이상 입력"
+                        value={form.password}
+                        onChange={(event) =>
+                          setForm((current) => ({ ...current, password: event.target.value }))
+                        }
+                        minLength={8}
+                        $matchState={passwordMatchState}
+                      />
+                    </ProfileItem>
+                    <ProfileItem>
+                      <ProfileLabel htmlFor="mypage-confirm-password">비밀번호 확인</ProfileLabel>
+                      <PasswordInput
+                        id="mypage-confirm-password"
+                        name="confirmPassword"
+                        type="password"
+                        autoComplete="new-password"
+                        placeholder="비밀번호를 한 번 더 입력"
+                        value={form.confirmPassword}
+                        onChange={(event) =>
+                          setForm((current) => ({ ...current, confirmPassword: event.target.value }))
+                        }
+                        minLength={8}
+                        aria-describedby="mypage-password-status"
+                        aria-invalid={passwordMatchState === "mismatched"}
+                        $matchState={passwordMatchState}
+                      />
+                      <PasswordStatus
+                        id="mypage-password-status"
+                        role="status"
+                        aria-live="polite"
+                        $visible={passwordMatchState === "mismatched"}
+                      >
+                        {passwordMatchState === "mismatched"
+                          ? "비밀번호와 비밀번호 확인이 일치하지 않습니다."
+                          : " "}
+                      </PasswordStatus>
+                    </ProfileItem>
+                  </>
                 ) : null}
 
                 <ProfileItem>
@@ -485,6 +527,44 @@ const ProfileInput = styled.input`
     padding: 0 ${spacing.space20};
     font-size: ${typography.fontSize20};
   }
+`;
+
+const PasswordInput = styled.input<{ $matchState: "idle" | "matched" | "mismatched" }>`
+  ${profileFieldStyle}
+  background-color: ${({ $matchState }) =>
+    $matchState === "matched" ? "#f4faef" : $matchState === "mismatched" ? "#fff6f5" : colors.white};
+  border-color: ${({ $matchState }) =>
+    $matchState === "matched" ? colors.point : $matchState === "mismatched" ? "#e5a19b" : colors.border};
+  font-family: inherit;
+  line-height: ${typography.lineHeight130};
+  outline: none;
+
+  &::placeholder {
+    color: ${colors.placeholder};
+  }
+
+  &:focus {
+    border-color: ${({ $matchState }) =>
+      $matchState === "mismatched" ? "#de8c85" : colors.point};
+    outline: 2px solid
+      ${({ $matchState }) =>
+        $matchState === "mismatched" ? "rgba(229, 161, 155, 0.22)" : colors.pointSoft};
+  }
+
+  @media (min-width: 120rem) {
+    min-height: 3.75rem;
+    border-radius: 0.5rem;
+    padding: 0 ${spacing.space20};
+    font-size: ${typography.fontSize20};
+  }
+`;
+
+const PasswordStatus = styled.p<{ $visible: boolean }>`
+  display: ${({ $visible }) => ($visible ? "block" : "none")};
+  margin: 0;
+  color: #d98882;
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight130};
 `;
 
 const SubSection = styled.section`
