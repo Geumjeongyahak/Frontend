@@ -1,6 +1,6 @@
 "use client";
 
-import { IconBellFilled, IconBellPlusFilled, IconUserFilled } from "@tabler/icons-react";
+import { IconBellFilled, IconUserFilled } from "@tabler/icons-react";
 import styled, { keyframes } from "styled-components";
 import {
   MOBILE_HOME_CARD_SHADOW,
@@ -15,10 +15,8 @@ type HomeHeaderProps = {
   isAuthenticated: boolean;
   userName: string;
   unreadCount: number;
-  showPushOptIn: boolean;
   onProfileClick: () => void;
   onNotificationClick: () => void;
-  onPushOptInClick: () => void;
   onLoginClick: () => void;
 };
 
@@ -27,10 +25,8 @@ export default function HomeHeader({
   isAuthenticated,
   userName,
   unreadCount,
-  showPushOptIn,
   onProfileClick,
   onNotificationClick,
-  onPushOptInClick,
   onLoginClick,
 }: HomeHeaderProps) {
   if (isAuthLoading) {
@@ -61,11 +57,6 @@ export default function HomeHeader({
         <IconButton type="button" onClick={onProfileClick} aria-label="프로필로 이동">
           <IconUserFilled size={20} stroke={0} />
         </IconButton>
-        {showPushOptIn ? (
-          <IconButton type="button" onClick={onPushOptInClick} aria-label="푸시 알림 받기">
-            <IconBellPlusFilled size={20} stroke={0} />
-          </IconButton>
-        ) : null}
         <IconButton type="button" onClick={onNotificationClick} aria-label="알림함 열기">
           <IconBellFilled size={20} stroke={0} />
           {unreadCount > 0 ? <UnreadBadge>{Math.min(unreadCount, 9)}</UnreadBadge> : null}

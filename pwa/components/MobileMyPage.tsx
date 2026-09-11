@@ -27,6 +27,7 @@ type EditableProfileForm = {
   phoneNumber: string;
   birthDate: string;
   password: string;
+  confirmPassword: string;
 };
 
 function getDisplayValue(value: string | number | null | undefined, fallback: string) {
@@ -55,6 +56,7 @@ function createEditableForm(user: UserResponseDto | null): EditableProfileForm {
     phoneNumber: user?.phoneNumber ?? "",
     birthDate: toBirthDateInputValue(user?.birthDate ?? user?.residentRegistrationNumberPrefix) || "",
     password: "",
+    confirmPassword: "",
   };
 }
 
@@ -91,7 +93,16 @@ export default function MobileMyPage() {
     form.name.trim().length > 0 &&
     form.email.trim().length > 0 &&
     form.birthDate.length > 0 &&
-    (form.password.length === 0 || form.password.length >= 8);
+    ((form.password.length === 0 && form.confirmPassword.length === 0) ||
+      (form.password.length >= 8 &&
+        form.confirmPassword.length > 0 &&
+        form.password === form.confirmPassword));
+  const passwordMatchState =
+    form.confirmPassword.length === 0
+      ? "idle"
+      : form.password === form.confirmPassword
+        ? "matched"
+        : "mismatched";
 
   async function handleLogout() {
     await signOut();
@@ -217,19 +228,50 @@ export default function MobileMyPage() {
               </ProfileItem>
 
               {isEditing ? (
-                <ProfileItem>
-                  <ProfileLabel htmlFor="mobile-mypage-password">새 비밀번호</ProfileLabel>
-                  <ProfileInput
-                    id="mobile-mypage-password"
-                    type="password"
-                    autoComplete="new-password"
-                    placeholder="변경할 때만 8자 이상 입력"
-                    value={form.password}
-                    onChange={(event) =>
-                      setForm((current) => ({ ...current, password: event.target.value }))
-                    }
-                  />
-                </ProfileItem>
+                <>
+                  <ProfileItem>
+                    <ProfileLabel htmlFor="mobile-mypage-password">새 비밀번호</ProfileLabel>
+                    <PasswordInput
+                      id="mobile-mypage-password"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="변경할 때만 8자 이상 입력"
+                      value={form.password}
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, password: event.target.value }))
+                      }
+                      minLength={8}
+                      $matchState={passwordMatchState}
+                    />
+                  </ProfileItem>
+                  <ProfileItem>
+                    <ProfileLabel htmlFor="mobile-mypage-confirm-password">비밀번호 확인</ProfileLabel>
+                    <PasswordInput
+                      id="mobile-mypage-confirm-password"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder="비밀번호를 한 번 더 입력"
+                      value={form.confirmPassword}
+                      onChange={(event) =>
+                        setForm((current) => ({ ...current, confirmPassword: event.target.value }))
+                      }
+                      minLength={8}
+                      aria-describedby="mobile-mypage-password-status"
+                      aria-invalid={passwordMatchState === "mismatched"}
+                      $matchState={passwordMatchState}
+                    />
+                    <PasswordStatus
+                      id="mobile-mypage-password-status"
+                      role="status"
+                      aria-live="polite"
+                      $visible={passwordMatchState === "mismatched"}
+                    >
+                      {passwordMatchState === "mismatched"
+                        ? "비밀번호와 비밀번호 확인이 일치하지 않습니다."
+                        : " "}
+                    </PasswordStatus>
+                  </ProfileItem>
+                </>
               ) : null}
 
               <ProfileItem>
@@ -284,6 +326,9 @@ export default function MobileMyPage() {
                 <>
                   <ActionButton type="button" $textTone="dark" onClick={() => setIsEditing(true)}>
                     정보 수정
+                  </ActionButton>
+                  <ActionButton type="button" onClick={() => router.push("/settings")}>
+                    환경 설정
                   </ActionButton>
                   <ActionButton type="button" $variant="outline" onClick={handleGoogleConnect}>
                     <GoogleConnectContent>
@@ -455,6 +500,31 @@ const ProfileInput = styled.input`
     border-color: ${colors.point};
     box-shadow: 0 0 0 0.1875rem rgba(136, 205, 90, 0.16);
   }
+`;
+
+const PasswordInput = styled.input<{ $matchState: "idle" | "matched" | "mismatched" }>`
+  ${fieldStyle}
+  background-color: ${({ $matchState }) =>
+    $matchState === "matched" ? "#f4faef" : $matchState === "mismatched" ? "#fff6f5" : "#fbfcfa"};
+  border-color: ${({ $matchState }) =>
+    $matchState === "matched" ? colors.point : $matchState === "mismatched" ? "#e5a19b" : "#d7ddd3"};
+  color: ${colors.text};
+  outline: none;
+
+  &:focus {
+    border-color: ${({ $matchState }) =>
+      $matchState === "mismatched" ? "#de8c85" : colors.point};
+    box-shadow: 0 0 0 0.1875rem
+      ${({ $matchState }) => ($matchState === "mismatched" ? "rgba(229, 161, 155, 0.22)" : "rgba(136, 205, 90, 0.16)")};
+  }
+`;
+
+const PasswordStatus = styled.p<{ $visible: boolean }>`
+  margin: 0;
+  color: #d98882;
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight130};
+  display: ${({ $visible }) => ($visible ? "block" : "none")};
 `;
 
 const DateInput = styled(ProfileInput)`

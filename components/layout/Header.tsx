@@ -56,6 +56,7 @@ export default function Header() {
     pathname === "/schedule" ||
     pathname.startsWith("/journal") ||
     pathname === "/notifications" ||
+    pathname === "/settings" ||
     pathname === "/login" ||
     pathname === "/register" ||
     pathname === "/auth/email-verification" ||

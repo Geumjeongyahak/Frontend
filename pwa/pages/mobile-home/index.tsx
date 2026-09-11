@@ -18,20 +18,6 @@ import TimetableShortcutSection from "@/pwa/pages/mobile-home/components/Timetab
 import WeeklyScheduleSection from "@/pwa/pages/mobile-home/components/WeeklyScheduleSection";
 import { useMobileHomeScreen } from "@/pwa/pages/mobile-home/hooks/useMobileHomeScreen";
 import { useSlideToConfirm } from "@/pwa/pages/mobile-home/hooks/useSlideToConfirm";
-import { syncPushSubscription } from "@/pwa/lib/pushNotifications";
-
-function readNotificationPermission(isAuthenticated: boolean) {
-  if (
-    !isAuthenticated ||
-    typeof window === "undefined" ||
-    !("Notification" in window) ||
-    !("serviceWorker" in navigator)
-  ) {
-    return null;
-  }
-
-  return Notification.permission;
-}
 
 export default function MobileHomeScreen() {
   const router = useRouter();
@@ -39,8 +25,6 @@ export default function MobileHomeScreen() {
   const previousSliderModeRef = useRef<ReturnType<typeof useMobileHomeScreen>["sliderMode"] | null>(
     null,
   );
-  const [notificationPermission, setNotificationPermission] =
-    useState<NotificationPermission | null>(null);
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const screen = useMobileHomeScreen();
   const slider = useSlideToConfirm({
@@ -65,9 +49,6 @@ export default function MobileHomeScreen() {
 
   const isAttendanceCompleted = screen.hasCheckedOut;
   const sliderProgress = isAttendanceCompleted ? 1 : slider.progress;
-  const currentNotificationPermission =
-    notificationPermission ?? readNotificationPermission(screen.isAuthenticated);
-
   useEffect(() => {
     shellRef.current?.scrollTo({ top: 0, behavior: "auto" });
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -83,14 +64,6 @@ export default function MobileHomeScreen() {
 
     previousSliderModeRef.current = screen.sliderMode;
   }, [screen.sliderMode, slider.reset]);
-
-  async function handlePushOptInClick() {
-    await syncPushSubscription({ requestPermission: true }).catch(() => undefined);
-
-    if (typeof window !== "undefined" && "Notification" in window) {
-      setNotificationPermission(Notification.permission);
-    }
-  }
 
   return (
     <Shell ref={shellRef}>
@@ -108,8 +81,6 @@ export default function MobileHomeScreen() {
               screen.isAuthenticated ? "/notifications" : "/login",
             )
           }
-          showPushOptIn={screen.isAuthenticated && currentNotificationPermission === "default"}
-          onPushOptInClick={handlePushOptInClick}
           onLoginClick={() => router.push("/login")}
         />
 
