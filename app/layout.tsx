@@ -7,8 +7,7 @@ import AppBackNavigationGuard from "@/components/navigation/AppBackNavigationGua
 import StyledComponentsRegistry from "@/lib/styled-components-registry";
 import MobileBootstrap from "@/pwa/bootstrap/MobileBootstrap";
 import "react-toastify/dist/ReactToastify.css";
-import "@toast-ui/editor/dist/toastui-editor.css";
-import "@toast-ui/editor/dist/toastui-editor-viewer.css";
+import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

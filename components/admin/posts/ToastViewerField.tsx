@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import "@toast-ui/editor/dist/toastui-editor-viewer.css";
 
 type ToastViewerFieldProps = {
   value: string;

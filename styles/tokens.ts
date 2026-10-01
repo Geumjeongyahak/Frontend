@@ -36,7 +36,7 @@ export const radii = {
 };
 
 export const typography = {
-  fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  fontFamily: '"Pretendard Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   fontSize13: "0.8125rem", // 13px
   fontSize14: "0.875rem", // 14px
   fontSize16: "1rem", // 16px

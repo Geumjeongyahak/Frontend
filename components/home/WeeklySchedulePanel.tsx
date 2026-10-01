@@ -22,7 +22,7 @@ export default function WeeklySchedulePanel() {
 
   const { data: eventsPage } = useQuery({
     queryKey: queryKeys.events.weekly(from, to),
-    queryFn: () => getAllEvents({ page: 0, size: 100 }),
+    queryFn: () => getAllEvents({ startDate: from, endDate: to, page: 0, size: 100 }),
     retry: false,
   });
   const weeklyEvents = useMemo(
