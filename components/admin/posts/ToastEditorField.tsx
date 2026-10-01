@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { uploadPostImage } from "@/api/file/file.api";
+import "@toast-ui/editor/dist/toastui-editor.css";
 
 type ToastEditorFieldProps = {
   initialValue: string;

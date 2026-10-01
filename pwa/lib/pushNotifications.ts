@@ -1,5 +1,3 @@
-import { getApps, initializeApp } from "firebase/app";
-import { getMessaging, getToken, isSupported, onMessage } from "firebase/messaging";
 import type { MessagePayload } from "firebase/messaging";
 import { getAdminPushConfig, subscribePush } from "../../api/push/push.api";
 import type { AdminPushConfigResponseDto } from "../../api/push/push.dto";
@@ -22,7 +20,9 @@ function hasFirebaseConfig(config: AdminPushConfigResponseDto) {
   );
 }
 
-function getOrCreateFirebaseApp(config: AdminPushConfigResponseDto) {
+// firebase는 푸시를 실제로 쓸 때만 불러와 첫 화면 번들에서 뺀다
+async function getOrCreateFirebaseApp(config: AdminPushConfigResponseDto) {
+  const { getApps, initializeApp } = await import("firebase/app");
   const existing = getApps()[0];
   if (existing) {
     return existing;
@@ -50,6 +50,12 @@ export async function syncPushSubscription({
     return undefined;
   }
 
+  // 권한도 없고 요청도 안 하면 firebase를 불러오지 않는다
+  if (Notification.permission !== "granted" && !requestPermission) {
+    return undefined;
+  }
+
+  const { getMessaging, getToken, isSupported, onMessage } = await import("firebase/messaging");
   const supported = await isSupported().catch(() => false);
   if (!supported) {
     return undefined;
@@ -85,7 +91,7 @@ export async function syncPushSubscription({
     },
   });
 
-  const app = getOrCreateFirebaseApp(config);
+  const app = await getOrCreateFirebaseApp(config);
   const messaging = getMessaging(app);
   const unsubscribe = onMessageReceived ? onMessage(messaging, onMessageReceived) : undefined;
   const token = await getToken(messaging, {
