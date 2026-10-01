@@ -8,31 +8,33 @@ import { queryKeys } from "@/lib/queryKeys";
 import type { StudentClass } from "@/components/staff/archive/phone-book/PhoneBookPage.types";
 
 async function getStudentContactClasses(): Promise<StudentClass[]> {
-  const classroomsResponse = await getClassrooms({ page: 0, size: 100 });
+  // 분반마다 따로 부르지 않고 재학생 전체를 한 번 받아 응답의 classrooms로 나눈다
+  const [classroomsResponse, students] = await Promise.all([
+    getClassrooms({ page: 0, size: 100 }),
+    getStudents({ status: "ENROLLED" }),
+  ]);
   const classrooms = classroomsResponse.content ?? [];
 
-  const classStudentPairs = await Promise.all(
-    classrooms.map(async (classroom, index) => {
-      const classroomId = classroom.id;
-      const students =
-        typeof classroomId === "number"
-          ? await getStudents({ classroomId, status: "ENROLLED" })
-          : [];
+  return classrooms.map((classroom, index) => {
+    const classroomId = classroom.id;
+    const classStudents =
+      typeof classroomId === "number"
+        ? students.filter((student) =>
+            student.classrooms?.some((studentClassroom) => studentClassroom.id === classroomId),
+          )
+        : [];
 
-      return {
-        id: String(classroomId ?? `unknown-${index}`),
-        name: classroom.name ?? "미지정",
-        isOpen: false,
-        students: students.map((student, studentIndex) => ({
-          id: student.id ?? -(studentIndex + 1),
-          name: student.name ?? "",
-          phone: student.phoneNumber ?? "",
-        })),
-      };
-    }),
-  );
-
-  return classStudentPairs;
+    return {
+      id: String(classroomId ?? `unknown-${index}`),
+      name: classroom.name ?? "미지정",
+      isOpen: false,
+      students: classStudents.map((student, studentIndex) => ({
+        id: student.id ?? -(studentIndex + 1),
+        name: student.name ?? "",
+        phone: student.phoneNumber ?? "",
+      })),
+    };
+  });
 }
 
 export function useStudentContactSection() {

@@ -92,7 +92,7 @@ export function useMobileHomeScreen() {
 
   const weeklyEventsQuery = useQuery({
     queryKey: queryKeys.events.weekly(weekFrom, weekTo),
-    queryFn: () => getAllEvents({ page: 0, size: 100 }),
+    queryFn: () => getAllEvents({ startDate: weekFrom, endDate: weekTo, page: 0, size: 100 }),
     retry: false,
   });
   const weeklyEvents = useMemo(
