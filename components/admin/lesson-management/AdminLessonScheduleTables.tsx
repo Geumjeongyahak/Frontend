@@ -36,6 +36,7 @@ import { normalizeLessonTimeForApi } from "@/components/admin/lesson-management/
 import {
   formatCellSaveError,
   getPeriodSaveSteps,
+  resolveCommonFields,
 } from "@/components/admin/lesson-management/lessonScheduleCellSave";
 import { getLessonMonthRange } from "@/components/admin/lesson-management/lessonMonthFilter";
 import { filterAssignableTeachers } from "@/components/admin/teacherAssignmentRoles";
@@ -322,10 +323,12 @@ export function AdminLessonScheduleTables() {
   const selectedCellKey = selectedCell
     ? `${getClassroomId(selectedCell.classroom) ?? "unknown"}-${selectedCell.dayOfWeek}-${monthRange.from}`
     : "none";
+  // initial: 모달을 처음 편집할 때의 값. 사용자가 실제로 바꾼 공통 필드(기간·교사)를 가려내는 기준
   const [cellFormState, setCellFormState] = useState<{
     key: string;
     form: ScheduleCellFormState | null;
-  }>({ key: "none", form: null });
+    initial: ScheduleCellFormState | null;
+  }>({ key: "none", form: null, initial: null });
   const [formError, setFormError] = useState<string | null>(null);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [periodColors, setPeriodColors] = useState<PeriodColorMap>(() => readStoredPeriodColors());
@@ -378,23 +381,27 @@ export function AdminLessonScheduleTables() {
         monthRange.to,
       )
     : [];
-  const cellForm =
-    cellFormState.key === selectedCellKey && cellFormState.form
-      ? cellFormState.form
-      : buildCellFormState(selectedSubjects, monthRange);
+  const hasEditedForm = cellFormState.key === selectedCellKey && cellFormState.form != null;
+  const cellForm = hasEditedForm
+    ? (cellFormState.form as ScheduleCellFormState)
+    : buildCellFormState(selectedSubjects, monthRange);
+  const initialCellForm = hasEditedForm
+    ? (cellFormState.initial as ScheduleCellFormState)
+    : cellForm;
   const setCellForm = (updater: SetStateAction<ScheduleCellFormState>) => {
     setCellFormState((current) => {
-      const baseForm =
-        current.key === selectedCellKey && current.form
-          ? current.form
-          : buildCellFormState(selectedSubjects, monthRange);
+      const isSameCell = current.key === selectedCellKey && current.form != null;
+      const baseForm = isSameCell
+        ? (current.form as ScheduleCellFormState)
+        : buildCellFormState(selectedSubjects, monthRange);
       return {
         key: selectedCellKey,
         form: typeof updater === "function" ? updater(baseForm) : updater,
+        initial: isSameCell ? current.initial : baseForm,
       };
     });
   };
-  const discardCellForm = () => setCellFormState({ key: "none", form: null });
+  const discardCellForm = () => setCellFormState({ key: "none", form: null, initial: null });
 
   const closeModal = () => {
     setSelectedCell(null);
@@ -405,8 +412,9 @@ export function AdminLessonScheduleTables() {
 
   const resetCellMutation = useMutation({
     mutationFn: async () => {
-      const subjectIds = cellForm.periods
-        .map((periodForm) => periodForm.subjectId)
+      // 같은 달에 같은 교시 과목이 여러 개(달 중간 교체)일 수 있어 칸에 걸친 과목을 모두 지운다
+      const subjectIds = resettableSubjects
+        .map(getSubjectId)
         .filter((subjectId): subjectId is number => typeof subjectId === "number" && subjectId > 0);
 
       if (subjectIds.length === 0) {
@@ -473,15 +481,26 @@ export function AdminLessonScheduleTables() {
       // 교시마다 순서대로 저장한다. 실패하면 앞 교시는 이미 반영돼 있으므로 어디까지 저장됐는지 알린다.
       const savedPeriods: number[] = [];
       const createdSubjectIds = new Map<number, number>();
+      const initialTeacherId = initialCellForm.teacherId ? Number(initialCellForm.teacherId) : null;
       for (const periodForm of cellForm.periods) {
-        const original = selectedSubjects.find(
-          (subject) => getSubjectId(subject) === periodForm.subjectId,
+        // 폼에 id가 없어도 다시 불러온 목록에 그 교시 과목이 있으면(앞선 저장에서 생성됐지만 id를 못 받은 경우) 생성하지 않고 수정한다
+        const original =
+          periodForm.subjectId != null
+            ? selectedSubjects.find((subject) => getSubjectId(subject) === periodForm.subjectId)
+            : getPeriodSubject(selectedSubjects, periodForm.period);
+        const subjectId = getSubjectId(original);
+        const common = resolveCommonFields(
+          original,
+          { startAt: cellForm.startAt, endAt: cellForm.endAt, teacherId },
+          {
+            startAt: initialCellForm.startAt,
+            endAt: initialCellForm.endAt,
+            teacherId: initialTeacherId,
+          },
         );
-        const steps = getPeriodSaveSteps(periodForm.subjectId == null ? undefined : original, {
+        const steps = getPeriodSaveSteps(subjectId == null ? undefined : original, {
           name: periodForm.name,
-          teacherId,
-          startAt: cellForm.startAt,
-          endAt: cellForm.endAt,
+          ...common,
           startTime: periodForm.startTime,
           endTime: periodForm.endTime,
         });
@@ -489,8 +508,8 @@ export function AdminLessonScheduleTables() {
 
         const name = periodForm.name.trim();
         const schedulePayload = {
-          startAt: cellForm.startAt,
-          endAt: cellForm.endAt,
+          startAt: common.startAt,
+          endAt: common.endAt,
           dayOfWeek: selectedCell.dayOfWeek,
           startTime: normalizeLessonTimeForApi(periodForm.startTime),
           endTime: normalizeLessonTimeForApi(periodForm.endTime),
@@ -498,7 +517,7 @@ export function AdminLessonScheduleTables() {
         };
 
         try {
-          if (periodForm.subjectId == null) {
+          if (subjectId == null) {
             const created = await createSubject({
               classroomId,
               teacherId,
@@ -508,12 +527,13 @@ export function AdminLessonScheduleTables() {
             if (typeof created.id === "number")
               createdSubjectIds.set(periodForm.period, created.id);
           } else {
-            const subjectId = periodForm.subjectId;
             if (steps.includes("name")) await updateSubject({ subjectId }, { name });
             if (steps.includes("schedule")) {
               await updateSubjectSchedule({ subjectId }, schedulePayload);
             }
-            if (steps.includes("teacher")) await assignSubjectTeacher({ subjectId }, { teacherId });
+            if (steps.includes("teacher")) {
+              await assignSubjectTeacher({ subjectId }, { teacherId: common.teacherId });
+            }
           }
         } catch (error) {
           throw new CellSaveError(
@@ -575,9 +595,7 @@ export function AdminLessonScheduleTables() {
     setFormError(null);
     saveCellMutation.mutate();
   };
-  const resettableSubjects = selectedSubjects.filter((subject) =>
-    cellForm.periods.some((periodForm) => periodForm.subjectId === getSubjectId(subject)),
-  );
+  const resettableSubjects = selectedSubjects;
   const hasResettableSubjects = resettableSubjects.length > 0;
   const originalPeriod = selectedSubjects[0];
   const isPeriodChanged =

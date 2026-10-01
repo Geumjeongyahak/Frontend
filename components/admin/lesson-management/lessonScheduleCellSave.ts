@@ -35,6 +35,24 @@ export function getPeriodSaveSteps(
   return steps;
 }
 
+type CommonFields = { startAt: string; endAt: string; teacherId: number | null };
+
+// 모달의 기간·교사는 칸 전체에 하나로 보이지만 교시마다 다를 수 있다.
+// 사용자가 바꾼 필드만 모든 교시에 적용하고, 손대지 않은 필드는 교시의 원래 값을 유지한다.
+export function resolveCommonFields(
+  original: { startAt?: string; endAt?: string; teacherId?: number | null } | undefined,
+  form: CommonFields,
+  initial: CommonFields,
+): CommonFields {
+  if (!original) return form;
+  const datesEdited = form.startAt !== initial.startAt || form.endAt !== initial.endAt;
+  return {
+    startAt: datesEdited ? form.startAt : (original.startAt ?? form.startAt),
+    endAt: datesEdited ? form.endAt : (original.endAt ?? form.endAt),
+    teacherId: form.teacherId !== initial.teacherId ? form.teacherId : (original.teacherId ?? null),
+  };
+}
+
 export function formatCellSaveError(savedPeriods: number[], failedPeriod: number, reason: string) {
   const saved = savedPeriods.length > 0 ? `${savedPeriods.join(", ")}교시는 저장됐고 ` : "";
   return `${saved}${failedPeriod}교시에서 멈췄습니다. ${reason}`;
