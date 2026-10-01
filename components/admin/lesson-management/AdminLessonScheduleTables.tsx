@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SetStateAction } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import styled from "styled-components";
-import { IconSettings } from "@tabler/icons-react";
+import { IconChevronLeft, IconChevronRight, IconSettings } from "@tabler/icons-react";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import type { ClassroomListItemDto, ClassroomType } from "@/api/classroom/classroom.dto";
 import {
@@ -30,9 +31,22 @@ import {
   SmallButton,
   TextInput,
 } from "@/components/admin/AdminDashboardSectionParts";
+import { AdminLessonDeleteConfirmModal } from "@/components/admin/lesson-management/AdminLessonDeleteConfirmModal";
 import { normalizeLessonTimeForApi } from "@/components/admin/lesson-management/lessonCreateError";
+import {
+  formatCellSaveError,
+  getPeriodSaveSteps,
+} from "@/components/admin/lesson-management/lessonScheduleCellSave";
+import { getLessonMonthRange } from "@/components/admin/lesson-management/lessonMonthFilter";
 import { filterAssignableTeachers } from "@/components/admin/teacherAssignmentRoles";
-import { formatSubjectTeacherName } from "@/components/admin/subjects/shared/subjectDisplay";
+import {
+  filterActiveSubjects,
+  formatSubjectTeacherName,
+} from "@/components/admin/subjects/shared/subjectDisplay";
+import {
+  getPeriodSubject,
+  getSubjectsForCell,
+} from "@/components/staff/class-management/weekly-schedule/weeklyScheduleState";
 import { queryKeys } from "@/lib/queryKeys";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -71,8 +85,9 @@ type ScheduleCellSelection = {
   classroom: ClassroomListItemDto;
   dayOfWeek: SubjectDayOfWeek;
   dayLabel: string;
-  subjects: SubjectDetailResponseDto[];
 };
+
+type MonthRange = { from: string; to: string };
 
 type PeriodFormState = {
   period: number;
@@ -103,22 +118,6 @@ function sortClassrooms(classrooms: ClassroomListItemDto[]) {
     const bId = getClassroomId(b) ?? Number.MAX_SAFE_INTEGER;
     return aId - bId;
   });
-}
-
-function getSubjectsForCell(
-  subjects: SubjectDetailResponseDto[],
-  classroomId: number | null,
-  dayOfWeek: SubjectDayOfWeek,
-) {
-  if (classroomId == null) return [];
-
-  return subjects
-    .filter((subject) => subject.classroomId === classroomId && subject.dayOfWeek === dayOfWeek)
-    .sort((a, b) => (a.period ?? 0) - (b.period ?? 0));
-}
-
-function getPeriodSubject(subjects: SubjectDetailResponseDto[], period: number) {
-  return subjects.find((subject) => subject.period === period);
 }
 
 function getSubjectId(subject?: SubjectDetailResponseDto) {
@@ -174,15 +173,18 @@ function getTeacherLabel(teacher: UserListItemDto) {
   return teacher.name?.trim() || teacher.nickname?.trim() || teacher.email || `교원 #${teacher.id}`;
 }
 
-function buildCellFormState(selection: ScheduleCellSelection | null): ScheduleCellFormState {
-  const subjects = selection?.subjects ?? [];
+function buildCellFormState(
+  subjects: SubjectDetailResponseDto[],
+  monthRange: MonthRange,
+): ScheduleCellFormState {
   const firstSubject = subjects[0];
   const teacherId = subjects.find((subject) => typeof subject.teacherId === "number")?.teacherId;
 
   return {
     teacherId: teacherId ? String(teacherId) : "",
-    startAt: firstSubject?.startAt ?? "",
-    endAt: firstSubject?.endAt ?? "",
+    // 과목이 없는 칸은 선택한 달 전체를 기본 기간으로 둔다
+    startAt: firstSubject?.startAt ?? monthRange.from,
+    endAt: firstSubject?.endAt ?? monthRange.to,
     periods: DISPLAY_PERIODS.map((period) => {
       const subject = getPeriodSubject(subjects, period);
       return {
@@ -196,6 +198,15 @@ function buildCellFormState(selection: ScheduleCellSelection | null): ScheduleCe
   };
 }
 
+class CellSaveError extends Error {
+  constructor(
+    message: string,
+    readonly createdSubjectIds: Map<number, number>,
+  ) {
+    super(message);
+  }
+}
+
 function resolveScheduleMutationError(error: unknown) {
   return extractApiErrorMessage(error, "시간표 항목 저장에 실패했습니다.");
 }
@@ -205,6 +216,7 @@ type ScheduleTableProps = {
   classrooms: ClassroomListItemDto[];
   subjects: SubjectDetailResponseDto[];
   columns: typeof WEEKDAY_COLUMNS | typeof WEEKEND_COLUMNS;
+  monthRange: MonthRange;
   periodColors: PeriodColorMap;
   onSelectCell: (selection: ScheduleCellSelection) => void;
 };
@@ -214,6 +226,7 @@ function ScheduleTable({
   classrooms,
   subjects,
   columns,
+  monthRange,
   periodColors,
   onSelectCell,
 }: ScheduleTableProps) {
@@ -237,7 +250,13 @@ function ScheduleTable({
                   <ClassroomType>{formatClassroomTypeLabel(classroom.type)}</ClassroomType>
                 </ClassroomCell>
                 {columns.map((column) => {
-                  const cellSubjects = getSubjectsForCell(subjects, classroomId, column.value);
+                  const cellSubjects = getSubjectsForCell(
+                    subjects,
+                    classroomId,
+                    column.value,
+                    monthRange.from,
+                    monthRange.to,
+                  );
                   const hasRegisteredSubject = cellSubjects.length > 0;
                   const hasTeacher = hasAssignedTeacher(cellSubjects);
 
@@ -250,7 +269,6 @@ function ScheduleTable({
                           classroom,
                           dayOfWeek: column.value,
                           dayLabel: column.label,
-                          subjects: cellSubjects,
                         })
                       }
                     >
@@ -259,7 +277,7 @@ function ScheduleTable({
                           {getTeacherName(cellSubjects)}
                         </TeacherName>
                       ) : (
-                        <EmptyText>담당 교사 미배정</EmptyText>
+                        <EmptyText>등록된 수업 없음</EmptyText>
                       )}
                       <PeriodList>
                         {DISPLAY_PERIODS.map((period) => {
@@ -275,7 +293,9 @@ function ScheduleTable({
                                 $empty={!subject}
                                 $period={period}
                               >
-                                <SubjectNameText>{formatSubjectName(subject)}</SubjectNameText>
+                                <SubjectNameText title={subject?.name}>
+                                  {formatSubjectName(subject)}
+                                </SubjectNameText>
                               </SubjectName>
                             </PeriodItem>
                           );
@@ -295,15 +315,19 @@ function ScheduleTable({
 
 export function AdminLessonScheduleTables() {
   const queryClient = useQueryClient();
+  const [monthStart, setMonthStart] = useState(() => dayjs().startOf("month"));
+  const monthRange = getLessonMonthRange(monthStart.year(), monthStart.month() + 1);
+  const isCurrentMonth = monthStart.isSame(dayjs(), "month");
   const [selectedCell, setSelectedCell] = useState<ScheduleCellSelection | null>(null);
   const selectedCellKey = selectedCell
-    ? `${getClassroomId(selectedCell.classroom) ?? "unknown"}-${selectedCell.dayOfWeek}`
+    ? `${getClassroomId(selectedCell.classroom) ?? "unknown"}-${selectedCell.dayOfWeek}-${monthRange.from}`
     : "none";
   const [cellFormState, setCellFormState] = useState<{
     key: string;
-    form: ScheduleCellFormState;
-  }>(() => ({ key: "none", form: buildCellFormState(null) }));
-  const [, setFormError] = useState<string | null>(null);
+    form: ScheduleCellFormState | null;
+  }>({ key: "none", form: null });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [periodColors, setPeriodColors] = useState<PeriodColorMap>(() => readStoredPeriodColors());
   const [isColorSettingsOpen, setIsColorSettingsOpen] = useState(false);
 
@@ -327,7 +351,7 @@ export function AdminLessonScheduleTables() {
     [classroomsQuery.data?.content],
   );
   const subjects = useMemo(
-    () => (Array.isArray(subjectsQuery.data) ? subjectsQuery.data : []),
+    () => filterActiveSubjects(Array.isArray(subjectsQuery.data) ? subjectsQuery.data : []),
     [subjectsQuery.data],
   );
 
@@ -344,22 +368,39 @@ export function AdminLessonScheduleTables() {
     window.localStorage.setItem(PERIOD_COLOR_STORAGE_KEY, JSON.stringify(periodColors));
   }, [periodColors]);
 
+  // 선택한 칸의 과목은 목록을 다시 불러오면 최신 값으로 바뀐다
+  const selectedSubjects = selectedCell
+    ? getSubjectsForCell(
+        subjects,
+        getClassroomId(selectedCell.classroom),
+        selectedCell.dayOfWeek,
+        monthRange.from,
+        monthRange.to,
+      )
+    : [];
   const cellForm =
-    cellFormState.key === selectedCellKey ? cellFormState.form : buildCellFormState(selectedCell);
+    cellFormState.key === selectedCellKey && cellFormState.form
+      ? cellFormState.form
+      : buildCellFormState(selectedSubjects, monthRange);
   const setCellForm = (updater: SetStateAction<ScheduleCellFormState>) => {
     setCellFormState((current) => {
       const baseForm =
-        current.key === selectedCellKey ? current.form : buildCellFormState(selectedCell);
+        current.key === selectedCellKey && current.form
+          ? current.form
+          : buildCellFormState(selectedSubjects, monthRange);
       return {
         key: selectedCellKey,
         form: typeof updater === "function" ? updater(baseForm) : updater,
       };
     });
   };
+  const discardCellForm = () => setCellFormState({ key: "none", form: null });
 
   const closeModal = () => {
     setSelectedCell(null);
     setFormError(null);
+    setIsResetConfirmOpen(false);
+    discardCellForm();
   };
 
   const resetCellMutation = useMutation({
@@ -393,8 +434,9 @@ export function AdminLessonScheduleTables() {
     },
     onError: async (error) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
-      setFormError(null);
-      toast.error(resolveScheduleMutationError(error));
+      setIsResetConfirmOpen(false);
+      discardCellForm();
+      setFormError(resolveScheduleMutationError(error));
     },
   });
 
@@ -419,13 +461,33 @@ export function AdminLessonScheduleTables() {
         if (!name && periodForm.subjectId != null) {
           throw new Error("기존 항목의 과목명은 비울 수 없습니다.");
         }
-        if (!name) {
-          continue;
-        }
+        if (!name) continue;
         if (!periodForm.startTime || !periodForm.endTime) {
           throw new Error(`${periodForm.period}교시 시간을 입력해 주세요.`);
         }
+        if (periodForm.startTime >= periodForm.endTime) {
+          throw new Error(`${periodForm.period}교시 종료 시간은 시작 시간보다 늦어야 합니다.`);
+        }
+      }
 
+      // 교시마다 순서대로 저장한다. 실패하면 앞 교시는 이미 반영돼 있으므로 어디까지 저장됐는지 알린다.
+      const savedPeriods: number[] = [];
+      const createdSubjectIds = new Map<number, number>();
+      for (const periodForm of cellForm.periods) {
+        const original = selectedSubjects.find(
+          (subject) => getSubjectId(subject) === periodForm.subjectId,
+        );
+        const steps = getPeriodSaveSteps(periodForm.subjectId == null ? undefined : original, {
+          name: periodForm.name,
+          teacherId,
+          startAt: cellForm.startAt,
+          endAt: cellForm.endAt,
+          startTime: periodForm.startTime,
+          endTime: periodForm.endTime,
+        });
+        if (steps.length === 0) continue;
+
+        const name = periodForm.name.trim();
         const schedulePayload = {
           startAt: cellForm.startAt,
           endAt: cellForm.endAt,
@@ -435,19 +497,35 @@ export function AdminLessonScheduleTables() {
           period: periodForm.period,
         };
 
-        if (periodForm.subjectId == null) {
-          await createSubject({
-            classroomId,
-            teacherId,
-            name,
-            ...schedulePayload,
-          });
-          continue;
+        try {
+          if (periodForm.subjectId == null) {
+            const created = await createSubject({
+              classroomId,
+              teacherId,
+              name,
+              ...schedulePayload,
+            });
+            if (typeof created.id === "number")
+              createdSubjectIds.set(periodForm.period, created.id);
+          } else {
+            const subjectId = periodForm.subjectId;
+            if (steps.includes("name")) await updateSubject({ subjectId }, { name });
+            if (steps.includes("schedule")) {
+              await updateSubjectSchedule({ subjectId }, schedulePayload);
+            }
+            if (steps.includes("teacher")) await assignSubjectTeacher({ subjectId }, { teacherId });
+          }
+        } catch (error) {
+          throw new CellSaveError(
+            formatCellSaveError(
+              savedPeriods,
+              periodForm.period,
+              resolveScheduleMutationError(error),
+            ),
+            createdSubjectIds,
+          );
         }
-
-        await updateSubject({ subjectId: periodForm.subjectId }, { name });
-        await updateSubjectSchedule({ subjectId: periodForm.subjectId }, schedulePayload);
-        await assignSubjectTeacher({ subjectId: periodForm.subjectId }, { teacherId });
+        savedPeriods.push(periodForm.period);
       }
     },
     onSuccess: async () => {
@@ -457,32 +535,83 @@ export function AdminLessonScheduleTables() {
     },
     onError: async (error) => {
       await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
-      setFormError(null);
-      toast.error(resolveScheduleMutationError(error));
+      // 앞 교시에서 새로 만든 과목은 폼에 id를 채워 다시 저장할 때 중복 생성하지 않는다.
+      // 수정된 교시는 다시 불러온 서버 값과 비교해 남은 변경만 보낸다.
+      if (error instanceof CellSaveError && error.createdSubjectIds.size > 0) {
+        setCellForm((current) => ({
+          ...current,
+          periods: current.periods.map((periodForm) => ({
+            ...periodForm,
+            subjectId: error.createdSubjectIds.get(periodForm.period) ?? periodForm.subjectId,
+          })),
+        }));
+      }
+      setFormError(resolveScheduleMutationError(error));
     },
+  });
+
+  const isMutating = saveCellMutation.isPending || resetCellMutation.isPending;
+  const requestCloseModal = () => {
+    if (!isMutating) closeModal();
+  };
+
+  useEffect(() => {
+    if (!selectedCell && !isColorSettingsOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (isResetConfirmOpen) {
+        if (!resetCellMutation.isPending) setIsResetConfirmOpen(false);
+      } else if (selectedCell) {
+        if (!isMutating) closeModal();
+      } else {
+        setIsColorSettingsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   });
 
   const handleSaveCell = () => {
     setFormError(null);
     saveCellMutation.mutate();
   };
-  const hasResettableSubjects = cellForm.periods.some(
-    (periodForm) => typeof periodForm.subjectId === "number" && periodForm.subjectId > 0,
+  const resettableSubjects = selectedSubjects.filter((subject) =>
+    cellForm.periods.some((periodForm) => periodForm.subjectId === getSubjectId(subject)),
   );
+  const hasResettableSubjects = resettableSubjects.length > 0;
+  const originalPeriod = selectedSubjects[0];
+  const isPeriodChanged =
+    originalPeriod != null &&
+    (cellForm.startAt !== originalPeriod.startAt || cellForm.endAt !== originalPeriod.endAt);
+  const moveMonth = (offset: number) => setMonthStart((current) => current.add(offset, "month"));
 
   return (
     <SectionCard>
       <ScheduleHeaderRow>
-        <div>
-          <SectionTitle>시간표</SectionTitle>
-        </div>
-        <IconButton
+        <SectionTitle>시간표</SectionTitle>
+        <MonthNav aria-label="시간표 기준 월">
+          <IconButton type="button" aria-label="이전 달" onClick={() => moveMonth(-1)}>
+            <IconChevronLeft aria-hidden="true" />
+          </IconButton>
+          <MonthLabel aria-live="polite">{monthStart.format("YYYY년 M월")}</MonthLabel>
+          <IconButton type="button" aria-label="다음 달" onClick={() => moveMonth(1)}>
+            <IconChevronRight aria-hidden="true" />
+          </IconButton>
+          <SmallButton
+            type="button"
+            disabled={isCurrentMonth}
+            onClick={() => setMonthStart(dayjs().startOf("month"))}
+          >
+            이번 달
+          </SmallButton>
+        </MonthNav>
+        <SettingsButton
           type="button"
           aria-label="교시별 색상 설정"
           onClick={() => setIsColorSettingsOpen(true)}
         >
           <IconSettings aria-hidden="true" />
-        </IconButton>
+        </SettingsButton>
       </ScheduleHeaderRow>
       <ScheduleContentArea>
         <DataState
@@ -499,6 +628,7 @@ export function AdminLessonScheduleTables() {
               classrooms={weekdayClassrooms}
               subjects={subjects}
               columns={WEEKDAY_COLUMNS}
+              monthRange={monthRange}
               periodColors={periodColors}
               onSelectCell={setSelectedCell}
             />
@@ -507,6 +637,7 @@ export function AdminLessonScheduleTables() {
               classrooms={weekendClassrooms}
               subjects={subjects}
               columns={WEEKEND_COLUMNS}
+              monthRange={monthRange}
               periodColors={periodColors}
               onSelectCell={setSelectedCell}
             />
@@ -515,7 +646,7 @@ export function AdminLessonScheduleTables() {
       </ScheduleContentArea>
 
       {selectedCell ? (
-        <ModalBackdrop onMouseDown={closeModal}>
+        <ModalBackdrop onMouseDown={requestCloseModal}>
           <ModalDialog
             role="dialog"
             aria-modal="true"
@@ -527,30 +658,22 @@ export function AdminLessonScheduleTables() {
                 <ModalTitle id="schedule-cell-modal-title">
                   {selectedCell.classroom.name ?? "분반"} {selectedCell.dayLabel}요일 시간표
                 </ModalTitle>
-                <ModalDescription>담당 교사는 1~3교시에 동일하게 적용됩니다.</ModalDescription>
+                <ModalDescription>
+                  {monthStart.format("YYYY년 M월")}에 걸친 과목을 편집합니다. 담당 교사와 기간은
+                  1~3교시에 동일하게 적용됩니다.
+                </ModalDescription>
               </div>
               <ButtonRow>
                 <DangerButton
                   type="button"
-                  disabled={
-                    !hasResettableSubjects ||
-                    resetCellMutation.isPending ||
-                    saveCellMutation.isPending
-                  }
+                  disabled={!hasResettableSubjects || isMutating}
                   onClick={() => {
                     setFormError(null);
-                    resetCellMutation.mutate();
+                    setIsResetConfirmOpen(true);
                   }}
                 >
-                  {resetCellMutation.isPending ? "초기화 중..." : "초기화"}
+                  초기화
                 </DangerButton>
-                <SmallButton
-                  type="button"
-                  disabled={resetCellMutation.isPending || saveCellMutation.isPending}
-                  onClick={closeModal}
-                >
-                  닫기
-                </SmallButton>
               </ButtonRow>
             </ModalHeader>
 
@@ -603,6 +726,13 @@ export function AdminLessonScheduleTables() {
                   />
                 </Label>
               </DateFields>
+              {isPeriodChanged ? (
+                <PeriodChangeNotice role="note">
+                  기간을 바꾸면 기존 기간({originalPeriod.startAt} ~ {originalPeriod.endAt})의 남은
+                  수업이 지워지고 새 기간으로 다시 만들어집니다. 오늘 수업이 이미 시작됐다면
+                  내일부터 반영됩니다. 다음 달 시간표는 기간을 바꾸지 말고 새로 등록하세요.
+                </PeriodChangeNotice>
+              ) : null}
 
               <PeriodEditorList>
                 {cellForm.periods.map((periodForm, index) => (
@@ -669,31 +799,39 @@ export function AdminLessonScheduleTables() {
               </PeriodEditorList>
             </ModalBody>
 
+            {formError ? <InlineStatus role="alert">{formError}</InlineStatus> : null}
+
             {teachersQuery.isError ? (
               <InlineStatus role="alert">교사 목록을 불러오지 못했습니다.</InlineStatus>
             ) : null}
 
             <ModalActions>
               <ButtonRow>
-                <LessonActionButton
-                  type="button"
-                  disabled={saveCellMutation.isPending || resetCellMutation.isPending}
-                  onClick={handleSaveCell}
-                >
-                  {saveCellMutation.isPending ? "저장 중..." : "저장"}
-                </LessonActionButton>
-                <SmallButton
-                  type="button"
-                  disabled={saveCellMutation.isPending || resetCellMutation.isPending}
-                  onClick={closeModal}
-                >
+                <SmallButton type="button" disabled={isMutating} onClick={closeModal}>
                   취소
                 </SmallButton>
+                <LessonActionButton type="button" disabled={isMutating} onClick={handleSaveCell}>
+                  {saveCellMutation.isPending ? "저장 중..." : "저장"}
+                </LessonActionButton>
               </ButtonRow>
             </ModalActions>
           </ModalDialog>
         </ModalBackdrop>
       ) : null}
+
+      <AdminLessonDeleteConfirmModal
+        open={isResetConfirmOpen}
+        title="시간표 칸 초기화"
+        message={`${selectedCell?.classroom.name ?? "분반"} ${selectedCell?.dayLabel ?? ""}요일 과목 ${resettableSubjects.length}개(${resettableSubjects
+          .map(
+            (subject) =>
+              `${subject.period}교시 ${subject.name ?? ""} ${subject.startAt ?? ""}~${subject.endAt ?? ""}`,
+          )
+          .join(", ")})를 삭제합니다. 과목 기간 전체가 삭제되며 되돌릴 수 없습니다.`}
+        isPending={resetCellMutation.isPending}
+        onCancel={() => setIsResetConfirmOpen(false)}
+        onConfirm={() => resetCellMutation.mutate()}
+      />
 
       {isColorSettingsOpen ? (
         <ModalBackdrop onMouseDown={() => setIsColorSettingsOpen(false)}>
@@ -765,15 +903,25 @@ const ScheduleContentArea = styled.div`
 `;
 
 const ScheduleHeaderRow = styled.div`
-  position: relative;
-  min-height: 1.875rem;
-  padding-right: 5.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: ${spacing.space12};
   margin-top: 0.4rem;
+`;
 
-  @media (max-width: ${layout.breakpointMobile}) {
-    padding-right: 0;
-    padding-bottom: 4.75rem;
-  }
+const MonthNav = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${spacing.space4};
+`;
+
+const MonthLabel = styled.span`
+  min-width: 6.5rem;
+  color: ${colors.text};
+  font-size: ${typography.fontSize16};
+  font-weight: 800;
+  text-align: center;
 `;
 
 const LegendSwatch = styled.span<{ $color: string }>`
@@ -786,14 +934,11 @@ const LegendSwatch = styled.span<{ $color: string }>`
 `;
 
 const IconButton = styled.button`
-  position: absolute;
-  top: -0.375rem;
-  right: -0.375rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
   border: 0;
   border-radius: ${radii.radius999};
   background-color: transparent;
@@ -803,16 +948,33 @@ const IconButton = styled.button`
 
   svg {
     display: block;
-    width: 1rem;
-    height: 1rem;
+    width: 1.125rem;
+    height: 1.125rem;
   }
 
-  &:hover,
-  &:focus-visible {
+  &:hover {
     background-color: #f6f8f7;
     color: #1f2b28;
-    outline: none;
   }
+
+  &:focus-visible {
+    outline: 2px solid ${colors.point};
+    outline-offset: 2px;
+  }
+`;
+
+const SettingsButton = styled(IconButton)`
+  margin-left: auto;
+`;
+
+const PeriodChangeNotice = styled.p`
+  margin: 0;
+  padding: ${spacing.space8} ${spacing.space12};
+  border-radius: 0.375rem;
+  background-color: ${colors.noticeSoft};
+  color: #9d2e28;
+  font-size: ${typography.fontSize13};
+  line-height: ${typography.lineHeight150};
 `;
 
 const TableBlock = styled.div`
