@@ -45,6 +45,7 @@ import {
 } from "@/components/admin/lesson-management/lessonScheduleCellSave";
 import { getLessonMonthRange } from "@/components/admin/lesson-management/lessonMonthFilter";
 import {
+  COPY_SUBJECT_LIMIT,
   extractCopyFailures,
   formatCopyFailure,
   getCopySourceSubjectIds,
@@ -344,7 +345,13 @@ export function AdminLessonScheduleTables() {
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [periodColors, setPeriodColors] = useState<PeriodColorMap>(() => readStoredPeriodColors());
   const [isColorSettingsOpen, setIsColorSettingsOpen] = useState(false);
-  const [copyTarget, setCopyTarget] = useState<{ from: string; to: string } | null>(null);
+  // 열 때의 원본 달·과목을 고정해 둔다 (모달이 열린 채 배경에서 달을 바꿔도 대상이 바뀌지 않게)
+  const [copyTarget, setCopyTarget] = useState<{
+    sourceLabel: string;
+    sourceIds: number[];
+    from: string;
+    to: string;
+  } | null>(null);
   const [copyFailures, setCopyFailures] = useState<CopySubjectFailureDto[]>([]);
   const [copyError, setCopyError] = useState<string | null>(null);
 
@@ -602,11 +609,29 @@ export function AdminLessonScheduleTables() {
   const moveMonth = (offset: number) => setMonthStart((current) => current.add(offset, "month"));
 
   // 다음 달로 복사: 선택한 달에 걸친 과목을 새 기간으로 한 번에 복사한다 (실패하면 아무것도 저장되지 않음)
-  const copySourceIds = getCopySourceSubjectIds(subjects, monthRange);
+  const displayedCells = [
+    ...weekdayClassrooms.flatMap((classroom) =>
+      WEEKDAY_COLUMNS.map((column) => ({
+        classroomId: getClassroomId(classroom),
+        dayOfWeek: column.value,
+      })),
+    ),
+    ...weekendClassrooms.flatMap((classroom) =>
+      WEEKEND_COLUMNS.map((column) => ({
+        classroomId: getClassroomId(classroom),
+        dayOfWeek: column.value,
+      })),
+    ),
+  ];
+  const copySourceIds = getCopySourceSubjectIds(subjects, monthRange, displayedCells);
   const openCopyModal = () => {
     setCopyFailures([]);
     setCopyError(null);
-    setCopyTarget(getNextMonthRange(monthRange.from));
+    setCopyTarget({
+      sourceLabel: monthStart.format("YYYY년 M월"),
+      sourceIds: copySourceIds,
+      ...getNextMonthRange(monthRange.from),
+    });
   };
   const closeCopyModal = () => {
     setCopyTarget(null);
@@ -614,10 +639,19 @@ export function AdminLessonScheduleTables() {
     setCopyError(null);
   };
   const copyMutation = useMutation({
-    mutationFn: (target: { from: string; to: string }) => {
+    mutationFn: (target: { sourceIds: number[]; from: string; to: string }) => {
       if (!target.from || !target.to) throw new Error("새 기간을 입력해 주세요.");
       if (target.from > target.to) throw new Error("시작일은 종료일보다 늦을 수 없습니다.");
-      return copySubjects({ subjectIds: copySourceIds, startAt: target.from, endAt: target.to });
+      if (target.sourceIds.length > COPY_SUBJECT_LIMIT) {
+        throw new Error(
+          `한 번에 ${COPY_SUBJECT_LIMIT}개까지 복사할 수 있습니다. 지금은 ${target.sourceIds.length}개입니다.`,
+        );
+      }
+      return copySubjects({
+        subjectIds: target.sourceIds,
+        startAt: target.from,
+        endAt: target.to,
+      });
     },
     onSuccess: async (result, target) => {
       toast.success(`과목 ${result.copiedCount}개를 복사했습니다.`);
@@ -913,7 +947,7 @@ export function AdminLessonScheduleTables() {
               <div>
                 <ModalTitle id="schedule-copy-modal-title">다음 달로 복사</ModalTitle>
                 <ModalDescription>
-                  {monthStart.format("YYYY년 M월")} 시간표의 과목 {copySourceIds.length}개를 새
+                  {copyTarget.sourceLabel} 시간표에 보이는 과목 {copyTarget.sourceIds.length}개를 새
                   기간으로 복사합니다. 원본은 바뀌지 않고, 하나라도 복사할 수 없으면 아무것도
                   저장하지 않습니다.
                 </ModalDescription>
@@ -925,6 +959,7 @@ export function AdminLessonScheduleTables() {
                 <TextInput
                   type="date"
                   value={copyTarget.from}
+                  autoFocus
                   disabled={copyMutation.isPending}
                   onChange={(event) => setCopyTarget({ ...copyTarget, from: event.target.value })}
                 />
@@ -970,7 +1005,7 @@ export function AdminLessonScheduleTables() {
                     copyMutation.mutate(copyTarget);
                   }}
                 >
-                  {copyMutation.isPending ? "복사 중..." : `${copySourceIds.length}개 복사`}
+                  {copyMutation.isPending ? "복사 중..." : `${copyTarget.sourceIds.length}개 복사`}
                 </LessonActionButton>
               </ButtonRow>
             </ModalActions>

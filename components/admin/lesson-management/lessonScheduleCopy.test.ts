@@ -16,17 +16,72 @@ describe("getNextMonthRange", () => {
 });
 
 describe("getCopySourceSubjectIds", () => {
-  it("picks subjects overlapping the month, once each", () => {
+  const cells = [
+    { classroomId: 1, dayOfWeek: "MONDAY" as const },
+    { classroomId: 8, dayOfWeek: "SATURDAY" as const },
+  ];
+  const range = { from: "2026-10-01", to: "2026-10-31" };
+
+  it("copies only the subject shown in each displayed cell and period", () => {
     const subjects: SubjectDetailResponseDto[] = [
-      { id: 1, startAt: "2026-06-29", endAt: "2026-09-30" },
-      { id: 2, startAt: "2026-10-01", endAt: "2026-10-31" },
-      { id: 3, startAt: "2026-10-15", endAt: "2026-11-30" },
-      { id: 4, startAt: "2026-11-01", endAt: "2026-11-30" },
-      { startAt: "2026-10-01", endAt: "2026-10-31" },
+      {
+        id: 1,
+        classroomId: 1,
+        dayOfWeek: "MONDAY",
+        period: 1,
+        startAt: "2026-06-29",
+        endAt: "2026-09-30",
+      },
+      {
+        id: 2,
+        classroomId: 1,
+        dayOfWeek: "MONDAY",
+        period: 1,
+        startAt: "2026-10-01",
+        endAt: "2026-10-15",
+      },
+      {
+        id: 3,
+        classroomId: 1,
+        dayOfWeek: "MONDAY",
+        period: 1,
+        startAt: "2026-10-16",
+        endAt: "2026-10-31",
+      },
+      {
+        id: 4,
+        classroomId: 1,
+        dayOfWeek: "MONDAY",
+        period: 2,
+        startAt: "2026-10-01",
+        endAt: "2026-10-31",
+      },
+      {
+        id: 5,
+        classroomId: 8,
+        dayOfWeek: "SATURDAY",
+        period: 1,
+        startAt: "2026-10-01",
+        endAt: "2026-10-31",
+      },
+      {
+        id: 6,
+        classroomId: 8,
+        dayOfWeek: "SUNDAY",
+        period: 1,
+        startAt: "2026-10-01",
+        endAt: "2026-10-31",
+      },
+      {
+        id: 7,
+        classroomId: 99,
+        dayOfWeek: "MONDAY",
+        period: 1,
+        startAt: "2026-10-01",
+        endAt: "2026-10-31",
+      },
     ];
-    expect(getCopySourceSubjectIds(subjects, { from: "2026-10-01", to: "2026-10-31" })).toEqual([
-      2, 3,
-    ]);
+    expect(getCopySourceSubjectIds(subjects, range, cells)).toEqual([3, 4, 5]);
   });
 });
 

@@ -1,5 +1,6 @@
 import { isAxiosError } from "axios";
 import dayjs from "dayjs";
+import { getSubjectsForCell } from "../../staff/class-management/weekly-schedule/weeklyScheduleState";
 import type {
   CopySubjectFailureDto,
   SubjectDayOfWeek,
@@ -21,18 +22,31 @@ export function getNextMonthRange(monthFrom: string) {
   return { from: next.format("YYYY-MM-DD"), to: next.endOf("month").format("YYYY-MM-DD") };
 }
 
-// 선택한 달과 기간이 겹치는 과목. 시간표 칸에 보이는 기준과 같다.
+export const COPY_SUBJECT_LIMIT = 200;
+
+// 화면에 보이는 칸(분반×요일)마다 교시별로 칸에 표시된 과목 하나만 고른다.
+// 달 중간에 교체된 교시는 늦게 시작한 과목이 표시되므로 그 과목만 복사해 새 기간에서 서로 겹치지 않게 한다.
 export function getCopySourceSubjectIds(
   subjects: SubjectDetailResponseDto[],
   range: { from: string; to: string },
+  cells: { classroomId: number | null; dayOfWeek: SubjectDayOfWeek }[],
 ) {
-  const ids = subjects
-    .filter(
-      (subject) => (subject.startAt ?? "") <= range.to && (subject.endAt ?? "9999") >= range.from,
-    )
-    .map((subject) => subject.id)
-    .filter((id): id is number => typeof id === "number");
-  return [...new Set(ids)];
+  const ids: number[] = [];
+  for (const cell of cells) {
+    const seenPeriods = new Set<number | undefined>();
+    for (const subject of getSubjectsForCell(
+      subjects,
+      cell.classroomId,
+      cell.dayOfWeek,
+      range.from,
+      range.to,
+    )) {
+      if (seenPeriods.has(subject.period)) continue;
+      seenPeriods.add(subject.period);
+      if (typeof subject.id === "number") ids.push(subject.id);
+    }
+  }
+  return ids;
 }
 
 export function extractCopyFailures(error: unknown): CopySubjectFailureDto[] {
