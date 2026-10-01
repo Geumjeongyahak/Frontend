@@ -11,13 +11,18 @@ import { getClassrooms } from "@/api/classroom/classroom.api";
 import type { ClassroomListItemDto, ClassroomType } from "@/api/classroom/classroom.dto";
 import {
   assignSubjectTeacher,
+  copySubjects,
   createSubject,
   deleteSubject,
   getSubjects,
   updateSubject,
   updateSubjectSchedule,
 } from "@/api/subject/subject.api";
-import type { SubjectDayOfWeek, SubjectDetailResponseDto } from "@/api/subject/subject.dto";
+import type {
+  CopySubjectFailureDto,
+  SubjectDayOfWeek,
+  SubjectDetailResponseDto,
+} from "@/api/subject/subject.dto";
 import { getUsers } from "@/api/user/user.api";
 import type { UserListItemDto } from "@/api/user/user.dto";
 import {
@@ -39,6 +44,12 @@ import {
   resolveCommonFields,
 } from "@/components/admin/lesson-management/lessonScheduleCellSave";
 import { getLessonMonthRange } from "@/components/admin/lesson-management/lessonMonthFilter";
+import {
+  extractCopyFailures,
+  formatCopyFailure,
+  getCopySourceSubjectIds,
+  getNextMonthRange,
+} from "@/components/admin/lesson-management/lessonScheduleCopy";
 import { filterAssignableTeachers } from "@/components/admin/teacherAssignmentRoles";
 import {
   filterActiveSubjects,
@@ -333,6 +344,9 @@ export function AdminLessonScheduleTables() {
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [periodColors, setPeriodColors] = useState<PeriodColorMap>(() => readStoredPeriodColors());
   const [isColorSettingsOpen, setIsColorSettingsOpen] = useState(false);
+  const [copyTarget, setCopyTarget] = useState<{ from: string; to: string } | null>(null);
+  const [copyFailures, setCopyFailures] = useState<CopySubjectFailureDto[]>([]);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   const classroomsQuery = useQuery({
     queryKey: queryKeys.admin.classrooms(),
@@ -575,22 +589,6 @@ export function AdminLessonScheduleTables() {
     if (!isMutating) closeModal();
   };
 
-  useEffect(() => {
-    if (!selectedCell && !isColorSettingsOpen) return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      if (isResetConfirmOpen) {
-        if (!resetCellMutation.isPending) setIsResetConfirmOpen(false);
-      } else if (selectedCell) {
-        if (!isMutating) closeModal();
-      } else {
-        setIsColorSettingsOpen(false);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  });
-
   const handleSaveCell = () => {
     setFormError(null);
     saveCellMutation.mutate();
@@ -602,6 +600,55 @@ export function AdminLessonScheduleTables() {
     originalPeriod != null &&
     (cellForm.startAt !== originalPeriod.startAt || cellForm.endAt !== originalPeriod.endAt);
   const moveMonth = (offset: number) => setMonthStart((current) => current.add(offset, "month"));
+
+  // 다음 달로 복사: 선택한 달에 걸친 과목을 새 기간으로 한 번에 복사한다 (실패하면 아무것도 저장되지 않음)
+  const copySourceIds = getCopySourceSubjectIds(subjects, monthRange);
+  const openCopyModal = () => {
+    setCopyFailures([]);
+    setCopyError(null);
+    setCopyTarget(getNextMonthRange(monthRange.from));
+  };
+  const closeCopyModal = () => {
+    setCopyTarget(null);
+    setCopyFailures([]);
+    setCopyError(null);
+  };
+  const copyMutation = useMutation({
+    mutationFn: (target: { from: string; to: string }) => {
+      if (!target.from || !target.to) throw new Error("새 기간을 입력해 주세요.");
+      if (target.from > target.to) throw new Error("시작일은 종료일보다 늦을 수 없습니다.");
+      return copySubjects({ subjectIds: copySourceIds, startAt: target.from, endAt: target.to });
+    },
+    onSuccess: async (result, target) => {
+      toast.success(`과목 ${result.copiedCount}개를 복사했습니다.`);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.subjects() });
+      setMonthStart(dayjs(target.from).startOf("month"));
+      closeCopyModal();
+    },
+    onError: (error) => {
+      const failures = extractCopyFailures(error);
+      setCopyFailures(failures);
+      setCopyError(extractApiErrorMessage(error, "시간표를 복사하지 못했습니다."));
+    },
+  });
+
+  useEffect(() => {
+    if (!selectedCell && !isColorSettingsOpen && !copyTarget) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (copyTarget) {
+        if (!copyMutation.isPending) closeCopyModal();
+      } else if (isResetConfirmOpen) {
+        if (!resetCellMutation.isPending) setIsResetConfirmOpen(false);
+      } else if (selectedCell) {
+        if (!isMutating) closeModal();
+      } else {
+        setIsColorSettingsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  });
 
   return (
     <SectionCard>
@@ -621,6 +668,9 @@ export function AdminLessonScheduleTables() {
             onClick={() => setMonthStart(dayjs().startOf("month"))}
           >
             이번 달
+          </SmallButton>
+          <SmallButton type="button" disabled={copySourceIds.length === 0} onClick={openCopyModal}>
+            다음 달로 복사
           </SmallButton>
         </MonthNav>
         <SettingsButton
@@ -850,6 +900,83 @@ export function AdminLessonScheduleTables() {
         onCancel={() => setIsResetConfirmOpen(false)}
         onConfirm={() => resetCellMutation.mutate()}
       />
+
+      {copyTarget ? (
+        <ModalBackdrop onMouseDown={() => !copyMutation.isPending && closeCopyModal()}>
+          <ColorModalDialog
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="schedule-copy-modal-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <ModalHeader>
+              <div>
+                <ModalTitle id="schedule-copy-modal-title">다음 달로 복사</ModalTitle>
+                <ModalDescription>
+                  {monthStart.format("YYYY년 M월")} 시간표의 과목 {copySourceIds.length}개를 새
+                  기간으로 복사합니다. 원본은 바뀌지 않고, 하나라도 복사할 수 없으면 아무것도
+                  저장하지 않습니다.
+                </ModalDescription>
+              </div>
+            </ModalHeader>
+            <DateFields>
+              <Label>
+                시작일
+                <TextInput
+                  type="date"
+                  value={copyTarget.from}
+                  disabled={copyMutation.isPending}
+                  onChange={(event) => setCopyTarget({ ...copyTarget, from: event.target.value })}
+                />
+              </Label>
+              <Label>
+                종료일
+                <TextInput
+                  type="date"
+                  value={copyTarget.to}
+                  min={copyTarget.from || undefined}
+                  disabled={copyMutation.isPending}
+                  onChange={(event) => setCopyTarget({ ...copyTarget, to: event.target.value })}
+                />
+              </Label>
+            </DateFields>
+            {copyError ? (
+              <InlineStatus role="alert">
+                {copyError}
+                {copyFailures.length > 0 ? (
+                  <CopyFailureList>
+                    {copyFailures.map((failure) => (
+                      <li key={failure.sourceSubjectId}>{formatCopyFailure(failure)}</li>
+                    ))}
+                  </CopyFailureList>
+                ) : null}
+              </InlineStatus>
+            ) : null}
+            <ModalActions>
+              <ButtonRow>
+                <SmallButton
+                  type="button"
+                  disabled={copyMutation.isPending}
+                  onClick={closeCopyModal}
+                >
+                  취소
+                </SmallButton>
+                <LessonActionButton
+                  type="button"
+                  disabled={copyMutation.isPending}
+                  onClick={() => {
+                    setCopyError(null);
+                    setCopyFailures([]);
+                    copyMutation.mutate(copyTarget);
+                  }}
+                >
+                  {copyMutation.isPending ? "복사 중..." : `${copySourceIds.length}개 복사`}
+                </LessonActionButton>
+              </ButtonRow>
+            </ModalActions>
+          </ColorModalDialog>
+        </ModalBackdrop>
+      ) : null}
 
       {isColorSettingsOpen ? (
         <ModalBackdrop onMouseDown={() => setIsColorSettingsOpen(false)}>
@@ -1380,6 +1507,13 @@ const LessonActionButton = styled.button.attrs<{ type?: "button" | "submit" | "r
 
 const ColorModalDialog = styled(ModalDialog)`
   width: min(100%, 25rem);
+`;
+
+const CopyFailureList = styled.ul`
+  margin: ${spacing.space8} 0 0;
+  padding-left: ${spacing.space16};
+  max-height: 12rem;
+  overflow-y: auto;
 `;
 
 const ColorSettingsList = styled.div`

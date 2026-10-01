@@ -2,6 +2,8 @@ import authClient from "../client/authClient";
 import type {
   AssignTeacherToScheduleRequestDto,
   AssignSubjectTeacherRequestDto,
+  CopySubjectsRequestDto,
+  CopySubjectsResponseDto,
   CreateSubjectRequestDto,
   SubjectDetailResponseDto,
   SubjectListQueryParamsDto,
@@ -21,9 +23,7 @@ export async function getSubjects(query?: SubjectListQueryParamsDto) {
 
 // 담당 교사가 배정되지 않은 과목 목록을 조회하는 요청
 export async function getUnassignedSubjects() {
-  const response = await authClient.get<SubjectDetailResponseDto[]>(
-    "/api/v1/subjects/unassigned",
-  );
+  const response = await authClient.get<SubjectDetailResponseDto[]>("/api/v1/subjects/unassigned");
   return response.data;
 }
 
@@ -36,6 +36,12 @@ export async function getMyAssignedSubjects() {
 // 새 과목을 생성하는 요청
 export async function createSubject(body: CreateSubjectRequestDto) {
   const response = await authClient.post<SubjectDetailResponseDto>("/api/v1/subjects", body);
+  return response.data;
+}
+
+// 과목들을 새 기간으로 한꺼번에 복사하는 요청 (원본은 그대로, 실패 시 전부 롤백)
+export async function copySubjects(body: CopySubjectsRequestDto) {
+  const response = await authClient.post<CopySubjectsResponseDto>("/api/v1/subjects/copy", body);
   return response.data;
 }
 
