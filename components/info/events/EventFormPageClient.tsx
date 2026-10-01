@@ -18,6 +18,7 @@ import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
 import {
   assertCanEditPostAttachments,
+  detachRemovedAttachments,
   getRemovedAttachmentFileIds,
 } from "@/lib/post/postAttachmentEdit";
 import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
@@ -127,10 +128,6 @@ export default function EventFormPageClient({
           throw new Error("행사 정보 초안을 저장하지 못했습니다.");
         }
 
-        for (const fileId of removedFileIds) {
-          await detachPostAttachment({ channelId, postId: draftPost.id, fileId });
-        }
-
         for (const file of selectedFiles) {
           await attachPostAttachment(
             { channelId, postId: draftPost.id },
@@ -138,6 +135,11 @@ export default function EventFormPageClient({
             file.name,
           );
         }
+
+        // 새 첨부를 모두 붙인 뒤에 지운 첨부를 해제한다 (해제는 저장소 파일까지 삭제)
+        await detachRemovedAttachments(removedFileIds, (fileId) =>
+          detachPostAttachment({ channelId, postId: draftPost.id as number, fileId }),
+        );
 
         return publishPost({ channelId, postId: draftPost.id }, publishBody);
       }

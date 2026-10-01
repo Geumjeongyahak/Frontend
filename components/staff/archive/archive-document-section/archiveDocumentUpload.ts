@@ -8,6 +8,7 @@ import {
 } from "@/api/post/post.api";
 import type { PostDetailResponseDto } from "@/api/post/post.dto";
 import type { ArchiveDocumentCategory } from "@/config/archiveDocuments";
+import { detachRemovedAttachments } from "@/lib/post/postAttachmentEdit";
 
 type PublishArchivePostWithNewFilesParams = {
   channelId: number;
@@ -21,7 +22,7 @@ type PublishArchivePostWithNewFilesParams = {
   errorLabel: string;
 } & ({ mode: "create" } | { mode: "update"; postId: number; initialPinned: boolean });
 
-/** DRAFT 저장 → 지운 첨부 연결 해제 → Drive 메타 등록 → 첨부 연동 → 발행 */
+/** DRAFT 저장 → Drive 메타 등록 → 첨부 연동 → 지운 첨부 해제 → 발행 */
 export async function publishArchivePostWithNewFiles(
   params: PublishArchivePostWithNewFilesParams,
 ): Promise<PostDetailResponseDto> {
@@ -48,10 +49,6 @@ export async function publishArchivePostWithNewFiles(
     throw new Error(`${errorLabel} 초안을 저장하지 못했습니다.`);
   }
 
-  for (const fileId of params.removedFileIds ?? []) {
-    await detachPostAttachment({ channelId, postId: draftPost.id, fileId });
-  }
-
   for (const file of files) {
     const uploaded = await attachPostAttachment(
       { channelId, postId: draftPost.id },
@@ -63,6 +60,12 @@ export async function publishArchivePostWithNewFiles(
       throw new Error(`${errorLabel} 파일 업로드에 실패했습니다.`);
     }
   }
+
+  // 새 첨부를 모두 붙인 뒤에 지운 첨부를 해제한다 (해제는 저장소 파일까지 삭제)
+  const postId = draftPost.id;
+  await detachRemovedAttachments(params.removedFileIds ?? [], (fileId) =>
+    detachPostAttachment({ channelId, postId, fileId }),
+  );
 
   const publishedPost = await publishPost({ channelId, postId: draftPost.id }, publishBody);
 
