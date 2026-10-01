@@ -30,17 +30,18 @@ export function extractApiErrorMessage(error: unknown, fallback: string) {
     if (data && typeof data === "object") {
       const payload = data as ApiErrorPayload;
 
+      // 검증 오류는 detail이 일반 문구("입력값 검증에 실패했습니다.")라 필드 메시지를 먼저 보여준다
+      const firstFieldError = payload.errors?.find((item) => isMeaningfulText(item.message));
+      if (firstFieldError && isMeaningfulText(firstFieldError.message)) {
+        return firstFieldError.message;
+      }
+
       if (isMeaningfulText(payload.detail)) {
         return payload.detail;
       }
 
       if (isMeaningfulText(payload.message)) {
         return payload.message;
-      }
-
-      const firstFieldError = payload.errors?.find((item) => isMeaningfulText(item.message));
-      if (firstFieldError && isMeaningfulText(firstFieldError.message)) {
-        return firstFieldError.message;
       }
 
       if (isMeaningfulText(payload.title) && !isErrorCodeLike(payload.title)) {

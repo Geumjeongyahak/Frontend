@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import styled, { css } from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import { deleteAttachment } from "@/api/file/file.api";
 import { deletePost, getPost, pinPost, updatePost } from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
@@ -36,6 +35,10 @@ import {
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
 import type { ArchiveDocumentConfig } from "@/config/archiveDocuments";
 import { handlePostDeleteSuccess } from "@/lib/post/postDeleteCache";
+import {
+  assertCanEditPostAttachments,
+  getRemovedAttachmentFileIds,
+} from "@/lib/post/postAttachmentEdit";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
@@ -131,10 +134,12 @@ export default function ArchiveDocumentDetailPage({
       const title = editTitle.trim();
       const contentHtml = editContent.trim();
       const hasFileUpload = editFiles.length > 0;
+      const removedFileIds = getRemovedAttachmentFileIds(attachments ?? [], editableAttachments);
       shouldShowUploadToastRef.current = hasFileUpload;
       setIsUploadingFiles(hasFileUpload);
 
-      if (hasFileUpload) {
+      if (hasFileUpload || removedFileIds.length > 0) {
+        assertCanEditPostAttachments(visiblePost, user?.id);
         return publishArchivePostWithNewFiles({
           mode: "update",
           postId,
@@ -144,6 +149,7 @@ export default function ArchiveDocumentDetailPage({
           allowComment: editAllowComment,
           isPinned: editIsPinned,
           files: editFiles,
+          removedFileIds,
           errorLabel: config.title,
           initialPinned: visiblePost?.isPinned ?? false,
         });
@@ -229,8 +235,7 @@ export default function ArchiveDocumentDetailPage({
     setEditableAttachments(attachments ?? []);
   }
 
-  async function handleRemoveExistingAttachment(fileId: string) {
-    await deleteAttachment({ fileId });
+  function handleRemoveExistingAttachment(fileId: string) {
     setEditableAttachments((current) => current.filter((file) => file.fileId !== fileId));
   }
 

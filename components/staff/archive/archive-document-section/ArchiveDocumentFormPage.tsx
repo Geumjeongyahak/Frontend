@@ -8,7 +8,6 @@ import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
-import { deleteAttachment } from "@/api/file/file.api";
 import { createPost, getPost, pinPost, updatePost } from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
@@ -41,6 +40,10 @@ import {
   publishArchivePostWithNewFiles,
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
 import type { ArchiveDocumentConfig } from "@/config/archiveDocuments";
+import {
+  assertCanEditPostAttachments,
+  getRemovedAttachmentFileIds,
+} from "@/lib/post/postAttachmentEdit";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, spacing, typography } from "@/styles/tokens";
 
@@ -360,9 +363,14 @@ export default function ArchiveDocumentFormPage({
       const title = visibleTitle.trim();
       const contentHtml = visibleDescription.trim();
       const hasFileUpload = files.length > 0;
+      const removedFileIds = getRemovedAttachmentFileIds(
+        existingAttachments,
+        visibleExistingAttachments,
+      );
       shouldShowUploadToastRef.current = hasFileUpload;
 
-      if (hasFileUpload) {
+      if (hasFileUpload || removedFileIds.length > 0) {
+        if (isEditMode) assertCanEditPostAttachments(postDetailQuery.data, user?.id);
         return publishArchivePostWithNewFiles({
           channelId,
           title,
@@ -370,6 +378,7 @@ export default function ArchiveDocumentFormPage({
           allowComment: visibleAllowComment,
           isPinned: visibleIsPinned,
           files,
+          removedFileIds,
           errorLabel: config.title,
           ...(isEditMode
             ? {
@@ -444,10 +453,8 @@ export default function ArchiveDocumentFormPage({
     !isEditMode || Boolean(postDetailQuery.data) || postDetailQuery.isError;
   const isScopeSelectionDisabled = isEditMode || scopeOptions.length === 0;
 
-  async function handleRemoveExistingAttachment(fileId: string) {
-    const currentAttachments = visibleExistingAttachments;
-    await deleteAttachment({ fileId });
-    setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
+  function handleRemoveExistingAttachment(fileId: string) {
+    setEditableAttachments(visibleExistingAttachments.filter((file) => file.fileId !== fileId));
   }
 
   function handleRemoveSelectedFile(file: File) {

@@ -59,7 +59,11 @@ async function refreshAccessToken() {
         setTokens(tokens.accessToken, tokens.refreshToken);
         return tokens;
       } catch (error) {
+        // 서버가 refresh token을 거부했을 때만 로그아웃한다. 네트워크 오류·5xx는 토큰을 남겨 다음 요청에서 다시 시도한다.
+        const isRejectedByServer =
+          axios.isAxiosError(error) && [400, 401, 403].includes(error.response?.status ?? 0);
         if (
+          isRejectedByServer &&
           getTokenStateVersion() === tokenStateAtRequestStart &&
           getRefreshToken() === refreshToken
         ) {

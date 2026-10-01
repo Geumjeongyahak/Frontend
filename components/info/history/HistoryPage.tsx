@@ -35,6 +35,9 @@ type HistoryPhoto = {
   id: string;
   alt: string;
   src: string;
+  // 서버에 저장된 사진 id, 새로 올린 사진의 파일 id. 수정·삭제 시 서버가 파일을 함께 정리한다.
+  photoId?: number;
+  fileId?: string;
 };
 
 type HistoryItem = {
@@ -109,6 +112,7 @@ function mapHistoryItem(item: SiteHistoryResponseDto): HistoryItem | null {
       : undefined,
     photos: item.photos?.map((photo, index) => ({
       id: String(photo.id ?? `${item.id}-${index}`),
+      photoId: photo.id,
       alt: photo.alt ?? item.title ?? "연혁 사진",
       src: photo.src ?? "",
     })),
@@ -224,6 +228,7 @@ export default function HistoryPage() {
 
         return {
           id: uploaded.fileId ?? `${file.name}-${Date.now()}`,
+          fileId: uploaded.fileId ?? undefined,
           alt: file.name,
           src: uploaded.url ?? previewSrc,
         };
@@ -270,7 +275,12 @@ export default function HistoryPage() {
       photos: form.photos.length > 0
         ? form.photos
             .filter((photo) => photo.src)
-            .map((photo) => ({ src: photo.src, alt: photo.alt || title }))
+            .map((photo) => ({
+              id: photo.photoId,
+              fileId: photo.fileId,
+              src: photo.src,
+              alt: photo.alt || title,
+            }))
         : undefined,
     };
 

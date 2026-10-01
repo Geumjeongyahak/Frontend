@@ -8,10 +8,10 @@ import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
-import { deleteAttachment } from "@/api/file/file.api";
 import {
   attachPostAttachment,
   createPost,
+  detachPostAttachment,
   getPost,
   pinPost,
   publishPost,
@@ -19,6 +19,10 @@ import {
 } from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
+import {
+  assertCanEditPostAttachments,
+  getRemovedAttachmentFileIds,
+} from "@/lib/post/postAttachmentEdit";
 import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
 import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import BoardDropdown, { type DropdownOption } from "@/components/staff/board/BoardDropdown";
@@ -247,9 +251,15 @@ export default function BoardCreatePageClient({
       const allowComment = visibleAllowComment;
       const publishBody = { title, contentHtml, allowComment };
       const hasFileUpload = selectedFiles.length > 0;
+      // 첨부 삭제는 저장할 때 초안 상태에서 게시글과의 연결만 끊는다 (작성자 권한 API)
+      const removedFileIds = getRemovedAttachmentFileIds(
+        existingAttachments,
+        visibleExistingAttachments,
+      );
       shouldShowUploadToastRef.current = hasFileUpload;
 
-      if (hasFileUpload) {
+      if (hasFileUpload || removedFileIds.length > 0) {
+        if (isEditMode) assertCanEditPostAttachments(postDetailQuery.data, user?.id);
         const draftPost = isEditMode
           ? await updatePost(
               { channelId, postId: editPostId },
@@ -259,6 +269,10 @@ export default function BoardCreatePageClient({
 
         if (typeof draftPost.id !== "number") {
           throw new Error("게시글 초안을 저장하지 못했습니다.");
+        }
+
+        for (const fileId of removedFileIds) {
+          await detachPostAttachment({ channelId, postId: draftPost.id, fileId });
         }
 
         for (const file of selectedFiles) {
@@ -345,11 +359,8 @@ export default function BoardCreatePageClient({
     canManagePost &&
     !isPending;
 
-  async function handleRemoveExistingAttachment(fileId: string) {
-    const currentAttachments = visibleExistingAttachments;
-
-    await deleteAttachment({ fileId });
-    setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
+  function handleRemoveExistingAttachment(fileId: string) {
+    setEditableAttachments(visibleExistingAttachments.filter((file) => file.fileId !== fileId));
   }
 
   function handleRemoveSelectedFile(file: File) {

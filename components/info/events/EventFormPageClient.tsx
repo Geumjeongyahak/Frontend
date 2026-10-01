@@ -6,16 +6,20 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import { deleteAttachment } from "@/api/file/file.api";
 import {
   attachPostAttachment,
   createPost,
+  detachPostAttachment,
   getPost,
   publishPost,
   updatePost,
 } from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
+import {
+  assertCanEditPostAttachments,
+  getRemovedAttachmentFileIds,
+} from "@/lib/post/postAttachmentEdit";
 import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
 import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import EventDocumentLayout from "@/components/info/events/EventDocumentLayout";
@@ -100,6 +104,10 @@ export default function EventFormPageClient({
       const title = visibleTitle.trim();
       const contentHtml = visibleContentHtml.trim();
       const hasFileUpload = selectedFiles.length > 0;
+      const removedFileIds = getRemovedAttachmentFileIds(
+        existingAttachments,
+        visibleExistingAttachments,
+      );
       shouldShowUploadToastRef.current = hasFileUpload;
       const publishBody = {
         title,
@@ -108,13 +116,18 @@ export default function EventFormPageClient({
         thumbnailUrl: thumbnailUrl || undefined,
       };
 
-      if (hasFileUpload) {
+      if (hasFileUpload || removedFileIds.length > 0) {
+        if (isEditMode) assertCanEditPostAttachments(postDetailQuery.data, user?.id);
         const draftPost = isEditMode
           ? await updatePost({ channelId, postId: editPostId }, { ...publishBody, status: "DRAFT" })
           : await createPost({ channelId }, { ...publishBody, status: "DRAFT" });
 
         if (typeof draftPost.id !== "number") {
           throw new Error("행사 정보 초안을 저장하지 못했습니다.");
+        }
+
+        for (const fileId of removedFileIds) {
+          await detachPostAttachment({ channelId, postId: draftPost.id, fileId });
         }
 
         for (const file of selectedFiles) {
@@ -171,10 +184,8 @@ export default function EventFormPageClient({
     canManagePost &&
     !isPending;
 
-  async function handleRemoveExistingAttachment(fileId: string) {
-    const currentAttachments = visibleExistingAttachments;
-    await deleteAttachment({ fileId });
-    setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
+  function handleRemoveExistingAttachment(fileId: string) {
+    setEditableAttachments(visibleExistingAttachments.filter((file) => file.fileId !== fileId));
   }
 
   function handleRemoveSelectedFile(file: File) {
