@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { IconDownload, IconPaperclip, IconX } from "@tabler/icons-react";
+import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getAttachmentDownloadUrl } from "@/api/file/file.api";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
 export type AttachmentItem = {
@@ -136,6 +138,8 @@ export function AttachmentDownloadList({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    } catch (error) {
+      toast.error(extractApiErrorMessage(error, "첨부파일을 열지 못했습니다."));
     } finally {
       setDownloadingId((current) => (current === attachment.id ? null : current));
     }

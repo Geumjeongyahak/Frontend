@@ -8,10 +8,10 @@ import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
-import { deleteAttachment } from "@/api/file/file.api";
 import {
   attachPostAttachment,
   createPost,
+  detachPostAttachment,
   getPost,
   pinPost,
   publishPost,
@@ -19,6 +19,11 @@ import {
 } from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
+import {
+  assertCanEditPostAttachments,
+  detachRemovedAttachments,
+  getRemovedAttachmentFileIds,
+} from "@/lib/post/postAttachmentEdit";
 import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
 import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import BoardDropdown, { type DropdownOption } from "@/components/staff/board/BoardDropdown";
@@ -44,6 +49,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 
 type OpenDropdown = "type" | "scope" | null;
@@ -230,7 +236,7 @@ export default function BoardCreatePageClient({
       : scopeOptions.find((option) => option.value === selectedBoardScope)?.label ??
         (selectedBoardType === "CLASSROOM" ? "반별 게시판" : "부서별 게시판");
 
-  const { mutate, isPending, isError } = useMutation({
+  const { mutate, isPending, isError, error } = useMutation({
     mutationFn: async () => {
       const channelId = isEditMode ? editChannelId : selectedChannelId;
 
@@ -247,9 +253,15 @@ export default function BoardCreatePageClient({
       const allowComment = visibleAllowComment;
       const publishBody = { title, contentHtml, allowComment };
       const hasFileUpload = selectedFiles.length > 0;
+      // 첨부 삭제는 저장할 때 초안 상태에서 게시글과의 연결만 끊는다 (작성자 권한 API)
+      const removedFileIds = getRemovedAttachmentFileIds(
+        existingAttachments,
+        visibleExistingAttachments,
+      );
       shouldShowUploadToastRef.current = hasFileUpload;
 
-      if (hasFileUpload) {
+      if (hasFileUpload || removedFileIds.length > 0) {
+        if (isEditMode) assertCanEditPostAttachments(postDetailQuery.data, user?.id);
         const draftPost = isEditMode
           ? await updatePost(
               { channelId, postId: editPostId },
@@ -268,6 +280,11 @@ export default function BoardCreatePageClient({
             file.name,
           );
         }
+
+        // 새 첨부를 모두 붙인 뒤에 지운 첨부를 해제한다 (해제는 저장소 파일까지 삭제)
+        await detachRemovedAttachments(removedFileIds, (fileId) =>
+          detachPostAttachment({ channelId, postId: draftPost.id as number, fileId }),
+        );
 
         const published = await publishPost({ channelId, postId: draftPost.id }, publishBody);
 
@@ -345,11 +362,8 @@ export default function BoardCreatePageClient({
     canManagePost &&
     !isPending;
 
-  async function handleRemoveExistingAttachment(fileId: string) {
-    const currentAttachments = visibleExistingAttachments;
-
-    await deleteAttachment({ fileId });
-    setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
+  function handleRemoveExistingAttachment(fileId: string) {
+    setEditableAttachments(visibleExistingAttachments.filter((file) => file.fileId !== fileId));
   }
 
   function handleRemoveSelectedFile(file: File) {
@@ -498,7 +512,10 @@ export default function BoardCreatePageClient({
           ) : null}
           {isError ? (
             <StateMessage>
-              {isEditMode ? "게시글 수정에 실패했습니다." : "게시글 작성에 실패했습니다."}
+              {extractApiErrorMessage(
+                error,
+                isEditMode ? "게시글 수정에 실패했습니다." : "게시글 작성에 실패했습니다.",
+              )}
             </StateMessage>
           ) : null}
         </Form>

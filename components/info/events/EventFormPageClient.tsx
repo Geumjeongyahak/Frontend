@@ -6,16 +6,21 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import { deleteAttachment } from "@/api/file/file.api";
 import {
   attachPostAttachment,
   createPost,
+  detachPostAttachment,
   getPost,
   publishPost,
   updatePost,
 } from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
+import {
+  assertCanEditPostAttachments,
+  detachRemovedAttachments,
+  getRemovedAttachmentFileIds,
+} from "@/lib/post/postAttachmentEdit";
 import { AttachmentEditorPanel } from "@/components/common/AttachmentField";
 import { FileUploadProgressNotice } from "@/components/common/FileUploadProgress";
 import EventDocumentLayout from "@/components/info/events/EventDocumentLayout";
@@ -36,6 +41,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { layout, spacing } from "@/styles/tokens";
 
@@ -84,7 +90,7 @@ export default function EventFormPageClient({
     ? status === "authenticated"
     : canManageEventPost(user, postDetailQuery.data);
 
-  const { mutate, isPending, isError } = useMutation({
+  const { mutate, isPending, isError, error } = useMutation({
     mutationFn: async () => {
       const channelId = isEditMode ? editChannelId : eventChannel?.id;
 
@@ -100,6 +106,10 @@ export default function EventFormPageClient({
       const title = visibleTitle.trim();
       const contentHtml = visibleContentHtml.trim();
       const hasFileUpload = selectedFiles.length > 0;
+      const removedFileIds = getRemovedAttachmentFileIds(
+        existingAttachments,
+        visibleExistingAttachments,
+      );
       shouldShowUploadToastRef.current = hasFileUpload;
       const publishBody = {
         title,
@@ -108,7 +118,8 @@ export default function EventFormPageClient({
         thumbnailUrl: thumbnailUrl || undefined,
       };
 
-      if (hasFileUpload) {
+      if (hasFileUpload || removedFileIds.length > 0) {
+        if (isEditMode) assertCanEditPostAttachments(postDetailQuery.data, user?.id);
         const draftPost = isEditMode
           ? await updatePost({ channelId, postId: editPostId }, { ...publishBody, status: "DRAFT" })
           : await createPost({ channelId }, { ...publishBody, status: "DRAFT" });
@@ -124,6 +135,11 @@ export default function EventFormPageClient({
             file.name,
           );
         }
+
+        // 새 첨부를 모두 붙인 뒤에 지운 첨부를 해제한다 (해제는 저장소 파일까지 삭제)
+        await detachRemovedAttachments(removedFileIds, (fileId) =>
+          detachPostAttachment({ channelId, postId: draftPost.id as number, fileId }),
+        );
 
         return publishPost({ channelId, postId: draftPost.id }, publishBody);
       }
@@ -171,10 +187,8 @@ export default function EventFormPageClient({
     canManagePost &&
     !isPending;
 
-  async function handleRemoveExistingAttachment(fileId: string) {
-    const currentAttachments = visibleExistingAttachments;
-    await deleteAttachment({ fileId });
-    setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
+  function handleRemoveExistingAttachment(fileId: string) {
+    setEditableAttachments(visibleExistingAttachments.filter((file) => file.fileId !== fileId));
   }
 
   function handleRemoveSelectedFile(file: File) {
@@ -261,7 +275,10 @@ export default function EventFormPageClient({
           ) : null}
           {isError ? (
             <StateMessage>
-              {isEditMode ? "행사 정보 수정에 실패했습니다." : "행사 정보 작성에 실패했습니다."}
+              {extractApiErrorMessage(
+                error,
+                isEditMode ? "행사 정보 수정에 실패했습니다." : "행사 정보 작성에 실패했습니다.",
+              )}
             </StateMessage>
           ) : null}
         </Form>

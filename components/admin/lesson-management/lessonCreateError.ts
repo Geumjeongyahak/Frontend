@@ -37,12 +37,13 @@ export function normalizeLessonTimeForApi(value: string) {
   return trimmed;
 }
 
+// 409는 겹침 외에도 잠금(BIZ005)·상태 충돌 등이 있어 서버 메시지를 먼저 쓰고, 없을 때만 겹침 안내를 보여준다
 export function resolveLessonCreateErrorMessage(error: unknown) {
-  if (isAxiosError(error) && error.response?.status === 409) {
-    return LESSON_TIME_OVERLAP_MESSAGE;
-  }
-
-  return extractApiErrorMessage(error, "수업 생성에 실패했습니다.");
+  const isConflict = isAxiosError(error) && error.response?.status === 409;
+  return extractApiErrorMessage(
+    error,
+    isConflict ? LESSON_TIME_OVERLAP_MESSAGE : "수업 생성에 실패했습니다.",
+  );
 }
 
 export function formatLessonTimeRange(startTime?: string, endTime?: string) {

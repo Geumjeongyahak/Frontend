@@ -45,6 +45,7 @@ import {
   getInvalidProposalReceiptImages,
   proposalReceiptImageAccept,
 } from "@/components/staff/finance-management/proposalReceiptFiles";
+import { replaceProposalReceipts } from "@/components/staff/finance-management/replaceProposalReceipts";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
@@ -730,16 +731,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
             return uploaded.fileId;
           }),
         );
-        const existingReceiptIds = (request.proposal?.receipts ?? []).map((receipt) => receipt.id);
-
-        if (
-          !existingReceiptIds.every(
-            (receiptId): receiptId is number => typeof receiptId === "number",
-          )
-        ) {
-          throw new Error("기존 품의서 영수증 정보를 확인할 수 없습니다.");
-        }
-
         const deleteProposalReceipt = isAdmin
           ? deleteAdminPurchaseRequestProposalReceipt
           : deletePurchaseRequestProposalReceipt;
@@ -747,13 +738,10 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
           ? attachAdminPurchaseRequestProposalReceipt
           : attachPurchaseRequestProposalReceipt;
 
-        for (const receiptId of existingReceiptIds) {
-          await deleteProposalReceipt({ requestId, receiptId });
-        }
-
-        for (const fileId of uploadedReceiptIds) {
-          await attachProposalReceipt({ requestId }, { fileId });
-        }
+        await replaceProposalReceipts(request.proposal?.receipts ?? [], uploadedReceiptIds, {
+          attach: (fileId) => attachProposalReceipt({ requestId }, { fileId }),
+          remove: (receiptId) => deleteProposalReceipt({ requestId, receiptId }),
+        });
       }
 
       return proposal;
@@ -767,6 +755,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       toast.success("품의서를 수정했습니다.");
     },
     onError: (error) => {
+      // 일부 단계가 이미 반영됐을 수 있으므로 서버 상태를 다시 불러온다
+      void queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseDetail(requestId) });
       toast.error(extractApiErrorMessage(error, "품의서 수정에 실패했습니다."));
     },
   });
@@ -962,17 +952,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       ];
 
       if (uploadedReceiptIds.some((fileId) => Boolean(fileId?.trim()))) {
-        const existingProposalReceipts = request?.proposal?.receipts ?? [];
-        const existingProposalReceiptIds = existingProposalReceipts.map((receipt) => receipt.id);
-
-        if (
-          !existingProposalReceiptIds.every(
-            (receiptId): receiptId is number => typeof receiptId === "number",
-          )
-        ) {
-          throw new Error("기존 품의서 영수증 정보를 확인할 수 없습니다.");
-        }
-
         const deleteProposalReceipt = isAdmin
           ? deleteAdminPurchaseRequestProposalReceipt
           : deletePurchaseRequestProposalReceipt;
@@ -980,13 +959,14 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
           ? attachAdminPurchaseRequestProposalReceipt
           : attachPurchaseRequestProposalReceipt;
 
-        for (const receiptId of existingProposalReceiptIds) {
-          await deleteProposalReceipt({ requestId, receiptId });
-        }
-
-        for (const fileId of currentProposalReceiptFileIds) {
-          await attachProposalReceipt({ requestId }, { fileId });
-        }
+        await replaceProposalReceipts(
+          request?.proposal?.receipts ?? [],
+          currentProposalReceiptFileIds,
+          {
+            attach: (fileId) => attachProposalReceipt({ requestId }, { fileId }),
+            remove: (receiptId) => deleteProposalReceipt({ requestId, receiptId }),
+          },
+        );
       }
 
       return response;
@@ -1002,6 +982,7 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       queryClient.invalidateQueries({ queryKey: queryKeys.vendors.list() });
     },
     onError: (error) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseDetail(requestId) });
       toast.error(
         extractApiErrorMessage(
           error,
