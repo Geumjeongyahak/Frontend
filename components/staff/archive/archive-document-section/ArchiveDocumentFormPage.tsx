@@ -36,6 +36,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import {
   publishArchivePostWithNewFiles,
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
@@ -354,7 +355,7 @@ export default function ArchiveDocumentFormPage({
         postDetailQuery.data.authorName === user?.email),
     );
 
-  const { mutate, isPending, isError } = useMutation({
+  const { mutate, isPending, isError, error } = useMutation({
     mutationFn: async () => {
       if (!channelId) {
         throw new Error(`${config.title} 채널을 찾을 수 없습니다.`);
@@ -608,9 +609,10 @@ export default function ArchiveDocumentFormPage({
         {!canManagePost ? <StateMessage>이 글을 수정할 권한이 없습니다.</StateMessage> : null}
         {isError ? (
           <StateMessage>
-            {isEditMode
-              ? `${config.title} 수정에 실패했습니다.`
-              : `${config.title} 작성에 실패했습니다.`}
+            {extractApiErrorMessage(
+              error,
+              isEditMode ? `${config.title} 수정에 실패했습니다.` : `${config.title} 작성에 실패했습니다.`,
+            )}
           </StateMessage>
         ) : null}
       </Form>

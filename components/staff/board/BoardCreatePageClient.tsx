@@ -48,6 +48,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 
 type OpenDropdown = "type" | "scope" | null;
@@ -234,7 +235,7 @@ export default function BoardCreatePageClient({
       : scopeOptions.find((option) => option.value === selectedBoardScope)?.label ??
         (selectedBoardType === "CLASSROOM" ? "반별 게시판" : "부서별 게시판");
 
-  const { mutate, isPending, isError } = useMutation({
+  const { mutate, isPending, isError, error } = useMutation({
     mutationFn: async () => {
       const channelId = isEditMode ? editChannelId : selectedChannelId;
 
@@ -509,7 +510,10 @@ export default function BoardCreatePageClient({
           ) : null}
           {isError ? (
             <StateMessage>
-              {isEditMode ? "게시글 수정에 실패했습니다." : "게시글 작성에 실패했습니다."}
+              {extractApiErrorMessage(
+                error,
+                isEditMode ? "게시글 수정에 실패했습니다." : "게시글 작성에 실패했습니다.",
+              )}
             </StateMessage>
           ) : null}
         </Form>

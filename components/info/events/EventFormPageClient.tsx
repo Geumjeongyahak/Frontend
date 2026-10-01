@@ -40,6 +40,7 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { layout, spacing } from "@/styles/tokens";
 
@@ -88,7 +89,7 @@ export default function EventFormPageClient({
     ? status === "authenticated"
     : canManageEventPost(user, postDetailQuery.data);
 
-  const { mutate, isPending, isError } = useMutation({
+  const { mutate, isPending, isError, error } = useMutation({
     mutationFn: async () => {
       const channelId = isEditMode ? editChannelId : eventChannel?.id;
 
@@ -272,7 +273,10 @@ export default function EventFormPageClient({
           ) : null}
           {isError ? (
             <StateMessage>
-              {isEditMode ? "행사 정보 수정에 실패했습니다." : "행사 정보 작성에 실패했습니다."}
+              {extractApiErrorMessage(
+                error,
+                isEditMode ? "행사 정보 수정에 실패했습니다." : "행사 정보 작성에 실패했습니다.",
+              )}
             </StateMessage>
           ) : null}
         </Form>

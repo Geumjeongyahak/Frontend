@@ -30,6 +30,7 @@ import {
   ViewerBox,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import {
   publishArchivePostWithNewFiles,
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
@@ -201,7 +202,7 @@ export default function ArchiveDocumentDetailPage({
           : deletePostMutation.isError
             ? `${config.title} 삭제에 실패했습니다.`
             : updatePostMutation.isError
-              ? `${config.title} 수정에 실패했습니다.`
+              ? extractApiErrorMessage(updatePostMutation.error, `${config.title} 수정에 실패했습니다.`)
               : "";
   const canSubmitEdit =
     isEditing &&
