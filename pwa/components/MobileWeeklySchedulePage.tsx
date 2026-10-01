@@ -217,7 +217,8 @@ function ScheduleTable({
                   const firstStatusOverride = [...overrides.values()].find(
                     (override) => override.status,
                   );
-                  const hasRegisteredSubject = cellSubjects.length > 0;
+                  // 과목 기간이 바뀌어도 그날 수업 기록이 있으면 그 교사·과목으로 그린다
+                  const hasRegisteredSubject = cellSubjects.length > 0 || overrides.size > 0;
                   const hasTeacher = hasAssignedTeacher(cellSubjects, firstOverride);
                   const firstExchangeDate =
                     firstStatusOverride?.lessonStatus === "EXCHANGED" ||
