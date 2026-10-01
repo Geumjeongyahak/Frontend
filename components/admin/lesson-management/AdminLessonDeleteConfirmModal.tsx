@@ -39,7 +39,6 @@ export function AdminLessonDeleteConfirmModal({
         <Message>{message}</Message>
         <ButtonRow>
           {/* 열리면 덜 파괴적인 취소 버튼에 포커스를 둔다 */}
-          {/* eslint-disable-next-line jsx-a11y/no-autofocus */}
           <SmallButton type="button" disabled={isPending} onClick={onCancel} autoFocus>
             취소
           </SmallButton>

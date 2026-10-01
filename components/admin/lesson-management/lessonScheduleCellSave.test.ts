@@ -57,7 +57,12 @@ describe("resolveCommonFields", () => {
 
   it("keeps each period's own period and teacher when the shared fields were not edited", () => {
     expect(resolveCommonFields(secondPeriod, initial, initial)).toEqual(secondPeriod);
-    expect(getPeriodSaveSteps({ ...ORIGINAL, ...secondPeriod }, { ...UNCHANGED, ...resolveCommonFields(secondPeriod, initial, initial) })).toEqual([]);
+    expect(
+      getPeriodSaveSteps(
+        { ...ORIGINAL, ...secondPeriod },
+        { ...UNCHANGED, ...resolveCommonFields(secondPeriod, initial, initial) },
+      ),
+    ).toEqual([]);
   });
 
   it("applies only the shared field the user edited", () => {
