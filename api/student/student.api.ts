@@ -1,6 +1,7 @@
 import authClient from "../client/authClient";
 import type {
   CreateStudentRequestDto,
+  StudentClassroomPathParamsDto,
   StudentListQueryParamsDto,
   StudentListResponseDto,
   StudentPathParamsDto,
@@ -45,4 +46,23 @@ export async function updateStudent(
 // 특정 학생을 삭제하는 요청
 export async function deleteStudent(pathParams: StudentPathParamsDto) {
   await authClient.delete(`/api/v1/students/${pathParams.studentId}`);
+}
+
+export async function addStudentToClassroom({
+  studentId,
+  classroomId,
+}: StudentClassroomPathParamsDto) {
+  const response = await authClient.put<StudentResponseDto>(
+    `/api/v1/students/${studentId}/classrooms/${classroomId}`,
+  );
+  return response.data;
+}
+
+export async function removeStudentFromClassroom({
+  studentId,
+  classroomId,
+}: StudentClassroomPathParamsDto) {
+  await authClient.delete<void>(`/api/v1/students/${studentId}/classrooms/${classroomId}`, {
+    validateStatus: (status) => status === 204,
+  });
 }

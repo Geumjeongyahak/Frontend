@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getStudents } from "@/api/student/student.api";
+import { queryKeys } from "@/lib/queryKeys";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Dispatch, MouseEvent, SetStateAction } from "react";
 import styled from "styled-components";
 import type {
@@ -75,7 +78,12 @@ type AdminClassroomsSectionProps = {
   updateClassroomMutation: VoidMutationAction;
   deleteClassroomMutation: VoidMutationAction;
   createStudentMutation: VoidMutationAction;
-  deleteStudentMutation: ValueMutationAction<number>;
+  addStudentMembership: ValueMutationAction<{ studentId: number; classroomId: number }>;
+  removeStudentMembership: ValueMutationAction<{ studentId: number; classroomId: number }>;
+  canRegisterStudent: boolean;
+  canManageStudentMembership: boolean;
+  studentSearch: string | null;
+  setStudentSearch: (value: string | null) => void;
   updateStudentMutation: ValueMutationAction<StudentFormMutationVariables>;
   setSelectedClassroomId: Dispatch<SetStateAction<number | null>>;
   setIsClassroomEditing: Dispatch<SetStateAction<boolean>>;
@@ -119,7 +127,12 @@ export function AdminClassroomsSection({
   updateClassroomMutation,
   deleteClassroomMutation,
   createStudentMutation,
-  deleteStudentMutation,
+  addStudentMembership,
+  removeStudentMembership,
+  canRegisterStudent,
+  canManageStudentMembership,
+  studentSearch,
+  setStudentSearch,
   updateStudentMutation,
   setSelectedClassroomId,
   setIsClassroomEditing,
@@ -134,8 +147,52 @@ export function AdminClassroomsSection({
   emptyStudentCreateForm,
 }: AdminClassroomsSectionProps) {
   const isDetailOpen = selectedClassroomId !== null;
+  const pickerOpen = isDetailOpen && studentSearch !== null;
+  const pickerTrigger = useRef<HTMLButtonElement>(null);
+  const pickerDialog = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!pickerOpen) return;
+    const trigger = pickerTrigger.current;
+    pickerDialog.current?.querySelector("input")?.focus();
+    return () => trigger?.focus();
+  }, [pickerOpen]);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function handlePickerKey(event: KeyboardEvent) {
+      const dialog = pickerDialog.current;
+      if (!dialog || event.isComposing) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
+        if (!addStudentMembership.isPending) setStudentSearch(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const controls = dialog.querySelectorAll<HTMLElement>(":enabled");
+      const first = controls[0];
+      const last = controls[controls.length - 1];
+      const edge = event.shiftKey ? first : last;
+      if (document.activeElement === edge || !dialog.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first)?.focus();
+      }
+    }
+    document.addEventListener("keydown", handlePickerKey);
+    return () => document.removeEventListener("keydown", handlePickerKey);
+  }, [pickerOpen, addStudentMembership.isPending, setStudentSearch]);
+
+  const searchName = studentSearch?.trim();
+  const searchParams = searchName ? { name: searchName } : undefined;
+  const studentDirectory = useQuery({
+    queryKey: queryKeys.students.list(searchParams),
+    queryFn: () => getStudents(searchParams),
+    enabled: pickerOpen,
+    select: (students) =>
+      [...students].sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "", "ko")),
+  });
   const [pagination, setPagination] = useState({ page: 1, search: "" });
-  const [studentDeleteTarget, setStudentDeleteTarget] = useState<{
+  const [studentRemovalTarget, setStudentRemovalTarget] = useState<{
     id: number;
     name: string;
   } | null>(null);
@@ -153,11 +210,12 @@ export function AdminClassroomsSection({
 
   function closeClassroomDetail() {
     setSelectedClassroomId(null);
+    setStudentSearch(null);
     setIsClassroomEditing(false);
     setIsClassroomDeleteConfirmOpen(false);
     setIsStudentCreateModalOpen(false);
     setStudentCreateForm(emptyStudentCreateForm);
-    setStudentDeleteTarget(null);
+    setStudentRemovalTarget(null);
     setStudentEditTarget(null);
   }
 
@@ -178,6 +236,7 @@ export function AdminClassroomsSection({
   }
 
   function openStudentCreateModal() {
+    setStudentSearch(null);
     setStudentEditTarget(null);
     setStudentCreateForm(emptyStudentCreateForm);
     setIsStudentCreateModalOpen(true);
@@ -210,28 +269,31 @@ export function AdminClassroomsSection({
     setIsStudentCreateModalOpen(true);
   }
 
-  function openStudentDeleteConfirm(studentId: number, studentName?: string) {
-    setStudentDeleteTarget({
+  function openStudentRemovalConfirm(studentId: number, studentName?: string) {
+    setStudentRemovalTarget({
       id: studentId,
       name: studentName?.trim() || "선택한 학생",
     });
   }
 
-  function closeStudentDeleteConfirm() {
-    if (deleteStudentMutation.isPending) {
+  function closeStudentRemovalConfirm() {
+    if (removeStudentMembership.isPending) {
       return;
     }
 
-    setStudentDeleteTarget(null);
+    setStudentRemovalTarget(null);
   }
 
-  function confirmStudentDelete() {
-    if (!studentDeleteTarget) {
+  function confirmStudentRemoval() {
+    if (!studentRemovalTarget || selectedClassroomId === null || !canManageStudentMembership) {
       return;
     }
 
-    deleteStudentMutation.mutate(studentDeleteTarget.id);
-    setStudentDeleteTarget(null);
+    removeStudentMembership.mutate({
+      studentId: studentRemovalTarget.id,
+      classroomId: selectedClassroomId,
+    });
+    setStudentRemovalTarget(null);
   }
 
   function cancelEditing() {
@@ -263,7 +325,7 @@ export function AdminClassroomsSection({
     classroomDetailQuery.data?.name?.trim() || classroomForm.name.trim() || "선택된 분반";
   const classroomStudents = classroomStudentsQuery.data ?? [];
   const isStudentFormPending = createStudentMutation.isPending || updateStudentMutation.isPending;
-  const studentModalTitle = studentEditTarget ? "학생 수정" : "학생 등록";
+  const studentModalTitle = studentEditTarget ? "학생 수정" : "신규 학생 등록";
   const studentModalDescription = studentEditTarget
     ? `${studentEditTarget.name} 학생 정보를 수정하세요.`
     : `${selectedClassroomName}에 등록할 학생 정보를 입력하세요.`;
@@ -453,21 +515,26 @@ export function AdminClassroomsSection({
                                   <SmallButton
                                     type="button"
                                     disabled={
-                                      isStudentFormPending || deleteStudentMutation.isPending
+                                      isStudentFormPending || removeStudentMembership.isPending
                                     }
                                     onClick={() => openStudentEditModal(student)}
                                   >
                                     수정
                                   </SmallButton>
-                                  <DangerButton
-                                    type="button"
-                                    disabled={deleteStudentMutation.isPending}
-                                    onClick={() =>
-                                      openStudentDeleteConfirm(student.id as number, student.name)
-                                    }
-                                  >
-                                    삭제
-                                  </DangerButton>
+                                  {canManageStudentMembership && (
+                                    <DangerButton
+                                      type="button"
+                                      disabled={removeStudentMembership.isPending}
+                                      onClick={() =>
+                                        openStudentRemovalConfirm(
+                                          student.id as number,
+                                          student.name,
+                                        )
+                                      }
+                                    >
+                                      분반 소속 해제
+                                    </DangerButton>
+                                  )}
                                 </StudentRowActions>
                               ) : null}
                             </StudentListItem>
@@ -511,13 +578,15 @@ export function AdminClassroomsSection({
                         >
                           삭제
                         </DangerButton>
-                        <SmallButton
-                          type="button"
-                          disabled={!selectedClassroomId}
-                          onClick={openStudentCreateModal}
-                        >
-                          학생 등록
-                        </SmallButton>
+                        {(canRegisterStudent || canManageStudentMembership) && (
+                          <SmallButton
+                            ref={pickerTrigger}
+                            type="button"
+                            onClick={() => setStudentSearch("")}
+                          >
+                            학생 등록
+                          </SmallButton>
+                        )}
                       </>
                     )}
                   </ButtonRow>
@@ -577,6 +646,93 @@ export function AdminClassroomsSection({
         </ModalBackdrop>
       ) : null}
 
+      {selectedClassroomId !== null && studentSearch !== null ? (
+        <ModalBackdrop
+          onMouseDown={() => !addStudentMembership.isPending && setStudentSearch(null)}
+        >
+          <ModalDialog
+            role="dialog"
+            aria-modal="true"
+            ref={pickerDialog}
+            aria-labelledby="student-picker-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <ModalHeader>
+              <SectionTitle id="student-picker-title">학생 등록</SectionTitle>
+              <SmallButton
+                type="button"
+                disabled={addStudentMembership.isPending}
+                onClick={() => setStudentSearch(null)}
+              >
+                닫기
+              </SmallButton>
+            </ModalHeader>
+            <StudentSearchRow>
+              <TextInput
+                aria-label="학생 이름 검색"
+                placeholder="학생 이름 검색"
+                value={studentSearch}
+                onChange={(event) => setStudentSearch(event.target.value)}
+              />
+              {canRegisterStudent && (
+                <SmallButton
+                  type="button"
+                  disabled={addStudentMembership.isPending}
+                  onClick={openStudentCreateModal}
+                >
+                  신규 학생 등록
+                </SmallButton>
+              )}
+            </StudentSearchRow>
+            <DataState
+              isLoading={studentDirectory.isLoading}
+              isError={studentDirectory.isError}
+              isEmpty={!studentDirectory.data?.length}
+              loadingLabel="학생 목록 불러오는 중"
+              errorLabel="학생 목록을 불러오지 못했습니다."
+              emptyLabel="검색된 학생이 없습니다."
+              compact
+            >
+              <StudentList>
+                {studentDirectory.data?.map((student, index) => {
+                  const id = student.id;
+                  const classrooms = student.classrooms ?? [];
+                  const isMember = classrooms.some(
+                    (classroom) => classroom.id === selectedClassroomId,
+                  );
+                  return (
+                    <StudentListItem key={id ?? index}>
+                      <StudentIdentity>
+                        <strong>{student.name || "이름 없음"}</strong>
+                        <span>{student.phoneNumber || "연락처 미등록"}</span>
+                        <span>
+                          {classrooms.map((classroom) => classroom.name).join(", ") || "무소속"}
+                        </span>
+                      </StudentIdentity>
+                      {(canManageStudentMembership || isMember) && (
+                        <SmallButton
+                          type="button"
+                          disabled={isMember || !id || addStudentMembership.isPending}
+                          onClick={() =>
+                            id &&
+                            addStudentMembership.mutate({
+                              studentId: id,
+                              classroomId: selectedClassroomId,
+                            })
+                          }
+                        >
+                          {isMember ? "이미 소속된 학생" : "추가"}
+                        </SmallButton>
+                      )}
+                    </StudentListItem>
+                  );
+                })}
+              </StudentList>
+            </DataState>
+          </ModalDialog>
+        </ModalBackdrop>
+      ) : null}
+
       {isStudentCreateModalOpen ? (
         <ModalBackdrop onMouseDown={closeStudentCreateModal}>
           <ModalDialog
@@ -629,28 +785,30 @@ export function AdminClassroomsSection({
         </ModalBackdrop>
       ) : null}
 
-      {studentDeleteTarget ? (
-        <ModalBackdrop onMouseDown={closeStudentDeleteConfirm}>
+      {studentRemovalTarget ? (
+        <ModalBackdrop onMouseDown={closeStudentRemovalConfirm}>
           <ConfirmDialog
             role="dialog"
             aria-modal="true"
-            aria-labelledby="student-delete-confirm-title"
+            aria-labelledby="student-removal-confirm-title"
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <ConfirmTitle id="student-delete-confirm-title">학생 삭제</ConfirmTitle>
-            <ConfirmMessage>{studentDeleteTarget.name} 학생을 삭제하시겠습니까?</ConfirmMessage>
+            <ConfirmTitle id="student-removal-confirm-title">분반 소속 해제</ConfirmTitle>
+            <ConfirmMessage>
+              {studentRemovalTarget.name} 학생의 {selectedClassroomName} 소속을 해제하시겠습니까?
+            </ConfirmMessage>
             <ButtonRow>
               <DangerButton
                 type="button"
-                disabled={deleteStudentMutation.isPending}
-                onClick={confirmStudentDelete}
+                disabled={removeStudentMembership.isPending}
+                onClick={confirmStudentRemoval}
               >
                 확인
               </DangerButton>
               <SmallButton
                 type="button"
-                disabled={deleteStudentMutation.isPending}
-                onClick={closeStudentDeleteConfirm}
+                disabled={removeStudentMembership.isPending}
+                onClick={closeStudentRemovalConfirm}
               >
                 취소
               </SmallButton>
@@ -754,6 +912,7 @@ function StudentCreateFields({ form, disabled, setStudentCreateForm }: StudentCr
       <Label>
         이름
         <TextInput
+          autoFocus
           value={form.name}
           disabled={disabled}
           onChange={(event) =>
@@ -964,6 +1123,12 @@ const StudentSummarySection = styled.section`
   gap: ${spacing.space8};
   padding-top: ${spacing.space8};
   border-top: 1px solid #e6e9e7;
+`;
+
+const StudentSearchRow = styled.div`
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: ${spacing.space8};
 `;
 
 const StudentList = styled(List)`

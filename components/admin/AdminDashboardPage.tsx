@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { isAxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ToastContainer, toast } from "react-toastify";
@@ -52,7 +53,8 @@ import {
 } from "@/api/classroom/classroom.api";
 import {
   createStudent,
-  deleteStudent,
+  addStudentToClassroom,
+  removeStudentFromClassroom,
   getStudents,
   updateStudent,
 } from "@/api/student/student.api";
@@ -470,6 +472,14 @@ export default function AdminDashboardPage() {
   const { status, user, signOut } = useAuthSession();
   const hasAdminAccess =
     status === "authenticated" && (user?.role === "ADMIN" || user?.role === "MANAGER");
+  const studentPermissions = user?.permissions?.map(
+    (permission) => permission.permissionCode ?? permission.code,
+  );
+  const canRegisterStudent =
+    user?.role === "ADMIN" || !!studentPermissions?.includes("student:write:*");
+  const canManageStudentMembership =
+    user?.role === "ADMIN" || !!studentPermissions?.includes("student:manage:*");
+  const [studentSearch, setStudentSearch] = useState<string | null>(null);
   const [activeMenu, setActiveMenu] = useState<AdminMenu>("dashboard");
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<number | null>(null);
@@ -537,6 +547,7 @@ export default function AdminDashboardPage() {
     setIsDepartmentDeleteConfirmOpen(false);
     setIsClassroomDeleteConfirmOpen(false);
     setIsStudentCreateModalOpen(false);
+    setStudentSearch(null);
     setStudentCreateForm(emptyStudentCreateForm);
     setPostEdit(emptyPostEdit);
     setReviewNote("");
@@ -1061,6 +1072,7 @@ export default function AdminDashboardPage() {
     setIsClassroomEditing(false);
     setIsClassroomDeleteConfirmOpen(false);
     setIsStudentCreateModalOpen(false);
+    setStudentSearch(null);
     setStudentCreateForm(emptyStudentCreateForm);
     setClassroomForm({
       name: item.name ?? "",
@@ -1430,25 +1442,45 @@ export default function AdminDashboardPage() {
       notifySuccess("학생을 등록했습니다.");
       setIsStudentCreateModalOpen(false);
       setStudentCreateForm(emptyStudentCreateForm);
-      if (selectedClassroomId !== null) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.students.list({ classroomId: selectedClassroomId }),
-        });
-      }
+      return queryClient.invalidateQueries({ queryKey: queryKeys.students.list() });
     },
-    onError: (error) => notifyError(getErrorMessage(error, "학생 등록에 실패했습니다.")),
+    onError: async (error) => {
+      if (isAxiosError(error) && error.response?.data?.code === "BIZ-04-001") {
+        notifyError("같은 이름과 연락처로 등록된 학생이 있습니다. 기존 학생을 확인해 주세요.");
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.students.list(),
+          refetchType: "none",
+        });
+        setStudentSearch(studentCreateForm.name.trim());
+        setIsStudentCreateModalOpen(false);
+        return;
+      }
+      notifyError(getErrorMessage(error, "학생 등록에 실패했습니다."));
+    },
   });
-  const deleteStudentMutation = useMutation({
-    mutationFn: (studentId: number) => deleteStudent({ studentId }),
-    onSuccess: () => {
-      notifySuccess("학생을 삭제했습니다.");
-      if (selectedClassroomId !== null) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.students.list({ classroomId: selectedClassroomId }),
-        });
-      }
+  const addStudentMembership = useMutation({
+    mutationFn: addStudentToClassroom,
+    onSuccess: async () => {
+      notifySuccess("현재 분반에 학생을 추가했습니다.");
+      setStudentSearch(null);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.students.list() });
     },
-    onError: (error) => notifyError(getErrorMessage(error, "학생 삭제에 실패했습니다.")),
+    onError: (error) => notifyError(getErrorMessage(error, "분반 소속 추가에 실패했습니다.")),
+  });
+  const removeStudentMembership = useMutation({
+    mutationFn: removeStudentFromClassroom,
+    onSuccess: async () => {
+      notifySuccess("분반 소속을 해제했습니다.");
+      await queryClient.invalidateQueries({ queryKey: queryKeys.students.list() });
+    },
+    onError: async (error) => {
+      if (isAxiosError(error) && error.response?.data?.code === "RES-04-002") {
+        notifyError("이미 해제되었거나 소속되지 않은 학생입니다");
+        await queryClient.invalidateQueries({ queryKey: queryKeys.students.list() });
+        return;
+      }
+      notifyError(getErrorMessage(error, "분반 소속 해제에 실패했습니다."));
+    },
   });
   const updateStudentMutation = useMutation({
     mutationFn: (payload: { studentId: number; form: StudentCreateFormState }) =>
@@ -1458,16 +1490,11 @@ export default function AdminDashboardPage() {
           name: payload.form.name.trim(),
           phoneNumber: payload.form.phoneNumber.trim(),
           description: payload.form.description.trim(),
-          classroomIds: selectedClassroomId !== null ? [selectedClassroomId] : undefined,
         },
       ),
     onSuccess: () => {
       notifySuccess("학생 정보를 수정했습니다.");
-      if (selectedClassroomId !== null) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.students.list({ classroomId: selectedClassroomId }),
-        });
-      }
+      return queryClient.invalidateQueries({ queryKey: queryKeys.students.list() });
     },
     onError: (error) => notifyError(getErrorMessage(error, "학생 수정에 실패했습니다.")),
   });
@@ -1879,7 +1906,12 @@ export default function AdminDashboardPage() {
               updateClassroomMutation={updateClassroomMutation}
               deleteClassroomMutation={deleteClassroomMutation}
               createStudentMutation={createStudentMutation}
-              deleteStudentMutation={deleteStudentMutation}
+              addStudentMembership={addStudentMembership}
+              removeStudentMembership={removeStudentMembership}
+              canRegisterStudent={canRegisterStudent}
+              canManageStudentMembership={canManageStudentMembership}
+              studentSearch={studentSearch}
+              setStudentSearch={setStudentSearch}
               updateStudentMutation={updateStudentMutation}
               setSelectedClassroomId={setSelectedClassroomId}
               setIsClassroomEditing={setIsClassroomEditing}
