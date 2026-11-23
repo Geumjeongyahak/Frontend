@@ -47,6 +47,10 @@ export function extractApiErrorMessage(error: unknown, fallback: string) {
         return payload.title;
       }
     }
+
+    // 서버가 쓸 만한 메시지를 주지 않았다면 axios의 영어 기본 메시지("Request failed with status code 500")
+    // 대신 호출부의 안내 문구를 쓴다.
+    return fallback;
   }
 
   if (error instanceof Error && error.message.trim()) {

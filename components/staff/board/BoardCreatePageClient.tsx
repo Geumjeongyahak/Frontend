@@ -44,7 +44,13 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
+import {
+  assertAttachmentChangeAllowed,
+  detachRemovedAttachments,
+  needsDraftForAttachmentChanges,
+} from "@/lib/post/attachmentChanges";
 
 type OpenDropdown = "type" | "scope" | null;
 
@@ -227,7 +233,7 @@ export default function BoardCreatePageClient({
       : scopeOptions.find((option) => option.value === selectedBoardScope)?.label ??
         (selectedBoardType === "CLASSROOM" ? "반별 게시판" : "부서별 게시판");
 
-  const { mutate, isPending, isError } = useMutation({
+  const { mutate, isPending, isError, error } = useMutation({
     mutationFn: async () => {
       const channelId = isEditMode ? editChannelId : selectedChannelId;
 
@@ -246,17 +252,18 @@ export default function BoardCreatePageClient({
       const hasFileUpload = selectedFiles.length > 0;
       shouldShowUploadToastRef.current = hasFileUpload;
 
-      if (hasFileUpload && isEditMode && !isPostAuthor) {
-        throw new Error("다른 사람이 작성한 글에는 파일을 추가할 수 없습니다.");
-      }
+      // 첨부 변경은 작성자 본인의 초안에서만 가능하다. 초안으로 바꾸기 전에 막는다.
+      assertAttachmentChangeAllowed({
+        isEditMode,
+        isAuthor: isPostAuthor,
+        newFileCount: selectedFiles.length,
+        removedFileIds: removedAttachmentIds,
+      });
 
-      const detachRemovedAttachments = async (postId: number) => {
-        for (const fileId of removedAttachmentIds) {
-          await detachPostAttachment({ channelId, postId, fileId });
-        }
-      };
-
-      if (hasFileUpload) {
+      if (needsDraftForAttachmentChanges({
+        newFileCount: selectedFiles.length,
+        removedFileIds: removedAttachmentIds,
+      })) {
         const draftPost = isEditMode
           ? await updatePost(
               { channelId, postId: editPostId },
@@ -276,7 +283,10 @@ export default function BoardCreatePageClient({
           );
         }
 
-        await detachRemovedAttachments(draftPost.id);
+        const draftPostId = draftPost.id;
+        await detachRemovedAttachments(removedAttachmentIds, (fileId) =>
+          detachPostAttachment({ channelId, postId: draftPostId, fileId }),
+        );
 
         const published = await publishPost({ channelId, postId: draftPost.id }, publishBody);
 
@@ -292,8 +302,6 @@ export default function BoardCreatePageClient({
           { channelId, postId: editPostId },
           { title, contentHtml, status: "PUBLISHED", allowComment },
         );
-
-        await detachRemovedAttachments(editPostId);
 
         if (canPinPost && visibleIsPinned !== initialPinned) {
           await pinPost({ channelId, postId: editPostId }, { isPinned: visibleIsPinned });
@@ -510,7 +518,10 @@ export default function BoardCreatePageClient({
           ) : null}
           {isError ? (
             <StateMessage>
-              {isEditMode ? "게시글 수정에 실패했습니다." : "게시글 작성에 실패했습니다."}
+              {extractApiErrorMessage(
+                error,
+                isEditMode ? "게시글 수정에 실패했습니다." : "게시글 작성에 실패했습니다.",
+              )}
             </StateMessage>
           ) : null}
         </Form>

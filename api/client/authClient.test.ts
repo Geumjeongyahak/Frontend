@@ -149,6 +149,57 @@ describe("authClient", () => {
     expect(getRefreshToken()).toBeNull();
   });
 
+  it("keeps stored tokens when refresh fails with a server error", async () => {
+    setTokens(EXPIRED_ACCESS_TOKEN, VALID_REFRESH_TOKEN);
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/protected/profile`, () => {
+        return HttpResponse.json({ message: "Access token expired" }, { status: 401 });
+      }),
+      http.post(`${API_BASE_URL}/api/v1/auth/refresh`, () => {
+        return HttpResponse.json({ message: "Bad gateway" }, { status: 502 });
+      }),
+    );
+
+    await expect(authClient.get("/api/v1/protected/profile")).rejects.toMatchObject({
+      response: { status: 502 },
+    });
+    expect(getAccessToken()).toBe(EXPIRED_ACCESS_TOKEN);
+    expect(getRefreshToken()).toBe(VALID_REFRESH_TOKEN);
+  });
+
+  it("keeps stored tokens when refresh fails because of a network error", async () => {
+    setTokens(EXPIRED_ACCESS_TOKEN, VALID_REFRESH_TOKEN);
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/protected/profile`, () => {
+        return HttpResponse.json({ message: "Access token expired" }, { status: 401 });
+      }),
+      http.post(`${API_BASE_URL}/api/v1/auth/refresh`, () => HttpResponse.error()),
+    );
+
+    await expect(authClient.get("/api/v1/protected/profile")).rejects.toBeTruthy();
+    expect(getAccessToken()).toBe(EXPIRED_ACCESS_TOKEN);
+    expect(getRefreshToken()).toBe(VALID_REFRESH_TOKEN);
+  });
+
+  it("clears stored tokens when the refresh endpoint reports AUTH004", async () => {
+    setTokens(EXPIRED_ACCESS_TOKEN, VALID_REFRESH_TOKEN);
+
+    server.use(
+      http.get(`${API_BASE_URL}/api/v1/protected/profile`, () => {
+        return HttpResponse.json({ message: "Access token expired" }, { status: 401 });
+      }),
+      http.post(`${API_BASE_URL}/api/v1/auth/refresh`, () => {
+        return HttpResponse.json({ code: "AUTH004", message: "Refresh expired" }, { status: 400 });
+      }),
+    );
+
+    await expect(authClient.get("/api/v1/protected/profile")).rejects.toBeTruthy();
+    expect(getAccessToken()).toBeNull();
+    expect(getRefreshToken()).toBeNull();
+  });
+
   it("keeps newer tokens when an older refresh request fails", async () => {
     let releaseRefresh: () => void = () => undefined;
     const refreshStarted = new Promise<void>((resolve) => {

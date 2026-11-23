@@ -36,7 +36,13 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
+import {
+  assertAttachmentChangeAllowed,
+  detachRemovedAttachments,
+  needsDraftForAttachmentChanges,
+} from "@/lib/post/attachmentChanges";
 import { layout, spacing } from "@/styles/tokens";
 
 type EventFormPageClientProps = {
@@ -85,7 +91,7 @@ export default function EventFormPageClient({
     ? status === "authenticated"
     : canManageEventPost(user, postDetailQuery.data);
 
-  const { mutate, isPending, isError } = useMutation({
+  const { mutate, isPending, isError, error } = useMutation({
     mutationFn: async () => {
       const channelId = isEditMode ? editChannelId : eventChannel?.id;
 
@@ -111,17 +117,19 @@ export default function EventFormPageClient({
 
       const isPostAuthor =
         typeof user?.id === "number" && postDetailQuery.data?.authorId === user.id;
-      if (hasFileUpload && isEditMode && !isPostAuthor) {
-        throw new Error("다른 사람이 작성한 글에는 파일을 추가할 수 없습니다.");
-      }
 
-      const detachRemovedAttachments = async (postId: number) => {
-        for (const fileId of removedAttachmentIds) {
-          await detachPostAttachment({ channelId, postId, fileId });
-        }
-      };
+      // 첨부 변경은 작성자 본인의 초안에서만 가능하다. 초안으로 바꾸기 전에 막는다.
+      assertAttachmentChangeAllowed({
+        isEditMode,
+        isAuthor: isPostAuthor,
+        newFileCount: selectedFiles.length,
+        removedFileIds: removedAttachmentIds,
+      });
 
-      if (hasFileUpload) {
+      if (needsDraftForAttachmentChanges({
+        newFileCount: selectedFiles.length,
+        removedFileIds: removedAttachmentIds,
+      })) {
         const draftPost = isEditMode
           ? await updatePost({ channelId, postId: editPostId }, { ...publishBody, status: "DRAFT" })
           : await createPost({ channelId }, { ...publishBody, status: "DRAFT" });
@@ -138,18 +146,19 @@ export default function EventFormPageClient({
           );
         }
 
-        await detachRemovedAttachments(draftPost.id);
+        const draftPostId = draftPost.id;
+        await detachRemovedAttachments(removedAttachmentIds, (fileId) =>
+          detachPostAttachment({ channelId, postId: draftPostId, fileId }),
+        );
 
         return publishPost({ channelId, postId: draftPost.id }, publishBody);
       }
 
       if (isEditMode) {
-        const updated = await updatePost(
+        return updatePost(
           { channelId, postId: editPostId },
           { ...publishBody, status: "PUBLISHED" },
         );
-        await detachRemovedAttachments(editPostId);
-        return updated;
       }
 
       return createPost({ channelId }, { ...publishBody, status: "PUBLISHED" });
@@ -279,7 +288,10 @@ export default function EventFormPageClient({
           ) : null}
           {isError ? (
             <StateMessage>
-              {isEditMode ? "행사 정보 수정에 실패했습니다." : "행사 정보 작성에 실패했습니다."}
+              {extractApiErrorMessage(
+                error,
+                isEditMode ? "행사 정보 수정에 실패했습니다." : "행사 정보 작성에 실패했습니다.",
+              )}
             </StateMessage>
           ) : null}
         </Form>

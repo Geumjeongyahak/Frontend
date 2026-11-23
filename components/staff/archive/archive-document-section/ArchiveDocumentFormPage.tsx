@@ -8,7 +8,6 @@ import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
-import { deleteAttachment } from "@/api/file/file.api";
 import { createPost, getPost, pinPost, updatePost } from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
@@ -37,6 +36,11 @@ import {
   Toolbar,
 } from "@/components/staff/board/BoardDocument.styles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
+import {
+  assertAttachmentChangeAllowed,
+  needsDraftForAttachmentChanges,
+} from "@/lib/post/attachmentChanges";
 import {
   publishArchivePostWithNewFiles,
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
@@ -215,6 +219,7 @@ export default function ArchiveDocumentFormPage({
   const [scopeType, setScopeType] = useState<ArchiveScopeType>("CLASSROOM");
   const [scopeValue, setScopeValue] = useState("");
   const [openDropdown, setOpenDropdown] = useState<OpenDropdown>(null);
+  const [removedAttachmentIds, setRemovedAttachmentIds] = useState<string[]>([]);
   const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[] | null>(
     null,
   );
@@ -351,7 +356,10 @@ export default function ArchiveDocumentFormPage({
         postDetailQuery.data.authorName === user?.email),
     );
 
-  const { mutate, isPending, isError } = useMutation({
+  const isPostAuthor =
+    typeof user?.id === "number" && postDetailQuery.data?.authorId === user.id;
+
+  const { mutate, isPending, isError, error } = useMutation({
     mutationFn: async () => {
       if (!channelId) {
         throw new Error(`${config.title} 채널을 찾을 수 없습니다.`);
@@ -362,7 +370,15 @@ export default function ArchiveDocumentFormPage({
       const hasFileUpload = files.length > 0;
       shouldShowUploadToastRef.current = hasFileUpload;
 
-      if (hasFileUpload) {
+      // 첨부 변경은 작성자 본인의 초안에서만 가능하다. 초안으로 바꾸기 전에 막는다.
+      assertAttachmentChangeAllowed({
+        isEditMode,
+        isAuthor: isPostAuthor,
+        newFileCount: files.length,
+        removedFileIds: removedAttachmentIds,
+      });
+
+      if (needsDraftForAttachmentChanges({ newFileCount: files.length, removedFileIds: removedAttachmentIds })) {
         return publishArchivePostWithNewFiles({
           channelId,
           title,
@@ -370,6 +386,7 @@ export default function ArchiveDocumentFormPage({
           allowComment: visibleAllowComment,
           isPinned: visibleIsPinned,
           files,
+          removedFileIds: removedAttachmentIds,
           errorLabel: config.title,
           ...(isEditMode
             ? {
@@ -446,7 +463,8 @@ export default function ArchiveDocumentFormPage({
 
   async function handleRemoveExistingAttachment(fileId: string) {
     const currentAttachments = visibleExistingAttachments;
-    await deleteAttachment({ fileId });
+    // 서버 삭제는 저장 시점에 detachPostAttachment로 처리한다. 취소하면 그대로 남는다.
+    setRemovedAttachmentIds((current) => [...current, fileId]);
     setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
   }
 
@@ -601,9 +619,12 @@ export default function ArchiveDocumentFormPage({
         {!canManagePost ? <StateMessage>이 글을 수정할 권한이 없습니다.</StateMessage> : null}
         {isError ? (
           <StateMessage>
-            {isEditMode
-              ? `${config.title} 수정에 실패했습니다.`
-              : `${config.title} 작성에 실패했습니다.`}
+            {extractApiErrorMessage(
+              error,
+              isEditMode
+                ? `${config.title} 수정에 실패했습니다.`
+                : `${config.title} 작성에 실패했습니다.`,
+            )}
           </StateMessage>
         ) : null}
       </Form>
