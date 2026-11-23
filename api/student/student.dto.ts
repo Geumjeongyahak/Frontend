@@ -4,6 +4,10 @@ export interface StudentPathParamsDto {
   studentId: number;
 }
 
+export interface StudentClassroomPathParamsDto extends StudentPathParamsDto {
+  classroomId: number;
+}
+
 export interface StudentListQueryParamsDto {
   name?: string;
   status?: StudentStatus;

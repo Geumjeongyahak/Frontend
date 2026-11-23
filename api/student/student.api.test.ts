@@ -1,7 +1,3 @@
-/**
- * Tests representative student API functions: getStudents, createStudent,
- * and updateStudent.
- */
 import "../../test/setup";
 
 import { HttpResponse, http } from "msw";
@@ -12,7 +8,13 @@ import { STUDENT_LIST_RESPONSE } from "../../mocks/handlers/student.handlers";
 import { server } from "../../mocks/server";
 import { setAccessToken } from "../client/tokenStorage";
 
-import { createStudent, getStudents, updateStudent } from "./student.api";
+import {
+  addStudentToClassroom,
+  createStudent,
+  getStudents,
+  removeStudentFromClassroom,
+  updateStudent,
+} from "./student.api";
 
 describe("student.api", () => {
   it("returns students with auth header and query params", async () => {
@@ -82,10 +84,54 @@ describe("student.api", () => {
       }),
     );
 
-    await expect(
-      updateStudent({ studentId: 999 }, { status: "COMPLETED" }),
-    ).rejects.toMatchObject({
+    await expect(updateStudent({ studentId: 999 }, { status: "COMPLETED" })).rejects.toMatchObject({
       response: { status: 404 },
+    });
+  });
+
+  it("adds a classroom with a bodyless PUT and returns the updated student", async () => {
+    const student = {
+      ...STUDENT_LIST_RESPONSE[0],
+      classrooms: [...STUDENT_LIST_RESPONSE[0].classrooms, { id: 2, name: "장미반" }],
+    };
+    let requestBody: string | undefined;
+    server.use(
+      http.put(`${API_BASE_URL}/api/v1/students/1/classrooms/2`, async ({ request }) => {
+        requestBody = await request.text();
+        return HttpResponse.json(student);
+      }),
+    );
+
+    await expect(addStudentToClassroom({ studentId: 1, classroomId: 2 })).resolves.toEqual(student);
+    expect(requestBody).toBe("");
+  });
+
+  it("removes just the selected classroom with a bodyless DELETE and accepts 204", async () => {
+    let requestBody: string | undefined;
+    server.use(
+      http.delete(`${API_BASE_URL}/api/v1/students/1/classrooms/2`, async ({ request }) => {
+        requestBody = await request.text();
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    await expect(
+      removeStudentFromClassroom({ studentId: 1, classroomId: 2 }),
+    ).resolves.toBeUndefined();
+    expect(requestBody).toBe("");
+  });
+
+  it("preserves the server error when the membership was already removed", async () => {
+    server.use(
+      http.delete(`${API_BASE_URL}/api/v1/students/1/classrooms/2`, () =>
+        HttpResponse.json({ code: "RES-04-002" }, { status: 404 }),
+      ),
+    );
+
+    await expect(
+      removeStudentFromClassroom({ studentId: 1, classroomId: 2 }),
+    ).rejects.toMatchObject({
+      response: { status: 404, data: { code: "RES-04-002" } },
     });
   });
 });
