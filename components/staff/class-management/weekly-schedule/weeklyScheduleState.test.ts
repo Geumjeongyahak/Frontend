@@ -269,6 +269,47 @@ describe("weeklyScheduleState", () => {
     expect(getSubjectsForCell(subjects, 10, "MONDAY", "2026-06-15")).toEqual([subjects[0]]);
   });
 
+  it("keeps subjects whose period overlaps a date range, latest start first per period", () => {
+    const subjects: SubjectDetailResponseDto[] = [
+      {
+        id: 1,
+        classroomId: 8,
+        dayOfWeek: "SATURDAY",
+        period: 1,
+        startAt: "2026-02-01",
+        endAt: "2026-06-30",
+      },
+      {
+        id: 2,
+        classroomId: 8,
+        dayOfWeek: "SATURDAY",
+        period: 1,
+        startAt: "2026-06-29",
+        endAt: "2026-09-30",
+      },
+      {
+        id: 3,
+        classroomId: 8,
+        dayOfWeek: "SATURDAY",
+        period: 1,
+        startAt: "2026-09-15",
+        endAt: "2026-10-15",
+      },
+      {
+        id: 4,
+        classroomId: 8,
+        dayOfWeek: "SATURDAY",
+        period: 2,
+        startAt: "2026-10-01",
+        endAt: "2026-10-31",
+      },
+    ];
+
+    expect(
+      getSubjectsForCell(subjects, 8, "SATURDAY", "2026-09-01", "2026-09-30").map(({ id }) => id),
+    ).toEqual([3, 2]);
+  });
+
   it("does not show attendance status before the lesson start time", () => {
     const now = dayjs();
     const date = now.add(1, "day").format("YYYY-MM-DD");

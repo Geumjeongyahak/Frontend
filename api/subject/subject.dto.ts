@@ -76,3 +76,25 @@ export type SubjectListItemDto = SubjectDetailResponseDto;
 export interface SubjectPathParamsDto {
   subjectId: number;
 }
+
+// 과목 기간 복사 (POST /api/v1/subjects/copy). 하나라도 실패하면 아무것도 저장되지 않는다.
+export interface CopySubjectsRequestDto {
+  subjectIds: number[];
+  startAt: string;
+  endAt: string;
+}
+
+export interface CopySubjectsResponseDto {
+  copiedCount: number;
+  subjects: SubjectDetailResponseDto[];
+}
+
+export interface CopySubjectFailureDto {
+  sourceSubjectId: number;
+  classroomId?: number;
+  classroomName?: string;
+  dayOfWeek?: SubjectDayOfWeek;
+  period?: number;
+  subjectName?: string;
+  reason: string;
+}

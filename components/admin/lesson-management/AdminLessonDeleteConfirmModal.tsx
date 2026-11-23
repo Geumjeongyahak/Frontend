@@ -10,6 +10,7 @@ import { colors, radii, spacing, typography } from "@/styles/tokens";
 
 type AdminLessonDeleteConfirmModalProps = {
   open: boolean;
+  title?: string;
   message: string;
   isPending: boolean;
   onCancel: () => void;
@@ -18,6 +19,7 @@ type AdminLessonDeleteConfirmModalProps = {
 
 export function AdminLessonDeleteConfirmModal({
   open,
+  title = "수업 삭제",
   message,
   isPending,
   onCancel,
@@ -33,10 +35,11 @@ export function AdminLessonDeleteConfirmModal({
         aria-labelledby="lesson-delete-title"
         onClick={(event) => event.stopPropagation()}
       >
-        <Title id="lesson-delete-title">수업 삭제</Title>
+        <Title id="lesson-delete-title">{title}</Title>
         <Message>{message}</Message>
         <ButtonRow>
-          <SmallButton type="button" disabled={isPending} onClick={onCancel}>
+          {/* 열리면 덜 파괴적인 취소 버튼에 포커스를 둔다 */}
+          <SmallButton type="button" disabled={isPending} onClick={onCancel} autoFocus>
             취소
           </SmallButton>
           <DangerButton type="button" disabled={isPending} onClick={onConfirm}>

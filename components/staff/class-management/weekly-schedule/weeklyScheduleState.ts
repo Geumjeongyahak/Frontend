@@ -70,16 +70,18 @@ export function getSubjectsForCell(
   classroomId: number | null,
   dayOfWeek: SubjectDayOfWeek,
   date?: string,
+  endDate = date,
 ) {
   if (classroomId == null) return [];
 
+  // 같은 교시가 여러 개면 가장 늦게 시작한 과목이 앞에 온다 (getPeriodSubject가 첫 항목을 고른다)
   return subjects
     .filter((subject) => {
       if (subject.classroomId !== classroomId || subject.dayOfWeek !== dayOfWeek) {
         return false;
       }
 
-      if (date && subject.startAt && subject.startAt > date) {
+      if (endDate && subject.startAt && subject.startAt > endDate) {
         return false;
       }
 
@@ -89,7 +91,10 @@ export function getSubjectsForCell(
 
       return true;
     })
-    .sort((a, b) => (a.period ?? 0) - (b.period ?? 0));
+    .sort(
+      (a, b) =>
+        (a.period ?? 0) - (b.period ?? 0) || (b.startAt ?? "").localeCompare(a.startAt ?? ""),
+    );
 }
 
 export function getPeriodSubject(subjects: SubjectDetailResponseDto[], period: number) {
