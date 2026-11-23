@@ -557,7 +557,7 @@ const HiddenNativeDateInput = styled.input`
   opacity: 0;
   pointer-events: none; /* 마우스: showPicker 흐름 유지 */
 
-  @media (pointer: coarse) {
+  @media (pointer: coarse), (hover: none) {
     pointer-events: auto; /* 터치: 날짜 input이 탭을 직접 받음 */
     z-index: 1;
     font-size: 16px; /* iOS 포커스 시 자동 확대 방지 */
