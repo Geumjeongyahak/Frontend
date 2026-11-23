@@ -8,9 +8,9 @@ import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
 import { getClassrooms } from "@/api/classroom/classroom.api";
 import { getDepartments } from "@/api/department/department.api";
-import { deleteAttachment } from "@/api/file/file.api";
 import {
   attachPostAttachment,
+  detachPostAttachment,
   createPost,
   getPost,
   pinPost,
@@ -69,6 +69,7 @@ export default function BoardCreatePageClient({
   const [isPinned, setIsPinned] = useState<boolean | undefined>(undefined);
   const [allowComment, setAllowComment] = useState<boolean | undefined>(undefined);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [removedAttachmentIds, setRemovedAttachmentIds] = useState<string[]>([]);
   const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[] | null>(
     null,
   );
@@ -217,13 +218,9 @@ export default function BoardCreatePageClient({
   const canManagePost =
     !isEditMode ||
     user?.role === "ADMIN" ||
-    (typeof user?.id === "number" && postDetailQuery.data?.authorId === user.id) ||
-    Boolean(
-      postDetailQuery.data?.authorName &&
-        (postDetailQuery.data.authorName === user?.name ||
-          postDetailQuery.data.authorName === user?.nickname ||
-          postDetailQuery.data.authorName === user?.email),
-    );
+    (typeof user?.id === "number" && postDetailQuery.data?.authorId === user.id);
+  const isPostAuthor =
+    typeof user?.id === "number" && postDetailQuery.data?.authorId === user.id;
   const selectedScopeLabel =
     selectedBoardType === "NOTICE"
       ? "공지사항"
@@ -249,6 +246,16 @@ export default function BoardCreatePageClient({
       const hasFileUpload = selectedFiles.length > 0;
       shouldShowUploadToastRef.current = hasFileUpload;
 
+      if (hasFileUpload && isEditMode && !isPostAuthor) {
+        throw new Error("다른 사람이 작성한 글에는 파일을 추가할 수 없습니다.");
+      }
+
+      const detachRemovedAttachments = async (postId: number) => {
+        for (const fileId of removedAttachmentIds) {
+          await detachPostAttachment({ channelId, postId, fileId });
+        }
+      };
+
       if (hasFileUpload) {
         const draftPost = isEditMode
           ? await updatePost(
@@ -269,6 +276,8 @@ export default function BoardCreatePageClient({
           );
         }
 
+        await detachRemovedAttachments(draftPost.id);
+
         const published = await publishPost({ channelId, postId: draftPost.id }, publishBody);
 
         if (canPinPost && visibleIsPinned !== (isEditMode ? initialPinned : false)) {
@@ -283,6 +292,8 @@ export default function BoardCreatePageClient({
           { channelId, postId: editPostId },
           { title, contentHtml, status: "PUBLISHED", allowComment },
         );
+
+        await detachRemovedAttachments(editPostId);
 
         if (canPinPost && visibleIsPinned !== initialPinned) {
           await pinPost({ channelId, postId: editPostId }, { isPinned: visibleIsPinned });
@@ -348,7 +359,8 @@ export default function BoardCreatePageClient({
   async function handleRemoveExistingAttachment(fileId: string) {
     const currentAttachments = visibleExistingAttachments;
 
-    await deleteAttachment({ fileId });
+    // 서버 삭제는 저장 시점에 detachPostAttachment로 처리한다. 취소하면 그대로 남는다.
+    setRemovedAttachmentIds((current) => [...current, fileId]);
     setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
   }
 

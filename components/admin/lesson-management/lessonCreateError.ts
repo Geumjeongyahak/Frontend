@@ -39,7 +39,8 @@ export function normalizeLessonTimeForApi(value: string) {
 
 export function resolveLessonCreateErrorMessage(error: unknown) {
   if (isAxiosError(error) && error.response?.status === 409) {
-    return LESSON_TIME_OVERLAP_MESSAGE;
+    // 409는 시간대 겹침 외에도 발생할 수 있으므로 서버가 준 사유를 우선한다.
+    return extractApiErrorMessage(error, LESSON_TIME_OVERLAP_MESSAGE);
   }
 
   return extractApiErrorMessage(error, "수업 생성에 실패했습니다.");

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { IconDownload, IconPaperclip, IconX } from "@tabler/icons-react";
 import styled from "styled-components";
+import { toast } from "react-toastify";
 import { getAttachmentDownloadUrl } from "@/api/file/file.api";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 
@@ -136,6 +137,8 @@ export function AttachmentDownloadList({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    } catch {
+      toast.error("첨부파일을 다운로드하지 못했습니다.");
     } finally {
       setDownloadingId((current) => (current === attachment.id ? null : current));
     }

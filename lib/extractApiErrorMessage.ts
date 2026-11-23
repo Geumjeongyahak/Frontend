@@ -30,10 +30,6 @@ export function extractApiErrorMessage(error: unknown, fallback: string) {
     if (data && typeof data === "object") {
       const payload = data as ApiErrorPayload;
 
-      if (isMeaningfulText(payload.detail)) {
-        return payload.detail;
-      }
-
       if (isMeaningfulText(payload.message)) {
         return payload.message;
       }
@@ -41,6 +37,10 @@ export function extractApiErrorMessage(error: unknown, fallback: string) {
       const firstFieldError = payload.errors?.find((item) => isMeaningfulText(item.message));
       if (firstFieldError && isMeaningfulText(firstFieldError.message)) {
         return firstFieldError.message;
+      }
+
+      if (isMeaningfulText(payload.detail)) {
+        return payload.detail;
       }
 
       if (isMeaningfulText(payload.title) && !isErrorCodeLike(payload.title)) {

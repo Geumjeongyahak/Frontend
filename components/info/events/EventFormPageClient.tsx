@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import styled from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import { deleteAttachment } from "@/api/file/file.api";
 import {
   attachPostAttachment,
+  detachPostAttachment,
   createPost,
   getPost,
   publishPost,
@@ -55,6 +55,7 @@ export default function EventFormPageClient({
   const [title, setTitle] = useState<string | undefined>(undefined);
   const [contentHtml, setContentHtml] = useState<string | undefined>(undefined);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [removedAttachmentIds, setRemovedAttachmentIds] = useState<string[]>([]);
   const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[] | null>(
     null,
   );
@@ -108,6 +109,18 @@ export default function EventFormPageClient({
         thumbnailUrl: thumbnailUrl || undefined,
       };
 
+      const isPostAuthor =
+        typeof user?.id === "number" && postDetailQuery.data?.authorId === user.id;
+      if (hasFileUpload && isEditMode && !isPostAuthor) {
+        throw new Error("다른 사람이 작성한 글에는 파일을 추가할 수 없습니다.");
+      }
+
+      const detachRemovedAttachments = async (postId: number) => {
+        for (const fileId of removedAttachmentIds) {
+          await detachPostAttachment({ channelId, postId, fileId });
+        }
+      };
+
       if (hasFileUpload) {
         const draftPost = isEditMode
           ? await updatePost({ channelId, postId: editPostId }, { ...publishBody, status: "DRAFT" })
@@ -125,14 +138,18 @@ export default function EventFormPageClient({
           );
         }
 
+        await detachRemovedAttachments(draftPost.id);
+
         return publishPost({ channelId, postId: draftPost.id }, publishBody);
       }
 
       if (isEditMode) {
-        return updatePost(
+        const updated = await updatePost(
           { channelId, postId: editPostId },
           { ...publishBody, status: "PUBLISHED" },
         );
+        await detachRemovedAttachments(editPostId);
+        return updated;
       }
 
       return createPost({ channelId }, { ...publishBody, status: "PUBLISHED" });
@@ -173,7 +190,8 @@ export default function EventFormPageClient({
 
   async function handleRemoveExistingAttachment(fileId: string) {
     const currentAttachments = visibleExistingAttachments;
-    await deleteAttachment({ fileId });
+    // 서버 삭제는 저장 시점에 detachPostAttachment로 처리한다.
+    setRemovedAttachmentIds((current) => [...current, fileId]);
     setEditableAttachments(currentAttachments.filter((file) => file.fileId !== fileId));
   }
 

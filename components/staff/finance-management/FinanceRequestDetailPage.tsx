@@ -747,12 +747,13 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
           ? attachAdminPurchaseRequestProposalReceipt
           : attachPurchaseRequestProposalReceipt;
 
-        for (const receiptId of existingReceiptIds) {
-          await deleteProposalReceipt({ requestId, receiptId });
-        }
-
+        // 새 영수증을 모두 붙인 뒤에 기존 영수증을 지운다. attach가 중간에 실패해도 기존 영수증이 남는다.
         for (const fileId of uploadedReceiptIds) {
           await attachProposalReceipt({ requestId }, { fileId });
+        }
+
+        for (const receiptId of existingReceiptIds) {
+          await deleteProposalReceipt({ requestId, receiptId });
         }
       }
 
@@ -766,7 +767,11 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       ]);
       toast.success("품의서를 수정했습니다.");
     },
-    onError: (error) => {
+    onError: async (error) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseDetail(requestId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseList() }),
+      ]);
       toast.error(extractApiErrorMessage(error, "품의서 수정에 실패했습니다."));
     },
   });

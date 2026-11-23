@@ -33,6 +33,7 @@ type HistoryLink = {
 
 type HistoryPhoto = {
   id: string;
+  fileId?: string;
   alt: string;
   src: string;
 };
@@ -224,6 +225,7 @@ export default function HistoryPage() {
 
         return {
           id: uploaded.fileId ?? `${file.name}-${Date.now()}`,
+          fileId: uploaded.fileId,
           alt: file.name,
           src: uploaded.url ?? previewSrc,
         };
@@ -270,7 +272,11 @@ export default function HistoryPage() {
       photos: form.photos.length > 0
         ? form.photos
             .filter((photo) => photo.src)
-            .map((photo) => ({ src: photo.src, alt: photo.alt || title }))
+            .map((photo) => ({
+              fileId: photo.fileId,
+              src: photo.src,
+              alt: photo.alt || title,
+            }))
         : undefined,
     };
 
