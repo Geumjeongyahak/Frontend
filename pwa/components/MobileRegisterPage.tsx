@@ -70,15 +70,7 @@ export default function MobileRegisterPage() {
   }, [form.birthDate]);
 
   function handleOpenBirthDatePicker() {
-    const input = birthDateInputRef.current;
-    if (!input) return;
-
-    if (typeof input.showPicker === "function") {
-      input.showPicker();
-      return;
-    }
-
-    input.click();
+    openDatePicker(birthDateInputRef.current);
   }
 
   function handleBirthDateChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -198,7 +190,6 @@ export default function MobileRegisterPage() {
                 name="birthDate"
                 type="date"
                 value={form.birthDate}
-                onClick={(event) => openDatePicker(event.currentTarget)}
                 onChange={handleBirthDateChange}
                 aria-hidden="true"
                 tabIndex={-1}
@@ -342,6 +333,7 @@ const PasswordInput = styled(Input)<{ $matchState: "idle" | "matched" | "mismatc
 `;
 
 const DateRow = styled.div`
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -372,10 +364,17 @@ const DateTextInput = styled.input`
 
 const HiddenNativeDateInput = styled.input`
   position: absolute;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none; /* 마우스: showPicker 흐름 유지 */
+
+  @media (pointer: coarse), (hover: none) {
+    pointer-events: auto; /* 터치: 날짜 input이 탭을 직접 받음 */
+    z-index: 1;
+    font-size: 16px; /* iOS 포커스 시 자동 확대 방지 */
+  }
 `;
 
 const CalendarButton = styled.button`

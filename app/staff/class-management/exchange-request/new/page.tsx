@@ -15,6 +15,7 @@ import {
   parseKoreanShortDateToIsoDate,
 } from "@/utils/kstShortDate";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
+import { openDatePicker } from "@/utils/datePicker";
 
 function autoResizeTextarea(element: HTMLTextAreaElement | null) {
   if (!element) return;
@@ -70,17 +71,6 @@ export default function Page() {
     },
   });
 
-  const handleOpenDatePicker = (ref: React.RefObject<HTMLInputElement | null>) => {
-    const dateInput = ref.current;
-    if (!dateInput) return;
-
-    if (typeof dateInput.showPicker === "function") {
-      dateInput.showPicker();
-      return;
-    }
-
-    dateInput.click();
-  };
 
   const handleDateChange = (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -200,7 +190,7 @@ export default function Page() {
                   placeholder="00.00.00"
                   value={lessonDateText}
                   readOnly
-                  onClick={() => handleOpenDatePicker(lessonDateInputRef)}
+                  onClick={() => openDatePicker(lessonDateInputRef.current)}
                 />
                 <HiddenNativeDateInput
                   ref={lessonDateInputRef}
@@ -213,7 +203,7 @@ export default function Page() {
                 <CalendarButton
                   type="button"
                   aria-label="수업 일자 달력 열기"
-                  onClick={() => handleOpenDatePicker(lessonDateInputRef)}
+                  onClick={() => openDatePicker(lessonDateInputRef.current)}
                 >
                   <IconCalendarMonth size={16} stroke={2} color={colors.white} />
                 </CalendarButton>
@@ -241,7 +231,7 @@ export default function Page() {
               placeholder="00.00.00"
               value={expireDateText}
               readOnly
-              onClick={() => handleOpenDatePicker(expireDateInputRef)}
+              onClick={() => openDatePicker(expireDateInputRef.current)}
             />
             <HiddenNativeDateInput
               ref={expireDateInputRef}
@@ -255,7 +245,7 @@ export default function Page() {
             <CalendarButton
               type="button"
               aria-label="만료일 달력 열기"
-              onClick={() => handleOpenDatePicker(expireDateInputRef)}
+              onClick={() => openDatePicker(expireDateInputRef.current)}
             >
               <IconCalendarMonth size={16} stroke={2} color={colors.white} />
             </CalendarButton>
@@ -521,6 +511,7 @@ const InlineSelect = styled.select`
 `;
 
 const DateRow = styled.div`
+  position: relative;
   display: inline-flex;
   align-items: center;
   width: 100%;
@@ -560,10 +551,17 @@ const DateInput = styled.input`
 
 const HiddenNativeDateInput = styled.input`
   position: absolute;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none; /* 마우스: showPicker 흐름 유지 */
+
+  @media (pointer: coarse), (hover: none) {
+    pointer-events: auto; /* 터치: 날짜 input이 탭을 직접 받음 */
+    z-index: 1;
+    font-size: 16px; /* iOS 포커스 시 자동 확대 방지 */
+  }
 `;
 
 const CalendarButton = styled.button`

@@ -8,6 +8,7 @@ import type { LessonExchangeProposalDto } from "@/api/lessonExchange/lessonExcha
 import { FieldInput, FieldTextarea } from "@/components/common/FormField";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
+import { openDatePicker } from "@/utils/datePicker";
 
 function getProposalTypeLabel(proposal: LessonExchangeProposalDto) {
   const proposalType = proposal.proposalType?.toUpperCase();
@@ -85,17 +86,6 @@ export function ExchangeProposalList({
 }: ExchangeProposalListProps) {
   const lessonDateInputRef = useRef<HTMLInputElement>(null);
 
-  const handleOpenDatePicker = () => {
-    const dateInput = lessonDateInputRef.current;
-    if (!dateInput) return;
-
-    if (typeof dateInput.showPicker === "function") {
-      dateInput.showPicker();
-      return;
-    }
-
-    dateInput.click();
-  };
 
   const handleLessonDateChange = (value: string) => {
     if (!value) return;
@@ -169,13 +159,13 @@ export function ExchangeProposalList({
                     />
                   )}
 
-                  <DateRow onClick={handleOpenDatePicker}>
+                  <DateRow onClick={() => openDatePicker(lessonDateInputRef.current)}>
                     <EditDateInput
                       aria-label="수업 일자"
                       placeholder="00.00.00"
                       value={editingProposalValues?.lessonDate ?? ""}
                       readOnly
-                      onClick={handleOpenDatePicker}
+                      onClick={() => openDatePicker(lessonDateInputRef.current)}
                     />
                     <HiddenNativeDateInput
                       ref={lessonDateInputRef}
@@ -614,6 +604,7 @@ const ActionPrimaryButton = styled(ActionPillButton)`
 `;
 
 const DateRow = styled.div`
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -651,10 +642,17 @@ const EditDateInput = styled.input`
 
 const HiddenNativeDateInput = styled.input`
   position: absolute;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none; /* 마우스: showPicker 흐름 유지 */
+
+  @media (pointer: coarse), (hover: none) {
+    pointer-events: auto; /* 터치: 날짜 input이 탭을 직접 받음 */
+    z-index: 1;
+    font-size: 16px; /* iOS 포커스 시 자동 확대 방지 */
+  }
 `;
 
 const CalendarIconWrap = styled.span`

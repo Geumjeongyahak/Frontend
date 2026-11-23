@@ -24,6 +24,7 @@ import MobileRequestShell from "@/pwa/requests/components/MobileRequestShell";
 import { getAssignmentClassNames } from "@/pwa/requests/requestFormUtils";
 import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
+import { openDatePicker } from "@/utils/datePicker";
 
 type MobileExchangeProposalsPageProps = {
   requestId: number;
@@ -306,20 +307,6 @@ export default function MobileExchangeProposalsPage({
     setProposalLessonDateText(formatIsoDateToShort(value));
   }
 
-  function openDatePicker(inputRef: React.RefObject<HTMLInputElement | null>) {
-    const input = inputRef.current;
-
-    if (!input) {
-      return;
-    }
-
-    if (typeof input.showPicker === "function") {
-      input.showPicker();
-      return;
-    }
-
-    input.click();
-  }
 
   function startProposalEdit(proposal: {
     id?: number;
@@ -494,7 +481,7 @@ export default function MobileExchangeProposalsPage({
                       placeholder="선택 안 함"
                       value={proposalLessonDateText}
                       readOnly
-                      onClick={() => openDatePicker(proposalLessonDateInputRef)}
+                      onClick={() => openDatePicker(proposalLessonDateInputRef.current)}
                     />
                     <HiddenNativeDateInput
                       ref={proposalLessonDateInputRef}
@@ -507,7 +494,7 @@ export default function MobileExchangeProposalsPage({
                     <CalendarButton
                       type="button"
                       aria-label="수업 일자 달력 열기"
-                      onClick={() => openDatePicker(proposalLessonDateInputRef)}
+                      onClick={() => openDatePicker(proposalLessonDateInputRef.current)}
                     >
                       <IconCalendarMonth size={18} stroke={2} />
                     </CalendarButton>
@@ -564,17 +551,6 @@ export default function MobileExchangeProposalsPage({
                           <FieldLabel htmlFor={`mobile-edit-proposal-date-${proposal.id}`}>
                             수업 일자
                           </FieldLabel>
-                          <HiddenNativeDateInput
-                            id={`mobile-edit-proposal-date-${proposal.id}`}
-                            type="date"
-                            value={editingProposalLessonDate}
-                            ref={editingProposalLessonDateInputRef}
-                            onChange={(event) => {
-                              const value = event.target.value;
-                              setEditingProposalLessonDate(value);
-                              setEditingProposalLessonDateText(formatIsoDateToShort(value));
-                            }}
-                          />
                           <DateFieldRow>
                             <DateDisplayInput
                               type="text"
@@ -582,12 +558,23 @@ export default function MobileExchangeProposalsPage({
                               placeholder="선택 안 함"
                               value={editingProposalLessonDateText}
                               readOnly
-                              onClick={() => openDatePicker(editingProposalLessonDateInputRef)}
+                              onClick={() => openDatePicker(editingProposalLessonDateInputRef.current)}
+                            />
+                            <HiddenNativeDateInput
+                              id={`mobile-edit-proposal-date-${proposal.id}`}
+                              type="date"
+                              value={editingProposalLessonDate}
+                              ref={editingProposalLessonDateInputRef}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setEditingProposalLessonDate(value);
+                                setEditingProposalLessonDateText(formatIsoDateToShort(value));
+                              }}
                             />
                             <CalendarButton
                               type="button"
                               aria-label="수업 일자 달력 열기"
-                              onClick={() => openDatePicker(editingProposalLessonDateInputRef)}
+                              onClick={() => openDatePicker(editingProposalLessonDateInputRef.current)}
                             >
                               <IconCalendarMonth size={18} stroke={2} />
                             </CalendarButton>
@@ -803,8 +790,16 @@ const DateDisplayInput = styled.input`
 const HiddenNativeDateInput = styled.input`
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none; /* 마우스: showPicker 흐름 유지 */
+
+  @media (pointer: coarse), (hover: none) {
+    pointer-events: auto; /* 터치: 날짜 input이 탭을 직접 받음 */
+    z-index: 1;
+    font-size: 16px; /* iOS 포커스 시 자동 확대 방지 */
+  }
 `;
 
 const CalendarButton = styled.button`

@@ -1,8 +1,7 @@
 export function openDatePicker(
-  input: HTMLInputElement & {
-    showPicker?: () => void;
-  },
+  input: (HTMLInputElement & { showPicker?: () => void }) | null | undefined,
 ) {
+  if (!input) return;
   try {
     input.showPicker?.();
   } catch {
