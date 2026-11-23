@@ -10,6 +10,7 @@ import { ExchangeRequestActionBar } from "./ExchangeRequestActionBar";
 import { ExchangePostDetail } from "./ExchangeRequestDetail";
 import { ExchangeProposalList } from "./ExchangeProposalList";
 import { useExchangePostPage } from "@/app/staff/class-management/exchange-request/[postId]/useExchangePostPage";
+import { openDatePicker } from "@/utils/datePicker";
 
 interface ExchangeRequestPageProps {
   page: ReturnType<typeof useExchangePostPage>;
@@ -19,17 +20,6 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
   const lessonDateInputRef = useRef<HTMLInputElement>(null);
   const lessonDateValue = page.proposalForm.watch("lessonDate");
 
-  const handleOpenDatePicker = (ref: React.RefObject<HTMLInputElement | null>) => {
-    const dateInput = ref.current;
-    if (!dateInput) return;
-
-    if (typeof dateInput.showPicker === "function") {
-      dateInput.showPicker();
-      return;
-    }
-
-    dateInput.click();
-  };
 
   const handleProposalLessonDateChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
@@ -120,7 +110,7 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
                       placeholder="00.00.00"
                       value={lessonDateValue}
                       readOnly
-                      onClick={() => handleOpenDatePicker(lessonDateInputRef)}
+                      onClick={() => openDatePicker(lessonDateInputRef.current)}
                     />
                     <HiddenNativeDateInput
                       ref={lessonDateInputRef}
@@ -132,7 +122,7 @@ export function ExchangeRequestPage({ page }: ExchangeRequestPageProps) {
                     <CalendarButton
                       type="button"
                       aria-label="수업 일자 달력 열기"
-                      onClick={() => handleOpenDatePicker(lessonDateInputRef)}
+                      onClick={() => openDatePicker(lessonDateInputRef.current)}
                     >
                       <IconCalendarMonth size={16} stroke={2} color={colors.white} />
                     </CalendarButton>
@@ -307,6 +297,7 @@ const ProposalFormTextarea = styled(FieldTextarea)`
 `;
 
 const DateRow = styled.div`
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
@@ -344,10 +335,17 @@ const DateInput = styled.input`
 
 const HiddenNativeDateInput = styled.input`
   position: absolute;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none; /* 마우스: showPicker 흐름 유지 */
+
+  @media (pointer: coarse) {
+    pointer-events: auto; /* 터치: 날짜 input이 탭을 직접 받음 */
+    z-index: 1;
+    font-size: 16px; /* iOS 포커스 시 자동 확대 방지 */
+  }
 `;
 
 const CalendarButton = styled.button`

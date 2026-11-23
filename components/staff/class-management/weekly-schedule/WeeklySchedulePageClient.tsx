@@ -35,6 +35,7 @@ import {
   type WeeklyScheduleLessonStatus,
   type WeeklyScheduleOverride,
 } from "./weeklyScheduleState";
+import { openDatePicker } from "@/utils/datePicker";
 
 const DEFAULT_PERIOD_COLORS: Record<(typeof DISPLAY_PERIODS)[number], string> = {
   1: colors.noticeSoft,
@@ -354,15 +355,6 @@ export default function WeeklySchedulePageClient() {
     authStatus === "loading" || (isAuthenticated && (classroomsQuery.isLoading || subjectsQuery.isLoading));
   const isBaseError = isAuthenticated && (classroomsQuery.isError || subjectsQuery.isError);
 
-  const openDatePicker = () => {
-    const input = datePickerRef.current;
-    if (!input) return;
-    if ("showPicker" in input && typeof input.showPicker === "function") {
-      input.showPicker();
-      return;
-    }
-    input.click();
-  };
 
   return (
     <PageSection>
@@ -395,18 +387,20 @@ export default function WeeklySchedulePageClient() {
           >
             ▶
           </WeekArrowButton>
-          <CalendarButton type="button" aria-label="날짜 선택" onClick={openDatePicker}>
-            <IconCalendarMonth className="calendar-icon" stroke={1.8} />
-          </CalendarButton>
-          <HiddenDateInput
-            ref={datePickerRef}
-            type="date"
-            value={dayjs(anchorDate).format("YYYY-MM-DD")}
-            onChange={(event) => {
-              if (!event.target.value) return;
-              setAnchorDate(dayjs(event.target.value).toDate());
-            }}
-          />
+          <DatePickerWrap>
+            <CalendarButton type="button" aria-label="날짜 선택" onClick={() => openDatePicker(datePickerRef.current)}>
+              <IconCalendarMonth className="calendar-icon" stroke={1.8} />
+            </CalendarButton>
+            <HiddenDateInput
+              ref={datePickerRef}
+              type="date"
+              value={dayjs(anchorDate).format("YYYY-MM-DD")}
+              onChange={(event) => {
+                if (!event.target.value) return;
+                setAnchorDate(dayjs(event.target.value).toDate());
+              }}
+            />
+          </DatePickerWrap>
         </WeekNavigator>
       </HeaderRow>
 
@@ -613,6 +607,12 @@ const WeekNavigatorLabel = styled.button`
   }
 `;
 
+const DatePickerWrap = styled.span`
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+`;
+
 const CalendarButton = styled.button`
   display: inline-flex;
   align-items: center;
@@ -648,10 +648,17 @@ const CalendarButton = styled.button`
 
 const HiddenDateInput = styled.input`
   position: absolute;
-  width: 0;
-  height: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none; /* 마우스: showPicker 흐름 유지 */
+
+  @media (pointer: coarse) {
+    pointer-events: auto; /* 터치: 날짜 input이 탭을 직접 받음 */
+    z-index: 1;
+    font-size: 16px; /* iOS 포커스 시 자동 확대 방지 */
+  }
 `;
 
 const StateText = styled.p`

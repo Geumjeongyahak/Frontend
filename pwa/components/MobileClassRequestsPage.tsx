@@ -34,6 +34,7 @@ import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { formatRequestStatus } from "@/utils/formatRequestStatus";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
 import { getLessonExchangeExpiresDateForApi, isValidIsoDate } from "@/utils/kstShortDate";
+import { openDatePicker } from "@/utils/datePicker";
 
 type RequestTab = "exchange" | "absence";
 type RequestViewMode = "mine" | "all";
@@ -481,19 +482,6 @@ export default function MobileClassRequestsPage() {
     }));
   }
 
-  function openDatePicker(inputRef: React.RefObject<HTMLInputElement | null>) {
-    const input = inputRef.current;
-    if (!input) {
-      return;
-    }
-
-    if (typeof input.showPicker === "function") {
-      input.showPicker();
-      return;
-    }
-
-    input.click();
-  }
 
   function submitExchange(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -696,7 +684,7 @@ export default function MobileClassRequestsPage() {
                           placeholder="선택해 주세요"
                           value={formatIsoDateToShort(exchangeForm.lessonDate)}
                           readOnly
-                          onClick={() => openDatePicker(exchangeLessonDateInputRef)}
+                          onClick={() => openDatePicker(exchangeLessonDateInputRef.current)}
                         />
                         <HiddenNativeDateInput
                           ref={exchangeLessonDateInputRef}
@@ -709,7 +697,7 @@ export default function MobileClassRequestsPage() {
                         <DatePickerButton
                           type="button"
                           aria-label="수업 일자 달력 열기"
-                          onClick={() => openDatePicker(exchangeLessonDateInputRef)}
+                          onClick={() => openDatePicker(exchangeLessonDateInputRef.current)}
                         >
                           <IconCalendarMonth size={18} stroke={2} />
                         </DatePickerButton>
@@ -726,7 +714,7 @@ export default function MobileClassRequestsPage() {
                           placeholder="선택해 주세요"
                           value={formatIsoDateToShort(exchangeForm.expiresOn)}
                           readOnly
-                          onClick={() => openDatePicker(exchangeExpireDateInputRef)}
+                          onClick={() => openDatePicker(exchangeExpireDateInputRef.current)}
                         />
                         <HiddenNativeDateInput
                           ref={exchangeExpireDateInputRef}
@@ -749,7 +737,7 @@ export default function MobileClassRequestsPage() {
                         <DatePickerButton
                           type="button"
                           aria-label="만료일 달력 열기"
-                          onClick={() => openDatePicker(exchangeExpireDateInputRef)}
+                          onClick={() => openDatePicker(exchangeExpireDateInputRef.current)}
                         >
                           <IconCalendarMonth size={18} stroke={2} />
                         </DatePickerButton>
@@ -825,7 +813,7 @@ export default function MobileClassRequestsPage() {
                         placeholder="선택해 주세요"
                         value={formatIsoDateToShort(absenceForm.lessonDate)}
                         readOnly
-                        onClick={() => openDatePicker(absenceLessonDateInputRef)}
+                        onClick={() => openDatePicker(absenceLessonDateInputRef.current)}
                       />
                       <HiddenNativeDateInput
                         ref={absenceLessonDateInputRef}
@@ -843,7 +831,7 @@ export default function MobileClassRequestsPage() {
                       <DatePickerButton
                         type="button"
                         aria-label="수업 일자 달력 열기"
-                        onClick={() => openDatePicker(absenceLessonDateInputRef)}
+                        onClick={() => openDatePicker(absenceLessonDateInputRef.current)}
                       >
                         <IconCalendarMonth size={18} stroke={2} />
                       </DatePickerButton>
@@ -1356,8 +1344,16 @@ const DateDisplayInput = styled(TextInput)`
 const HiddenNativeDateInput = styled.input`
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none; /* 마우스: showPicker 흐름 유지 */
+
+  @media (pointer: coarse) {
+    pointer-events: auto; /* 터치: 날짜 input이 탭을 직접 받음 */
+    z-index: 1;
+    font-size: 16px; /* iOS 포커스 시 자동 확대 방지 */
+  }
 `;
 
 const DatePickerButton = styled.button`
