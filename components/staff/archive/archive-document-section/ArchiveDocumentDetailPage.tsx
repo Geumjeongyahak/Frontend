@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import styled, { css } from "styled-components";
 import { getChannels } from "@/api/channel/channel.api";
-import { deleteAttachment } from "@/api/file/file.api";
 import { deletePost, getPost, pinPost, updatePost } from "@/api/post/post.api";
 import type { PostAttachmentInfoDto } from "@/api/post/post.dto";
 import ToastEditorField from "@/components/admin/posts/ToastEditorField";
@@ -36,6 +35,11 @@ import {
 } from "@/components/staff/archive/archive-document-section/archiveDocumentUpload";
 import type { ArchiveDocumentConfig } from "@/config/archiveDocuments";
 import { handlePostDeleteSuccess } from "@/lib/post/postDeleteCache";
+import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
+import {
+  assertAttachmentChangeAllowed,
+  needsDraftForAttachmentChanges,
+} from "@/lib/post/attachmentChanges";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, radii, spacing, typography } from "@/styles/tokens";
 import { formatUtcToKstShortDate } from "@/utils/formatUtcToKstShortDate";
@@ -60,6 +64,7 @@ export default function ArchiveDocumentDetailPage({
   const [editAllowComment, setEditAllowComment] = useState(true);
   const [editIsPinned, setEditIsPinned] = useState(false);
   const [editFiles, setEditFiles] = useState<File[]>([]);
+  const [removedAttachmentIds, setRemovedAttachmentIds] = useState<string[]>([]);
   const [editableAttachments, setEditableAttachments] = useState<PostAttachmentInfoDto[]>([]);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const shouldShowUploadToastRef = useRef(false);
@@ -134,7 +139,15 @@ export default function ArchiveDocumentDetailPage({
       shouldShowUploadToastRef.current = hasFileUpload;
       setIsUploadingFiles(hasFileUpload);
 
-      if (hasFileUpload) {
+      // 첨부 변경은 작성자 본인의 초안에서만 가능하다. 초안으로 바꾸기 전에 막는다.
+      assertAttachmentChangeAllowed({
+        isEditMode: true,
+        isAuthor: typeof user?.id === "number" && visiblePost?.authorId === user.id,
+        newFileCount: editFiles.length,
+        removedFileIds: removedAttachmentIds,
+      });
+
+      if (needsDraftForAttachmentChanges({ newFileCount: editFiles.length, removedFileIds: removedAttachmentIds })) {
         return publishArchivePostWithNewFiles({
           mode: "update",
           postId,
@@ -144,6 +157,7 @@ export default function ArchiveDocumentDetailPage({
           allowComment: editAllowComment,
           isPinned: editIsPinned,
           files: editFiles,
+          removedFileIds: removedAttachmentIds,
           errorLabel: config.title,
           initialPinned: visiblePost?.isPinned ?? false,
         });
@@ -168,6 +182,7 @@ export default function ArchiveDocumentDetailPage({
       setIsUploadingFiles(false);
       setIsEditing(false);
       setEditFiles([]);
+      setRemovedAttachmentIds([]);
       queryClient.setQueryData(queryKeys.posts.boardDetail(channelId ?? 0, postId), updatedPost);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["posts"] }),
@@ -195,7 +210,7 @@ export default function ArchiveDocumentDetailPage({
           : deletePostMutation.isError
             ? `${config.title} 삭제에 실패했습니다.`
             : updatePostMutation.isError
-              ? `${config.title} 수정에 실패했습니다.`
+              ? extractApiErrorMessage(updatePostMutation.error, `${config.title} 수정에 실패했습니다.`)
               : "";
   const canSubmitEdit =
     isEditing &&
@@ -227,10 +242,12 @@ export default function ArchiveDocumentDetailPage({
     shouldShowUploadToastRef.current = false;
     setIsUploadingFiles(false);
     setEditableAttachments(attachments ?? []);
+    setRemovedAttachmentIds([]);
   }
 
   async function handleRemoveExistingAttachment(fileId: string) {
-    await deleteAttachment({ fileId });
+    // 서버 삭제는 저장 시점에 detachPostAttachment로 처리한다. 취소하면 그대로 남는다.
+    setRemovedAttachmentIds((current) => [...current, fileId]);
     setEditableAttachments((current) => current.filter((file) => file.fileId !== fileId));
   }
 

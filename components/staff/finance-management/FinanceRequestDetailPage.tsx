@@ -46,6 +46,7 @@ import {
   proposalReceiptImageAccept,
 } from "@/components/staff/finance-management/proposalReceiptFiles";
 import { useAuthSession } from "@/hooks/useAuthSession";
+import { replaceProposalReceipts } from "./replaceProposalReceipts";
 import { extractApiErrorMessage } from "@/lib/extractApiErrorMessage";
 import { queryKeys } from "@/lib/queryKeys";
 import { colors, layout, radii, spacing, typography } from "@/styles/tokens";
@@ -730,16 +731,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
             return uploaded.fileId;
           }),
         );
-        const existingReceiptIds = (request.proposal?.receipts ?? []).map((receipt) => receipt.id);
-
-        if (
-          !existingReceiptIds.every(
-            (receiptId): receiptId is number => typeof receiptId === "number",
-          )
-        ) {
-          throw new Error("기존 품의서 영수증 정보를 확인할 수 없습니다.");
-        }
-
         const deleteProposalReceipt = isAdmin
           ? deleteAdminPurchaseRequestProposalReceipt
           : deletePurchaseRequestProposalReceipt;
@@ -747,13 +738,12 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
           ? attachAdminPurchaseRequestProposalReceipt
           : attachPurchaseRequestProposalReceipt;
 
-        for (const receiptId of existingReceiptIds) {
-          await deleteProposalReceipt({ requestId, receiptId });
-        }
-
-        for (const fileId of uploadedReceiptIds) {
-          await attachProposalReceipt({ requestId }, { fileId });
-        }
+        await replaceProposalReceipts({
+          existingReceipts: request.proposal?.receipts ?? [],
+          nextFileIds: uploadedReceiptIds,
+          attach: (fileId) => attachProposalReceipt({ requestId }, { fileId }),
+          remove: (receiptId) => deleteProposalReceipt({ requestId, receiptId }),
+        });
       }
 
       return proposal;
@@ -766,7 +756,11 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       ]);
       toast.success("품의서를 수정했습니다.");
     },
-    onError: (error) => {
+    onError: async (error) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseDetail(requestId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseList() }),
+      ]);
       toast.error(extractApiErrorMessage(error, "품의서 수정에 실패했습니다."));
     },
   });
@@ -962,17 +956,6 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       ];
 
       if (uploadedReceiptIds.some((fileId) => Boolean(fileId?.trim()))) {
-        const existingProposalReceipts = request?.proposal?.receipts ?? [];
-        const existingProposalReceiptIds = existingProposalReceipts.map((receipt) => receipt.id);
-
-        if (
-          !existingProposalReceiptIds.every(
-            (receiptId): receiptId is number => typeof receiptId === "number",
-          )
-        ) {
-          throw new Error("기존 품의서 영수증 정보를 확인할 수 없습니다.");
-        }
-
         const deleteProposalReceipt = isAdmin
           ? deleteAdminPurchaseRequestProposalReceipt
           : deletePurchaseRequestProposalReceipt;
@@ -980,13 +963,12 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
           ? attachAdminPurchaseRequestProposalReceipt
           : attachPurchaseRequestProposalReceipt;
 
-        for (const receiptId of existingProposalReceiptIds) {
-          await deleteProposalReceipt({ requestId, receiptId });
-        }
-
-        for (const fileId of currentProposalReceiptFileIds) {
-          await attachProposalReceipt({ requestId }, { fileId });
-        }
+        await replaceProposalReceipts({
+          existingReceipts: request?.proposal?.receipts ?? [],
+          nextFileIds: currentProposalReceiptFileIds,
+          attach: (fileId) => attachProposalReceipt({ requestId }, { fileId }),
+          remove: (receiptId) => deleteProposalReceipt({ requestId, receiptId }),
+        });
       }
 
       return response;
@@ -1002,6 +984,8 @@ export default function FinanceRequestDetailPage({ requestId }: FinanceRequestDe
       queryClient.invalidateQueries({ queryKey: queryKeys.vendors.list() });
     },
     onError: (error) => {
+      // 일부만 반영됐을 수 있으므로 화면을 서버 상태와 맞춘다.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.requests.purchaseDetail(requestId) });
       toast.error(
         extractApiErrorMessage(
           error,

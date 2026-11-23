@@ -28,6 +28,13 @@ function setAuthorizationHeader(headers: AxiosRequestHeaders, accessToken: strin
   headers.Authorization = `Bearer ${accessToken}`;
 }
 
+function isRefreshTokenRejected(error: unknown) {
+  if (!axios.isAxiosError(error)) return false;
+  if (error.response?.status === 401) return true;
+  const data = error.response?.data as { code?: unknown; errorCode?: unknown } | undefined;
+  return data?.code === "AUTH004" || data?.errorCode === "AUTH004";
+}
+
 async function refreshAccessToken() {
   const refreshToken = getRefreshToken();
   const tokenStateAtRequestStart = getTokenStateVersion();
@@ -59,7 +66,9 @@ async function refreshAccessToken() {
         setTokens(tokens.accessToken, tokens.refreshToken);
         return tokens;
       } catch (error) {
+        // 네트워크 오류·5xx는 일시적일 수 있으므로 토큰을 유지한다. 인증 만료(401/AUTH004)일 때만 지운다.
         if (
+          isRefreshTokenRejected(error) &&
           getTokenStateVersion() === tokenStateAtRequestStart &&
           getRefreshToken() === refreshToken
         ) {
